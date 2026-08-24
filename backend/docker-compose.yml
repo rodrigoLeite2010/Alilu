@@ -1,0 +1,16 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: alilu-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: alilu
+      POSTGRES_USER: alilu
+      POSTGRES_PASSWORD: alilu
+    ports:
+      - "5432:5432"
+    volumes:
+      - alilu_postgres_data:/var/lib/postgresql/data
+
+volumes:
+  alilu_postgres_data:

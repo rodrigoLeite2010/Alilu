@@ -1,0 +1,50 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{8808F48B-51DC-450A-AC49-263A60332F18}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Api", "Api", "{C7071999-393A-427C-834B-94B3609A4530}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Alilu.Api", "src\Api\Alilu.Api\Alilu.Api.csproj", "{EB364B7C-4E93-4BAA-85DB-27C1986DD0F6}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "BuildingBlocks", "BuildingBlocks", "{E5A9BF39-F569-4069-B059-F4869D91E676}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Alilu.BuildingBlocks.Domain", "src\BuildingBlocks\Alilu.BuildingBlocks.Domain\Alilu.BuildingBlocks.Domain.csproj", "{363F9E8C-1B1D-4C82-B58B-9C5E84B07296}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Infrastructure", "Infrastructure", "{E3543777-9F9F-42E8-800F-D85EE74C310B}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Alilu.Infrastructure", "src\Infrastructure\Alilu.Infrastructure\Alilu.Infrastructure.csproj", "{A0C60E46-23D9-42A9-9103-881547B8961A}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{EB364B7C-4E93-4BAA-85DB-27C1986DD0F6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{EB364B7C-4E93-4BAA-85DB-27C1986DD0F6}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{EB364B7C-4E93-4BAA-85DB-27C1986DD0F6}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{EB364B7C-4E93-4BAA-85DB-27C1986DD0F6}.Release|Any CPU.Build.0 = Release|Any CPU
+		{363F9E8C-1B1D-4C82-B58B-9C5E84B07296}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{363F9E8C-1B1D-4C82-B58B-9C5E84B07296}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{363F9E8C-1B1D-4C82-B58B-9C5E84B07296}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{363F9E8C-1B1D-4C82-B58B-9C5E84B07296}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A0C60E46-23D9-42A9-9103-881547B8961A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A0C60E46-23D9-42A9-9103-881547B8961A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A0C60E46-23D9-42A9-9103-881547B8961A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A0C60E46-23D9-42A9-9103-881547B8961A}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{C7071999-393A-427C-834B-94B3609A4530} = {8808F48B-51DC-450A-AC49-263A60332F18}
+		{EB364B7C-4E93-4BAA-85DB-27C1986DD0F6} = {C7071999-393A-427C-834B-94B3609A4530}
+		{E5A9BF39-F569-4069-B059-F4869D91E676} = {8808F48B-51DC-450A-AC49-263A60332F18}
+		{363F9E8C-1B1D-4C82-B58B-9C5E84B07296} = {E5A9BF39-F569-4069-B059-F4869D91E676}
+		{E3543777-9F9F-42E8-800F-D85EE74C310B} = {8808F48B-51DC-450A-AC49-263A60332F18}
+		{A0C60E46-23D9-42A9-9103-881547B8961A} = {E3543777-9F9F-42E8-800F-D85EE74C310B}
+	EndGlobalSection
+EndGlobal

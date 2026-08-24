@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\BuildingBlocks\Alilu.BuildingBlocks.Domain\Alilu.BuildingBlocks.Domain.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!--
+      Pacotes de acesso a dados (PostgreSQL via EF Core).
+      Este container de build não tem acesso à internet/NuGet.org,
+      então a restauração destes pacotes específicos deve ser feita
+      na máquina do desenvolvedor (`dotnet restore`), onde funcionará
+      normalmente. Veja o README para detalhes.
+    -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="8.0.*" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="8.0.*" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.*">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+</Project>

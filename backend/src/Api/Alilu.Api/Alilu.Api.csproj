@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Infrastructure\Alilu.Infrastructure\Alilu.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\BuildingBlocks\Alilu.BuildingBlocks.Domain\Alilu.BuildingBlocks.Domain.csproj" />
+  </ItemGroup>
+
+  
+
+</Project>
