@@ -1,24 +1,29 @@
 # Módulo: Administration
 
-> Este módulo ainda **não foi implementado**. Esta pasta reserva o lugar
-> dele na arquitetura Modular Monolith do ALILU, conforme definido no
-> PROMPT 00 (Fundação).
+> Os três projetos deste módulo (Domain/Application/Infrastructure) já
+> existem e compilam, mas **nenhuma entidade ou regra de negócio foi
+> implementada ainda** — isso está reservado para uma etapa futura
+> (ver PROMPT 01, Etapa 01: Backend modular).
 
 ## Responsabilidade
 
 Administração do condomínio: gestão de moradores, profissionais habilitados, e visão geral operacional.
 
-## Estrutura planejada
-
-Quando este módulo for construído (em uma próxima etapa), ele seguirá a
-separação em três camadas, cada uma em seu próprio projeto .csproj:
+## Estrutura
 
 ```
 Administration/
-├── Alilu.Modules.Administration.Domain/          # Entidades, Value Objects, regras de negócio
-├── Alilu.Modules.Administration.Application/     # Casos de uso, DTOs, orquestração
-└── Alilu.Modules.Administration.Infrastructure/  # EF Core (IEntityTypeConfiguration), repositórios, integrações
+├── Domain/Alilu.Modules.Administration.Domain.csproj                  # Entidades, Value Objects, regras de negócio
+├── Application/Alilu.Modules.Administration.Application.csproj        # Casos de uso, DTOs, orquestração
+└── Infrastructure/Alilu.Modules.Administration.Infrastructure.csproj  # EF Core (IEntityTypeConfiguration), repositórios, integrações
 ```
+
+## Regras de dependência (já aplicadas nos .csproj, verificadas por `scripts/check-references.py`)
+
+- **Domain** referencia apenas `Alilu.Shared` — não depende de Application, Infrastructure ou de nenhum outro módulo.
+- **Application** referencia apenas o **Domain deste mesmo módulo**.
+- **Infrastructure** referencia o Domain e a Application **deste mesmo módulo**, e implementará a persistência (EF Core/Npgsql) e integrações quando o módulo for construído.
+- Nenhum projeto deste módulo referencia outro módulo, nem o `Alilu.Api`.
 
 Regras de negócio ficam no Domain/Application. Controllers finos apenas
 traduzem requisições HTTP em chamadas para a Application. Entidades nunca

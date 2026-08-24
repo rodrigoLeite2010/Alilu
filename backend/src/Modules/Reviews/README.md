@@ -1,24 +1,29 @@
 # Módulo: Reviews
 
-> Este módulo ainda **não foi implementado**. Esta pasta reserva o lugar
-> dele na arquitetura Modular Monolith do ALILU, conforme definido no
-> PROMPT 00 (Fundação).
+> Os três projetos deste módulo (Domain/Application/Infrastructure) já
+> existem e compilam, mas **nenhuma entidade ou regra de negócio foi
+> implementada ainda** — isso está reservado para uma etapa futura
+> (ver PROMPT 01, Etapa 01: Backend modular).
 
 ## Responsabilidade
 
 Avaliações de serviços realizados, associadas a um agendamento concluído.
 
-## Estrutura planejada
-
-Quando este módulo for construído (em uma próxima etapa), ele seguirá a
-separação em três camadas, cada uma em seu próprio projeto .csproj:
+## Estrutura
 
 ```
 Reviews/
-├── Alilu.Modules.Reviews.Domain/          # Entidades, Value Objects, regras de negócio
-├── Alilu.Modules.Reviews.Application/     # Casos de uso, DTOs, orquestração
-└── Alilu.Modules.Reviews.Infrastructure/  # EF Core (IEntityTypeConfiguration), repositórios, integrações
+├── Domain/Alilu.Modules.Reviews.Domain.csproj                  # Entidades, Value Objects, regras de negócio
+├── Application/Alilu.Modules.Reviews.Application.csproj        # Casos de uso, DTOs, orquestração
+└── Infrastructure/Alilu.Modules.Reviews.Infrastructure.csproj  # EF Core (IEntityTypeConfiguration), repositórios, integrações
 ```
+
+## Regras de dependência (já aplicadas nos .csproj, verificadas por `scripts/check-references.py`)
+
+- **Domain** referencia apenas `Alilu.Shared` — não depende de Application, Infrastructure ou de nenhum outro módulo.
+- **Application** referencia apenas o **Domain deste mesmo módulo**.
+- **Infrastructure** referencia o Domain e a Application **deste mesmo módulo**, e implementará a persistência (EF Core/Npgsql) e integrações quando o módulo for construído.
+- Nenhum projeto deste módulo referencia outro módulo, nem o `Alilu.Api`.
 
 Regras de negócio ficam no Domain/Application. Controllers finos apenas
 traduzem requisições HTTP em chamadas para a Application. Entidades nunca

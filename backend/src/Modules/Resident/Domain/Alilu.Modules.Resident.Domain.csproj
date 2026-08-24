@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\Shared\Alilu.Shared\Alilu.Shared.csproj" />
+  </ItemGroup>
+
+  
+
+</Project>

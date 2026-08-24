@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
-    <ProjectReference Include="..\..\BuildingBlocks\Alilu.BuildingBlocks.Domain\Alilu.BuildingBlocks.Domain.csproj" />
+    <ProjectReference Include="..\..\Shared\Alilu.Shared\Alilu.Shared.csproj" />
   </ItemGroup>
 
   <ItemGroup>

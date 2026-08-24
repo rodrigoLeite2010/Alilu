@@ -6,9 +6,11 @@ Fluxo inicial (MVP): **morador → encontra diarista → verifica disponibilidad
 
 Condomínio de validação: **Monte Carlo**. O sistema nasce preparado para múltiplos condomínios.
 
-> Status: **Etapa 0 — Fundação do projeto.** Nenhum módulo de negócio foi
-> implementado ainda (ver `backend/src/Modules/*/README.md`). Este prompt
-> apenas prepara solução, camadas e infraestrutura base.
+> Status: **Etapa 01 — Backend modular.** Todos os 9 módulos já existem
+> como projetos .csproj (Domain/Application/Infrastructure), com as regras
+> de dependência entre camadas aplicadas e verificadas — mas **nenhuma
+> entidade ou regra de negócio foi implementada ainda** (ver
+> `backend/ARCHITECTURE.md` e `backend/src/Modules/*/README.md`).
 
 ## Stack
 
@@ -18,10 +20,12 @@ Condomínio de validação: **Monte Carlo**. O sistema nasce preparado para múl
 ## Arquitetura
 
 Modular Monolith (não microserviços). Uma única API organizada em módulos
-independentes, cada um com separação entre Domain, Application e
-Infrastructure. Módulos planejados: Identity, Condominium, Resident,
-Professional, Scheduling, Reviews, Recommendations, Notifications,
-Administration.
+independentes, cada um em três projetos .csproj (Domain, Application,
+Infrastructure). Módulos: Identity, Condominium, Resident, Professional,
+Scheduling, Reviews, Recommendations, Notifications, Administration.
+
+Detalhes das regras de dependência entre camadas/módulos, diagrama e
+verificação automática: ver [`backend/ARCHITECTURE.md`](backend/ARCHITECTURE.md).
 
 ## Estrutura de pastas
 
@@ -35,20 +39,20 @@ Alilu/
 │   └── src/
 │       ├── Api/
 │       │   └── Alilu.Api/           # host ASP.NET Core (composição raiz)
-│       ├── BuildingBlocks/
-│       │   └── Alilu.BuildingBlocks.Domain/   # Entity, AggregateRoot, ValueObject, DomainException
+│       ├── Shared/
+│       │   └── Alilu.Shared/                  # Entity, AggregateRoot, ValueObject, DomainException
 │       ├── Infrastructure/
 │       │   └── Alilu.Infrastructure/          # DbContext raiz, configuração do EF Core + Npgsql
-│       └── Modules/                 # um README por módulo, aguardando implementação
-│           ├── Identity/
-│           ├── Condominium/
-│           ├── Resident/
-│           ├── Professional/
-│           ├── Scheduling/
-│           ├── Reviews/
-│           ├── Recommendations/
-│           ├── Notifications/
-│           └── Administration/
+│       └── Modules/                 # Domain/Application/Infrastructure por módulo (sem entidades ainda)
+│           ├── Identity/{Domain,Application,Infrastructure}/
+│           ├── Condominium/{Domain,Application,Infrastructure}/
+│           ├── Resident/{Domain,Application,Infrastructure}/
+│           ├── Professional/{Domain,Application,Infrastructure}/
+│           ├── Scheduling/{Domain,Application,Infrastructure}/
+│           ├── Reviews/{Domain,Application,Infrastructure}/
+│           ├── Recommendations/{Domain,Application,Infrastructure}/
+│           ├── Notifications/{Domain,Application,Infrastructure}/
+│           └── Administration/{Domain,Application,Infrastructure}/
 ├── mobile/                          # app Expo (React Native + TypeScript)
 └── docs/
 ```
@@ -81,10 +85,12 @@ nesta etapa:
 > container de build não tem acesso à internet/NuGet.org, então os pacotes
 > `Microsoft.EntityFrameworkCore`, `Npgsql.EntityFrameworkCore.PostgreSQL` e
 > `Microsoft.EntityFrameworkCore.Design` (usados em `Alilu.Infrastructure`)
-> não puderam ser restaurados nem compilados aqui. O projeto
-> `Alilu.BuildingBlocks.Domain` (sem dependências externas) foi compilado
-> com sucesso. Na sua máquina, com internet normal, `dotnet restore` e
-> `dotnet build` devem funcionar sem nenhuma alteração de código.
+> não puderam ser restaurados nem compilados aqui. Todos os outros 28
+> projetos da solução (`Alilu.Shared` + os 27 projetos de módulo, que não
+> têm nenhum pacote NuGet externo) foram compilados aqui com sucesso. Na
+> sua máquina, com internet normal, `dotnet restore` e `dotnet build`
+> devem funcionar sem nenhuma alteração de código — e já funcionaram após
+> a Etapa 00.
 
 ## Como rodar o mobile (Expo)
 
@@ -117,5 +123,5 @@ abrir em um emulador Android/iOS.
 
 ## Próxima etapa
 
-Conforme o PROMPT 00, esta etapa **não avança para o módulo Identity**.
-Aguardando autorização para a próxima etapa.
+Conforme o PROMPT 01, esta etapa **não implementa o módulo Identity nem o
+módulo Condominium**. Aguardando autorização para a próxima etapa.

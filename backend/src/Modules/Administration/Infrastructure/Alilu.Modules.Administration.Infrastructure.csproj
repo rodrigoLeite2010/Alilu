@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\Domain\Alilu.Modules.Administration.Domain.csproj" />
+    <ProjectReference Include="..\Application\Alilu.Modules.Administration.Application.csproj" />
+  </ItemGroup>
+
+  
+
+</Project>

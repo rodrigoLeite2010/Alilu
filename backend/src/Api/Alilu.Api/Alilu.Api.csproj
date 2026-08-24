@@ -2,7 +2,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\Infrastructure\Alilu.Infrastructure\Alilu.Infrastructure.csproj" />
-    <ProjectReference Include="..\..\BuildingBlocks\Alilu.BuildingBlocks.Domain\Alilu.BuildingBlocks.Domain.csproj" />
+    <ProjectReference Include="..\..\Shared\Alilu.Shared\Alilu.Shared.csproj" />
   </ItemGroup>
 
   
