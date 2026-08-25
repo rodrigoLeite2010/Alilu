@@ -22,6 +22,10 @@
     <!-- Módulo Resident (PROMPT 05) — mesmo raciocínio do módulo Identity acima. -->
     <ProjectReference Include="..\..\Modules\Resident\Application\Alilu.Modules.Resident.Application.csproj" />
     <ProjectReference Include="..\..\Modules\Resident\Infrastructure\Alilu.Modules.Resident.Infrastructure.csproj" />
+
+    <!-- Módulo Professional (PROMPT 06) — mesmo raciocínio do módulo Identity acima. -->
+    <ProjectReference Include="..\..\Modules\Professional\Application\Alilu.Modules.Professional.Application.csproj" />
+    <ProjectReference Include="..\..\Modules\Professional\Infrastructure\Alilu.Modules.Professional.Infrastructure.csproj" />
   </ItemGroup>
 
   <ItemGroup>

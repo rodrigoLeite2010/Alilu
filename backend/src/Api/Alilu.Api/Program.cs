@@ -5,6 +5,8 @@ using Alilu.Infrastructure;
 using Alilu.Modules.Condominium.Infrastructure;
 using Alilu.Modules.Condominium.Infrastructure.Seed;
 using Alilu.Modules.Identity.Infrastructure;
+using Alilu.Modules.Professional.Infrastructure;
+using Alilu.Modules.Professional.Infrastructure.Seed;
 using Alilu.Modules.Resident.Infrastructure;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
@@ -30,6 +32,13 @@ builder.Services.AddCondominiumModule(builder.Configuration);
 // desenvolvimento nesta etapa (o vínculo nasce do fluxo real: resgatar um
 // convite ou solicitar acesso).
 builder.Services.AddResidentModule(builder.Configuration);
+
+// Módulo Professional (PROMPT 06): profissionais/diaristas — perfil,
+// categorias de serviço e vínculo profissional↔condomínio
+// (ProfessionalCondominium). Com seed de desenvolvimento das sete
+// categorias iniciais (ver ServiceCategorySeeder) — nenhum profissional/
+// usuário fictício é criado, mesma honestidade de escopo do CondominiumSeeder.
+builder.Services.AddProfessionalModule(builder.Configuration);
 
 builder.Services
     .AddControllers()
@@ -82,6 +91,11 @@ if (app.Environment.IsDevelopment())
     using var seedScope = app.Services.CreateScope();
     var condominiumSeeder = seedScope.ServiceProvider.GetRequiredService<ICondominiumSeeder>();
     await condominiumSeeder.SeedAsync();
+
+    // Seed de desenvolvimento (PROMPT 06): sete categorias iniciais de
+    // serviço. Também idempotente (ver ServiceCategorySeeder).
+    var serviceCategorySeeder = seedScope.ServiceProvider.GetRequiredService<IServiceCategorySeeder>();
+    await serviceCategorySeeder.SeedAsync();
 }
 
 // Endpoint de verificação de saúde da aplicação, útil para orquestração
@@ -91,7 +105,7 @@ app.MapGet("/health", () => Results.Ok(new { status = "healthy" }));
 app.MapGet("/", () => Results.Ok(new
 {
     application = "ALILU API",
-    status = "Identity (autenticação), Condominium (condomínios/unidades/convites) e Resident (validação do morador) implementados",
+    status = "Identity (autenticação), Condominium (condomínios/unidades/convites), Resident (validação do morador) e Professional (profissionais/diaristas) implementados",
 }));
 
 app.Run();

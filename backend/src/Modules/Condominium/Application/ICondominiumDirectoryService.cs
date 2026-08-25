@@ -28,4 +28,14 @@ public interface ICondominiumDirectoryService
     /// <see cref="UnitDoesNotBelongToCondominiumException"/>).
     /// </summary>
     Task ValidateUnitAsync(Guid condominiumId, Guid unitId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Confirma que <paramref name="condominiumId"/> existe — chamada pela
+    /// Api antes de deixar o módulo Professional criar um vínculo
+    /// profissional↔condomínio (PROMPT 06, "solicitar atendimento em
+    /// condomínios"; mesma desconfiança de <see cref="ValidateUnitAsync"/>,
+    /// só que sem unidade envolvida). Lança
+    /// <see cref="CondominiumNotFoundException"/> quando não encontrado.
+    /// </summary>
+    Task ValidateCondominiumAsync(Guid condominiumId, CancellationToken cancellationToken = default);
 }

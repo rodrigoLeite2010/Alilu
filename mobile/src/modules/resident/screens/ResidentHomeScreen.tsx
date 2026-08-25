@@ -1,3 +1,4 @@
+import { router } from 'expo-router';
 import { View } from 'react-native';
 
 import { AppButton, AppText, Screen } from '../../../components';
@@ -40,8 +41,12 @@ export function ResidentHomeScreen({ membership }: ResidentHomeScreenProps) {
           </AppText>
         </View>
 
+        <View style={{ marginTop: spacing.lg, gap: spacing.sm }}>
+          <AppButton label="Buscar profissional" onPress={() => router.push('/(resident)/professional-categories')} />
+        </View>
+
         <AppText variant="body" color="secondary" style={{ marginTop: spacing.lg }}>
-          ResidentStack — demais telas (buscar profissional, agendamentos, avaliações) ainda não implementadas.
+          ResidentStack — demais telas (agendamentos, avaliações) ainda não implementadas.
         </AppText>
 
         <View style={{ marginTop: spacing.xl }}>

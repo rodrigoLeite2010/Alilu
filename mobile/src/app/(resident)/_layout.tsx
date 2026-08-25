@@ -5,9 +5,10 @@ import { Stack } from 'expo-router';
  * `index` decide (com base no vínculo do usuário — ver
  * `useMyMemberships`) se mostra a área do morador (ResidentHome) ou o
  * fluxo de validação (choose-condominium/enter-invitation-code/
- * request-access/waiting-approval — "acesso sem vínculo"). As demais
- * telas do morador (buscar profissional, agendamentos, avaliações) ainda
- * não foram implementadas.
+ * request-access/waiting-approval — "acesso sem vínculo"). Desde o PROMPT
+ * 06, ResidentHomeScreen também dá acesso a "buscar profissional"
+ * (professional-categories/professionals/professionals/[id], módulo
+ * Professional). Agendamentos/avaliações ainda não foram implementados.
  */
 export default function ResidentLayout() {
   return (
@@ -17,6 +18,9 @@ export default function ResidentLayout() {
       <Stack.Screen name="enter-invitation-code" />
       <Stack.Screen name="request-access" />
       <Stack.Screen name="waiting-approval" />
+      <Stack.Screen name="professional-categories" />
+      <Stack.Screen name="professionals" />
+      <Stack.Screen name="professionals/[id]" />
     </Stack>
   );
 }

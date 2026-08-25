@@ -10,18 +10,19 @@ namespace Alilu.Api.Middleware;
 /// MembershipExceptions.cs) já nasceu pensada para virar um status HTTP
 /// específico — este middleware só faz esse mapeamento.
 ///
-/// NOTA (PROMPT 05): os módulos Condominium e Resident cada um define seu
-/// próprio <c>InsufficientPermissionsException</c> (mesmo nome, namespaces
-/// diferentes — nenhum módulo pode referenciar o outro, então não têm
-/// como compartilhar um tipo comum) — por isso, abaixo, essas duas linhas
-/// usam o nome totalmente qualificado em vez de um `using` para cada
-/// módulo, o que causaria ambiguidade de nome no `switch`.
+/// NOTA (PROMPT 05/06): os módulos Condominium, Resident e Professional
+/// cada um define seu próprio <c>InsufficientPermissionsException</c>
+/// (mesmo nome, namespaces diferentes — nenhum módulo pode referenciar o
+/// outro, então não têm como compartilhar um tipo comum) — por isso,
+/// abaixo, essas linhas usam o nome totalmente qualificado em vez de um
+/// `using` para cada módulo, o que causaria ambiguidade de nome no
+/// `switch`.
 ///
-/// Com três módulos implementados (Identity, Condominium, Resident), o
-/// mapa direto por tipo já está bem grande — se um quarto módulo repetir o
-/// mesmo padrão, vale extrair um contrato comum em Alilu.Shared (ex.: uma
-/// interface `IHasHttpStatusCode`) em vez de continuar empilhando `case`s
-/// aqui.
+/// Com quatro módulos implementados (Identity, Condominium, Resident,
+/// Professional), o mapa direto por tipo já está bem grande — se um quinto
+/// módulo repetir o mesmo padrão, vale extrair um contrato comum em
+/// Alilu.Shared (ex.: uma interface `IHasHttpStatusCode`) em vez de
+/// continuar empilhando `case`s aqui.
 /// </summary>
 public sealed class ExceptionHandlingMiddleware(RequestDelegate next, ILogger<ExceptionHandlingMiddleware> logger)
 {
@@ -86,6 +87,18 @@ public sealed class ExceptionHandlingMiddleware(RequestDelegate next, ILogger<Ex
         Alilu.Modules.Resident.Application.MembershipNotPendingException => (StatusCodes.Status409Conflict, exception.Message),
         Alilu.Modules.Resident.Application.MembershipNotActiveException => (StatusCodes.Status409Conflict, exception.Message),
         Alilu.Modules.Resident.Application.InsufficientPermissionsException => (StatusCodes.Status403Forbidden, exception.Message),
+
+        // Módulo Professional (PROMPT 06).
+        Alilu.Modules.Professional.Application.ProfessionalNotFoundException => (StatusCodes.Status404NotFound, exception.Message),
+        Alilu.Modules.Professional.Application.ProfessionalAlreadyExistsException => (StatusCodes.Status409Conflict, exception.Message),
+        Alilu.Modules.Professional.Application.ServiceCategoryNotFoundException => (StatusCodes.Status404NotFound, exception.Message),
+        Alilu.Modules.Professional.Application.ServiceCategoryInactiveException => (StatusCodes.Status400BadRequest, exception.Message),
+        Alilu.Modules.Professional.Application.DuplicateProfessionalServiceException => (StatusCodes.Status409Conflict, exception.Message),
+        Alilu.Modules.Professional.Application.ProfessionalServiceNotFoundException => (StatusCodes.Status404NotFound, exception.Message),
+        Alilu.Modules.Professional.Application.DuplicateProfessionalCondominiumException => (StatusCodes.Status409Conflict, exception.Message),
+        Alilu.Modules.Professional.Application.ProfessionalCondominiumNotFoundException => (StatusCodes.Status404NotFound, exception.Message),
+        Alilu.Modules.Professional.Application.ProfessionalCondominiumNotPendingException => (StatusCodes.Status409Conflict, exception.Message),
+        Alilu.Modules.Professional.Application.InsufficientPermissionsException => (StatusCodes.Status403Forbidden, exception.Message),
 
         UnauthorizedAccessException => (StatusCodes.Status401Unauthorized, exception.Message),
         DomainException => (StatusCodes.Status400BadRequest, exception.Message),

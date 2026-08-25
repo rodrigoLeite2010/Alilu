@@ -1,20 +1,35 @@
 # Módulo: professional
 
-> Nenhuma tela de negócio foi implementada ainda — pasta reservada
-> conforme PROMPT 02 (Etapa 02: React Native). A navegação (rotas
-> placeholder) já existe em `src/app`; a lógica e os componentes deste
-> módulo virão em uma etapa futura.
+> Implementado na **Etapa 06** (PROMPT 06) — perfil profissional,
+> categorias de serviço e "solicitar atendimento em condomínios". Ver a
+> seção "Etapa 06 — módulo Professional" em `backend/ARCHITECTURE.md`
+> para o design completo (backend + mobile). Agenda/disponibilidade/
+> atendimentos ainda **não** foram implementados ("Ainda NÃO criar agenda"
+> — PROMPT 06).
 
 ## Responsabilidade
 
-Telas voltadas ao profissional: agenda, disponibilidade, atendimentos.
+Quatro telas, divididas entre os dois papéis:
 
-## Convenção (quando implementado)
+- **`ProfessionalEditScreen`** (profissional) — "editar perfil; selecionar
+  serviços" + "solicitar atendimento em condomínios". É a própria tela
+  inicial do profissional (`app/(professional)/index.tsx` é o gate: sem
+  perfil ainda → formulário de criação; com perfil → o perfil completo,
+  mesmo padrão do gate de `(resident)/index.tsx`).
+- **`ServiceCategoryScreen`** / **`ProfessionalListScreen`** /
+  **`ProfessionalProfileScreen`** (morador) — "listar profissionais;
+  filtrar categoria; visualizar perfil". Ficam roteadas em
+  `app/(resident)/` (não em `app/(professional)/`), porque quem as usa é
+  o morador — ver `ResidentHomeScreen`, botão "Buscar profissional".
+
+## Estrutura
 
 ```
 professional/
-├── components/   # componentes específicos deste módulo
-├── hooks/        # hooks específicos (ex.: useAgendamentos)
-├── screens/      # telas (a rota em src/app apenas importa daqui)
-└── types.ts      # tipos específicos do domínio
+├── types.ts       # espelha os DTOs do backend (Dtos.cs, enums)
+├── api.ts         # chamadas HTTP cruas (sem React) — profileApi/directoryApi/condominiumDirectoryApi
+├── hooks.ts        # TanStack Query sobre api.ts
+├── schemas.ts      # validação de formulário (Zod) — perfil
+├── screens/         # as quatro telas listadas acima
+└── index.ts         # barrel export
 ```

@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using Alilu.Modules.Condominium.Application;
+using Alilu.Modules.Professional.Application;
 using Alilu.Modules.Resident.Application;
 
 namespace Alilu.Api.Controllers;
@@ -33,6 +34,19 @@ public static class ClaimsPrincipalExtensions
         var roleClaim = user.FindFirstValue(ClaimTypes.Role);
 
         if (roleClaim is null || !Enum.TryParse<ResidentRequesterRole>(roleClaim, out var role))
+        {
+            throw new UnauthorizedAccessException("O token não contém um papel de usuário válido.");
+        }
+
+        return role;
+    }
+
+    /// <summary>Mesmo claim de papel acima, só que como <see cref="ProfessionalRequesterRole"/> — usado pelos controllers do módulo Professional (PROMPT 06).</summary>
+    public static ProfessionalRequesterRole GetProfessionalRequesterRole(this ClaimsPrincipal user)
+    {
+        var roleClaim = user.FindFirstValue(ClaimTypes.Role);
+
+        if (roleClaim is null || !Enum.TryParse<ProfessionalRequesterRole>(roleClaim, out var role))
         {
             throw new UnauthorizedAccessException("O token não contém um papel de usuário válido.");
         }

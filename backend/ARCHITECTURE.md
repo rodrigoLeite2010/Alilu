@@ -671,3 +671,206 @@ src/Modules/Resident/Application.Tests`, `dotnet test
 src/Modules/Condominium/Application.Tests` e os comandos de migration (ver
 seção "PostgreSQL / EF Core" acima) na sua máquina para a verificação
 completa.
+
+## Etapa 06 — módulo Professional (profissionais e diaristas)
+
+Quarto módulo de negócio. "Professional NÃO é automaticamente morador"
+(PROMPT 06) — este módulo não tem nenhuma relação com `CondominiumMembership`
+(módulo Resident): um mesmo usuário poderia, em tese, ter os dois papéis
+(morador e profissional), mas um não implica o outro. Agenda/disponibilidade/
+atendimentos continuam **fora de escopo** ("Ainda NÃO criar agenda" —
+PROMPT 06).
+
+### Entidades (`Alilu.Modules.Professional.Domain`)
+
+Quatro raízes de agregado, exatamente os campos pedidos no prompt, cada
+uma **sem navegação/FK** para entidades de outro tipo/módulo — mesma
+decisão já usada em `CondominiumUnit`/`CondominiumMembership`: só Ids como
+valores simples, checados pela Application antes de persistir e reforçados
+por índices em Infrastructure.
+
+- **`Professional`** — perfil profissional de um usuário (`UserId`,
+  `DisplayName`, `Description`, `Phone`, `PhotoUrl`, `Status`, `CreatedAt`,
+  `UpdatedAt`). `ProfessionalStatus`: `Active`/`Inactive`. Um usuário só
+  pode ter um perfil (índice único em `UserId`).
+- **`ServiceCategory`** — categoria de serviço (`Name`, `Description`,
+  `Active`). Lista **global**, não pertence a nenhum profissional/
+  condomínio — as sete categorias iniciais (Diarista, Jardineiro,
+  Piscineiro, Eletricista, Encanador, Pedreiro, Pintor) são inseridas por
+  `ServiceCategorySeeder` (dev-only, idempotente por nome — mesmo padrão
+  de `CondominiumSeeder`); não há endpoint de CRUD de categoria nesta
+  etapa (não pedido pelo prompt).
+- **`ProfessionalService`** — vínculo profissional↔categoria ("selecionar
+  serviços"). Um profissional pode ter vários. Índice único **filtrado**
+  em `(ProfessionalId, ServiceCategoryId)` só para `Active = TRUE` —
+  permite readicionar a mesma categoria depois de removida.
+- **`ProfessionalCondominium`** — "significa que o profissional atende
+  aquele condomínio" (definição do próprio prompt). `ProfessionalCondominiumStatus`:
+  `Pending`/`Active`/`Rejected`/`Inactive`. `ProfessionalCondominiumSource`:
+  `AdminApproved`/`ResidentRecommended`/`CompletedService`/`ProfessionalRequested`
+  (os quatro valores exatos pedidos no prompt). Dois construtores
+  estáticos: `RequestService` (o profissional solicita atendimento — nasce
+  `Pending`, `Source = ProfessionalRequested`) e `CreateActive` (um
+  administrador vincula diretamente, já `Active` — não aceita
+  `ProfessionalRequested` como origem, esse caminho sempre nasce
+  `Pending`). Índice único filtrado em `(ProfessionalId, CondominiumId)`
+  só para `Pending`/`Active` — mesmo padrão de `CondominiumMembership`.
+
+**Nota sobre `ResidentRecommended`/`CompletedService`:** o prompt pediu os
+quatro valores de `Source`, mas só `ProfessionalRequested` (self-service,
+"solicitar atendimento em condomínios") tem, nesta etapa, um caminho de
+criação real exposto pela Api. `ResidentRecommended` depende do módulo
+Recommendations e `CompletedService` dos módulos Scheduling/Reviews —
+nenhum dos dois existe ainda. Os valores já estão no enum (o tipo já nasce
+"pronto" para quando esses módulos existirem), mas nenhum caso de uso desta
+etapa os produz — mesmo espírito de deixar uma regra explicitamente
+adiada, como a Etapa 05 fez com "morador principal por unidade".
+
+### Três interfaces de Application (self-service / diretório público / admin)
+
+Um padrão a mais que o das Etapas 04/05 (que tinham duas): aqui há também
+um diretório público **sem dono** (não é "do profissional" nem "do
+morador" — qualquer autenticado consulta).
+
+- **`IProfessionalProfileService`** (self-service) — sempre restrito ao
+  próprio `userId` autenticado, nunca recebe papel para checar ("seguro
+  por construção", mesmo padrão de `IMembershipService`). Cobre perfil
+  (criar/editar/consultar), serviços (adicionar/remover — desativação
+  lógica, não exclusão) e `RequestCondominiumAsync` ("solicitar
+  atendimento em condomínios").
+- **`IProfessionalDirectoryService`** (público, sem checagem de papel) —
+  usado pelo morador: `ListCategoriesAsync`, `ListProfessionalsAsync`
+  (com filtro opcional de categoria) e `GetProfessionalProfileAsync`. Só
+  devolve perfis `Active` — um perfil desativado não aparece na busca nem
+  é encontrado por Id direto.
+- **`IProfessionalAdministrationService`** (admin, `EnsureIsAdmin(ProfessionalRequesterRole)`)
+  — fila de solicitações de atendimento pendentes + aprovar/rejeitar.
+  Contrapartida natural de `RequestCondominiumAsync`: sem isso, toda
+  solicitação ficaria pendente para sempre — mesmo raciocínio que já
+  justificou `IMembershipAdministrationService` na Etapa 05 para o FLUXO 2.
+
+`ProfessionalRequesterRole`: mesmo padrão de `ResidentRequesterRole`/
+`CondominiumRequesterRole` — tipo independente deste módulo (mesmos nomes/
+valores de `Identity.UserRole`, mas sem referenciar o módulo Identity).
+
+### O mesmo problema da Etapa 05, de novo: dois módulos que não podem se falar
+
+`RequestCondominiumAsync` recebe um `condominiumId` — e, pela mesma regra
+de segurança da Etapa 05 ("nunca confiar em Ids vindos do cliente"), esse
+Id precisa ser confirmado contra o módulo Condominium antes de o módulo
+Professional criar a associação. Só que `ICondominiumDirectoryService.ValidateUnitAsync`
+(criado na Etapa 05) exige uma unidade — aqui não há unidade nenhuma
+envolvida, só o condomínio.
+
+Solução: **estender** `ICondominiumDirectoryService` (módulo Condominium,
+Application) com `ValidateCondominiumAsync(condominiumId)` — confirma só a
+existência do condomínio, lança `CondominiumNotFoundException` quando não
+encontrado (mesma exceção que `ValidateUnitAsync` já usava, reaproveitada).
+`ProfessionalProfileController.RequestCondominium` injeta os dois serviços
+lado a lado (`ICondominiumDirectoryService` + `IProfessionalProfileService`)
+e orquestra: 1) valida o condomínio (Condominium); 2) só então cria a
+solicitação (Professional) — exatamente o mesmo papel de composição raiz
+que a Api já cumpre desde a Etapa 05.
+
+### Endpoints novos
+
+Self-service (`[Authorize]`, sempre restrito ao próprio usuário):
+
+- `GET /api/professional/profile` — meu perfil, ou `204 No Content`.
+- `POST /api/professional/profile` — criar.
+- `PUT /api/professional/profile` — editar.
+- `GET /api/professional/profile/services` — meus serviços.
+- `POST /api/professional/profile/services` — adicionar serviço.
+- `DELETE /api/professional/profile/services/{id}` — remover (desativar) serviço.
+- `GET /api/professional/profile/condominiums` — meus vínculos com condomínios.
+- `POST /api/professional/profile/condominiums` — "solicitar atendimento em condomínios".
+
+Diretório público (`[Authorize]`, qualquer autenticado):
+
+- `GET /api/directory/professionals/categories` — categorias ativas.
+- `GET /api/directory/professionals?categoryId=` — profissionais ativos, filtro opcional.
+- `GET /api/directory/professionals/{id}` — perfil de um profissional (404 se não existir/não estiver ativo).
+
+Administrativos (`[Authorize(Roles = "CondominiumAdmin,SuperAdmin")]`):
+
+- `GET /api/admin/professional-condominiums/pending`
+- `POST /api/admin/professional-condominiums/{id}/approve`
+- `POST /api/admin/professional-condominiums/{id}/reject`
+
+`ClaimsPrincipalExtensions` ganhou `GetProfessionalRequesterRole()`
+(espelha `GetResidentRequesterRole()`/`GetCondominiumRequesterRole()`);
+`GetUserId()` (Etapa 05) é reaproveitado sem alteração.
+
+`ExceptionHandlingMiddleware`: mesmo raciocínio já registrado na Etapa 05
+— `Alilu.Modules.Professional.Application.InsufficientPermissionsException`
+precisa de nome totalmente qualificado (terceiro módulo com um tipo de
+mesmo nome). Com quatro módulos agora repetindo o padrão, o comentário do
+middleware já sinaliza que uma quinta repetição deveria extrair um
+contrato comum em `Alilu.Shared`.
+
+### Mobile — `mobile/src/modules/professional/`
+
+Quatro telas pedidas pelo prompt, divididas entre os dois papéis:
+
+- **`ProfessionalEditScreen`** (profissional) — "editar perfil; selecionar
+  serviços" + "solicitar atendimento em condomínios". Serve dois modos
+  com o mesmo componente: sem perfil (`profile === null`) mostra só o
+  formulário de criação; com perfil, mostra o formulário de edição mais
+  duas seções — "Meus serviços" (um botão por categoria, alterna
+  oferece/não oferece) e "Atendo estes condomínios" (um botão "Solicitar"
+  por condomínio sem vínculo, ou o status do vínculo existente). É a
+  própria tela inicial do profissional: `app/(professional)/index.tsx` é
+  o gate (a partir de `useMyProfessionalProfile`), mesmo padrão do gate
+  de `(resident)/index.tsx` da Etapa 05 — sem perfil → formulário de
+  criação; com perfil → o perfil completo.
+- **`ServiceCategoryScreen`** (morador) — lista de categorias; escolher
+  uma navega para `ProfessionalListScreen` já filtrada; "Ver todos os
+  profissionais" pula o filtro.
+- **`ProfessionalListScreen`** (morador) — "listar profissionais; filtrar
+  categoria" (`categoryId` opcional via parâmetro de rota).
+- **`ProfessionalProfileScreen`** (morador) — "visualizar perfil"
+  (`GET /api/directory/professionals/{id}`).
+
+Roteamento: as três telas do morador ficam em `app/(resident)/`
+(`professional-categories`, `professionals`, `professionals/[id]`) —
+`ResidentHomeScreen` ganhou o botão "Buscar profissional" apontando para
+`professional-categories`, fechando o "ainda não implementadas" que a
+Etapa 05 tinha deixado registrado ali.
+
+### Testes
+
+`Professional.Application.Tests/` (novo projeto, mesmo padrão dos demais)
+— sem lista de cenários prescrita pelo prompt (diferente das Etapas 04/05),
+cobertura própria: `ProfileTests` (criar/consultar/editar, perfil
+duplicado), `ServicesTests` (adicionar/remover, categoria inativa/
+inexistente, duplicidade, readicionar depois de remover, isolamento entre
+profissionais), `CondominiumRequestTests` (solicitação nasce `Pending` com
+`Source = ProfessionalRequested`, duplicidade, condomínios diferentes não
+conflitam), `AdministrationTests` (fila pendente, aprovar, rejeitar,
+transições inválidas, autorização) e `DirectoryTests` (só ativos aparecem,
+filtro por categoria, perfil por Id, categorias só ativas).
+
+### Limitação do sandbox de build (Claude) nesta etapa
+
+Mesma limitação das Etapas 03/04/05: `Alilu.Modules.Professional.Infrastructure`,
+`Alilu.Api` e os projetos de teste xUnit não puderam ser restaurados/
+compilados aqui. O que **foi** verificado neste sandbox:
+
+- `Alilu.Modules.Professional.Domain`, `Alilu.Modules.Professional.Application`
+  e `Alilu.Modules.Condominium.Application` (com o novo `ValidateCondominiumAsync`)
+  — todos com zero dependências NuGet externas — compilam com **0
+  erros/0 warnings**.
+- Toda a lógica de negócio desta etapa foi validada rodando manualmente
+  contra fakes em memória (as mesmas implementações reais dos serviços) —
+  **33 verificações, todas passaram**, incluindo a composição com
+  `CondominiumDirectoryService.ValidateCondominiumAsync` real.
+- `python3 scripts/check-references.py` — **34 projetos, 0 violações, 0
+  ciclos**.
+- Mobile: `npx tsc --noEmit` e `npx eslint .` — **0 erros** em todo o
+  projeto (incluindo os arquivos novos desta etapa).
+
+Rode `dotnet restore && dotnet build`, `dotnet test
+src/Modules/Professional/Application.Tests` e os comandos de migration
+(`dotnet ef migrations add AddProfessionalModule --project src/Infrastructure/Alilu.Infrastructure --startup-project src/Api/Alilu.Api`,
+depois `dotnet ef database update ...`) na sua máquina para a verificação
+completa.

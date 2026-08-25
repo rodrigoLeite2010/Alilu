@@ -36,6 +36,12 @@ public sealed class CondominiumDirectoryService(
         }
     }
 
+    public async Task ValidateCondominiumAsync(Guid condominiumId, CancellationToken cancellationToken = default)
+    {
+        _ = await condominiumRepository.GetByIdAsync(condominiumId, cancellationToken)
+            ?? throw new CondominiumNotFoundException();
+    }
+
     private static CondominiumSummaryResponse ToSummary(Domain.Condominium condominium) =>
         new(condominium.Id, condominium.Name, condominium.City, condominium.State);
 

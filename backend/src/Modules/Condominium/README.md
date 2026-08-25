@@ -19,6 +19,11 @@ inicial: Condomínio Monte Carlo.
   e `ICondominiumDirectoryService` (ver ARCHITECTURE.md, seção "Etapa 05")
   — mas continua sem saber nada sobre `CondominiumMembership` (que é do
   módulo Resident); é a Api (composição raiz) quem liga os dois.
+- Nenhum vínculo profissional↔condomínio — "o profissional atende aquele
+  condomínio" é responsabilidade do módulo Professional (Etapa 06), que
+  usa `ICondominiumDirectoryService.ValidateCondominiumAsync` (ver
+  ARCHITECTURE.md, seção "Etapa 06") só para confirmar que o condomínio
+  existe antes de criar o vínculo — mesmo papel de composição raiz da Api.
 - Nenhum envio real de e-mail/WhatsApp do código do convite — o código
   bruto é devolvido uma única vez na resposta de criação do convite (ver
   `CondominiumInvitationCreatedResponse`), para o administrador repassar
@@ -63,3 +68,8 @@ e `CondominiumDirectoryController` em `Alilu.Api`.
 
 - `GET /api/directory/condominiums` — condomínios ativos
 - `GET /api/directory/condominiums/{condominiumId}/units` — unidades ativas de um condomínio
+
+`ICondominiumDirectoryService.ValidateCondominiumAsync` (Etapa 06) não tem
+endpoint próprio — é chamado internamente pela Api
+(`ProfessionalProfileController.RequestCondominium`, módulo Professional)
+antes de criar um vínculo profissional↔condomínio.
