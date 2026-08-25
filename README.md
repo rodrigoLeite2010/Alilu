@@ -105,6 +105,27 @@ npx expo start
 Escaneie o QR code com o Expo Go, ou pressione `a`/`i` no terminal para
 abrir em um emulador Android/iOS.
 
+> **Nota:** o projeto usa um `.npmrc` com `legacy-peer-deps=true` — algumas
+> dependências transitivas do `expo-router` (suporte web) ainda têm
+> conflitos de peer dependency não resolvidos pelo ecossistema. Isso é
+> aplicado automaticamente pelo `npm install`, nenhuma flag extra é
+> necessária.
+
+**Stack de navegação e arquitetura (Etapa 02):** Expo Router (rotas em
+`src/app`), com 4 stacks preparados — `(auth)`, `(resident)`,
+`(professional)`, `(administration)` — hoje só com telas placeholder.
+Arquitetura preparada (instalada, sem uso de negócio ainda) para TanStack
+Query, Axios, Zustand, React Hook Form + Zod, Expo Secure Store e Expo
+Notifications. Detalhes em [`mobile/src/README.md`](mobile/src/README.md).
+
+Scripts disponíveis:
+
+```bash
+npm run lint        # ESLint (eslint-config-expo)
+npm run typecheck    # tsc --noEmit
+npm start            # expo start
+```
+
 ## Banco de dados
 
 - PostgreSQL, identificadores em UUID, datas armazenadas em UTC.
