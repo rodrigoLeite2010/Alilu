@@ -3,8 +3,38 @@
   <ItemGroup>
     <ProjectReference Include="..\Domain\Alilu.Modules.Identity.Domain.csproj" />
     <ProjectReference Include="..\Application\Alilu.Modules.Identity.Application.csproj" />
+    <!--
+      Referencia o Alilu.Infrastructure da raiz para usar o AliluDbContext
+      (DbContext único e compartilhado por todos os módulos — ver PROMPT 01
+      e ARCHITECTURE.md). Isto não cria acoplamento entre módulos nem
+      dependência de volta: Alilu.Infrastructure não conhece Identity; as
+      configurações de entidade deste módulo (IEntityTypeConfiguration<T>)
+      são descobertas em tempo de execução via reflexão
+      (AppDomain.CurrentDomain.GetAssemblies() em AliluDbContext.OnModelCreating),
+      não por referência de projeto.
+    -->
+    <ProjectReference Include="..\..\..\Infrastructure\Alilu.Infrastructure\Alilu.Infrastructure.csproj" />
   </ItemGroup>
 
-  
+  <ItemGroup>
+    <!--
+      Pacotes NuGet externos. Este container de build não tem acesso à
+      internet/NuGet.org, então a restauração destes pacotes específicos
+      deve ser feita na máquina do desenvolvedor (`dotnet restore`), onde
+      funcionará normalmente. Veja o README para detalhes.
+    -->
+
+    <!-- Necessário para IEntityTypeConfiguration<T> / EntityTypeBuilder<T> usados nas configurações de mapeamento EF Core. -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="8.0.*" />
+
+    <!-- Geração de access tokens JWT (biblioteca oficial da Microsoft, não hand-rolled). -->
+    <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="7.6.*" />
+
+    <!-- IOptions<JwtOptions> e registro de serviços (AddIdentityModule). -->
+    <PackageReference Include="Microsoft.Extensions.Options" Version="8.0.*" />
+    <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="8.0.*" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="8.0.*" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.*" />
+  </ItemGroup>
 
 </Project>

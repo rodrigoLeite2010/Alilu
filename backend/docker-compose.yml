@@ -8,7 +8,10 @@ services:
       POSTGRES_USER: alilu
       POSTGRES_PASSWORD: alilu
     ports:
-      - "5432:5432"
+      # Host:Container — 5433 no host para não brigar com outro Postgres
+      # (ex. de outro projeto) que já esteja usando a porta 5432 padrão.
+      # Dentro do container continua sendo a porta 5432 normal do Postgres.
+      - "5433:5432"
     volumes:
       - alilu_postgres_data:/var/lib/postgresql/data
 

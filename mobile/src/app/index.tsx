@@ -1,30 +1,45 @@
 import { Link } from 'expo-router';
 import { StyleSheet, View } from 'react-native';
 
-import { AppText, Screen } from '../components';
+import { AppButton, AppText, Screen } from '../components';
+import { useAuth } from '../modules/auth';
 import { useTheme } from '../theme';
 
 /**
- * Tela inicial (placeholder). Nesta etapa só existe para provar que o
- * roteamento e o tema estão funcionando — sem lógica de negócio, sem
- * autenticação. Os links abaixo são apenas para navegar manualmente entre
- * os stacks durante o desenvolvimento desta fundação.
+ * Tela inicial. Sem autenticação implementada nesta etapa não havia nada a
+ * mostrar aqui além de links de navegação; agora que existe, ela reflete a
+ * sessão real — ainda sem nenhum vínculo com condomínio (isso é do módulo
+ * Resident, futuro), só a prova de que login/logout funcionam de ponta a
+ * ponta.
  */
 export default function Home() {
   const { spacing } = useTheme();
+  const { user, isAuthenticated, logout } = useAuth();
 
   return (
     <Screen>
       <View style={styles.center}>
         <AppText variant="display">ALILU</AppText>
-        <AppText variant="subtitle" color="secondary" style={{ marginTop: spacing.xxs }}>
-          Fundação do app — em construção
-        </AppText>
 
-        <View style={{ marginTop: spacing.xl, gap: spacing.sm }}>
-          <Link href="/(auth)/login" asChild>
-            <AppText color="secondary">→ Auth (placeholder)</AppText>
-          </Link>
+        {isAuthenticated && user ? (
+          <AppText variant="subtitle" color="secondary" style={{ marginTop: spacing.xxs, textAlign: 'center' }}>
+            Olá, {user.name}
+          </AppText>
+        ) : (
+          <AppText variant="subtitle" color="secondary" style={{ marginTop: spacing.xxs }}>
+            Fundação do app — em construção
+          </AppText>
+        )}
+
+        <View style={{ marginTop: spacing.xl, gap: spacing.sm, width: '100%' }}>
+          {isAuthenticated ? (
+            <AppButton label="Sair" variant="ghost" onPress={() => logout()} />
+          ) : (
+            <Link href="/(auth)/login" asChild>
+              <AppButton label="Entrar" />
+            </Link>
+          )}
+
           <Link href="/(resident)" asChild>
             <AppText color="secondary">→ Resident (placeholder)</AppText>
           </Link>

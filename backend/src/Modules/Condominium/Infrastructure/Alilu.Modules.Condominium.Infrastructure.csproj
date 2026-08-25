@@ -3,8 +3,31 @@
   <ItemGroup>
     <ProjectReference Include="..\Domain\Alilu.Modules.Condominium.Domain.csproj" />
     <ProjectReference Include="..\Application\Alilu.Modules.Condominium.Application.csproj" />
+
+    <!--
+      Referencia o Alilu.Infrastructure da raiz para usar o AliluDbContext
+      compartilhado — mesma decisão do módulo Identity (ver
+      Alilu.Modules.Identity.Infrastructure.csproj e ARCHITECTURE.md). As
+      configurações de entidade deste módulo são descobertas em tempo de
+      execução via reflexão, não por referência de projeto.
+    -->
+    <ProjectReference Include="..\..\..\Infrastructure\Alilu.Infrastructure\Alilu.Infrastructure.csproj" />
   </ItemGroup>
 
-  
+  <ItemGroup>
+    <!--
+      Pacotes NuGet externos. Este container de build não tem acesso à
+      internet/NuGet.org, então a restauração destes pacotes específicos
+      deve ser feita na máquina do desenvolvedor (`dotnet restore`), onde
+      funcionará normalmente. Veja o README para detalhes.
+    -->
+
+    <!-- Necessário para IEntityTypeConfiguration<T> / EntityTypeBuilder<T> usados nas configurações de mapeamento EF Core. -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="8.0.*" />
+
+    <!-- IServiceCollection / IConfiguration usados em DependencyInjection.cs (AddCondominiumModule). -->
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="8.0.*" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="8.0.*" />
+  </ItemGroup>
 
 </Project>

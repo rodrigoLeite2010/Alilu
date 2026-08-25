@@ -3,8 +3,42 @@
   <ItemGroup>
     <ProjectReference Include="..\..\Infrastructure\Alilu.Infrastructure\Alilu.Infrastructure.csproj" />
     <ProjectReference Include="..\..\Shared\Alilu.Shared\Alilu.Shared.csproj" />
+
+    <!--
+      Api é a composição raiz: referencia a Application (para o
+      IAuthService e os DTOs usados pelo controller) e a Infrastructure
+      (para o método de extensão AddIdentityModule) do módulo Identity.
+      Nenhuma regra do PROMPT 01 proíbe isso — só módulos não podem se
+      referenciar entre si nem referenciar a Api (ver ARCHITECTURE.md e
+      scripts/check-references.py).
+    -->
+    <ProjectReference Include="..\..\Modules\Identity\Application\Alilu.Modules.Identity.Application.csproj" />
+    <ProjectReference Include="..\..\Modules\Identity\Infrastructure\Alilu.Modules.Identity.Infrastructure.csproj" />
+
+    <!-- Módulo Condominium (PROMPT 04) — mesmo raciocínio do módulo Identity acima. -->
+    <ProjectReference Include="..\..\Modules\Condominium\Application\Alilu.Modules.Condominium.Application.csproj" />
+    <ProjectReference Include="..\..\Modules\Condominium\Infrastructure\Alilu.Modules.Condominium.Infrastructure.csproj" />
   </ItemGroup>
 
-  
+  <ItemGroup>
+    <!--
+      Pacotes NuGet externos. Restaurar na máquina do desenvolvedor — ver
+      README (este container não tem acesso à internet/NuGet.org).
+    -->
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.*" />
+
+    <!--
+      As ferramentas do EF Core (`dotnet ef migrations`/`database update`)
+      procuram este pacote no projeto de STARTUP (Alilu.Api), não só no
+      projeto do DbContext (Alilu.Infrastructure, que já o referencia).
+      Como lá ele está marcado `PrivateAssets="all"`, esse pacote não é
+      propagado a quem referencia Alilu.Infrastructure — por isso precisa
+      ser repetido aqui.
+    -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.*">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
 
 </Project>

@@ -1,12 +1,78 @@
+using System.Text;
+using System.Text.Json.Serialization;
+using Alilu.Api.Middleware;
 using Alilu.Infrastructure;
+using Alilu.Modules.Condominium.Infrastructure;
+using Alilu.Modules.Condominium.Infrastructure.Seed;
+using Alilu.Modules.Identity.Infrastructure;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Infraestrutura (persistência, etc.). Cada módulo de negócio irá registrar
-// seus próprios serviços aqui nas próximas etapas (ex.: AddIdentityModule()).
+// Infraestrutura (persistência, etc.).
 builder.Services.AddInfrastructure(builder.Configuration);
 
+// Módulo Identity (PROMPT 03): repositórios, hashing, JWT, e-mail (no-op) e
+// o próprio IAuthService.
+builder.Services.AddIdentityModule(builder.Configuration);
+
+// Módulo Condominium (PROMPT 04): repositórios, gerador de código de
+// convite, seeder de desenvolvimento e o próprio ICondominiumService.
+builder.Services.AddCondominiumModule(builder.Configuration);
+
+builder.Services
+    .AddControllers()
+    // Enums (ex.: UserRole, UserStatus) trafegam como texto ("Resident"),
+    // não como número — mais legível no JSON e evita o cliente (mobile)
+    // depender da ordem numérica dos valores do enum no C#.
+    .AddJsonOptions(options => options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
+
+var jwtSecret = builder.Configuration["Jwt:Secret"];
+var jwtIssuer = builder.Configuration["Jwt:Issuer"];
+var jwtAudience = builder.Configuration["Jwt:Audience"];
+
+builder.Services
+    .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidIssuer = jwtIssuer,
+            ValidateAudience = true,
+            ValidAudience = jwtAudience,
+            ValidateIssuerSigningKey = true,
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSecret ?? string.Empty)),
+            ValidateLifetime = true,
+            ClockSkew = TimeSpan.FromSeconds(30),
+        };
+    });
+
+builder.Services.AddAuthorization();
+
 var app = builder.Build();
+
+// Traduz exceções de Application (ex.: InvalidCredentialsException) em
+// respostas HTTP — precisa vir antes de autenticação/roteamento para
+// capturar qualquer exceção do pipeline abaixo dele.
+app.UseMiddleware<ExceptionHandlingMiddleware>();
+
+app.UseAuthentication();
+app.UseAuthorization();
+
+app.MapControllers();
+
+// Seed de desenvolvimento (PROMPT 04): condomínio "Monte Carlo" + unidades
+// fictícias. Só roda em Development — nunca em produção — e é idempotente
+// (ver CondominiumSeeder), então rodar `dotnet run` várias vezes não
+// duplica dados.
+if (app.Environment.IsDevelopment())
+{
+    using var seedScope = app.Services.CreateScope();
+    var condominiumSeeder = seedScope.ServiceProvider.GetRequiredService<ICondominiumSeeder>();
+    await condominiumSeeder.SeedAsync();
+}
 
 // Endpoint de verificação de saúde da aplicação, útil para orquestração
 // (docker, load balancer, etc.). Não requer nenhum pacote NuGet adicional.
@@ -15,7 +81,7 @@ app.MapGet("/health", () => Results.Ok(new { status = "healthy" }));
 app.MapGet("/", () => Results.Ok(new
 {
     application = "ALILU API",
-    status = "fundação em construção",
+    status = "Identity (autenticação) e Condominium (condomínios/unidades/convites) implementados",
 }));
 
 app.Run();
