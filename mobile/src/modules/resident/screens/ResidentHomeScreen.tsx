@@ -17,6 +17,11 @@ interface ResidentHomeScreenProps {
  * só para exibição, consultando o diretório público (módulo Condominium)
  * pelo mesmo Id já validado no vínculo — nenhuma tela deste app confia em
  * nada que não tenha vindo do próprio backend.
+ *
+ * Desde o PROMPT 08, também dá acesso a "meus agendamentos"
+ * (MyBookingsScreen, módulo Scheduling) — o início do agendamento em si
+ * ("Agendar") fica em ProfessionalProfileScreen, depois de escolher o
+ * profissional.
  */
 export function ResidentHomeScreen({ membership }: ResidentHomeScreenProps) {
   const { spacing } = useTheme();
@@ -43,10 +48,11 @@ export function ResidentHomeScreen({ membership }: ResidentHomeScreenProps) {
 
         <View style={{ marginTop: spacing.lg, gap: spacing.sm }}>
           <AppButton label="Buscar profissional" onPress={() => router.push('/(resident)/professional-categories')} />
+          <AppButton label="Meus agendamentos" variant="secondary" onPress={() => router.push('/(resident)/bookings')} />
         </View>
 
         <AppText variant="body" color="secondary" style={{ marginTop: spacing.lg }}>
-          ResidentStack — demais telas (agendamentos, avaliações) ainda não implementadas.
+          ResidentStack — avaliações ainda não implementadas.
         </AppText>
 
         <View style={{ marginTop: spacing.xl }}>

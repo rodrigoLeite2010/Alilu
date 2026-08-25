@@ -3,8 +3,42 @@
   <ItemGroup>
     <ProjectReference Include="..\Domain\Alilu.Modules.Scheduling.Domain.csproj" />
     <ProjectReference Include="..\Application\Alilu.Modules.Scheduling.Application.csproj" />
+
+    <!--
+      Referencia o Alilu.Infrastructure da raiz para usar o AliluDbContext
+      compartilhado — mesma decisão dos módulos Identity/Condominium/
+      Resident/Professional (ver Alilu.Modules.Professional.Infrastructure.csproj
+      e ARCHITECTURE.md). As configurações de entidade deste módulo são
+      descobertas em tempo de execução via reflexão, não por referência de
+      projeto.
+    -->
+    <ProjectReference Include="..\..\..\Infrastructure\Alilu.Infrastructure\Alilu.Infrastructure.csproj" />
   </ItemGroup>
 
-  
+  <ItemGroup>
+    <!--
+      Pacotes NuGet externos. Este container de build não tem acesso à
+      internet/NuGet.org, então a restauração destes pacotes específicos
+      deve ser feita na máquina do desenvolvedor (`dotnet restore`), onde
+      funcionará normalmente. Veja o README para detalhes.
+    -->
+
+    <!-- Necessário para IEntityTypeConfiguration<T> / EntityTypeBuilder<T> usados nas configurações de mapeamento EF Core, e para DbUpdateException em UnitOfWork.cs. -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="8.0.*" />
+
+    <!--
+      Necessário para PostgresException (SqlState "40001" — falha de
+      serialização) em UnitOfWork.cs — ver ARCHITECTURE.md, "Etapa 08 —
+      concorrência". Já chegaria transitivamente via Alilu.Infrastructure
+      (que referencia Npgsql.EntityFrameworkCore.PostgreSQL), mas fica
+      explícito aqui porque o tipo é usado diretamente neste projeto, não
+      só de passagem.
+    -->
+    <PackageReference Include="Npgsql" Version="8.0.*" />
+
+    <!-- IServiceCollection / IConfiguration usados em DependencyInjection.cs (AddSchedulingModule). -->
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="8.0.*" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="8.0.*" />
+  </ItemGroup>
 
 </Project>

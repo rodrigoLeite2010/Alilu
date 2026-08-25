@@ -38,3 +38,11 @@ public sealed class MembershipNotActiveException()
 /// </summary>
 public sealed class InsufficientPermissionsException()
     : ResidentApplicationException("Você não tem permissão para executar esta ação.");
+
+/// <summary>
+/// "Só morador com Membership Active pode criar Booking" / "morador só
+/// pode agendar para a própria Unit" (REGRAS CRÍTICAS do PROMPT 08) — ver
+/// <see cref="IMembershipService.ValidateActiveMembershipAsync"/>.
+/// </summary>
+public sealed class NoActiveMembershipException()
+    : ResidentApplicationException("Você não tem um vínculo ativo com esta unidade.");

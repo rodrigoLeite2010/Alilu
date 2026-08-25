@@ -8,6 +8,7 @@ using Alilu.Modules.Identity.Infrastructure;
 using Alilu.Modules.Professional.Infrastructure;
 using Alilu.Modules.Professional.Infrastructure.Seed;
 using Alilu.Modules.Resident.Infrastructure;
+using Alilu.Modules.Scheduling.Infrastructure;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 
@@ -39,6 +40,14 @@ builder.Services.AddResidentModule(builder.Configuration);
 // categorias iniciais (ver ServiceCategorySeeder) — nenhum profissional/
 // usuário fictício é criado, mesma honestidade de escopo do CondominiumSeeder.
 builder.Services.AddProfessionalModule(builder.Configuration);
+
+// Módulo Scheduling (PROMPT 08 — "o módulo mais crítico"): agendamentos
+// (Booking/BookingItem) entre morador e profissional. Sem seed de
+// desenvolvimento nesta etapa (nasce do fluxo real: o morador cria a
+// solicitação). As REGRAS CRÍTICAS que cruzam módulos (Membership Active,
+// profissional atende o condomínio, horário disponível) são aplicadas na
+// Api — ver BookingsController.
+builder.Services.AddSchedulingModule(builder.Configuration);
 
 builder.Services
     .AddControllers()
@@ -105,7 +114,7 @@ app.MapGet("/health", () => Results.Ok(new { status = "healthy" }));
 app.MapGet("/", () => Results.Ok(new
 {
     application = "ALILU API",
-    status = "Identity (autenticação), Condominium (condomínios/unidades/convites), Resident (validação do morador) e Professional (profissionais/diaristas) implementados",
+    status = "Identity (autenticação), Condominium (condomínios/unidades/convites), Resident (validação do morador), Professional (profissionais/diaristas, incluindo disponibilidade) e Scheduling (agendamentos) implementados",
 }));
 
 app.Run();

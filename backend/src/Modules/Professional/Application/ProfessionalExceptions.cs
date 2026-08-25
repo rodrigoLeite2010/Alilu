@@ -56,3 +56,13 @@ public sealed class OverlappingAvailabilityException()
 
 public sealed class ProfessionalAvailabilityExceptionNotFoundException()
     : ProfessionalApplicationException("Exceção de disponibilidade não encontrada.");
+
+// PROMPT 08 — agendamento (validações usadas pelo módulo Scheduling, via composição na Api).
+
+/// <summary>"Profissional deve atender o condomínio" (REGRA CRÍTICA) — ver <see cref="IProfessionalDirectoryService.ValidateAttendsCondominiumAsync"/>.</summary>
+public sealed class ProfessionalDoesNotAttendCondominiumException()
+    : ProfessionalApplicationException("Este profissional não atende este condomínio.");
+
+/// <summary>"O horário deve estar disponível" (REGRA CRÍTICA) — ver <see cref="IProfessionalDirectoryService.ValidateAvailableAsync"/>.</summary>
+public sealed class TimeSlotUnavailableException()
+    : ProfessionalApplicationException("Este profissional não está disponível neste horário.");

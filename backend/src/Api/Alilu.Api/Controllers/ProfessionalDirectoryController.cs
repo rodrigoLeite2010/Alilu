@@ -39,4 +39,42 @@ public sealed class ProfessionalDirectoryController(IProfessionalDirectoryServic
         var profile = await directoryService.GetProfessionalProfileAsync(id, cancellationToken);
         return profile is null ? NotFound() : Ok(profile);
     }
+
+    /// <summary>
+    /// Consulta pública, só-leitura (PROMPT 08, React Native:
+    /// TimeSelectionScreen — "verificar disponibilidade"): reaproveita
+    /// <see cref="IProfessionalDirectoryService.ValidateAvailableAsync"/>
+    /// (a mesma validação usada por <c>BookingsController.Create</c>) só que
+    /// devolvendo <c>{ available: false }</c> em vez de lançar, já que aqui
+    /// "indisponível" é uma resposta normal, não um erro — o morador ainda
+    /// está escolhendo um horário, não enviando a solicitação. Isto não
+    /// expõe a agenda do profissional (nenhum horário é devolvido) — só
+    /// responde sim/não sobre a janela pedida, mantendo a Etapa 07 (agenda
+    /// recorrente/exceções são self-service) intacta. "Nunca confiar no
+    /// calendário do React Native" (REGRA CRÍTICA) continua valendo: esta
+    /// consulta só melhora a experiência antes do envio — a verificação que
+    /// de fato vale é a repetida no servidor dentro de
+    /// <see cref="BookingsController.Create"/>.
+    /// </summary>
+    [HttpGet("{id:guid}/availability-check")]
+    public async Task<ActionResult<AvailabilityCheckResponse>> CheckAvailability(
+        Guid id,
+        [FromQuery] DateOnly date,
+        [FromQuery] TimeOnly startTime,
+        [FromQuery] TimeOnly endTime,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            await directoryService.ValidateAvailableAsync(id, date, startTime, endTime, cancellationToken);
+            return Ok(new AvailabilityCheckResponse(true));
+        }
+        catch (TimeSlotUnavailableException)
+        {
+            return Ok(new AvailabilityCheckResponse(false));
+        }
+    }
 }
+
+/// <summary>Resposta de GET .../availability-check.</summary>
+public sealed record AvailabilityCheckResponse(bool Available);

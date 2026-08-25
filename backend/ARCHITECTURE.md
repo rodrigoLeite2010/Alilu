@@ -1070,3 +1070,313 @@ src/Modules/Professional/Application.Tests` e o comando de migration
 (`dotnet ef migrations add AddProfessionalAvailability --project src/Infrastructure/Alilu.Infrastructure --startup-project src/Api/Alilu.Api`,
 depois `dotnet ef database update ...`) na sua máquina para a verificação
 completa.
+
+## Etapa 08 — agendamento (Scheduling)
+
+"O módulo mais crítico" (PROMPT 08) — o primeiro módulo novo desde a
+Etapa 06 e o primeiro cujo caso de uso central (criar um agendamento)
+cruza três módulos ao mesmo tempo (Resident, Professional, Scheduling).
+Fluxo do morador: "escolher profissional → escolher data → verificar
+disponibilidade → escolher horário → selecionar serviços → adicionar
+observações → enviar solicitação". Fluxo do profissional: "receber
+solicitação → aceitar ou recusar" (mais concluir/marcar não comparecimento
+e cancelar, para fechar o ciclo de vida por completo).
+
+### Entidades (`Alilu.Modules.Scheduling.Domain`)
+
+Módulo novo (`Alilu.Modules.Scheduling.*`), mesma estrutura em quatro
+camadas dos demais.
+
+- **`Booking`** — a própria raiz de agregado do módulo: `ResidentId`,
+  `ProfessionalId`, `CondominiumId`, `UnitId`, `ScheduledDate`
+  (`DateOnly`), `StartTime`/`EndTime` (`TimeOnly`, mesma decisão de
+  timezone da Etapa 07), `Status` (`BookingStatus`, 8 valores —
+  `Requested`/`Confirmed`/`Rejected`/`CancelledByResident`/
+  `CancelledByProfessional`/`InProgress`/`Completed`/`NoShow`), `Notes`.
+  Mesma decisão de sempre: sem navegação/FK para `User` (Identity),
+  `Professional` nem `Condominium`/`CondominiumUnit` — só os Ids como
+  valores simples. `ResidentId` é o próprio `User.Id` do morador (não
+  existe uma entidade "Resident" própria — mesma convenção de
+  `CondominiumMembership.UserId`, Etapa 05); `ProfessionalId` é o
+  `Professional.Id` (perfil, Etapa 06), nunca o `User.Id` do profissional.
+- **`BookingItem`** — um serviço escolhido no passo "selecionar serviços"
+  (`ServiceCategoryId`, `Description` opcional, `Quantity`). Também sem
+  FK para `ServiceCategory` (módulo Professional) — a existência/atividade
+  da categoria não é revalidada por este módulo (mesma decisão de não
+  duplicar validações de outro módulo dentro de uma entidade que não pode
+  referenciá-lo); é o React Native quem só oferece categorias que o
+  profissional realmente cadastrou (`professional.categories`, resolvido
+  pela camada de rotas — ver seção "React Native" abaixo).
+
+`OccupiesSlot` marca quais status ainda "seguram" um horário na agenda
+(`Requested`/`Confirmed`/`InProgress`/`Completed`); os demais
+(`Rejected`/`CancelledByResident`/`CancelledByProfessional`/`NoShow`)
+liberam o horário para um novo agendamento — é essa propriedade que
+alimenta a checagem de conflito (ver seção de concorrência abaixo).
+
+### Transições de status — onde cada regra vive
+
+Toda transição é um método da própria entidade (`Confirm`/`Reject`/
+`CancelByResident`/`CancelByProfessional`/`MarkInProgress`/`Complete`/
+`MarkNoShow`), cada um validando a partir de qual(is) status é válido e
+lançando `Alilu.Shared.DomainException` (mapeada para 400) caso contrário
+— mesma convenção de `CondominiumMembership.Approve`/`Reject`/`Block`
+(Etapa 05): uma transição de status inválida nunca ganhou uma exceção de
+Application própria neste projeto, sempre é a exceção de domínio genérica.
+
+- `Confirm`/`Reject` — só a partir de `Requested` ("aceitar"/"recusar").
+- `CancelByResident`/`CancelByProfessional` — "cancelamentos devem
+  respeitar regras de negócio" (REGRA CRÍTICA): só a partir de
+  `Requested` ou `Confirmed` — depois que o atendimento começou
+  (`InProgress`) ou terminou (`Completed`) não há mais o que cancelar.
+- `MarkInProgress` — só a partir de `Confirmed`.
+- `Complete`/`MarkNoShow` — a partir de `Confirmed` **ou** `InProgress`
+  (o profissional pode ter pulado o marco "iniciar atendimento" e ainda
+  assim concluir ou marcar não comparecimento).
+
+### Conflito de agendamento e concorrência — a única regra que este módulo garante sozinho
+
+"Não permitir conflitos de agendamento", "verificação de conflito deve
+acontecer no servidor" e "deve usar transação e mecanismo de concorrência
+adequado" (REGRAS CRÍTICAS) são a única responsabilidade que `Scheduling`
+pode cumprir sozinho, porque `Booking` é o único dado desta regra que
+pertence ao módulo — as demais REGRAS CRÍTICAS (Membership Active,
+profissional atende o condomínio, horário disponível) dependem de outros
+módulos e são responsabilidade da Api (ver "Composição" abaixo).
+
+- `Booking.OverlapsWith(professionalId, scheduledDate, startTime, endTime)`
+  — mesma fórmula de interseção de intervalos de
+  `ProfessionalAvailability.OverlapsWith` (Etapa 07): `[a,b)` sobrepõe
+  `[c,d)` quando `a < d && c < b`; só considera `this` quando
+  `OccupiesSlot` é verdadeiro.
+- `IUnitOfWork.ExecuteInSerializableTransactionAsync<T>` (Application) —
+  abstração sem nenhuma dependência de Npgsql; `BookingService.CreateBookingAsync`
+  roda inteiro dentro dela: primeiro busca os agendamentos que ainda
+  "seguram" o horário daquele profissional naquele dia
+  (`ListHoldingByProfessionalIdAndDateAsync`) e verifica em memória se
+  algum colide (`OverlapsWith`) — isso resolve o caso comum (duas
+  requisições sequenciais, ou concorrentes mas espaçadas o suficiente
+  para uma terminar antes da outra começar). A implementação real
+  (`Scheduling.Infrastructure.Persistence.UnitOfWork`) abre a transação
+  com `IsolationLevel.Serializable` do PostgreSQL — a rede de segurança
+  para a corrida **genuína** entre duas requisições verdadeiramente
+  concorrentes, que a checagem em memória sozinha não pega: se o
+  PostgreSQL detectar um conflito de serialização (`SqlState 40001`), o
+  `DbUpdateException` correspondente é traduzido para
+  `BookingConflictException` (409) depois de desfazer a transação
+  (`RollbackAsync`) — nunca vaza a exceção crua do Npgsql para cima. Este
+  sandbox não tem acesso a um PostgreSQL real, então só o caminho "em
+  memória" pôde ser testado aqui (ver seção de testes); o caminho
+  `Serializable` foi verificado por leitura cuidadosa do código e é o que
+  de fato importa em produção sob carga concorrente real.
+
+### Composição — onde as REGRAS CRÍTICAS entre módulos são aplicadas
+
+Nenhum dos três módulos envolvidos pode referenciar os outros (PROMPT 01),
+então é a Api — composição raiz — quem aplica, em sequência, ANTES de
+deixar `Scheduling` criar o agendamento (`BookingsController.Create`):
+
+1. `IMembershipService.ValidateActiveMembershipAsync` (Resident) — "só
+   morador com Membership Active pode criar Booking" + "morador só pode
+   agendar para a própria Unit" (a própria assinatura do método já exige
+   `condominiumId`/`unitId`, então validar que o vínculo Active do
+   morador é exatamente esse par resolve as duas regras de uma vez).
+2. `IProfessionalDirectoryService.ValidateAttendsCondominiumAsync`
+   (Professional) — "profissional deve atender o condomínio".
+3. `IProfessionalDirectoryService.ValidateAvailableAsync` (Professional)
+   — "o horário deve estar disponível" / "nunca confiar no calendário do
+   React Native": resolve agenda recorrente **e** exceções da Etapa 07
+   (ver algoritmo abaixo).
+4. Só então `IBookingService.CreateBookingAsync` (Scheduling) — que ainda
+   garante sozinho, dentro da transação `Serializable`, que não há
+   conflito (ver seção anterior).
+
+Se qualquer uma das três primeiras validações falhar, a criação nem chega
+a abrir a transação do passo 4 — falha rápido, sem gastar uma
+conexão/transação de banco numa requisição que já se sabe inválida. O
+mesmo raciocínio se aplica, mais simples, a
+`ProfessionalBookingsController` (fluxo do profissional): como
+`Booking.ProfessionalId` é o `Professional.Id` (perfil) e não o `User.Id`
+de quem está autenticado, e `Scheduling` não pode referenciar o módulo
+Professional para resolver esse Id sozinho, é a Api quem resolve o
+próprio perfil do profissional autenticado
+(`IProfessionalProfileService.GetMyProfileAsync`) antes de repassar o
+`professionalId` já resolvido para `IProfessionalBookingService`.
+
+### "Verificar disponibilidade" sem expor a agenda do profissional
+
+O fluxo do morador pede uma checagem explícita antes de enviar a
+solicitação, mas a Etapa 07 decidiu deliberadamente não expor a agenda de
+um profissional publicamente (só endpoints self-service). A solução foi
+um endpoint Api-only, só-leitura, que reaproveita a validação já existente
+sem vazar a agenda: `GET
+/api/directory/professionals/{id}/availability-check?date=&startTime=&endTime=`
+chama `IProfessionalDirectoryService.ValidateAvailableAsync` dentro de um
+try/catch e devolve `{ available: true }` ou `{ available: false }` como
+uma resposta 200 normal — nenhum horário livre é listado, só um sim/não
+sobre a janela exata perguntada. "Nunca confiar no calendário do React
+Native" continua valendo: esta consulta só melhora a experiência antes do
+envio, a verificação que de fato impede um agendamento inválido é a
+repetida no servidor dentro de `POST /api/resident/bookings`.
+
+### Endpoints
+
+Self-service dos dois lados (`[Authorize]`, sempre restritos ao próprio
+usuário — segunda camada de defesa nos repositórios: `GetOwnBookingOrThrowAsync`/
+`GetOwnRequestOrThrowAsync` devolvem `BookingNotFoundException` também
+quando o registro existe mas pertence a outro morador/profissional, nunca
+um 403 que confirmaria a existência do registro para quem não é dono).
+
+Lado do morador (`BookingsController`, `api/resident/bookings`):
+
+- `GET /api/resident/bookings` — "meus agendamentos".
+- `GET /api/resident/bookings/{id}`
+- `POST /api/resident/bookings` — cria a solicitação (composição completa,
+  ver acima).
+- `POST /api/resident/bookings/{id}/cancel`
+
+Lado do profissional (`ProfessionalBookingsController`, `api/professional/bookings`):
+
+- `GET /api/professional/bookings?status=` — "solicitações recebidas";
+  `status` opcional filtra (ex.: só `Requested`).
+- `GET /api/professional/bookings/{id}`
+- `POST /api/professional/bookings/{id}/accept`
+- `POST /api/professional/bookings/{id}/reject`
+- `POST /api/professional/bookings/{id}/cancel`
+- `POST /api/professional/bookings/{id}/start`
+- `POST /api/professional/bookings/{id}/complete`
+- `POST /api/professional/bookings/{id}/no-show`
+
+### React Native
+
+Cinco telas do fluxo do morador, encadeadas via parâmetros de rota do
+expo-router (este projeto não usa Redux/Zustand — o estado do "wizard" de
+agendamento vive só na URL, acumulando a cada passo; TanStack Query
+continua cuidando de tudo que é dado de servidor):
+
+- **`ProfessionalBookingScreen`** — "escolher profissional": confirma o
+  profissional escolhido (chegando de `ProfessionalProfileScreen`, botão
+  "Agendar") e o vínculo que será usado — o morador nunca escolhe
+  condomínio/unidade manualmente, sempre o vínculo Active do próprio
+  usuário, fechando a REGRA CRÍTICA "morador só pode agendar para a
+  própria Unit" já na interface (o servidor revalida de qualquer jeito).
+- **`DateSelectionScreen`** — "escolher data": grade de mês própria
+  (mesma técnica de `CalendarAvailabilityScreen`, Etapa 07, duplicada em
+  `schedulingFormat.ts#buildMonthGrid`), datas passadas desabilitadas.
+- **`TimeSelectionScreen`** — "verificar disponibilidade; escolher
+  horário": não lista horários livres (a agenda não é pública), o morador
+  digita um horário candidato e pede uma checagem explícita
+  (`GET .../availability-check`); mudar o horário invalida a checagem
+  anterior, "Continuar" só libera depois de uma checagem OK para os
+  valores atuais.
+- **`BookingServicesScreen`** — "selecionar serviços": só oferece as
+  categorias que o profissional escolhido realmente cadastrou.
+- **`BookingConfirmationScreen`** — "adicionar observações; enviar
+  solicitação": revisão final, observações (opcional) e o `POST`.
+
+Mais três telas de acompanhamento:
+
+- **`MyBookingsScreen`** (morador) — lista dos próprios agendamentos.
+- **`ProfessionalRequestsScreen`** (profissional) — "solicitações
+  recebidas", com aceitar/recusar diretamente na lista para as
+  pendentes.
+- **`BookingDetailsScreen`** — um único componente para as duas visões
+  (`role: 'resident' | 'professional'`, passado pela rota que a
+  renderiza); as ações disponíveis mudam por papel e pelo status atual,
+  espelhando exatamente as transições válidas de `Booking.cs` (ex.:
+  "Concluir"/"Não compareceu" só aparecem em `Confirmed`/`InProgress`).
+
+**Composição no app, espelhando a Api:** assim como nenhum módulo do
+backend referencia outro (a Api é quem compõe), nenhuma tela de
+`modules/scheduling/` importa `modules/resident`/`modules/professional`
+diretamente — os DTOs enxutos que ela precisa exibir
+(`BookingProfessionalSummary`/`BookingMembershipSummary`/
+`BookingCondominiumSummary`/`BookingUnitSummary`) são duplicados em
+`scheduling/types.ts`, mesma convenção de `CondominiumSummary` duplicado
+entre Resident e Professional desde a Etapa 06. Quem resolve os dados de
+verdade e os passa como props prontos é a camada de rotas (`app/(resident)/booking/[professionalId]/*.tsx`),
+o mesmo papel que `BookingsController` cumpre no backend. Enriquecimento
+de exibição que não depende de composição em tempo real (nome do
+profissional/condomínio/categoria a partir de um Id já salvo num
+`Booking`) usa diretórios públicos próprios do módulo
+(`schedulingDirectoryApi`, duplicando chamadas que já existem em
+`modules/professional/api.ts`/`modules/resident/api.ts`) — mesmo espírito
+de `ResidentHomeScreen` desde a Etapa 05.
+
+Roteamento: `app/(resident)/booking/[professionalId]/{index,date,time,services,confirm}.tsx`
+(o fluxo de criação) e `app/(resident)/bookings/{index,[id]}.tsx` (o
+acompanhamento) para o morador; `app/(professional)/requests/{index,[id]}.tsx`
+para o profissional. `ResidentHomeScreen` ganhou "Meus agendamentos";
+`ProfessionalProfileScreen` ganhou "Agendar"; `ProfessionalEditScreen`
+ganhou "Solicitações".
+
+### Testes
+
+`Scheduling.Application.Tests/` (novo projeto) — `BookingCreationTests`
+(criação válida, sem nenhum item, dois moradores tentando o mesmo horário
+exato, janelas sobrepostas mas não idênticas, mesmo horário com
+profissional diferente não conflita, horários adjacentes não se
+sobrepõem, horário liberado depois de uma rejeição deixa de conflitar) e
+`BookingLifecycleTests` (aceitar, recusar, aceitar duas vezes falha,
+concluir, concluir sem antes aceitar falha, marcar não comparecimento,
+cancelar `Requested`, cancelar `Confirmed`, cancelar `InProgress` falha,
+cancelar `Completed` falha, cancelar pelo profissional, isolamento entre
+usuários nas quatro operações que dependem de dono). `Resident.Application.Tests`
+ganhou `ActiveMembershipValidationTests` (5 testes: vínculo Active
+correto, sem vínculo, vínculo Pending, condomínio errado, unidade errada)
+e `Professional.Application.Tests/DirectoryTests` ganhou ~13 testes novos
+cobrindo `ValidateAttendsCondominiumAsync`/`ValidateAvailableAsync`
+(profissional não atende o condomínio, disponível dentro de um intervalo
+recorrente, fora de qualquer intervalo, profissional bloqueado por
+exceção de dia inteiro, bloqueado por janela parcial, liberado por exceção
+`Available` mesmo fora da agenda recorrente, exceção de bloqueio
+sobrepondo parcialmente vence mesmo dentro de um intervalo recorrente,
+dias diferentes não se afetam).
+
+Cobrindo explicitamente a lista de cenários do prompt — "dois moradores
+tentam agendar o mesmo horário", "profissional indisponível", "profissional
+bloqueado", "morador sem Membership", "condomínio errado", "unidade
+errada", "cancelamento", "aceite", "rejeição", "conclusão" — mais uma
+bateria própria de casos extras (horários adjacentes, no-show, isolamento
+entre usuários, etc.).
+
+### Limitação do sandbox de build (Claude) nesta etapa
+
+Mesma limitação de sempre: `Alilu.Modules.Scheduling.Infrastructure`,
+`Alilu.Api` e os projetos de teste xUnit (`Scheduling.Application.Tests`
+incluso) não puderam ser restaurados/compilados aqui (pacotes NuGet só
+resolvíveis com acesso à internet, que este sandbox não tem — confirmado
+de novo nesta etapa rodando `dotnet build` deliberadamente sobre
+`Professional.Application.Tests` e observando o `NU1101` esperado). O que
+**foi** verificado:
+
+- `Alilu.Modules.Scheduling.Domain`, `Alilu.Modules.Scheduling.Application`,
+  `Alilu.Modules.Resident.Application` (com o novo
+  `ValidateActiveMembershipAsync`) e `Alilu.Modules.Professional.Application`
+  (com os novos `ValidateAttendsCondominiumAsync`/`ValidateAvailableAsync`)
+  — todos com zero dependências NuGet externas — compilam com **0
+  erros/0 warnings**.
+- Toda a lógica de negócio desta etapa (ciclo de vida completo do
+  `Booking`, conflito em memória, composição entre os três módulos, o
+  algoritmo "exceções sobrepõem agenda recorrente") foi validada rodando
+  manualmente contra fakes em memória (as mesmas implementações reais dos
+  serviços, com namespaces isolados por alias para os três módulos
+  envolvidos) — **33 verificações, todas passaram**, incluindo os nove
+  cenários explícitos do prompt.
+- `python3 scripts/check-references.py` — **35 projetos, 0 violações, 0
+  ciclos**.
+- Mobile: `npx tsc --noEmit` e `npx eslint .` — **0 erros/0 warnings** em
+  todo o projeto (incluindo os vinte e três arquivos novos e os cinco
+  editados desta etapa).
+
+O que este sandbox **não pode** provar é o comportamento sob concorrência
+real do PostgreSQL (`IsolationLevel.Serializable`, `SqlState 40001`) — só
+verificável rodando duas requisições de verdade, ao mesmo tempo, contra um
+banco real. Rode `dotnet restore && dotnet build`, `dotnet test
+src/Modules/Scheduling/Application.Tests` e os comandos de migration
+(`dotnet ef migrations add AddSchedulingModule --project src/Infrastructure/Alilu.Infrastructure --startup-project src/Api/Alilu.Api`,
+depois `dotnet ef database update ...`) na sua máquina para a verificação
+completa — e, se possível, um teste manual com duas abas/dispositivos
+tentando reservar o mesmo horário ao mesmo tempo, para observar o
+`BookingConflictException` (409) nascido da transação `Serializable`
+de verdade.

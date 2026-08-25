@@ -57,4 +57,21 @@ public sealed class MembershipService(
 
         return MembershipMapper.ToResponse(membership);
     }
+
+    public async Task ValidateActiveMembershipAsync(
+        Guid userId,
+        Guid condominiumId,
+        Guid unitId,
+        CancellationToken cancellationToken = default)
+    {
+        var memberships = await membershipRepository.ListByUserIdAsync(userId, cancellationToken);
+
+        var hasActiveMembership = memberships.Any(m =>
+            m.IsActive && m.CondominiumId == condominiumId && m.UnitId == unitId);
+
+        if (!hasActiveMembership)
+        {
+            throw new NoActiveMembershipException();
+        }
+    }
 }

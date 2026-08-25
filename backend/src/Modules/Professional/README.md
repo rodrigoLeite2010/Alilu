@@ -2,11 +2,14 @@
 
 > Implementado na **Etapa 06** (PROMPT 06) — profissionais e diaristas:
 > perfil profissional, categorias de serviço e o vínculo profissional↔
-> condomínio — e estendido na **Etapa 07** (PROMPT 07) — disponibilidade
-> profissional (agenda recorrente + exceções). Ver as seções "Etapa 06 —
-> módulo Professional (profissionais e diaristas)" e "Etapa 07 —
-> disponibilidade profissional" em `ARCHITECTURE.md` para as decisões de
-> design.
+> condomínio — estendido na **Etapa 07** (PROMPT 07) — disponibilidade
+> profissional (agenda recorrente + exceções) — e novamente na **Etapa 08**
+> (PROMPT 08) com `ValidateAttendsCondominiumAsync`/`ValidateAvailableAsync`,
+> usados pela Api para validar duas REGRAS CRÍTICAS do agendamento antes de
+> chamar o módulo Scheduling. Ver as seções "Etapa 06 — módulo
+> Professional (profissionais e diaristas)", "Etapa 07 — disponibilidade
+> profissional" e "Etapa 08 — agendamento (Scheduling)" em
+> `ARCHITECTURE.md` para as decisões de design.
 
 ## Responsabilidade
 
@@ -23,14 +26,16 @@ tem nenhuma relação com `CondominiumMembership` (módulo Resident).
 
 ## O que NÃO está aqui (de propósito)
 
-- **Booking/reservas/atendimentos** — "Ainda NÃO criar Booking" (PROMPT
-  07); a Etapa 07 só guarda a agenda do profissional (disponibilidade),
-  sem nenhum conceito de cliente reservando um horário. Fica para uma
-  etapa futura (módulo Scheduling).
+- **Booking/reservas/atendimentos** — vivem no módulo Scheduling (Etapa
+  08), não aqui: este módulo só guarda o perfil/agenda do profissional
+  (quem é, o que oferece, onde atende, quando está disponível); nenhuma
+  entidade `Booking` foi adicionada a `Alilu.Modules.Professional.Domain`.
 - **Diretório/consulta de disponibilidade pelo morador** — todos os
-  endpoints de disponibilidade são self-service (só o próprio
-  profissional consulta/edita a própria agenda); não pedido pelo PROMPT
-  07 (natural de Booking, que ainda não existe).
+  endpoints de disponibilidade continuam self-service (só o próprio
+  profissional consulta/edita a própria agenda). O único jeito de um
+  morador saber se um horário está livre é a checagem pontual
+  `GET .../availability-check` (Etapa 08, ver Endpoints abaixo) — nenhuma
+  agenda completa é exposta publicamente.
 - **Campo de fuso horário (`TimeZoneId`)** — não pedido pelo PROMPT 07 na
   lista de entidades; `TimeOnly`/`DateOnly` (sem fuso embutido) resolvem a
   regra "Timezone deverá ser tratado corretamente" sem precisar de um
@@ -105,3 +110,15 @@ pelo prompt) — ver ARCHITECTURE.md:
 - `DELETE /api/professional/availability/{id}` — remoção lógica
 - `POST /api/professional/availability/exceptions` — criar exceção (bloqueio ou liberação)
 - `DELETE /api/professional/availability/exceptions/{id}` — remoção definitiva (não é desativação — ver ARCHITECTURE.md)
+
+Verificação de disponibilidade — Api-only, só-leitura (Etapa 08, usada
+pelo fluxo de agendamento do módulo Scheduling): reaproveita
+`ValidateAvailableAsync` sem expor a agenda completa, nunca lança erro por
+indisponibilidade, sempre `200 { available }`:
+
+- `GET /api/directory/professionals/{id}/availability-check?date=&startTime=&endTime=`
+
+`ValidateAttendsCondominiumAsync`/`ValidateAvailableAsync` (Etapa 08) não
+são endpoints próprios — são chamados pela Api dentro de `POST
+/api/resident/bookings` (módulo Scheduling), antes de criar o
+agendamento.

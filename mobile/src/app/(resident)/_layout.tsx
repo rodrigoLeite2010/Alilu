@@ -8,7 +8,16 @@ import { Stack } from 'expo-router';
  * request-access/waiting-approval — "acesso sem vínculo"). Desde o PROMPT
  * 06, ResidentHomeScreen também dá acesso a "buscar profissional"
  * (professional-categories/professionals/professionals/[id], módulo
- * Professional). Agendamentos/avaliações ainda não foram implementados.
+ * Professional).
+ *
+ * Desde o PROMPT 08, `booking/[professionalId]/*` reúne o fluxo de
+ * agendamento em 5 passos (ProfessionalBookingScreen/DateSelectionScreen/
+ * TimeSelectionScreen/BookingServicesScreen/BookingConfirmationScreen —
+ * módulo Scheduling), acessível a partir de "Agendar" em
+ * ProfessionalProfileScreen; `bookings/*` reúne "meus agendamentos"
+ * (MyBookingsScreen/BookingDetailsScreen), acessível a partir de "Meus
+ * agendamentos" em ResidentHomeScreen. Avaliações ainda não foram
+ * implementadas.
  */
 export default function ResidentLayout() {
   return (
@@ -21,6 +30,13 @@ export default function ResidentLayout() {
       <Stack.Screen name="professional-categories" />
       <Stack.Screen name="professionals" />
       <Stack.Screen name="professionals/[id]" />
+      <Stack.Screen name="booking/[professionalId]/index" />
+      <Stack.Screen name="booking/[professionalId]/date" />
+      <Stack.Screen name="booking/[professionalId]/time" />
+      <Stack.Screen name="booking/[professionalId]/services" />
+      <Stack.Screen name="booking/[professionalId]/confirm" />
+      <Stack.Screen name="bookings/index" />
+      <Stack.Screen name="bookings/[id]" />
     </Stack>
   );
 }

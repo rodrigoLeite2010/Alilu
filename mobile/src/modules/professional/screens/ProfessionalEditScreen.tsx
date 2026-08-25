@@ -37,6 +37,10 @@ interface ProfessionalEditScreenProps {
  * Desde o PROMPT 07, quem já tem perfil também vê um atalho para
  * "Configurar disponibilidade" (AvailabilityScreen e as demais telas de
  * agenda, sob `(professional)/availability/*`).
+ *
+ * Desde o PROMPT 08 ("o módulo mais crítico"), também vê um atalho para
+ * "Solicitações" (ProfessionalRequestsScreen — "receber solicitação →
+ * aceitar ou recusar", sob `(professional)/requests/*`).
  */
 export function ProfessionalEditScreen({ profile }: ProfessionalEditScreenProps) {
   const { spacing, colors } = useTheme();
@@ -158,6 +162,11 @@ export function ProfessionalEditScreen({ profile }: ProfessionalEditScreenProps)
                 label="Configurar disponibilidade"
                 variant="secondary"
                 onPress={() => router.push('/(professional)/availability')}
+              />
+              <AppButton
+                label="Solicitações"
+                variant="secondary"
+                onPress={() => router.push('/(professional)/requests')}
               />
             </>
           ) : null}

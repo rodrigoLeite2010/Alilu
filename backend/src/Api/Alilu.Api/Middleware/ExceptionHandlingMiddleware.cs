@@ -18,11 +18,11 @@ namespace Alilu.Api.Middleware;
 /// `using` para cada módulo, o que causaria ambiguidade de nome no
 /// `switch`.
 ///
-/// Com quatro módulos implementados (Identity, Condominium, Resident,
-/// Professional), o mapa direto por tipo já está bem grande — se um quinto
-/// módulo repetir o mesmo padrão, vale extrair um contrato comum em
-/// Alilu.Shared (ex.: uma interface `IHasHttpStatusCode`) em vez de
-/// continuar empilhando `case`s aqui.
+/// Com cinco módulos implementados (Identity, Condominium, Resident,
+/// Professional, Scheduling), o mapa direto por tipo já está bem grande —
+/// se um sexto módulo repetir o mesmo padrão, vale extrair um contrato
+/// comum em Alilu.Shared (ex.: uma interface `IHasHttpStatusCode`) em vez
+/// de continuar empilhando `case`s aqui.
 /// </summary>
 public sealed class ExceptionHandlingMiddleware(RequestDelegate next, ILogger<ExceptionHandlingMiddleware> logger)
 {
@@ -104,6 +104,19 @@ public sealed class ExceptionHandlingMiddleware(RequestDelegate next, ILogger<Ex
         Alilu.Modules.Professional.Application.ProfessionalAvailabilityNotFoundException => (StatusCodes.Status404NotFound, exception.Message),
         Alilu.Modules.Professional.Application.OverlappingAvailabilityException => (StatusCodes.Status409Conflict, exception.Message),
         Alilu.Modules.Professional.Application.ProfessionalAvailabilityExceptionNotFoundException => (StatusCodes.Status404NotFound, exception.Message),
+
+        // Validações de agendamento — Professional (PROMPT 08).
+        Alilu.Modules.Professional.Application.ProfessionalDoesNotAttendCondominiumException => (StatusCodes.Status400BadRequest, exception.Message),
+        Alilu.Modules.Professional.Application.TimeSlotUnavailableException => (StatusCodes.Status409Conflict, exception.Message),
+
+        // Validação de agendamento — Resident (PROMPT 08).
+        Alilu.Modules.Resident.Application.NoActiveMembershipException => (StatusCodes.Status403Forbidden, exception.Message),
+
+        // Módulo Scheduling (PROMPT 08 — "o módulo mais crítico").
+        Alilu.Modules.Scheduling.Application.BookingNotFoundException => (StatusCodes.Status404NotFound, exception.Message),
+        Alilu.Modules.Scheduling.Application.InvalidBookingItemsException => (StatusCodes.Status400BadRequest, exception.Message),
+        Alilu.Modules.Scheduling.Application.BookingConflictException => (StatusCodes.Status409Conflict, exception.Message),
+        Alilu.Modules.Scheduling.Application.InsufficientPermissionsException => (StatusCodes.Status403Forbidden, exception.Message),
 
         UnauthorizedAccessException => (StatusCodes.Status401Unauthorized, exception.Message),
         DomainException => (StatusCodes.Status400BadRequest, exception.Message),

@@ -33,7 +33,12 @@ internal sealed class ProfessionalServiceTestFixture
         ProfessionalRepository, ServiceCategoryRepository, ProfessionalServiceRepository, ProfessionalCondominiumRepository, new NoOpUnitOfWork());
 
     public ProfessionalDirectoryService CreateDirectorySut() => new(
-        ProfessionalRepository, ServiceCategoryRepository, ProfessionalServiceRepository);
+        ProfessionalRepository,
+        ServiceCategoryRepository,
+        ProfessionalServiceRepository,
+        ProfessionalCondominiumRepository,
+        ProfessionalAvailabilityRepository,
+        ProfessionalAvailabilityExceptionRepository);
 
     public ProfessionalAdministrationService CreateAdministrationSut() => new(
         ProfessionalCondominiumRepository, new NoOpUnitOfWork());

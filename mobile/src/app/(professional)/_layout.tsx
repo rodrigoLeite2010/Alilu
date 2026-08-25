@@ -11,8 +11,11 @@ import { Stack } from 'expo-router';
  * disponibilidade (AvailabilityScreen/AvailabilityEditor/
  * BlockedDatesScreen/CalendarAvailabilityScreen), acessíveis a partir de
  * "Configurar disponibilidade" em ProfessionalEditScreen.
- * Atendimentos/reservas ainda não foram implementados ("Ainda NÃO criar
- * Booking" — PROMPT 07).
+ *
+ * Desde o PROMPT 08 ("o módulo mais crítico"), `requests/*` reúne o fluxo
+ * "receber solicitação → aceitar ou recusar" (ProfessionalRequestsScreen/
+ * BookingDetailsScreen, módulo Scheduling), acessível a partir de
+ * "Solicitações" em ProfessionalEditScreen.
  */
 export default function ProfessionalLayout() {
   return (
@@ -22,6 +25,8 @@ export default function ProfessionalLayout() {
       <Stack.Screen name="availability/editor" />
       <Stack.Screen name="availability/blocked-dates" />
       <Stack.Screen name="availability/calendar" />
+      <Stack.Screen name="requests/index" />
+      <Stack.Screen name="requests/[id]" />
     </Stack>
   );
 }

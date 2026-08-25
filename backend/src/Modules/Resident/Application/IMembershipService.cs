@@ -50,4 +50,21 @@ public interface IMembershipService
         Guid condominiumId,
         Guid unitId,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Confirma que <paramref name="userId"/> tem um vínculo
+    /// <see cref="Domain.MembershipStatus.Active"/> para exatamente esta
+    /// combinação de condomínio+unidade — chamada pela Api (módulo
+    /// Scheduling, PROMPT 08) antes de deixar um morador criar um
+    /// agendamento ("só morador com Membership Active pode criar Booking" +
+    /// "morador só pode agendar para a própria Unit", REGRAS CRÍTICAS do
+    /// prompt). Lança <see cref="NoActiveMembershipException"/> quando não
+    /// há vínculo Active correspondente (nem um vínculo Pending/Rejected/
+    /// Blocked para essa unidade autoriza — só Active).
+    /// </summary>
+    Task ValidateActiveMembershipAsync(
+        Guid userId,
+        Guid condominiumId,
+        Guid unitId,
+        CancellationToken cancellationToken = default);
 }

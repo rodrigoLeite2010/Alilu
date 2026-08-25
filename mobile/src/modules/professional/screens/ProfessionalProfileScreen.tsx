@@ -5,7 +5,7 @@ import { AppButton, AppText, Screen } from '../../../components';
 import { useTheme } from '../../../theme';
 import { useProfessionalProfile } from '../hooks';
 
-/** React Native: ProfessionalProfileScreen (PROMPT 06) — "visualizar perfil". */
+/** React Native: ProfessionalProfileScreen (PROMPT 06) — "visualizar perfil". Desde o PROMPT 08, também dá acesso a "Agendar" (início do fluxo de agendamento, módulo Scheduling). */
 export function ProfessionalProfileScreen() {
   const { spacing, colors } = useTheme();
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -44,6 +44,11 @@ export function ProfessionalProfileScreen() {
             {professional.phone ? (
               <AppButton label={`Ligar: ${professional.phone}`} variant="secondary" onPress={() => Linking.openURL(`tel:${professional.phone}`)} />
             ) : null}
+
+            <AppButton
+              label="Agendar"
+              onPress={() => router.push({ pathname: '/(resident)/booking/[professionalId]', params: { professionalId: professional.id } })}
+            />
           </>
         )}
 

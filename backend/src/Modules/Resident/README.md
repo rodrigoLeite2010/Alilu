@@ -5,6 +5,11 @@
 > módulo Resident (validação do morador)" em `ARCHITECTURE.md` para as
 > decisões de design (por que a Api orquestra os dois módulos, o padrão
 > de duas fases do resgate de convite, o índice único filtrado, etc.).
+> Estendido na **Etapa 08** (PROMPT 08) com `IMembershipService.ValidateActiveMembershipAsync` —
+> usado pela Api para aplicar as REGRAS CRÍTICAS "só morador com
+> Membership Active pode criar Booking" e "morador só pode agendar para a
+> própria Unit" antes de chamar o módulo Scheduling (ver "Etapa 08 —
+> agendamento" em ARCHITECTURE.md).
 
 ## Responsabilidade
 
@@ -79,3 +84,7 @@ Diretório público de condomínios/unidades (módulo Condominium, `[Authorize]`
 
 - `GET /api/directory/condominiums`
 - `GET /api/directory/condominiums/{condominiumId}/units`
+
+`ValidateActiveMembershipAsync` (Etapa 08) não é um endpoint próprio —
+é chamado pela Api dentro de `POST /api/resident/bookings` (módulo
+Scheduling), antes de criar o agendamento.

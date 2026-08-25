@@ -26,6 +26,10 @@
     <!-- Módulo Professional (PROMPT 06) — mesmo raciocínio do módulo Identity acima. -->
     <ProjectReference Include="..\..\Modules\Professional\Application\Alilu.Modules.Professional.Application.csproj" />
     <ProjectReference Include="..\..\Modules\Professional\Infrastructure\Alilu.Modules.Professional.Infrastructure.csproj" />
+
+    <!-- Módulo Scheduling (PROMPT 08) — mesmo raciocínio do módulo Identity acima. -->
+    <ProjectReference Include="..\..\Modules\Scheduling\Application\Alilu.Modules.Scheduling.Application.csproj" />
+    <ProjectReference Include="..\..\Modules\Scheduling\Infrastructure\Alilu.Modules.Scheduling.Infrastructure.csproj" />
   </ItemGroup>
 
   <ItemGroup>

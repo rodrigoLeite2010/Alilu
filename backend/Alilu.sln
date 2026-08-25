@@ -99,6 +99,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Alilu.Modules.Scheduling.Do
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Alilu.Modules.Scheduling.Infrastructure", "src\Modules\Scheduling\Infrastructure\Alilu.Modules.Scheduling.Infrastructure.csproj", "{98F060DC-0C2F-4424-8710-965ED984CD91}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Alilu.Modules.Scheduling.Application.Tests", "src\Modules\Scheduling\Application.Tests\Alilu.Modules.Scheduling.Application.Tests.csproj", "{B2C3D4E5-F6A7-4B8C-9D0E-1F2A3B4C5D6E}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -244,6 +246,10 @@ Global
 		{98F060DC-0C2F-4424-8710-965ED984CD91}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{98F060DC-0C2F-4424-8710-965ED984CD91}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{98F060DC-0C2F-4424-8710-965ED984CD91}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B2C3D4E5-F6A7-4B8C-9D0E-1F2A3B4C5D6E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B2C3D4E5-F6A7-4B8C-9D0E-1F2A3B4C5D6E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B2C3D4E5-F6A7-4B8C-9D0E-1F2A3B4C5D6E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B2C3D4E5-F6A7-4B8C-9D0E-1F2A3B4C5D6E}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{C7071999-393A-427C-834B-94B3609A4530} = {8808F48B-51DC-450A-AC49-263A60332F18}
@@ -293,5 +299,6 @@ Global
 		{CCF91C79-0E91-444D-8C8C-644596735A30} = {9608AC42-A945-407F-8E8C-354CB6FC152A}
 		{8E29FA87-773C-4518-A6DC-33117BAF95BE} = {9608AC42-A945-407F-8E8C-354CB6FC152A}
 		{98F060DC-0C2F-4424-8710-965ED984CD91} = {9608AC42-A945-407F-8E8C-354CB6FC152A}
+		{B2C3D4E5-F6A7-4B8C-9D0E-1F2A3B4C5D6E} = {9608AC42-A945-407F-8E8C-354CB6FC152A}
 	EndGlobalSection
 EndGlobal

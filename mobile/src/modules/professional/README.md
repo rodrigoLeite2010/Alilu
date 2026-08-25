@@ -1,12 +1,15 @@
 # Módulo: professional
 
 > Implementado na **Etapa 06** (PROMPT 06) — perfil profissional,
-> categorias de serviço e "solicitar atendimento em condomínios" — e
+> categorias de serviço e "solicitar atendimento em condomínios" —
 > estendido na **Etapa 07** (PROMPT 07) — disponibilidade (agenda
-> recorrente + exceções). Ver as seções "Etapa 06 — módulo Professional" e
-> "Etapa 07 — disponibilidade profissional" em `backend/ARCHITECTURE.md`
-> para o design completo (backend + mobile). Booking/reservas/atendimentos
-> ainda **não** foram implementados ("Ainda NÃO criar Booking" — PROMPT 07).
+> recorrente + exceções). Ver as seções "Etapa 06 — módulo Professional",
+> "Etapa 07 — disponibilidade profissional" e "Etapa 08 — agendamento
+> (Scheduling)" em `backend/ARCHITECTURE.md` para o design completo
+> (backend + mobile). Booking/reservas vivem no módulo `scheduling`
+> (Etapa 08), não aqui — `ProfessionalProfileScreen` ganhou o botão
+> "Agendar" e `ProfessionalEditScreen` ganhou "Solicitações", ambos
+> levando para lá.
 
 ## Responsabilidade
 
