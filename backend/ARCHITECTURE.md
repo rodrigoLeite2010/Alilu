@@ -2,8 +2,9 @@
 
 > Documento de arquitetura. Seções sem indicação de etapa descrevem a
 > fundação criada na **Etapa 01 (Backend modular)**; as seções **"Etapa 03 —
-> módulo Identity"** e **"Etapa 04 — módulo Condominium"**, no final,
-> descrevem o que mudou com cada módulo de negócio real.
+> módulo Identity"**, **"Etapa 04 — módulo Condominium"** e **"Etapa 05 —
+> módulo Resident (validação do morador)"**, no final, descrevem o que
+> mudou com cada módulo de negócio real.
 
 ## Visão geral
 
@@ -102,7 +103,7 @@ módulo para outro, referência de Application/Domain para `Alilu.Api`,
 violação da direção Domain→Application→Infrastructure, ou qualquer ciclo
 no grafo. Rodado nesta etapa: **30 projetos, 0 violações, 0 ciclos.**
 
-## PostgreSQL / EF Core — status (atualizado na Etapa 04)
+## PostgreSQL / EF Core — status (atualizado na Etapa 05)
 
 - `Alilu.Infrastructure` referencia `Microsoft.EntityFrameworkCore`,
   `Npgsql.EntityFrameworkCore.PostgreSQL` e
@@ -119,7 +120,8 @@ no grafo. Rodado nesta etapa: **30 projetos, 0 violações, 0 ciclos.**
 - Tabelas de negócio até agora: `identity.users`,
   `identity.refresh_tokens` (Etapa 03), `condominium.condominiums`,
   `condominium.condominium_units`, `condominium.condominium_invitations`
-  (Etapa 04) — schemas separados por módulo, mapeadas em
+  (Etapa 04), `resident.condominium_memberships` (Etapa 05) — schemas
+  separados por módulo, mapeadas em
   `Alilu.Modules.<Módulo>.Infrastructure/Persistence/`.
 - A connection string vem de `ConnectionStrings:AliluDatabase`
   (`appsettings.Development.json` aponta para o Postgres local do
@@ -130,11 +132,13 @@ no grafo. Rodado nesta etapa: **30 projetos, 0 violações, 0 ciclos.**
   `appsettings.Development.json` — só mantenha os dois arquivos
   consistentes entre si.)
 - **Migrations:** a primeira migration (`InitialCreateIdentity`, Etapa 03)
-  já foi gerada e aplicada com sucesso pelo usuário. A migration da Etapa
-  04 (tabelas de Condominium) ainda **não foi gerada neste sandbox** — ver
-  limitação abaixo — gere-a na sua máquina com:
+  e a migration da Etapa 04 (`AddCondominiumModule`) já foram geradas e
+  aplicadas com sucesso pelo usuário. A migration da Etapa 05 (tabela
+  `resident.condominium_memberships`, incluindo o índice único filtrado —
+  ver seção "Etapa 05" abaixo) ainda **não foi gerada neste sandbox** —
+  ver limitação abaixo — gere-a na sua máquina com:
   ```bash
-  dotnet ef migrations add AddCondominiumModule \
+  dotnet ef migrations add AddResidentModule \
     --project src/Infrastructure/Alilu.Infrastructure \
     --startup-project src/Api/Alilu.Api
   dotnet ef database update \
@@ -158,6 +162,8 @@ no grafo. Rodado nesta etapa: **30 projetos, 0 violações, 0 ciclos.**
   "Monte Carlo" e algumas unidades fictícias, de forma idempotente
   (confere se o CNPJ de seed já existe antes de inserir). Nunca roda em
   produção e nunca cria usuários/moradores — ver `CondominiumSeeder.cs`.
+  O módulo Resident (Etapa 05) **não tem seed** — o vínculo nasce do fluxo
+  real (resgatar um convite ou solicitar acesso), nunca de dado fictício.
 
 ## Build
 
@@ -418,6 +424,250 @@ sandbox:
   ciclos.**
 
 Rode `dotnet restore && dotnet build`, `dotnet test
+src/Modules/Condominium/Application.Tests` e os comandos de migration (ver
+seção "PostgreSQL / EF Core" acima) na sua máquina para a verificação
+completa.
+
+## Etapa 05 — módulo Resident (validação do morador)
+
+Terceiro módulo de negócio, e o primeiro que **liga** os outros dois: o
+vínculo seguro morador↔condomínio↔unidade. Antes desta etapa, um usuário
+autenticado (Identity) não tinha nenhuma ligação formal com um condomínio/
+unidade (Condominium) — a partir de agora, essa ligação existe como sua
+própria entidade, com seu próprio ciclo de vida. Diaristas/prestadores de
+serviço continuam **fora de escopo**, de propósito (ver PROMPT 05).
+
+### `CondominiumMembership` (`Alilu.Modules.Resident.Domain`)
+
+Exatamente os campos pedidos no prompt — `Id`, `UserId`, `CondominiumId`,
+`UnitId`, `Status`, `ValidatedAt`, `ValidatedBy`, `CreatedAt`, `UpdatedAt`
+— e nada além disso. Em particular, **não tem `Name`/`Phone`**: esses
+dados já existem em `Identity.User` (Etapa 03); duplicá-los aqui criaria
+duas fontes de verdade para a mesma informação. A tela de solicitação
+(FLUXO 2) não pede nome/telefone de novo — a Api já os tem a partir do
+usuário autenticado.
+
+`MembershipStatus`: `Pending`/`Active`/`Rejected`/`Blocked`. Mesma decisão
+de design de `CondominiumUnit`/`CondominiumInvitation`: **sem
+navegação/FK** para `User`/`Condominium`/`CondominiumUnit` — só os Ids
+como valores simples (e, tecnicamente, nem haveria como declarar essa
+navegação: nenhum módulo referencia outro). Dois construtores estáticos,
+um para cada fluxo:
+
+- `CreateActiveFromInvitation` (FLUXO 1) — nasce direto `Active`.
+  `ValidatedBy` fica `null`: ninguém "aprovou" isto agora, a autorização
+  já tinha sido concedida quando o administrador criou o convite (Etapa
+  04); essa informação (quem criou o convite) pertence ao módulo
+  Condominium e não é replicada aqui.
+- `CreatePendingRequest` (FLUXO 2) — nasce `Pending`, aguardando
+  `Approve`/`Reject` por um administrador.
+
+`Block` só é válido a partir de `Active`; `Approve`/`Reject` só a partir
+de `Pending` — cada um lança `DomainException` fora da transição válida.
+
+### O problema central desta etapa: dois módulos que não podem se falar
+
+O PROMPT 01 estabeleceu que nenhum módulo pode referenciar outro, em
+nenhuma camada — regra verificada por `scripts/check-references.py` desde
+a Etapa 01, e que continua valendo aqui: `Alilu.Modules.Resident.Application`
+só referencia `Alilu.Modules.Resident.Domain`, nunca o módulo Condominium.
+
+Só que o FLUXO 1 (convite) por definição precisa dos dois módulos ao
+mesmo tempo: validar o convite é uma regra do módulo Condominium (código,
+validade, uso, e-mail — dados que só existem em `CondominiumInvitation`);
+criar o `CondominiumMembership` é uma regra do módulo Resident. Nenhum
+dos dois pode chamar o outro para resolver isso sozinho.
+
+A solução: a **Api é a composição raiz** (mesmo papel que já cumpre desde
+a Etapa 01/03 — ver `Alilu.Api.csproj`, que pode referenciar a Application
+e a Infrastructure de qualquer módulo, só os módulos entre si que não
+podem). `ResidentMembershipsController.RedeemInvitation` injeta
+`IInvitationRedemptionService`/`ICondominiumDirectoryService` (módulo
+Condominium) **e** `IMembershipService` (módulo Resident) lado a lado, e
+orquestra a sequência:
+
+1. `IInvitationRedemptionService.ValidateInvitationAsync` (Condominium) —
+   valida o convite e devolve `CondominiumId`/`UnitId` **resolvidos a
+   partir do próprio convite**, nunca de nada que o corpo da requisição
+   informe (o corpo só tem o código digitado, ver `RedeemInvitationBody`
+   — sem nenhum campo de condomínio/unidade).
+2. `IMembershipService.CreateMembershipFromInvitationAsync` (Resident) —
+   recebe os Ids já resolvidos e cria o vínculo (`Active`).
+3. Só depois do passo 2 ter sucesso, `IInvitationRedemptionService.MarkInvitationAsUsedAsync`
+   (Condominium) marca o convite como usado.
+
+Por que a ordem 1→2→3, e não marcar o convite como usado logo no passo 1:
+se a criação do vínculo (passo 2) falhar por qualquer motivo — ex.:
+`DuplicateMembershipException`, "usuário já vinculado" — um convite
+"queimado" à toa deixaria a pessoa sem conseguir tentar de novo, mesmo
+sem ter conseguido se vincular. Separar validar (só leitura, passo 1) de
+marcar como usado (escrita, passo 3) evita esse problema — é por isso que
+`IInvitationRedemptionService` tem os dois métodos separados em vez de um
+`RedeemAsync` único.
+
+O FLUXO 2 (solicitação) tem o mesmo formato, mais simples: `RequestAccess`
+chama `ICondominiumDirectoryService.ValidateUnitAsync` (Condominium —
+confirma que a unidade existe e pertence ao condomínio informado) antes
+de chamar `IMembershipService.RequestResidentAccessAsync` (Resident).
+
+### SEGURANÇA — "nunca confiar em condominiumId/unitId vindos do cliente"
+
+Duas interpretações diferentes, dependendo do fluxo:
+
+- **FLUXO 1 (convite):** o cliente **nunca envia** condomínio/unidade — só
+  o código (`RedeemInvitationBody(string Code, string? Email)`). Segurança
+  por construção: não existe parâmetro para o cliente "escolher" a
+  unidade errada, porque o método nem aceita esse parâmetro.
+  `InvitationRedemptionTests.ValidateInvitationAsync_NeverAcceptsCondominiumOrUnitFromTheCaller_...`
+  prova isso.
+- **FLUXO 2 (solicitação):** aqui o cliente necessariamente informa
+  condomínio/unidade (é o próprio ato de "escolher minha unidade" no
+  diretório público) — a defesa aqui é **revalidar no servidor**:
+  `ICondominiumDirectoryService.ValidateUnitAsync` confirma que os dois
+  Ids realmente existem e se relacionam antes de deixar o módulo Resident
+  criar a solicitação, em vez de aceitar cegamente o que veio do corpo da
+  requisição.
+
+"Não permitir vínculo duplicado": checado em duas camadas, mesmo padrão
+já usado nas Etapas 03/04 — `MembershipService`/`IMembershipRepository.ExistsActiveOrPendingAsync`
+antes de persistir (`DuplicateMembershipException`), e reforçado por um
+índice único **filtrado** em `MembershipConfiguration`
+(`HasFilter("\"Status\" IN ('Pending','Active')")` — de propósito não
+cobre `Rejected`/`Blocked`, para permitir uma nova tentativa depois de uma
+rejeição).
+
+**Regra explicitamente adiada** (PROMPT 05 já veio com essa ressalva: "se
+essa for a regra definida para o condomínio"): "uma unidade não deve ter
+dois moradores principais ativos" **não foi implementada** nesta etapa —
+não há, ainda, o conceito de "morador principal" vs. "morador adicional"
+em `CondominiumMembership`, nem configuração por condomínio para essa
+regra. Fica para uma etapa futura, quando essa regra for de fato
+especificada.
+
+### Duas interfaces de Application por módulo (self-service vs. admin)
+
+Mesmo padrão dos dois lados:
+
+- **Condominium:** `ICondominiumService` (administrativo, Etapa 04) +
+  `IInvitationRedemptionService`/`ICondominiumDirectoryService` (novos,
+  públicos — sem checagem de papel, porque resgatar convite/consultar o
+  diretório não é uma ação administrativa).
+- **Resident:** `IMembershipService` (self-service — sempre restrito ao
+  próprio usuário autenticado, nunca recebe um `userId` de fora; "seguro
+  por construção") + `IMembershipAdministrationService` (aprovar/rejeitar/
+  bloquear — recebe `ResidentRequesterRole` e chama `EnsureIsAdmin(...)`
+  no início de cada operação, mesmo padrão de `CondominiumService`).
+
+### Endpoints novos
+
+- `GET /api/resident/memberships` — `[Authorize]`, lista os vínculos do
+  usuário autenticado.
+- `GET /api/resident/memberships/active` — `[Authorize]`, vínculo `Active`
+  do usuário, ou `204 No Content` ("acesso sem vínculo").
+- `POST /api/resident/memberships/redeem-invitation` — `[Authorize]`,
+  FLUXO 1.
+- `POST /api/resident/memberships/request-access` — `[Authorize]`, FLUXO 2.
+- `GET /api/admin/memberships/pending` — `[Authorize(Roles = "CondominiumAdmin,SuperAdmin")]`.
+- `POST /api/admin/memberships/{id}/approve` — idem.
+- `POST /api/admin/memberships/{id}/reject` — idem.
+- `POST /api/admin/memberships/{id}/block` — idem.
+- `GET /api/directory/condominiums` — `[Authorize]`, diretório público
+  (só condomínios `Active`).
+- `GET /api/directory/condominiums/{id}/units` — `[Authorize]`, idem (só
+  unidades `Active`).
+
+`ClaimsPrincipalExtensions` ganhou `GetResidentRequesterRole()` (espelha
+`GetCondominiumRequesterRole()`) e `GetUserId()` (extraído do claim de
+subject do JWT — usado por todo endpoint self-service, para nunca confiar
+em um `userId` vindo do corpo da requisição).
+
+`ExceptionHandlingMiddleware`: como os módulos Condominium e Resident
+definem, cada um, seu próprio `InsufficientPermissionsException` (mesmo
+nome, namespaces diferentes — não têm como compartilhar um tipo comum),
+o mapeamento usa o nome totalmente qualificado para essas duas linhas
+específicas, para não gerar ambiguidade de nome no `switch`.
+
+### Mobile — fluxo de validação (`mobile/src/modules/resident/`)
+
+Cinco telas pedidas pelo prompt, mais o "gate" que decide entre elas
+(`app/(resident)/index.tsx`, a partir de `useMyMemberships` — TanStack
+Query sobre `GET /api/resident/memberships`):
+
+- **Nenhum vínculo** (nem `Active`, nem `Pending`) → `ChooseCondominiumScreen`
+  — o início do fluxo: botão "Tenho um código de convite" (→ `EnterInvitationCodeScreen`)
+  ou a lista de condomínios do diretório público, para quem vai pelo
+  FLUXO 2.
+- Escolher um condomínio na lista → `RequestResidentAccessScreen`
+  (recebe `condominiumId` via parâmetro de rota do expo-router) — lista as
+  unidades daquele condomínio (`GET /api/directory/.../units`), o morador
+  escolhe a sua e confirma; a solicitação nasce `Pending`.
+- **Vínculo `Pending`** → `WaitingApprovalScreen` — tela de espera com um
+  botão "Verificar novamente" (refaz a consulta) e logout.
+- **Vínculo `Active`** → `ResidentHomeScreen` — área do morador (ainda só
+  com os dados básicos do vínculo + logout; as demais telas do morador —
+  buscar profissional, agendamentos, avaliações — continuam não
+  implementadas, como já eram desde a Etapa 01).
+
+`EnterInvitationCodeScreen` só pede o código — o e-mail enviado ao backend
+(campo opcional de `POST .../redeem-invitation`) é sempre o do próprio
+usuário autenticado (`useAuth().user.email`), nunca digitado de novo.
+
+Todas as mutações (`useRedeemInvitation`/`useRequestResidentAccess`, em
+`modules/resident/hooks.ts`) invalidam a query de "meus vínculos" ao
+terminar — por isso basta `router.replace('/(resident)')` depois de uma
+mutação com sucesso: o gate detecta o novo estado sozinho, sem precisar
+de nenhuma lógica de navegação condicional espalhada pelas telas.
+
+### Testes
+
+- `Condominium.Application.Tests/InvitationRedemptionTests.cs` — convite
+  válido (com e sem e-mail informado), e-mail que não bate
+  (`InvitationEmailMismatchException`), código inexistente
+  (`InvitationNotFoundException`), convite expirado (mesma técnica de
+  100ms + `Task.Delay(250)` já usada na Etapa 04), convite já usado
+  (`InvitationAlreadyUsedException`), "convite para outra unidade" (prova
+  que o resultado sempre traz a unidade *real* do convite, nunca outra —
+  a própria assinatura do método não aceita esse parâmetro) e o padrão de
+  duas fases (validar não consome o convite; só `MarkInvitationAsUsedAsync`
+  consome).
+- `Condominium.Application.Tests/CondominiumDirectoryTests.cs` — diretório
+  público (só ativos) e `ValidateUnitAsync` (aceita/rejeita).
+- `Resident.Application.Tests/` (novo projeto, mesmo padrão dos demais) —
+  `RedeemInvitationTests` (vínculo nasce `Active`; "usuário já vinculado"
+  → `DuplicateMembershipException`), `RequestResidentAccessTests`
+  (solicitação nasce `Pending`; duplicidade), `ApprovalAndRejectionTests`
+  (aprovação, rejeição, "depois de rejeitado pode solicitar de novo",
+  bloqueio, transições inválidas), `NoActiveMembershipTests` ("acesso sem
+  vínculo" — `GetMyActiveMembershipAsync` devolve `null`) e
+  `AuthorizationTests` (as 4 operações administrativas, papel admin vs.
+  não-admin).
+
+### Limitação do sandbox de build (Claude) nesta etapa
+
+Mesma limitação das Etapas 03/04: `Alilu.Modules.Resident.Infrastructure`,
+`Alilu.Api` e os projetos de teste xUnit (dependem de EF Core/xUnit) não
+puderam ser restaurados/compilados aqui. O que **foi** verificado neste
+sandbox:
+
+- `Alilu.Modules.Resident.Domain`, `Alilu.Modules.Resident.Application` e
+  `Alilu.Modules.Condominium.Application` (com os novos serviços desta
+  etapa) — todos com zero dependências NuGet externas — compilam com **0
+  erros/0 warnings**.
+- Toda a lógica de negócio desta etapa (os 10 cenários pedidos pelo PROMPT
+  05: convite válido, expirado, já usado, para outra unidade, usuário já
+  vinculado, solicitação, aprovação, rejeição, bloqueio, acesso sem
+  vínculo) foi validada rodando manualmente contra fakes em memória,
+  reaproveitando as mesmas implementações reais dos dois módulos
+  (`InvitationCodeGenerator` real, serviços reais) — **27 verificações,
+  todas passaram**.
+- `python3 scripts/check-references.py` — **33 projetos, 0 violações, 0
+  ciclos** — confirma que `Alilu.Modules.Resident.Application` de fato não
+  referencia nada do módulo Condominium, mesmo orquestrando os dois na Api.
+- Mobile: `npx tsc --noEmit` e `npx eslint .` — **0 erros** em todo o
+  projeto (incluindo os arquivos novos desta etapa).
+
+Rode `dotnet restore && dotnet build`, `dotnet test
+src/Modules/Resident/Application.Tests`, `dotnet test
 src/Modules/Condominium/Application.Tests` e os comandos de migration (ver
 seção "PostgreSQL / EF Core" acima) na sua máquina para a verificação
 completa.

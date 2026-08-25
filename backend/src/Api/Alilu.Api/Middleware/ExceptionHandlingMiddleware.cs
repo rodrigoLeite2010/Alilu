@@ -1,4 +1,3 @@
-using Alilu.Modules.Condominium.Application;
 using Alilu.Modules.Identity.Application;
 using Alilu.Shared;
 
@@ -7,12 +6,19 @@ namespace Alilu.Api.Middleware;
 /// <summary>
 /// Traduz exceções lançadas pela Application em respostas HTTP, para os
 /// controllers não precisarem de try/catch repetido. Cada exceção de
-/// aplicação (ver AuthExceptions.cs / CondominiumExceptions.cs) já nasceu
-/// pensada para virar um status HTTP específico — este middleware só faz
-/// esse mapeamento.
+/// aplicação (ver AuthExceptions.cs / CondominiumExceptions.cs /
+/// MembershipExceptions.cs) já nasceu pensada para virar um status HTTP
+/// específico — este middleware só faz esse mapeamento.
 ///
-/// Com dois módulos implementados (Identity, Condominium), o mapa direto
-/// por tipo já está começando a crescer — se um terceiro módulo repetir o
+/// NOTA (PROMPT 05): os módulos Condominium e Resident cada um define seu
+/// próprio <c>InsufficientPermissionsException</c> (mesmo nome, namespaces
+/// diferentes — nenhum módulo pode referenciar o outro, então não têm
+/// como compartilhar um tipo comum) — por isso, abaixo, essas duas linhas
+/// usam o nome totalmente qualificado em vez de um `using` para cada
+/// módulo, o que causaria ambiguidade de nome no `switch`.
+///
+/// Com três módulos implementados (Identity, Condominium, Resident), o
+/// mapa direto por tipo já está bem grande — se um quarto módulo repetir o
 /// mesmo padrão, vale extrair um contrato comum em Alilu.Shared (ex.: uma
 /// interface `IHasHttpStatusCode`) em vez de continuar empilhando `case`s
 /// aqui.
@@ -60,13 +66,26 @@ public sealed class ExceptionHandlingMiddleware(RequestDelegate next, ILogger<Ex
         WeakPasswordException => (StatusCodes.Status400BadRequest, exception.Message),
 
         // Módulo Condominium (PROMPT 04).
-        CnpjAlreadyInUseException => (StatusCodes.Status409Conflict, exception.Message),
-        DuplicateUnitCodeException => (StatusCodes.Status409Conflict, exception.Message),
-        CondominiumNotFoundException => (StatusCodes.Status404NotFound, exception.Message),
-        CondominiumUnitNotFoundException => (StatusCodes.Status404NotFound, exception.Message),
-        CondominiumInvitationNotFoundException => (StatusCodes.Status404NotFound, exception.Message),
-        UnitDoesNotBelongToCondominiumException => (StatusCodes.Status400BadRequest, exception.Message),
-        InsufficientPermissionsException => (StatusCodes.Status403Forbidden, exception.Message),
+        Alilu.Modules.Condominium.Application.CnpjAlreadyInUseException => (StatusCodes.Status409Conflict, exception.Message),
+        Alilu.Modules.Condominium.Application.DuplicateUnitCodeException => (StatusCodes.Status409Conflict, exception.Message),
+        Alilu.Modules.Condominium.Application.CondominiumNotFoundException => (StatusCodes.Status404NotFound, exception.Message),
+        Alilu.Modules.Condominium.Application.CondominiumUnitNotFoundException => (StatusCodes.Status404NotFound, exception.Message),
+        Alilu.Modules.Condominium.Application.CondominiumInvitationNotFoundException => (StatusCodes.Status404NotFound, exception.Message),
+        Alilu.Modules.Condominium.Application.UnitDoesNotBelongToCondominiumException => (StatusCodes.Status400BadRequest, exception.Message),
+        Alilu.Modules.Condominium.Application.InsufficientPermissionsException => (StatusCodes.Status403Forbidden, exception.Message),
+
+        // Resgate de convite / diretório público (PROMPT 05).
+        Alilu.Modules.Condominium.Application.InvitationNotFoundException => (StatusCodes.Status404NotFound, exception.Message),
+        Alilu.Modules.Condominium.Application.InvitationExpiredException => (StatusCodes.Status400BadRequest, exception.Message),
+        Alilu.Modules.Condominium.Application.InvitationAlreadyUsedException => (StatusCodes.Status409Conflict, exception.Message),
+        Alilu.Modules.Condominium.Application.InvitationEmailMismatchException => (StatusCodes.Status400BadRequest, exception.Message),
+
+        // Módulo Resident (PROMPT 05).
+        Alilu.Modules.Resident.Application.MembershipNotFoundException => (StatusCodes.Status404NotFound, exception.Message),
+        Alilu.Modules.Resident.Application.DuplicateMembershipException => (StatusCodes.Status409Conflict, exception.Message),
+        Alilu.Modules.Resident.Application.MembershipNotPendingException => (StatusCodes.Status409Conflict, exception.Message),
+        Alilu.Modules.Resident.Application.MembershipNotActiveException => (StatusCodes.Status409Conflict, exception.Message),
+        Alilu.Modules.Resident.Application.InsufficientPermissionsException => (StatusCodes.Status403Forbidden, exception.Message),
 
         UnauthorizedAccessException => (StatusCodes.Status401Unauthorized, exception.Message),
         DomainException => (StatusCodes.Status400BadRequest, exception.Message),

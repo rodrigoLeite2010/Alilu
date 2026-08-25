@@ -5,6 +5,7 @@ using Alilu.Infrastructure;
 using Alilu.Modules.Condominium.Infrastructure;
 using Alilu.Modules.Condominium.Infrastructure.Seed;
 using Alilu.Modules.Identity.Infrastructure;
+using Alilu.Modules.Resident.Infrastructure;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 
@@ -19,7 +20,16 @@ builder.Services.AddIdentityModule(builder.Configuration);
 
 // Módulo Condominium (PROMPT 04): repositórios, gerador de código de
 // convite, seeder de desenvolvimento e o próprio ICondominiumService.
+// Também expõe, desde o PROMPT 05, IInvitationRedemptionService e
+// ICondominiumDirectoryService (usados pela Api para orquestrar o módulo
+// Resident abaixo).
 builder.Services.AddCondominiumModule(builder.Configuration);
+
+// Módulo Resident (PROMPT 05): validação do morador — vínculo
+// morador↔condomínio↔unidade (CondominiumMembership). Sem seed de
+// desenvolvimento nesta etapa (o vínculo nasce do fluxo real: resgatar um
+// convite ou solicitar acesso).
+builder.Services.AddResidentModule(builder.Configuration);
 
 builder.Services
     .AddControllers()
@@ -81,7 +91,7 @@ app.MapGet("/health", () => Results.Ok(new { status = "healthy" }));
 app.MapGet("/", () => Results.Ok(new
 {
     application = "ALILU API",
-    status = "Identity (autenticação) e Condominium (condomínios/unidades/convites) implementados",
+    status = "Identity (autenticação), Condominium (condomínios/unidades/convites) e Resident (validação do morador) implementados",
 }));
 
 app.Run();

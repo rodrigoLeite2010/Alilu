@@ -15,6 +15,10 @@ public sealed class CondominiumInvitationRepository(AliluDbContext dbContext) : 
         dbContext.Set<CondominiumInvitation>()
             .FirstOrDefaultAsync(i => i.Id == id, cancellationToken);
 
+    public Task<CondominiumInvitation?> GetByCodeHashAsync(string codeHash, CancellationToken cancellationToken = default) =>
+        dbContext.Set<CondominiumInvitation>()
+            .FirstOrDefaultAsync(i => i.CodeHash == codeHash, cancellationToken);
+
     public async Task AddAsync(CondominiumInvitation invitation, CancellationToken cancellationToken = default) =>
         await dbContext.Set<CondominiumInvitation>().AddAsync(invitation, cancellationToken);
 }

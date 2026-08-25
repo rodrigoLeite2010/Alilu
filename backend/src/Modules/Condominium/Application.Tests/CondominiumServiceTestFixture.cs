@@ -31,6 +31,14 @@ internal sealed class CondominiumServiceTestFixture
         new NoOpUnitOfWork(),
         Options);
 
+    /// <summary>PROMPT 05 — SUT do resgate de convite (self-service, sem checagem de papel).</summary>
+    public InvitationRedemptionService CreateInvitationRedemptionSut() =>
+        new(InvitationRepository, InvitationCodeGenerator, new NoOpUnitOfWork());
+
+    /// <summary>PROMPT 05 — SUT do diretório público de condomínios/unidades.</summary>
+    public CondominiumDirectoryService CreateDirectorySut() =>
+        new(CondominiumRepository, UnitRepository);
+
     /// <summary>Atalho para os testes que precisam de um condomínio já cadastrado antes do cenário sob teste.</summary>
     public Task<CondominiumResponse> RegisterCondominiumAsync(
         CondominiumService sut,

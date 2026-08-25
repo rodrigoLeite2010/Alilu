@@ -15,7 +15,10 @@ inicial: Condomínio Monte Carlo.
 
 - Nenhum vínculo morador↔condomínio↔unidade — quem *resgata* um convite e
   se torna morador de uma unidade é responsabilidade do módulo Resident
-  (futuro, ainda não implementado).
+  (Etapa 05). Este módulo expõe, para isso, `IInvitationRedemptionService`
+  e `ICondominiumDirectoryService` (ver ARCHITECTURE.md, seção "Etapa 05")
+  — mas continua sem saber nada sobre `CondominiumMembership` (que é do
+  módulo Resident); é a Api (composição raiz) quem liga os dois.
 - Nenhum envio real de e-mail/WhatsApp do código do convite — o código
   bruto é devolvido uma única vez na resposta de criação do convite (ver
   `CondominiumInvitationCreatedResponse`), para o administrador repassar
@@ -43,7 +46,7 @@ Regras de negócio ficam no Domain/Application. Controllers finos apenas
 traduzem requisições HTTP em chamadas para a Application. Entidades nunca
 são expostas diretamente pela API — sempre via DTOs.
 
-## Endpoints (todos administrativos — `[Authorize(Roles = "CondominiumAdmin,SuperAdmin")]`)
+## Endpoints administrativos (`[Authorize(Roles = "CondominiumAdmin,SuperAdmin")]`)
 
 - `POST /api/admin/condominiums` — criar condomínio
 - `GET /api/admin/condominiums` — listar condomínios
@@ -51,3 +54,12 @@ são expostas diretamente pela API — sempre via DTOs.
 - `GET /api/admin/condominiums/{condominiumId}/units` — listar unidades
 - `POST /api/admin/condominiums/{condominiumId}/invitations` — criar convite
 - `GET /api/admin/invitations/{id}` — consultar convite
+
+## Endpoints públicos (`[Authorize]` — qualquer usuário autenticado; Etapa 05)
+
+Usados pelo módulo Resident (via Api) para o resgate de convite e o
+diretório de condomínios/unidades — ver `ResidentMembershipsController`
+e `CondominiumDirectoryController` em `Alilu.Api`.
+
+- `GET /api/directory/condominiums` — condomínios ativos
+- `GET /api/directory/condominiums/{condominiumId}/units` — unidades ativas de um condomínio

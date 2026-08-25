@@ -72,3 +72,26 @@ public sealed record CondominiumInvitationResponse(
     DateTime ExpiresAt,
     DateTime? UsedAt,
     DateTime CreatedAt);
+
+// PROMPT 05 — resgate de convite (self-service, IInvitationRedemptionService)
+// e diretório público de condomínios/unidades (ICondominiumDirectoryService).
+// Ambos usados pelo módulo Resident através da Api (composição raiz) — ver
+// comentário de segurança em IInvitationRedemptionService.
+
+/// <summary>
+/// Resultado de <c>IInvitationRedemptionService.ValidateInvitationAsync</c>:
+/// os dados do convite já resolvidos e confiáveis (nunca vindos do
+/// cliente) — <see cref="CondominiumId"/>/<see cref="UnitId"/> são os que o
+/// próprio convite define, não o que quem chamou "gostaria" que fossem.
+/// </summary>
+public sealed record InvitationValidationResult(
+    Guid InvitationId,
+    Guid CondominiumId,
+    Guid UnitId,
+    string Email);
+
+/// <summary>Resumo público de um condomínio, para o morador escolher (FLUXO 2 — "Não encontrei minha unidade").</summary>
+public sealed record CondominiumSummaryResponse(Guid Id, string Name, string City, string State);
+
+/// <summary>Resumo público de uma unidade, para o morador escolher dentro de um condomínio já escolhido.</summary>
+public sealed record CondominiumUnitSummaryResponse(Guid Id, string Code, UnitType Type);

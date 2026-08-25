@@ -18,6 +18,10 @@
     <!-- Módulo Condominium (PROMPT 04) — mesmo raciocínio do módulo Identity acima. -->
     <ProjectReference Include="..\..\Modules\Condominium\Application\Alilu.Modules.Condominium.Application.csproj" />
     <ProjectReference Include="..\..\Modules\Condominium\Infrastructure\Alilu.Modules.Condominium.Infrastructure.csproj" />
+
+    <!-- Módulo Resident (PROMPT 05) — mesmo raciocínio do módulo Identity acima. -->
+    <ProjectReference Include="..\..\Modules\Resident\Application\Alilu.Modules.Resident.Application.csproj" />
+    <ProjectReference Include="..\..\Modules\Resident\Infrastructure\Alilu.Modules.Resident.Infrastructure.csproj" />
   </ItemGroup>
 
   <ItemGroup>

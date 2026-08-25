@@ -34,6 +34,11 @@ public static class DependencyInjection
         services.AddScoped<ICondominiumService, CondominiumService>();
         services.AddScoped<ICondominiumSeeder, CondominiumSeeder>();
 
+        // PROMPT 05 — usados pelo módulo Resident através da Api (nenhum
+        // módulo referencia outro; ver IInvitationRedemptionService).
+        services.AddScoped<IInvitationRedemptionService, InvitationRedemptionService>();
+        services.AddScoped<ICondominiumDirectoryService, CondominiumDirectoryService>();
+
         return services;
     }
 }

@@ -37,3 +37,29 @@ public sealed class CondominiumInvitationNotFoundException()
 /// </summary>
 public sealed class InsufficientPermissionsException()
     : CondominiumApplicationException("Você não tem permissão para executar esta ação.");
+
+// PROMPT 05 — resgate de convite (IInvitationRedemptionService). Erros
+// distintos dos administrativos acima porque aqui quem está errando é o
+// morador que digitou o código, não um admin — mensagens/status HTTP
+// diferentes fazem sentido (ver ExceptionHandlingMiddleware).
+
+/// <summary>Código de convite inexistente (nunca existiu, ou foi digitado errado).</summary>
+public sealed class InvitationNotFoundException()
+    : CondominiumApplicationException("Código de convite inválido.");
+
+/// <summary>Convite encontrado, mas já passou da validade (<see cref="Domain.CondominiumInvitation.IsExpired"/>).</summary>
+public sealed class InvitationExpiredException()
+    : CondominiumApplicationException("Este convite expirou.");
+
+/// <summary>Convite encontrado, mas já foi resgatado por alguém antes (<see cref="Domain.CondominiumInvitation.IsUsed"/>).</summary>
+public sealed class InvitationAlreadyUsedException()
+    : CondominiumApplicationException("Este convite já foi utilizado.");
+
+/// <summary>
+/// O convite foi emitido para um e-mail específico e quem está resgatando
+/// informou um e-mail diferente — checagem "quando aplicável" (PROMPT 05):
+/// só é feita quando o chamador informa um e-mail (ver
+/// <c>InvitationRedemptionService.ValidateInvitationAsync</c>).
+/// </summary>
+public sealed class InvitationEmailMismatchException()
+    : CondominiumApplicationException("Este convite foi emitido para outro e-mail.");

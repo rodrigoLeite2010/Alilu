@@ -228,6 +228,51 @@ namespace Alilu.Infrastructure.Migrations
                     b.ToTable("users", "identity");
                 });
 
+            modelBuilder.Entity("Alilu.Modules.Resident.Domain.CondominiumMembership", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("CondominiumId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<Guid>("UnitId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("ValidatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("ValidatedBy")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CondominiumId");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("UserId", "CondominiumId", "UnitId")
+                        .IsUnique()
+                        .HasFilter("\"Status\" IN ('Pending','Active')");
+
+                    b.ToTable("condominium_memberships", "resident");
+                });
+
             modelBuilder.Entity("Alilu.Modules.Condominium.Domain.Condominium", b =>
                 {
                     b.OwnsOne("Alilu.Modules.Condominium.Domain.Cnpj", "Cnpj", b1 =>
