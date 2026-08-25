@@ -23,11 +23,14 @@ public static class DependencyInjection
         services.AddScoped<IServiceCategoryRepository, ServiceCategoryRepository>();
         services.AddScoped<IProfessionalServiceRepository, ProfessionalServiceRepository>();
         services.AddScoped<IProfessionalCondominiumRepository, ProfessionalCondominiumRepository>();
+        services.AddScoped<IProfessionalAvailabilityRepository, ProfessionalAvailabilityRepository>();
+        services.AddScoped<IProfessionalAvailabilityExceptionRepository, ProfessionalAvailabilityExceptionRepository>();
         services.AddScoped<IUnitOfWork, UnitOfWork>();
 
         services.AddScoped<IProfessionalProfileService, ProfessionalProfileService>();
         services.AddScoped<IProfessionalDirectoryService, ProfessionalDirectoryService>();
         services.AddScoped<IProfessionalAdministrationService, ProfessionalAdministrationService>();
+        services.AddScoped<IProfessionalAvailabilityService, ProfessionalAvailabilityService>();
 
         services.AddScoped<IServiceCategorySeeder, ServiceCategorySeeder>();
 

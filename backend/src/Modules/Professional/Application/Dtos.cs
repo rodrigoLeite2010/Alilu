@@ -50,3 +50,34 @@ public sealed record ProfessionalDirectoryItemResponse(
     string? Phone,
     string? PhotoUrl,
     IReadOnlyList<ServiceCategoryResponse> Categories);
+
+/// <summary>Um intervalo recorrente de disponibilidade (PROMPT 07, React Native: AvailabilityScreen/AvailabilityEditor).</summary>
+public sealed record ProfessionalAvailabilityResponse(
+    Guid Id,
+    Guid ProfessionalId,
+    DayOfWeek DayOfWeek,
+    TimeOnly StartTime,
+    TimeOnly EndTime,
+    bool Active);
+
+/// <summary>Uma exceção pontual à disponibilidade recorrente (PROMPT 07, React Native: BlockedDatesScreen/CalendarAvailabilityScreen). <see cref="StartTime"/>/<see cref="EndTime"/> nulos em conjunto = dia inteiro.</summary>
+public sealed record ProfessionalAvailabilityExceptionResponse(
+    Guid Id,
+    Guid ProfessionalId,
+    DateOnly Date,
+    TimeOnly? StartTime,
+    TimeOnly? EndTime,
+    ProfessionalAvailabilityExceptionType Type,
+    string? Reason);
+
+/// <summary>
+/// Resposta de <c>GET .../availability</c> — agenda recorrente e exceções
+/// juntas, numa única consulta (PROMPT 07 só lista um único verbo GET na
+/// API; ver <c>ProfessionalAvailabilityController</c> e ARCHITECTURE.md
+/// sobre esta decisão). As quatro telas React Native pedidas
+/// (AvailabilityScreen/AvailabilityEditor/BlockedDatesScreen/
+/// CalendarAvailabilityScreen) partem todas desta mesma resposta.
+/// </summary>
+public sealed record ProfessionalAvailabilityOverviewResponse(
+    IReadOnlyList<ProfessionalAvailabilityResponse> WeeklySchedule,
+    IReadOnlyList<ProfessionalAvailabilityExceptionResponse> Exceptions);

@@ -100,6 +100,11 @@ public sealed class ExceptionHandlingMiddleware(RequestDelegate next, ILogger<Ex
         Alilu.Modules.Professional.Application.ProfessionalCondominiumNotPendingException => (StatusCodes.Status409Conflict, exception.Message),
         Alilu.Modules.Professional.Application.InsufficientPermissionsException => (StatusCodes.Status403Forbidden, exception.Message),
 
+        // Disponibilidade (PROMPT 07).
+        Alilu.Modules.Professional.Application.ProfessionalAvailabilityNotFoundException => (StatusCodes.Status404NotFound, exception.Message),
+        Alilu.Modules.Professional.Application.OverlappingAvailabilityException => (StatusCodes.Status409Conflict, exception.Message),
+        Alilu.Modules.Professional.Application.ProfessionalAvailabilityExceptionNotFoundException => (StatusCodes.Status404NotFound, exception.Message),
+
         UnauthorizedAccessException => (StatusCodes.Status401Unauthorized, exception.Message),
         DomainException => (StatusCodes.Status400BadRequest, exception.Message),
         _ => (StatusCodes.Status500InternalServerError, "Ocorreu um erro inesperado."),

@@ -44,4 +44,21 @@ internal static class ProfessionalMapper
         professional.Phone,
         professional.PhotoUrl,
         categories.Select(ToResponse).ToList());
+
+    public static ProfessionalAvailabilityResponse ToResponse(ProfessionalAvailability availability) => new(
+        availability.Id,
+        availability.ProfessionalId,
+        availability.DayOfWeek,
+        availability.StartTime,
+        availability.EndTime,
+        availability.Active);
+
+    public static ProfessionalAvailabilityExceptionResponse ToResponse(ProfessionalAvailabilityException exception) => new(
+        exception.Id,
+        exception.ProfessionalId,
+        exception.Date,
+        exception.StartTime,
+        exception.EndTime,
+        exception.Type,
+        exception.Reason);
 }

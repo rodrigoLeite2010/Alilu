@@ -44,3 +44,15 @@ public sealed class ProfessionalCondominiumNotPendingException()
 /// <summary>Segunda camada de defesa (a primeira é <c>[Authorize(Roles = ...)]</c> no controller) — mesma filosofia dos demais módulos, tipo próprio deste (nenhum módulo referencia outro).</summary>
 public sealed class InsufficientPermissionsException()
     : ProfessionalApplicationException("Você não tem permissão para executar esta ação.");
+
+// PROMPT 07 — disponibilidade.
+
+public sealed class ProfessionalAvailabilityNotFoundException()
+    : ProfessionalApplicationException("Intervalo de disponibilidade não encontrado.");
+
+/// <summary>"Não permitir horários sobrepostos" (PROMPT 07) — aplicado tanto entre intervalos recorrentes do mesmo dia (<c>ProfessionalAvailability</c>) quanto entre exceções da mesma data (<c>ProfessionalAvailabilityException</c>).</summary>
+public sealed class OverlappingAvailabilityException()
+    : ProfessionalApplicationException("Este horário sobrepõe outro já cadastrado.");
+
+public sealed class ProfessionalAvailabilityExceptionNotFoundException()
+    : ProfessionalApplicationException("Exceção de disponibilidade não encontrada.");

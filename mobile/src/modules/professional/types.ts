@@ -84,3 +84,59 @@ export interface AddProfessionalServicePayload {
 export interface RequestProfessionalCondominiumPayload {
   condominiumId: string;
 }
+
+/**
+ * Espelha `Dtos.cs`/`ProfessionalAvailabilityExceptionType.cs` (PROMPT 07).
+ * `DayOfWeek` é o enum nativo do .NET (`System.DayOfWeek`), serializado
+ * como string igual aos demais enums deste projeto (ver nota no topo deste
+ * arquivo) — a ordem de exibição PT-BR fica em `availabilityFormat.ts`.
+ */
+export type DayOfWeek = 'Sunday' | 'Monday' | 'Tuesday' | 'Wednesday' | 'Thursday' | 'Friday' | 'Saturday';
+
+export type AvailabilityExceptionType = 'Blocked' | 'Available';
+
+/**
+ * `startTime`/`endTime` chegam da Api no formato `TimeOnly` do .NET
+ * ("HH:mm:ss", sempre com segundos) — ver `availabilityFormat.ts` para as
+ * funções de conversão usadas pelas telas.
+ */
+export interface ProfessionalAvailabilitySlot {
+  id: string;
+  professionalId: string;
+  dayOfWeek: DayOfWeek;
+  startTime: string;
+  endTime: string;
+  active: boolean;
+}
+
+/** `startTime`/`endTime` nulos em conjunto = exceção de dia inteiro (ver `ProfessionalAvailabilityException.cs`). */
+export interface ProfessionalAvailabilityExceptionItem {
+  id: string;
+  professionalId: string;
+  date: string;
+  startTime: string | null;
+  endTime: string | null;
+  type: AvailabilityExceptionType;
+  reason: string | null;
+}
+
+/** Resposta de `GET .../availability` — agenda recorrente e exceções juntas (ver `ProfessionalAvailabilityController.GetMyAvailability`). */
+export interface ProfessionalAvailabilityOverview {
+  weeklySchedule: ProfessionalAvailabilitySlot[];
+  exceptions: ProfessionalAvailabilityExceptionItem[];
+}
+
+/** `startTime`/`endTime` devem incluir segundos ("08:00:00") — ver `availabilityFormat.ts#toApiTime`. */
+export interface SaveProfessionalAvailabilityPayload {
+  dayOfWeek: DayOfWeek;
+  startTime: string;
+  endTime: string;
+}
+
+export interface AddProfessionalAvailabilityExceptionPayload {
+  date: string;
+  startTime?: string | null;
+  endTime?: string | null;
+  type: AvailabilityExceptionType;
+  reason?: string;
+}

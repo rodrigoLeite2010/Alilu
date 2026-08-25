@@ -4,3 +4,7 @@ export { ProfessionalEditScreen } from './screens/ProfessionalEditScreen';
 export { ProfessionalListScreen } from './screens/ProfessionalListScreen';
 export { ServiceCategoryScreen } from './screens/ServiceCategoryScreen';
 export { ProfessionalProfileScreen } from './screens/ProfessionalProfileScreen';
+export { AvailabilityScreen } from './screens/AvailabilityScreen';
+export { AvailabilityEditor } from './screens/AvailabilityEditor';
+export { BlockedDatesScreen } from './screens/BlockedDatesScreen';
+export { CalendarAvailabilityScreen } from './screens/CalendarAvailabilityScreen';

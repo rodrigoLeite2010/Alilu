@@ -1,4 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
+import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { ActivityIndicator, KeyboardAvoidingView, Platform, View } from 'react-native';
@@ -29,9 +30,13 @@ interface ProfessionalEditScreenProps {
  * React Native: ProfessionalEditScreen (PROMPT 06) — "editar perfil;
  * selecionar serviços" e, para quem já tem perfil, "solicitar atendimento
  * em condomínios". Sem perfil ainda, só o formulário de criação aparece
- * (as seções de serviços/condomínios dependem de um `professionalId` já
- * existente — ver `IProfessionalProfileService`, que resolve tudo a partir
- * do usuário autenticado).
+ * (as seções de serviços/condomínios/disponibilidade dependem de um
+ * `professionalId` já existente — ver `IProfessionalProfileService`, que
+ * resolve tudo a partir do usuário autenticado).
+ *
+ * Desde o PROMPT 07, quem já tem perfil também vê um atalho para
+ * "Configurar disponibilidade" (AvailabilityScreen e as demais telas de
+ * agenda, sob `(professional)/availability/*`).
  */
 export function ProfessionalEditScreen({ profile }: ProfessionalEditScreenProps) {
   const { spacing, colors } = useTheme();
@@ -149,6 +154,11 @@ export function ProfessionalEditScreen({ profile }: ProfessionalEditScreenProps)
             <>
               <ServicesSection professionalId={profile.id} />
               <CondominiumsSection />
+              <AppButton
+                label="Configurar disponibilidade"
+                variant="secondary"
+                onPress={() => router.push('/(professional)/availability')}
+              />
             </>
           ) : null}
         </View>

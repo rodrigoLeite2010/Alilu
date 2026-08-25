@@ -874,3 +874,199 @@ src/Modules/Professional/Application.Tests` e os comandos de migration
 (`dotnet ef migrations add AddProfessionalModule --project src/Infrastructure/Alilu.Infrastructure --startup-project src/Api/Alilu.Api`,
 depois `dotnet ef database update ...`) na sua máquina para a verificação
 completa.
+
+## Etapa 07 — disponibilidade profissional
+
+Continuação do módulo Professional (mesmo módulo, novas entidades) —
+"Implementar SOMENTE disponibilidade profissional" (PROMPT 07). Booking/
+reservas continuam **fora de escopo** ("Ainda NÃO criar Booking" — PROMPT
+07); esta etapa só guarda a agenda do profissional, sem nenhum conceito de
+cliente reservando um horário.
+
+### Entidades (`Alilu.Modules.Professional.Domain`)
+
+Duas novas raízes de agregado, mesma decisão de sempre: sem navegação/FK
+para `Professional` (mesmo módulo) — só `ProfessionalId` como valor
+simples.
+
+- **`ProfessionalAvailability`** — um intervalo recorrente num dia da
+  semana (`DayOfWeek` — enum nativo do .NET, não um tipo próprio deste
+  projeto —, `StartTime`, `EndTime`, `Active`). Um profissional pode ter
+  vários intervalos no mesmo dia (exemplo do próprio prompt: "Segunda:
+  08:00-12:00, 13:00-17:00"). Um dia sem nenhum intervalo `Active` é, por
+  definição, "indisponível" (exemplo da Quarta no prompt) — não existe um
+  valor próprio para isso, é só a ausência de intervalos. `Reschedule`
+  edita um intervalo existente (PUT); `Deactivate`/`Activate` fazem a
+  remoção lógica (DELETE) — mesmo padrão de `ProfessionalService`.
+- **`ProfessionalAvailabilityException`** — uma exceção pontual numa data
+  (`Date`, `StartTime`/`EndTime` opcionais, `Type`, `Reason`).
+  `ProfessionalAvailabilityExceptionType`: `Blocked` ("bloquear datas") ou
+  `Available` ("liberar horários específicos", ex.: abrir um horário numa
+  quarta normalmente indisponível). `StartTime`/`EndTime` nulos **em
+  conjunto** representam o dia inteiro (`IsFullDay`); quando informados,
+  são sempre os dois juntos (validado na própria entidade) e valem só
+  para aquela janela dentro do dia. Ao contrário do restante do módulo,
+  uma exceção **não tem "reativar"** — ela é, por natureza, um ajuste
+  pontual e transitório; removê-la (`DELETE .../exceptions/{id}`) É o
+  próprio ato de desbloquear/desliberar a data, então
+  `IProfessionalAvailabilityExceptionRepository.RemoveAsync` é exclusão
+  definitiva (hard delete), não desativação — única exceção a essa
+  convenção em todo o módulo, documentada aqui e no próprio repositório.
+
+### "Não permitir horários sobrepostos" — onde a regra vive
+
+A regra pedida no prompt é uma interseção de intervalos, não uma simples
+combinação de colunas — por isso não virou um índice único em
+Infrastructure (ao contrário de, por exemplo, `ProfessionalService`).
+Cada entidade expõe um método de comparação consigo mesma
+(`ProfessionalAvailability.OverlapsWith(dayOfWeek, start, end)` e
+`ProfessionalAvailabilityException.OverlapsWith(otherStart, otherEnd)`,
+interseção clássica de intervalos `a < d && c < b`), e
+`ProfessionalAvailabilityService` é quem carrega os demais registros do
+profissional e pergunta a cada um se colide com o candidato — para
+intervalos recorrentes, só entre o mesmo `DayOfWeek`; para exceções, só
+entre a mesma `Date` (um bloqueio de dia inteiro colide com qualquer outra
+exceção naquela data, cheia ou parcial). Ao editar um intervalo (PUT), a
+checagem ignora o próprio registro sendo editado (`excludeId`) — senão um
+intervalo colidiria consigo mesmo. "Não permitir StartTime >= EndTime" é
+validado na própria entidade (`DomainException`, mapeada para 400) — não
+depende de nenhum outro registro, então não precisa da Application.
+
+### Timezone — por que não há um campo de fuso horário
+
+"Timezone deverá ser tratado corretamente" (regra do prompt) foi resolvida
+pela escolha de tipo, não por um campo novo: `StartTime`/`EndTime` usam
+`TimeOnly` e `Date` usa `DateOnly` (tipos do .NET, não `DateTime`) — um
+horário de parede/uma data civil **pura**, sem fuso nem offset embutidos.
+Isso evita exatamente a ambiguidade de fuso/`DateTime.Kind` que `DateTime`
+traria para um dado que é, por natureza, só "08:00" ou "25/12/2026" — não
+importa o fuso do servidor que salvou nem o fuso do dispositivo que exibe.
+O prompt não pediu um campo de fuso horário (`TimeZoneId`) na lista de
+entidades, então nenhum foi adicionado; se um profissional algum dia
+precisar de uma agenda em fuso diferente do restante do sistema, esse
+campo pode ser adicionado depois sem quebrar o desenho atual (bastaria
+guardar um IANA id junto de `Professional` e interpretar `TimeOnly`/
+`DateOnly` relativos a ele). O provider Npgsql (EF Core) mapeia `TimeOnly`/
+`DateOnly` nativamente para as colunas `time`/`date` do PostgreSQL desde a
+v7 — nenhum conversor customizado foi necessário.
+
+**Detalhe de serialização (JSON) que afeta o mobile:** o conversor padrão
+do `System.Text.Json` para `TimeOnly` exige o formato completo `"HH:mm:ss"`
+— `"08:00"` sozinho (sem segundos) é rejeitado na desserialização. Isso foi
+confirmado rodando um pequeno teste manual durante a implementação. Por
+isso `mobile/src/modules/professional/availabilityFormat.ts` expõe
+`toApiTime`/`fromApiTime` para nunca vazar esse detalhe de formato para as
+telas — o profissional só digita/vê "HH:MM".
+
+### Um único endpoint GET para as quatro telas
+
+A lista de endpoints do PROMPT 07 pede um único `GET availability`
+(diferente de, por exemplo, o módulo Resident, que tem GETs separados por
+recurso). Em vez de inventar GETs adicionais não pedidos, `GET
+/api/professional/availability` devolve `ProfessionalAvailabilityOverviewResponse`
+— agenda recorrente **e** exceções juntas, numa única consulta — e as
+quatro telas React Native pedidas (AvailabilityScreen/AvailabilityEditor/
+BlockedDatesScreen/CalendarAvailabilityScreen) partem todas dela no mobile
+(uma única chave de cache no TanStack Query,
+`['professional', 'availability', 'mine']`, invalidada por qualquer
+mutação). Os demais endpoints seguem exatamente a lista do prompt:
+
+- `GET /api/professional/availability`
+- `POST /api/professional/availability` — cria um intervalo recorrente.
+- `PUT /api/professional/availability/{id}` — edita um intervalo existente.
+- `DELETE /api/professional/availability/{id}` — remoção lógica.
+- `POST /api/professional/availability/exceptions` — cria uma exceção.
+- `DELETE /api/professional/availability/exceptions/{id}` — remoção
+  definitiva (ver nota sobre `ProfessionalAvailabilityException` acima).
+
+Todos self-service (`[Authorize]`, sempre restritos a
+`User.GetUserId()` — mesmo padrão de `ProfessionalProfileController`), sem
+necessidade de uma interface de diretório público ou administrativa nesta
+etapa: o prompt não pediu nenhuma tela para o morador ver a disponibilidade
+de um profissional (isso é natural de Booking, que "Ainda NÃO" existe), só
+telas para o próprio profissional configurar a agenda. Por isso
+`IProfessionalAvailabilityService` é a única interface nova de Application
+— ao contrário das Etapas 05/06, que precisaram de duas ou três.
+`ProfessionalAvailabilityNotFoundException`/`OverlappingAvailabilityException`/
+`ProfessionalAvailabilityExceptionNotFoundException` seguem no mesmo
+arquivo `ProfessionalExceptions.cs` (convenção de um arquivo de exceções
+por módulo) e no mesmo `ExceptionHandlingMiddleware`.
+
+### React Native
+
+- **`AvailabilityScreen`** — agenda recorrente agrupada por dia da semana
+  (ordem PT-BR, segunda a domingo — `DAY_OF_WEEK_ORDER` em
+  `availabilityFormat.ts`), cada dia com seus intervalos `Active` ou
+  "Indisponível" quando não há nenhum; editar/remover por intervalo;
+  botão "Adicionar horário" e atalhos para as outras duas telas. É a tela
+  inicial da seção de disponibilidade (`app/(professional)/availability/index.tsx`).
+- **`AvailabilityEditor`** — "configurar dias; configurar horários": dia
+  da semana (botões, mesmo padrão de seleção por toggle de
+  `ServicesSection` na Etapa 06) + início/término em texto livre
+  "HH:MM", convertido para o formato da Api (`toApiTime`) só no envio. Um
+  único componente cria (sem `id` na rota) ou edita (`id` de um intervalo
+  existente) — mesmo padrão de reuso de formulário de
+  `ProfessionalEditScreen`.
+- **`BlockedDatesScreen`** — "bloquear datas; liberar horários
+  específicos": formulário (data, tipo Bloquear/Liberar, dia inteiro ou
+  horário específico, motivo opcional) mais a lista de exceções já
+  cadastradas, cada uma com um botão remover.
+- **`CalendarAvailabilityScreen`** — grade de mês própria (sem nenhuma
+  biblioteca de calendário/data — este projeto não usa uma até agora;
+  `buildMonthGrid` em `availabilityFormat.ts` calcula tudo com `Date`
+  nativo), dias com exceção destacados por cor (bloqueado/liberado) e
+  navegação entre meses; tocar num dia leva para `BlockedDatesScreen`
+  (esta tela é só visualização + atalho, quem cria/remove é a outra).
+
+Roteamento: as quatro telas ficam em `app/(professional)/availability/`
+(diferente das telas do morador da Etapa 06, que ficam em
+`(resident)/`) — aqui o consumidor é sempre o próprio profissional.
+`ProfessionalEditScreen` ganhou o botão "Configurar disponibilidade"
+apontando para `availability/index`, mesmo padrão do botão "Buscar
+profissional" que a Etapa 06 adicionou em `ResidentHomeScreen`.
+
+### Testes
+
+`AvailabilityTests` (agenda recorrente: criação, `Start >= End` inválido,
+sem perfil, sobreposição no mesmo dia/dias diferentes, edição sem colidir
+consigo mesma, edição sobrepondo outro intervalo, isolamento entre
+profissionais na edição/remoção, remover e readicionar o mesmo horário) e
+`AvailabilityExceptionTests` (bloqueio de dia inteiro, janela parcial,
+só um de início/término informado, sobreposição entre exceções na mesma
+data — incluindo bloqueio de dia inteiro contra qualquer outra, datas
+diferentes não conflitam, remoção definitiva e readição, isolamento entre
+profissionais na remoção) — mesmo projeto `Professional.Application.Tests`
+da Etapa 06, mesmos fakes em memória (`ProfessionalServiceTestFixture`
+ganhou `CreateAvailabilitySut()`).
+
+### Limitação do sandbox de build (Claude) nesta etapa
+
+Mesma limitação das etapas anteriores: `Alilu.Modules.Professional.Infrastructure`,
+`Alilu.Api` e os projetos de teste xUnit não puderam ser restaurados/
+compilados aqui (pacotes NuGet só resolvíveis com acesso à internet, que
+este sandbox não tem). O que **foi** verificado:
+
+- `Alilu.Modules.Professional.Domain` e `Alilu.Modules.Professional.Application`
+  (ambos sem dependências NuGet externas) compilam com **0 erros/0
+  warnings**, com as duas novas entidades e o novo serviço.
+- Toda a lógica de negócio desta etapa (sobreposição de intervalos e de
+  exceções, validação de horário, remoção lógica vs. definitiva, isolamento
+  entre profissionais) foi validada rodando manualmente contra fakes em
+  memória (as mesmas implementações reais dos serviços) — **26
+  verificações, todas passaram**.
+- `python3 scripts/check-references.py` — **34 projetos, 0 violações, 0
+  ciclos** (nenhum projeto novo nesta etapa, só arquivos dentro dos
+  projetos já existentes do módulo Professional).
+- Mobile: `npx tsc --noEmit` e `npx eslint .` — **0 erros/0 warnings** em
+  todo o projeto (incluindo os oito arquivos novos e os quatro editados
+  desta etapa).
+
+Também confirmado por leitura cuidadosa (sem poder compilar): o
+desserializador `TimeOnly`/`DateOnly` do .NET exige os formatos
+`"HH:mm:ss"`/`"yyyy-MM-dd"` — testado isoladamente com
+`System.Text.Json.JsonSerializer` num projeto console descartável (não
+faz parte da entrega). Rode `dotnet restore && dotnet build`, `dotnet test
+src/Modules/Professional/Application.Tests` e o comando de migration
+(`dotnet ef migrations add AddProfessionalAvailability --project src/Infrastructure/Alilu.Infrastructure --startup-project src/Api/Alilu.Api`,
+depois `dotnet ef database update ...`) na sua máquina para a verificação
+completa.
