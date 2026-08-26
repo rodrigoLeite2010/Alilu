@@ -1,3 +1,5 @@
+using Alilu.Modules.Notifications.Application;
+using Alilu.Modules.Notifications.Domain;
 using Alilu.Modules.Professional.Application;
 using Alilu.Modules.Resident.Application;
 using Alilu.Modules.Scheduling.Application;
@@ -44,7 +46,8 @@ namespace Alilu.Api.Controllers;
 public sealed class BookingsController(
     IBookingService bookingService,
     IMembershipService membershipService,
-    IProfessionalDirectoryService professionalDirectoryService) : ControllerBase
+    IProfessionalDirectoryService professionalDirectoryService,
+    INotificationDispatcher notificationDispatcher) : ControllerBase
 {
     /// <summary>React Native: MyBookingsScreen.</summary>
     [HttpGet]
@@ -89,6 +92,21 @@ public sealed class BookingsController(
             body.Items.Select(item => new BookingItemInput(item.ServiceCategoryId, item.Description, item.Quantity)).ToList(),
             cancellationToken);
 
+        // EVENTO "novo agendamento" (PROMPT 11) — para o profissional. O
+        // User.Id do profissional não vem em nenhum DTO público (ver nota
+        // em IProfessionalDirectoryService.GetProfessionalUserIdAsync); a
+        // notificação em si nunca inclui dado sensível do morador (nome,
+        // telefone, unidade) — só data/horário, o suficiente para o
+        // profissional decidir.
+        var professionalUserId = await professionalDirectoryService.GetProfessionalUserIdAsync(body.ProfessionalId, cancellationToken);
+        await notificationDispatcher.NotifyAsync(
+            professionalUserId,
+            NotificationType.BookingCreated,
+            "Novo agendamento recebido",
+            $"Você recebeu uma nova solicitação de agendamento para {booking.ScheduledDate:dd/MM/yyyy} às {booking.StartTime:HH:mm}.",
+            booking.Id,
+            cancellationToken);
+
         return StatusCode(StatusCodes.Status201Created, booking);
     }
 
@@ -97,6 +115,19 @@ public sealed class BookingsController(
     public async Task<ActionResult<BookingResponse>> Cancel(Guid id, CancellationToken cancellationToken)
     {
         var booking = await bookingService.CancelMyBookingAsync(User.GetUserId(), id, cancellationToken);
+
+        // EVENTO "agendamento cancelado" (PROMPT 11) — para o profissional
+        // (foi o morador quem cancelou aqui; o caminho inverso é
+        // ProfessionalBookingsController.Cancel, abaixo).
+        var professionalUserId = await professionalDirectoryService.GetProfessionalUserIdAsync(booking.ProfessionalId, cancellationToken);
+        await notificationDispatcher.NotifyAsync(
+            professionalUserId,
+            NotificationType.BookingCancelled,
+            "Agendamento cancelado",
+            $"O agendamento de {booking.ScheduledDate:dd/MM/yyyy} às {booking.StartTime:HH:mm} foi cancelado pelo morador.",
+            booking.Id,
+            cancellationToken);
+
         return Ok(booking);
     }
 }

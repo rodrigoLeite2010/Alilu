@@ -1,3 +1,5 @@
+using Alilu.Modules.Notifications.Application;
+using Alilu.Modules.Notifications.Domain;
 using Alilu.Modules.Professional.Application;
 using Alilu.Modules.Scheduling.Application;
 using Alilu.Modules.Scheduling.Domain;
@@ -25,7 +27,8 @@ namespace Alilu.Api.Controllers;
 [Authorize]
 public sealed class ProfessionalBookingsController(
     IProfessionalBookingService professionalBookingService,
-    IProfessionalProfileService profileService) : ControllerBase
+    IProfessionalProfileService profileService,
+    INotificationDispatcher notificationDispatcher) : ControllerBase
 {
     /// <summary>React Native: ProfessionalRequestsScreen — "solicitações recebidas"; <paramref name="status"/> opcional filtra (ex.: <c>?status=Requested</c> só as pendentes).</summary>
     [HttpGet]
@@ -53,6 +56,19 @@ public sealed class ProfessionalBookingsController(
     {
         var professionalId = await ResolveMyProfessionalIdAsync(cancellationToken);
         var booking = await professionalBookingService.AcceptAsync(professionalId, id, cancellationToken);
+
+        // EVENTO "agendamento aceito" (PROMPT 11) — para o morador.
+        // Booking.ResidentId JÁ É o User.Id (não há entidade Resident
+        // própria — ver nota de IBookingService), então nenhuma chamada a
+        // outro módulo é necessária para resolver o destinatário.
+        await notificationDispatcher.NotifyAsync(
+            booking.ResidentId,
+            NotificationType.BookingAccepted,
+            "Agendamento aceito",
+            $"Seu agendamento de {booking.ScheduledDate:dd/MM/yyyy} às {booking.StartTime:HH:mm} foi aceito pelo profissional.",
+            booking.Id,
+            cancellationToken);
+
         return Ok(booking);
     }
 
@@ -62,6 +78,16 @@ public sealed class ProfessionalBookingsController(
     {
         var professionalId = await ResolveMyProfessionalIdAsync(cancellationToken);
         var booking = await professionalBookingService.RejectAsync(professionalId, id, cancellationToken);
+
+        // EVENTO "agendamento rejeitado" (PROMPT 11) — para o morador.
+        await notificationDispatcher.NotifyAsync(
+            booking.ResidentId,
+            NotificationType.BookingRejected,
+            "Agendamento recusado",
+            $"Seu agendamento de {booking.ScheduledDate:dd/MM/yyyy} às {booking.StartTime:HH:mm} foi recusado pelo profissional.",
+            booking.Id,
+            cancellationToken);
+
         return Ok(booking);
     }
 
@@ -71,6 +97,18 @@ public sealed class ProfessionalBookingsController(
     {
         var professionalId = await ResolveMyProfessionalIdAsync(cancellationToken);
         var booking = await professionalBookingService.CancelAsync(professionalId, id, cancellationToken);
+
+        // EVENTO "agendamento cancelado" (PROMPT 11) — para o morador (foi
+        // o profissional quem cancelou aqui; o caminho inverso é
+        // BookingsController.Cancel).
+        await notificationDispatcher.NotifyAsync(
+            booking.ResidentId,
+            NotificationType.BookingCancelled,
+            "Agendamento cancelado",
+            $"O agendamento de {booking.ScheduledDate:dd/MM/yyyy} às {booking.StartTime:HH:mm} foi cancelado pelo profissional.",
+            booking.Id,
+            cancellationToken);
+
         return Ok(booking);
     }
 
@@ -89,6 +127,16 @@ public sealed class ProfessionalBookingsController(
     {
         var professionalId = await ResolveMyProfessionalIdAsync(cancellationToken);
         var booking = await professionalBookingService.CompleteAsync(professionalId, id, cancellationToken);
+
+        // EVENTO "serviço concluído" (PROMPT 11) — para o morador.
+        await notificationDispatcher.NotifyAsync(
+            booking.ResidentId,
+            NotificationType.ServiceCompleted,
+            "Serviço concluído",
+            $"O serviço de {booking.ScheduledDate:dd/MM/yyyy} foi marcado como concluído. Que tal avaliar o profissional?",
+            booking.Id,
+            cancellationToken);
+
         return Ok(booking);
     }
 

@@ -1,3 +1,6 @@
+using Alilu.Modules.Notifications.Application;
+using Alilu.Modules.Notifications.Domain;
+using Alilu.Modules.Professional.Application;
 using Alilu.Modules.Reviews.Application;
 using Alilu.Modules.Scheduling.Application;
 using Microsoft.AspNetCore.Authorization;
@@ -33,7 +36,9 @@ namespace Alilu.Api.Controllers;
 [Authorize]
 public sealed class ReviewsController(
     IReviewService reviewService,
-    IBookingService bookingService) : ControllerBase
+    IBookingService bookingService,
+    IProfessionalDirectoryService professionalDirectoryService,
+    INotificationDispatcher notificationDispatcher) : ControllerBase
 {
     /// <summary>React Native: ReviewScreen — "visualizar avaliações feitas".</summary>
     [HttpGet]
@@ -70,6 +75,19 @@ public sealed class ReviewsController(
         var professionalId = await bookingService.ValidateCompletedBookingForReviewAsync(userId, body.BookingId, cancellationToken);
 
         var review = await reviewService.CreateAsync(userId, body.BookingId, professionalId, body.Rating, body.Comment, cancellationToken);
+
+        // EVENTO "nova avaliação" (PROMPT 11) — para o profissional. A
+        // mensagem nunca inclui a nota nem o comentário (REGRA "não expor
+        // informações sensíveis na notificação") — só o aviso de que uma
+        // nova avaliação chegou; ver detalhes em ProfessionalReviewsScreen.
+        var professionalUserId = await professionalDirectoryService.GetProfessionalUserIdAsync(professionalId, cancellationToken);
+        await notificationDispatcher.NotifyAsync(
+            professionalUserId,
+            NotificationType.NewReview,
+            "Nova avaliação recebida",
+            "Você recebeu uma nova avaliação de um morador.",
+            review.Id,
+            cancellationToken);
 
         return StatusCode(StatusCodes.Status201Created, review);
     }

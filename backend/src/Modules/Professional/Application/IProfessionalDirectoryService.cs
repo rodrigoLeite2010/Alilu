@@ -48,4 +48,16 @@ public interface IProfessionalDirectoryService
     /// disponível.
     /// </summary>
     Task ValidateAvailableAsync(Guid professionalId, DateOnly date, TimeOnly startTime, TimeOnly endTime, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Ponto de extensão para o módulo Notifications (Etapa 11) — resolve o
+    /// <c>User.Id</c> (Identity) dono deste perfil profissional, para a Api
+    /// poder notificá-lo (ex.: "novo agendamento", "nova avaliação"). Não
+    /// exposto em <see cref="ProfessionalDirectoryItemResponse"/> (DTO
+    /// público do diretório) de propósito — <c>UserId</c> não é informação
+    /// que o morador precisa ver, só a Api, internamente, para compor a
+    /// notificação. Lança <see cref="ProfessionalNotFoundException"/>
+    /// quando o perfil não existe/não está mais ativo.
+    /// </summary>
+    Task<Guid> GetProfessionalUserIdAsync(Guid professionalId, CancellationToken cancellationToken = default);
 }

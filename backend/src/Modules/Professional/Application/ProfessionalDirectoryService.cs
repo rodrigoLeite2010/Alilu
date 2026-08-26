@@ -94,6 +94,17 @@ public sealed class ProfessionalDirectoryService(
         }
     }
 
+    public async Task<Guid> GetProfessionalUserIdAsync(Guid professionalId, CancellationToken cancellationToken = default)
+    {
+        var professional = await professionalRepository.GetByIdAsync(professionalId, cancellationToken);
+        if (professional is null || !professional.IsActive)
+        {
+            throw new ProfessionalNotFoundException();
+        }
+
+        return professional.UserId;
+    }
+
     /// <summary>A janela pedida cabe inteira dentro da exceção (dia inteiro sempre cabe; janela parcial precisa conter [startTime, endTime) por completo — uma liberação parcial menor que o pedido não é suficiente).</summary>
     private static bool FullyContains(ProfessionalAvailabilityException exception, TimeOnly startTime, TimeOnly endTime) =>
         exception.IsFullDay || (exception.StartTime!.Value <= startTime && endTime <= exception.EndTime!.Value);

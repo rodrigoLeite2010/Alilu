@@ -32,6 +32,16 @@ public sealed class InMemoryBookingRepository : IBookingRepository
                 .Where(b => b.ProfessionalId == professionalId && b.ScheduledDate == scheduledDate && b.OccupiesSlot)
                 .ToList());
 
+    public Task<IReadOnlyList<Booking>> ListConfirmedByScheduledDateRangeAsync(
+        DateOnly fromDate,
+        DateOnly toDate,
+        CancellationToken cancellationToken = default) =>
+        Task.FromResult<IReadOnlyList<Booking>>(
+            _bookings.Values
+                .Where(b => b.Status == BookingStatus.Confirmed && b.ScheduledDate >= fromDate && b.ScheduledDate <= toDate)
+                .OrderBy(b => b.ScheduledDate).ThenBy(b => b.StartTime)
+                .ToList());
+
     public Task AddAsync(Booking booking, CancellationToken cancellationToken = default)
     {
         _bookings[booking.Id] = booking;

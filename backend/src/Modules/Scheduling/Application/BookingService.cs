@@ -89,6 +89,15 @@ public sealed class BookingService(
         return booking.ProfessionalId;
     }
 
+    public async Task<IReadOnlyList<BookingResponse>> ListConfirmedBookingsByDateRangeAsync(
+        DateOnly fromDate,
+        DateOnly toDate,
+        CancellationToken cancellationToken = default)
+    {
+        var bookings = await bookingRepository.ListConfirmedByScheduledDateRangeAsync(fromDate, toDate, cancellationToken);
+        return await ToResponsesAsync(bookings, cancellationToken);
+    }
+
     private async Task<Booking> GetOwnBookingOrThrowAsync(Guid residentId, Guid bookingId, CancellationToken cancellationToken)
     {
         var booking = await bookingRepository.GetByIdAsync(bookingId, cancellationToken)

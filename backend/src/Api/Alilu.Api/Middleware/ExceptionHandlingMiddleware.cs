@@ -135,6 +135,9 @@ public sealed class ExceptionHandlingMiddleware(RequestDelegate next, ILogger<Ex
         Alilu.Modules.Recommendations.Application.RecommendationNotApprovedException => (StatusCodes.Status409Conflict, exception.Message),
         Alilu.Modules.Recommendations.Application.InsufficientPermissionsException => (StatusCodes.Status403Forbidden, exception.Message),
 
+        // Módulo Notifications (PROMPT 11).
+        Alilu.Modules.Notifications.Application.NotificationNotFoundException => (StatusCodes.Status404NotFound, exception.Message),
+
         UnauthorizedAccessException => (StatusCodes.Status401Unauthorized, exception.Message),
         DomainException => (StatusCodes.Status400BadRequest, exception.Message),
         _ => (StatusCodes.Status500InternalServerError, "Ocorreu um erro inesperado."),

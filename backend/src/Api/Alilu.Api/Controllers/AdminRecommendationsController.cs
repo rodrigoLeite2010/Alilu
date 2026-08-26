@@ -1,3 +1,5 @@
+using Alilu.Modules.Notifications.Application;
+using Alilu.Modules.Notifications.Domain;
 using Alilu.Modules.Recommendations.Application;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -16,7 +18,9 @@ namespace Alilu.Api.Controllers;
 [ApiController]
 [Route("api/admin/recommendations")]
 [Authorize(Roles = "CondominiumAdmin,SuperAdmin")]
-public sealed class AdminRecommendationsController(IRecommendationAdministrationService recommendationAdministrationService) : ControllerBase
+public sealed class AdminRecommendationsController(
+    IRecommendationAdministrationService recommendationAdministrationService,
+    INotificationDispatcher notificationDispatcher) : ControllerBase
 {
     [HttpGet("pending")]
     public async Task<ActionResult<IReadOnlyList<RecommendationResponse>>> ListPending(CancellationToken cancellationToken)
@@ -31,6 +35,16 @@ public sealed class AdminRecommendationsController(IRecommendationAdministration
     {
         var recommendation = await recommendationAdministrationService.ApproveAsync(
             User.GetRecommendationRequesterRole(), User.GetUserId(), id, cancellationToken);
+
+        // EVENTO "recomendação aprovada" (PROMPT 11) — para quem recomendou.
+        await notificationDispatcher.NotifyAsync(
+            recommendation.RecommendedByUserId,
+            NotificationType.RecommendationApproved,
+            "Recomendação aprovada",
+            "Sua recomendação foi aprovada e já está visível para outros moradores.",
+            recommendation.Id,
+            cancellationToken);
+
         return Ok(recommendation);
     }
 

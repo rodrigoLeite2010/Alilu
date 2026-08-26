@@ -81,3 +81,13 @@ Profissional (`ProfessionalBookingsController`, `api/professional/bookings`):
 Verificação de disponibilidade (Api-only, módulo Professional, reaproveitada por este fluxo):
 
 - `GET /api/directory/professionals/{id}/availability-check?date=&startTime=&endTime=`
+
+## Extensão usada pelo módulo Notifications (Etapa 11)
+
+`IBookingService.ListConfirmedBookingsByDateRangeAsync`/
+`IBookingRepository.ListConfirmedByScheduledDateRangeAsync` — não são
+endpoints, um método novo do lado de quem é consultado (mesmo padrão das
+extensões das Etapas 07/08/10): lista agendamentos `Confirmed` num
+intervalo de datas. Usado só por `BookingReminderBackgroundService`
+(`Alilu.Api`) para encontrar os agendamentos candidatos ao lembrete de
+serviço — ver ARCHITECTURE.md, "Etapa 11".

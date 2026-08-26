@@ -1,10 +1,12 @@
 using System.Text;
 using System.Text.Json.Serialization;
+using Alilu.Api.BackgroundServices;
 using Alilu.Api.Middleware;
 using Alilu.Infrastructure;
 using Alilu.Modules.Condominium.Infrastructure;
 using Alilu.Modules.Condominium.Infrastructure.Seed;
 using Alilu.Modules.Identity.Infrastructure;
+using Alilu.Modules.Notifications.Infrastructure;
 using Alilu.Modules.Professional.Infrastructure;
 using Alilu.Modules.Professional.Infrastructure.Seed;
 using Alilu.Modules.Recommendations.Infrastructure;
@@ -67,6 +69,17 @@ builder.Services.AddReviewsModule(builder.Configuration);
 // RecommendationsController.
 builder.Services.AddRecommendationsModule(builder.Configuration);
 
+// Módulo Notifications (PROMPT 11): notificações internas e Push
+// Notifications (Expo). Nenhum módulo cria uma notificação sozinho — é a
+// Api (composição raiz) quem chama INotificationDispatcher.NotifyAsync
+// depois da ação principal de cada módulo (ver BookingsController/
+// ProfessionalBookingsController/ReviewsController/
+// AdminRecommendationsController/AdminMembershipsController) — mesmo
+// papel de composição das etapas anteriores. O EVENTO "lembrete do
+// serviço" é a exceção: não nasce de uma ação de usuário, por isso um
+// processo de fundo próprio (ver abaixo, AddHostedService).
+builder.Services.AddNotificationsModule(builder.Configuration);
+
 builder.Services
     .AddControllers()
     // Enums (ex.: UserRole, UserStatus) trafegam como texto ("Resident"),
@@ -96,6 +109,10 @@ builder.Services
     });
 
 builder.Services.AddAuthorization();
+
+// EVENTO "lembrete do serviço" (PROMPT 11) — ver comentário de design em
+// BookingReminderBackgroundService.
+builder.Services.AddHostedService<BookingReminderBackgroundService>();
 
 var app = builder.Build();
 
@@ -132,7 +149,7 @@ app.MapGet("/health", () => Results.Ok(new { status = "healthy" }));
 app.MapGet("/", () => Results.Ok(new
 {
     application = "ALILU API",
-    status = "Identity (autenticação), Condominium (condomínios/unidades/convites), Resident (validação do morador), Professional (profissionais/diaristas, incluindo disponibilidade), Scheduling (agendamentos), Reviews (avaliações) e Recommendations (indicações) implementados",
+    status = "Identity (autenticação), Condominium (condomínios/unidades/convites), Resident (validação do morador), Professional (profissionais/diaristas, incluindo disponibilidade), Scheduling (agendamentos), Reviews (avaliações), Recommendations (indicações) e Notifications (notificações internas e push) implementados",
 }));
 
 app.Run();

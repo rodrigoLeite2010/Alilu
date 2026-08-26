@@ -1,4 +1,5 @@
 import { router } from 'expo-router';
+import type { ReactNode } from 'react';
 import { View } from 'react-native';
 
 import { AppButton, AppText, Screen } from '../../../components';
@@ -9,6 +10,15 @@ import type { Membership } from '../types';
 
 interface ResidentHomeScreenProps {
   membership: Membership;
+  /**
+   * Slot para o NotificationBadge (módulo Notifications, PROMPT 11) —
+   * passado pela camada de rotas (`(resident)/index.tsx`), mesmo padrão de
+   * composição já usado em `(resident)/bookings/[id]/index.tsx` para o
+   * módulo Reviews: este módulo não pode importar Notifications
+   * diretamente (independência de módulos), só Auth (fundação
+   * compartilhada).
+   */
+  headerSlot?: () => ReactNode;
 }
 
 /**
@@ -26,7 +36,7 @@ interface ResidentHomeScreenProps {
  * própria recomendação de um profissional específico ("Recomendar") fica
  * em ProfessionalProfileScreen, mesmo padrão de "Agendar".
  */
-export function ResidentHomeScreen({ membership }: ResidentHomeScreenProps) {
+export function ResidentHomeScreen({ membership, headerSlot }: ResidentHomeScreenProps) {
   const { spacing } = useTheme();
   const { user, logout } = useAuth();
   const { data: condominiums } = useCondominiums();
@@ -38,7 +48,10 @@ export function ResidentHomeScreen({ membership }: ResidentHomeScreenProps) {
   return (
     <Screen>
       <View style={{ flex: 1 }}>
-        <AppText variant="title">Olá, {user?.name}</AppText>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+          <AppText variant="title">Olá, {user?.name}</AppText>
+          {headerSlot?.()}
+        </View>
 
         <View style={{ marginTop: spacing.md, gap: spacing.xxs }}>
           <AppText variant="subtitle" color="secondary">

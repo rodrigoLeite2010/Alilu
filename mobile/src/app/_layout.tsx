@@ -5,6 +5,7 @@ import { ActivityIndicator, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { AuthProvider, useAuth } from '../modules/auth';
+import { useNotificationsBootstrap } from '../modules/notifications';
 import { queryClient } from '../services/queryClient';
 import { ThemeProvider, useTheme } from '../theme';
 
@@ -17,6 +18,10 @@ import { ThemeProvider, useTheme } from '../theme';
 function RootNavigator() {
   const { isBootstrapping } = useAuth();
   const { colors } = useTheme();
+
+  // React Native: "Configurar device token" + "ao clicar na notificação,
+  // abrir a tela correspondente" (PROMPT 11) — ver useNotificationsBootstrap.
+  useNotificationsBootstrap();
 
   if (isBootstrapping) {
     return (
@@ -38,6 +43,7 @@ function RootNavigator() {
       <Stack.Screen name="(resident)" />
       <Stack.Screen name="(professional)" />
       <Stack.Screen name="(administration)" />
+      <Stack.Screen name="notifications/index" />
     </Stack>
   );
 }

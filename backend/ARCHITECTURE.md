@@ -1928,3 +1928,270 @@ e os comandos de migration (`dotnet ef migrations add AddRecommendationsModule
 --project src/Infrastructure/Alilu.Infrastructure --startup-project
 src/Api/Alilu.Api`, depois `dotnet ef database update ...`) na sua máquina
 para a verificação completa.
+
+## Etapa 11 — notificações (Notifications)
+
+PROMPT 11 — "implementar SOMENTE Notifications". Módulo novo
+(`Alilu.Modules.Notifications.*`) com uma particularidade em relação a
+todos os anteriores: ele não tem um fluxo de negócio próprio — sua única
+função é ser o **ponto de extensão** que todos os outros módulos chamam
+depois de completar a própria ação (criar agendamento, aceitar/recusar/
+cancelar, concluir serviço, criar avaliação, aprovar indicação, aprovar/
+recusar solicitação de acesso), mais um processo em segundo plano para o
+único evento que não nasce de uma ação do usuário (lembrete de serviço).
+
+### Entidades (`Alilu.Modules.Notifications.Domain`)
+
+- **`Notification`** — a notificação interna em si: `UserId`, `Title`,
+  `Message`, `Type` (`NotificationType`, dez valores, um por EVENTO do
+  prompt, na mesma ordem em que o prompt os lista), `ReferenceId`
+  (nullable), `ReadAt` (nullable), `CreatedAt`, mais `IsRead` computado.
+  O prompt não marcou nenhum campo da entidade como nullable — `ReadAt`
+  (começa nula até a leitura) e `ReferenceId` (mantido opcional para um
+  eventual tipo de notificação futuro sem entidade de origem — nenhum dos
+  dez EVENTOS atuais usa esse caminho) são nullable por necessidade
+  lógica, não por escolha de escopo. `MarkAsRead()` é idempotente (não
+  falha se já lida). Sem navegação/FK para `User` — mesma decisão de
+  sempre, só o Id como valor simples.
+- **`DeviceToken`** — **não está na lista de ENTIDADE do prompt** (que só
+  lista `Notification`), mas é necessária para cumprir o item do React
+  Native "Configurar device token": guarda o Expo push token atual de um
+  usuário (`UserId`, `Token`, `CreatedAt`, `UpdatedAt`). Modela **um token
+  por usuário** — `Register`/`UpdateToken` fazem upsert (o token novo
+  sempre sobrescreve o anterior) — decisão de escopo deliberada de MVP:
+  **não** há suporte a múltiplos dispositivos simultâneos por usuário; se
+  uma etapa futura precisar disso, é uma extensão desta entidade (uma
+  lista de tokens em vez de um só), não uma mudança de design.
+
+### As REGRAS do prompt e onde cada uma vive
+
+- **"Não enviar notificações duplicadas"** — resolvida num **único
+  mecanismo central**, não uma checagem por EVENTO: `INotificationDispatcher.NotifyAsync`
+  (Application) verifica `INotificationRepository.ExistsAsync(userId, type,
+  referenceId)` **antes** de criar qualquer notificação, sempre que
+  `referenceId` foi informado (os dez EVENTOS desta etapa sempre informam).
+  Isso cobre uniformemente tanto o caso óbvio (um clique duplicado no
+  cliente) quanto o caso real que motivou essa regra:
+  `BookingReminderBackgroundService` roda a cada 30 minutos e pode
+  encontrar o mesmo agendamento "devido" em várias rodadas antes do
+  horário chegar — sem esse mecanismo, geraria um lembrete repetido a cada
+  execução.
+- **"Não expor informações sensíveis na notificação"** — aplicada em dois
+  lugares: (1) quem monta `title`/`message` em cada controller nunca
+  inclui dado sensível de outro módulo (ex.: `ReviewsController.Create`
+  notifica com "Você recebeu uma nova avaliação de um morador.", nunca a
+  nota nem o comentário); (2) o payload `data` enviado ao Expo
+  (`type`/`referenceId`, usado só para resolver a tela ao tocar) nunca
+  contém `title`/`message` sensíveis — são só um enum e um Guid, o mínimo
+  necessário para navegar.
+- **"Ao clicar na notificação, abrir a tela correspondente"** — dois
+  casos, resolvidos com a mesma função (`resolveNotificationRoute`, mobile,
+  ver seção React Native): (1) toque numa notificação do NotificationCenter
+  (já se tem o `Notification` completo); (2) toque numa notificação do
+  **sistema** (app em segundo plano/fechado) — só se tem o payload `data`
+  do push, por isso `IPushNotificationSender.SendAsync` recebe
+  `type`/`referenceId` além de `title`/`message`, e a implementação Expo
+  (`ExpoPushNotificationSender`) os embute no campo `data` do payload
+  (nunca no texto visível — ver regra anterior).
+
+### Eventos → quem dispara, com que tipo
+
+| EVENTO do prompt | Controller/serviço | `NotificationType` | Notifica |
+|---|---|---|---|
+| Novo agendamento | `BookingsController.Create` | `BookingCreated` | Profissional (via `IProfessionalDirectoryService.GetProfessionalUserIdAsync`, novo) |
+| Agendamento aceito | `ProfessionalBookingsController.Accept` | `BookingAccepted` | Morador (`booking.ResidentId`) |
+| Agendamento rejeitado | `ProfessionalBookingsController.Reject` | `BookingRejected` | Morador |
+| Agendamento cancelado | `BookingsController.Cancel` (morador cancela) / `ProfessionalBookingsController.Cancel` (profissional cancela) | `BookingCancelled` | O outro lado (profissional/morador) |
+| Lembrete do serviço | `BookingReminderBackgroundService` (novo, `Alilu.Api`) | `ServiceReminder` | Morador e profissional |
+| Serviço concluído | `ProfessionalBookingsController.Complete` | `ServiceCompleted` | Morador |
+| Nova avaliação | `ReviewsController.Create` | `NewReview` | Profissional (via `GetProfessionalUserIdAsync`) |
+| Recomendação aprovada | `AdminRecommendationsController.Approve` | `RecommendationApproved` | Quem recomendou (`recommendation.RecommendedByUserId`) |
+| Solicitação de acesso aprovada | `AdminMembershipsController.Approve` | `AccessRequestApproved` | Morador (`membership.UserId`) |
+| Solicitação de acesso rejeitada | `AdminMembershipsController.Reject` | `AccessRequestRejected` | Morador |
+
+Em todos os dez casos, o controller/serviço resolve sua própria ação
+primeiro (cria o agendamento, aceita, aprova, etc.) e só **depois** chama
+`INotificationDispatcher.NotifyAsync` — uma falha ao notificar nunca
+poderia reverter a ação principal (nem consegue: `SendAsync` do push
+nunca lança, e a criação da notificação em si é um `INSERT` simples que só
+falharia junto com toda a transação).
+
+### `BookingReminderBackgroundService` — o único EVENTO sem ação de usuário
+
+Vive em `Alilu.Api/BackgroundServices` (não é um módulo — mesmo lugar que
+qualquer outro artefato de composição da Api), porque "lembrete do
+serviço" é o único dos dez EVENTOS que não é disparado por uma requisição
+HTTP. Um `BackgroundService` com `PeriodicTimer` (a cada 30 minutos),
+que cria um `IServiceScope` por rodada e compõe `IBookingService`
+(Scheduling) + `IProfessionalDirectoryService` (Professional) +
+`INotificationDispatcher` (Notifications) — exatamente o mesmo padrão de
+composição de um controller, só que acionado por um timer em vez de uma
+requisição. Busca agendamentos `Confirmed` num intervalo de datas
+(`ListConfirmedBookingsByDateRangeAsync`, novo método do módulo
+Scheduling), filtra em memória os que estão a menos de 24h do horário
+marcado, e notifica morador e profissional para cada um. Deliberadamente
+**não** foi adicionado um campo/flag "já lembrado" em `Booking` — o
+dedup central do dispatcher (ver REGRA acima) já resolve o problema de
+rodar a cada 30 minutos sem reenviar, sem duplicar o mecanismo de dedup.
+Qualquer exceção numa rodada é capturada e logada, nunca derruba o loop.
+
+### Duas pequenas extensões em outros módulos, só para esta etapa
+
+Mesmo espírito das Etapas 08/09/10 (um método novo, mínimo, do lado de
+quem é consultado, nunca uma referência entre módulos):
+
+- **`IProfessionalDirectoryService.GetProfessionalUserIdAsync(professionalId)`**
+  (módulo Professional) — resolve o `User.Id` por trás de um
+  `professionalId`, que o DTO público `ProfessionalDirectoryItemResponse`
+  propositalmente não expõe. Usado por `BookingsController.Create`,
+  `ReviewsController.Create` e `BookingReminderBackgroundService` para
+  saber quem notificar do lado do profissional.
+- **`IBookingService.ListConfirmedBookingsByDateRangeAsync`** /
+  **`IBookingRepository.ListConfirmedByScheduledDateRangeAsync`** (módulo
+  Scheduling) — usado só por `BookingReminderBackgroundService` para
+  buscar os agendamentos candidatos a lembrete.
+
+### Composição de Push — Expo
+
+`IPushNotificationSender` (Application) é implementado por
+`ExpoPushNotificationSender` (Infrastructure), um `HttpClient` tipado
+(`AddHttpClient<IPushNotificationSender, ExpoPushNotificationSender>()`)
+que faz `POST https://exp.host/--/api/v2/push/send` — a API pública do
+Expo, primeira integração HTTP externa deste backend. Contrato explícito
+da interface: a implementação **nunca lança** — qualquer falha (rede
+indisponível, token inválido/expirado, resposta de erro do Expo) é só
+logada (`ILogger`), nunca propagada, porque uma instabilidade do serviço
+de push do Expo não pode derrubar, por exemplo, a criação de um
+agendamento. `NotificationDispatcher.NotifyAsync` só chama o `SendAsync`
+quando o usuário tem um `DeviceToken` registrado — sem token, a
+notificação interna ainda é criada normalmente (o usuário a vê ao abrir o
+NotificationCenter), só não gera um push do sistema.
+
+### Endpoints
+
+Self-service (`NotificationsController`, `api/notifications`,
+`[Authorize]`, sempre restrito ao próprio usuário — este módulo não tem
+lado "administrador": notificações são sempre criadas pelos OUTROS
+módulos via `INotificationDispatcher`, nunca por este controller):
+
+- `GET /api/notifications` — minhas notificações
+- `GET /api/notifications/unread-count` — contagem não lida (React Native: NotificationBadge)
+- `POST /api/notifications/{id}/read` — marcar uma como lida
+- `POST /api/notifications/read-all` — marcar todas como lidas
+- `POST /api/notifications/device-token` — registrar/renovar o Expo push token deste dispositivo (upsert)
+- `DELETE /api/notifications/device-token` — remover o token (logout)
+
+### Decisões de escopo (o que este prompt não pediu)
+
+- **`DeviceToken` sem suporte a múltiplos dispositivos por usuário** — ver
+  seção de entidades acima.
+- **Sem tela de administração/moderação no React Native** — este módulo
+  não tem lado administrador; não se aplica.
+- **`BookingReminderBackgroundService` roda a cada 30 minutos com uma
+  janela de 24h** — o prompt só pediu "lembrete do serviço", sem
+  especificar antecedência nem frequência de checagem; ambos os números
+  são uma decisão de produto razoável para o MVP, fácil de ajustar depois
+  (duas constantes no próprio arquivo), não uma regra de negócio
+  modelada em nenhum outro lugar.
+- **`refetchInterval` de 30s em `useUnreadNotificationCount`** (mobile) —
+  decisão de UX, não uma regra do prompt: mantém o número do sino
+  razoavelmente atual mesmo sem o usuário abrir o NotificationCenter.
+
+### React Native
+
+- **`NotificationCenter`** (`NotificationCenterScreen`) — "minhas
+  notificações", lista completa + "marcar todas como lidas". Roteada em
+  `app/notifications/index.tsx`, **fora** de `(resident)`/`(professional)`
+  porque o mesmo destino serve qualquer papel autenticado.
+- **`NotificationItem`** — uma linha da lista: indicador de não lida,
+  rótulo do tipo (PT-BR), título (negrito se não lida), mensagem, data.
+- **`NotificationBadge`** — o sino com a contagem não lida, adicionado a
+  `ResidentHomeScreen` e `ProfessionalEditScreen` (mesmo critério das
+  Etapas 09/10: só telas de papel já implementadas — `AdministrationHomeScreen`,
+  ainda placeholder, não recebeu o badge). Composto na camada de rotas
+  (`app/(resident)/index.tsx`/`app/(professional)/index.tsx`, um
+  `headerSlot` passado para cada tela), nunca importado direto de dentro
+  de `modules/resident`/`modules/professional` — mesmo padrão de
+  composição já usado em `bookings/[id]/index.tsx` (Etapa 09) para o
+  módulo Reviews, porque nenhum desses módulos pode importar o módulo
+  Notifications (independência de módulos vale para o mobile também).
+- **`resolveNotificationRoute`** (`notificationRouting.ts`) — a REGRA "ao
+  clicar na notificação, abrir a tela correspondente", num único lugar,
+  usada nos dois casos de toque (NotificationCenter e push do sistema —
+  ver seção de REGRAS acima). Só depende de `NotificationType` (deste
+  módulo) e `UserRole` (módulo Auth, tratado como fundação compartilhada,
+  mesma convenção de `useAuth` em `ResidentHomeScreen`/
+  `ProfessionalEditScreen`) — os literais de rota de outros módulos
+  (`/(professional)/requests/[id]`, `/(resident)/bookings/[id]`, etc.)
+  são só strings copiadas dos pontos de navegação já existentes, sem
+  importar nada daqueles módulos.
+- **Configurar device token** (`services/notifications.ts`) —
+  `getExpoPushToken()` obtém o Expo push token via
+  `Notifications.getExpoPushTokenAsync({ projectId })`; como este
+  repositório ainda não tem um projeto EAS configurado (`app.json` sem
+  `extra.eas.projectId`, sem `eas.json`), a função devolve `null` sem
+  lançar quando o `projectId` não está disponível — **pendência de
+  configuração do usuário** (rodar `eas init`), não um defeito de código;
+  o app continua funcionando normalmente sem isso (só sem push remoto
+  real até a configuração ser feita). `addNotificationResponseListener`
+  cobre o toque em push do sistema (ver REGRA acima). Ambos orquestrados
+  por `useNotificationsBootstrap` (novo hook, `modules/notifications`),
+  chamado uma única vez em `app/_layout.tsx` (`RootNavigator`) — registra
+  o token ao autenticar, remove ao deslogar, e liga o listener de toque
+  enquanto há um usuário autenticado.
+
+### Testes
+
+`Notifications.Application.Tests/` (novo projeto) —
+`NotificationDispatcherTests` (primeira chamada cria notificação e envia
+push; sem device token, cria mas não envia; mesmo usuário+tipo+referência
+não duplica nem reenvia push — cobre exatamente o cenário do
+`BookingReminderBackgroundService`; tipo diferente com a mesma referência
+cria as duas; mesmo tipo/referência para usuários diferentes cria as
+duas — dedup nunca cruza usuários), `NotificationSelfServiceTests`
+(listar/contar não lidas/marcar como lida/marcar todas, marcar
+notificação de outro usuário falha com `NotificationNotFoundException`)
+e `DeviceTokenTests` (registrar, upsert sobrescreve sem duplicar, remover,
+remover de novo é idempotente).
+
+### Limitação do sandbox de build (Claude) nesta etapa
+
+Mesma limitação de sempre: `Alilu.Modules.Notifications.Infrastructure`
+(EF Core, `Microsoft.Extensions.Http`) e o projeto de teste xUnit
+(`Notifications.Application.Tests`) não puderam ser restaurados/compilados
+aqui (pacotes NuGet só resolvíveis com acesso à internet). O que **foi**
+verificado:
+
+- `Alilu.Modules.Notifications.Domain` e
+  `Alilu.Modules.Notifications.Application` — zero dependências NuGet
+  externas — compilam com **0 erros/0 warnings**.
+- Toda a lógica de negócio desta etapa (dedup central, criação com/sem
+  device token, self-service de leitura, upsert/remoção de token) foi
+  validada rodando manualmente contra fakes em memória (as mesmas
+  implementações reais dos serviços, incluindo um fake de
+  `IPushNotificationSender` que só registra as chamadas) — **17
+  verificações, todas passaram**.
+- Mesma técnica de verificação avulsa das Etapas 09/10 para a camada Api:
+  um projeto referenciando os `.dll` reais já compilados de **todas** as
+  Applications (Identity/Condominium/Resident/Professional/Scheduling/
+  Reviews/Recommendations/Notifications/Administration) e compilando
+  diretamente os arquivos de controller/middleware/background service —
+  incluindo, pela primeira vez, um `BackgroundService` da Api, não só
+  controllers — **0 erros/0 warnings**.
+- `python3 scripts/check-references.py` — **0 violações, 0 ciclos** (38
+  projetos, um a mais que a Etapa 10: o novo `Notifications.Application.Tests`
+  — os três projetos de produção do módulo já existiam desde a Etapa 01
+  como placeholders).
+- Mobile: `npx tsc --noEmit` e `npx eslint .` — **0 erros/0 warnings** em
+  todo o projeto (incluindo os arquivos novos e editados desta etapa).
+
+O que este sandbox **não pode** provar é `Alilu.Modules.Notifications.Infrastructure`
+(mapeamento EF Core, índices, o `HttpClient` tipado do Expo) contra um
+PostgreSQL/Expo reais — rode `dotnet restore && dotnet build`, `dotnet
+test src/Modules/Notifications/Application.Tests` e os comandos de
+migration (`dotnet ef migrations add AddNotificationsModule --project
+src/Infrastructure/Alilu.Infrastructure --startup-project
+src/Api/Alilu.Api`, depois `dotnet ef database update ...`) na sua
+máquina. Também não pode ser verificado aqui: um push de verdade chegando
+num dispositivo (precisa de um projeto EAS configurado — ver seção React
+Native acima, "Configurar device token").

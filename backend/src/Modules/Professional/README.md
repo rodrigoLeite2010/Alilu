@@ -127,3 +127,13 @@ indisponibilidade, sempre `200 { available }`:
 são endpoints próprios — são chamados pela Api dentro de `POST
 /api/resident/bookings` (módulo Scheduling), antes de criar o
 agendamento.
+
+## Extensão usada pelo módulo Notifications (Etapa 11)
+
+`IProfessionalDirectoryService.GetProfessionalUserIdAsync(professionalId)`
+— não é um endpoint, um método novo do lado de quem é consultado (mesmo
+padrão das extensões das Etapas 07/08/10): resolve o `User.Id` por trás de
+um `professionalId`, que o DTO público `ProfessionalDirectoryItemResponse`
+propositalmente não expõe. Usado pela Api (`BookingsController.Create`,
+`ReviewsController.Create`, `BookingReminderBackgroundService`) para saber
+quem notificar do lado do profissional — ver ARCHITECTURE.md, "Etapa 11".

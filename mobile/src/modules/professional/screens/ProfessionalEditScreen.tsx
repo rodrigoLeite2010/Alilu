@@ -1,5 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { router } from 'expo-router';
+import type { ReactNode } from 'react';
 import { useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { ActivityIndicator, KeyboardAvoidingView, Platform, View } from 'react-native';
@@ -24,6 +25,15 @@ import type { Professional } from '../types';
 interface ProfessionalEditScreenProps {
   /** `null` quando o usuário ainda não criou um perfil (React Native: gate de `(professional)/index.tsx`) — o mesmo formulário serve para criar e para editar. */
   profile: Professional | null;
+  /**
+   * Slot para o NotificationBadge (módulo Notifications, PROMPT 11) —
+   * passado pela camada de rotas (`(professional)/index.tsx`), mesmo
+   * padrão de composição já usado em `(resident)/bookings/[id]/index.tsx`
+   * para o módulo Reviews: este módulo não pode importar Notifications
+   * diretamente (independência de módulos), só Auth (fundação
+   * compartilhada).
+   */
+  headerSlot?: () => ReactNode;
 }
 
 /**
@@ -50,8 +60,11 @@ interface ProfessionalEditScreenProps {
  * (ProfessionalRecommendationsScreen — o mesmo "perfil de recomendações"
  * público que o morador vê a partir de ProfessionalProfileScreen, só que
  * para o próprio profissional, sob `(professional)/recommendations`).
+ *
+ * Desde o PROMPT 11, também exibe o NotificationBadge (via `headerSlot`,
+ * composto pela camada de rotas — ver `(professional)/index.tsx`).
  */
-export function ProfessionalEditScreen({ profile }: ProfessionalEditScreenProps) {
+export function ProfessionalEditScreen({ profile, headerSlot }: ProfessionalEditScreenProps) {
   const { spacing, colors } = useTheme();
   const createProfile = useCreateProfessionalProfile();
   const updateProfile = useUpdateProfessionalProfile();
@@ -100,13 +113,16 @@ export function ProfessionalEditScreen({ profile }: ProfessionalEditScreenProps)
     <Screen>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
         <View style={{ flex: 1, gap: spacing.lg }}>
-          <View>
-            <AppText variant="title">{profile ? 'Meu perfil profissional' : 'Criar perfil profissional'}</AppText>
-            <AppText variant="subtitle" color="secondary" style={{ marginTop: spacing.xxs }}>
-              {profile
-                ? 'Moradores encontram você a partir destas informações'
-                : 'Preencha seus dados para aparecer na busca dos moradores'}
-            </AppText>
+          <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+            <View style={{ flex: 1 }}>
+              <AppText variant="title">{profile ? 'Meu perfil profissional' : 'Criar perfil profissional'}</AppText>
+              <AppText variant="subtitle" color="secondary" style={{ marginTop: spacing.xxs }}>
+                {profile
+                  ? 'Moradores encontram você a partir destas informações'
+                  : 'Preencha seus dados para aparecer na busca dos moradores'}
+              </AppText>
+            </View>
+            {headerSlot?.()}
           </View>
 
           <View style={{ gap: spacing.sm }}>

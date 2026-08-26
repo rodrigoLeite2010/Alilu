@@ -75,4 +75,20 @@ public interface IBookingService
     /// precisa gravar na avaliação mas não tem como descobrir sozinho.
     /// </summary>
     Task<Guid> ValidateCompletedBookingForReviewAsync(Guid residentId, Guid bookingId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Ponto de extensão para o módulo Notifications (Etapa 11) — "lembrete
+    /// do serviço" — sem o módulo Notifications precisar referenciar este
+    /// módulo (independência de módulos, PROMPT 01). É a Api
+    /// (<c>BookingReminderBackgroundService</c>, composição raiz) quem
+    /// chama isto periodicamente e decide, com o relógio (que este módulo
+    /// não conhece — ver nota de <c>ScheduledDate</c>/<c>StartTime</c> sem
+    /// fuso embutido no módulo Professional, Etapa 07), quais destes
+    /// agendamentos já estão "próximos o bastante" para merecer um
+    /// lembrete.
+    /// </summary>
+    Task<IReadOnlyList<BookingResponse>> ListConfirmedBookingsByDateRangeAsync(
+        DateOnly fromDate,
+        DateOnly toDate,
+        CancellationToken cancellationToken = default);
 }

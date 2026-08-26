@@ -1,3 +1,5 @@
+using Alilu.Modules.Notifications.Application;
+using Alilu.Modules.Notifications.Domain;
 using Alilu.Modules.Resident.Application;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -15,7 +17,9 @@ namespace Alilu.Api.Controllers;
 [ApiController]
 [Route("api/admin/memberships")]
 [Authorize(Roles = "CondominiumAdmin,SuperAdmin")]
-public sealed class AdminMembershipsController(IMembershipAdministrationService membershipAdministrationService) : ControllerBase
+public sealed class AdminMembershipsController(
+    IMembershipAdministrationService membershipAdministrationService,
+    INotificationDispatcher notificationDispatcher) : ControllerBase
 {
     [HttpGet("pending")]
     public async Task<ActionResult<IReadOnlyList<MembershipResponse>>> ListPending(CancellationToken cancellationToken)
@@ -30,6 +34,16 @@ public sealed class AdminMembershipsController(IMembershipAdministrationService 
     {
         var membership = await membershipAdministrationService.ApproveAsync(
             User.GetResidentRequesterRole(), User.GetUserId(), id, cancellationToken);
+
+        // EVENTO "solicitação de acesso aprovada" (PROMPT 11) — para o morador.
+        await notificationDispatcher.NotifyAsync(
+            membership.UserId,
+            NotificationType.AccessRequestApproved,
+            "Solicitação de acesso aprovada",
+            "Sua solicitação de acesso ao condomínio foi aprovada. Bem-vindo(a)!",
+            membership.Id,
+            cancellationToken);
+
         return Ok(membership);
     }
 
@@ -38,6 +52,16 @@ public sealed class AdminMembershipsController(IMembershipAdministrationService 
     {
         var membership = await membershipAdministrationService.RejectAsync(
             User.GetResidentRequesterRole(), User.GetUserId(), id, cancellationToken);
+
+        // EVENTO "solicitação de acesso rejeitada" (PROMPT 11) — para o morador.
+        await notificationDispatcher.NotifyAsync(
+            membership.UserId,
+            NotificationType.AccessRequestRejected,
+            "Solicitação de acesso recusada",
+            "Sua solicitação de acesso ao condomínio foi recusada.",
+            membership.Id,
+            cancellationToken);
+
         return Ok(membership);
     }
 
