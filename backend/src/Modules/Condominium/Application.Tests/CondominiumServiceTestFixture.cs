@@ -39,12 +39,19 @@ internal sealed class CondominiumServiceTestFixture
     public CondominiumDirectoryService CreateDirectorySut() =>
         new(CondominiumRepository, UnitRepository);
 
-    /// <summary>Atalho para os testes que precisam de um condomínio já cadastrado antes do cenário sob teste.</summary>
+    /// <summary>
+    /// Atalho para os testes que precisam de um condomínio já cadastrado
+    /// antes do cenário sob teste. <paramref name="requesterRole"/> default
+    /// é <c>SuperAdmin</c> desde a Etapa 12 — "criar condomínio" deixou de
+    /// aceitar <c>CondominiumAdmin</c> (ver <c>CondominiumService.EnsureIsSuperAdmin</c>);
+    /// os testes que exercitam esse caso específico passam
+    /// <c>requesterRole</c> explicitamente.
+    /// </summary>
     public Task<CondominiumResponse> RegisterCondominiumAsync(
         CondominiumService sut,
         string name = "Monte Carlo",
         string cnpj = "11222333000181",
-        CondominiumRequesterRole requesterRole = CondominiumRequesterRole.CondominiumAdmin)
+        CondominiumRequesterRole requesterRole = CondominiumRequesterRole.SuperAdmin)
     {
         return sut.CreateCondominiumAsync(
             requesterRole,

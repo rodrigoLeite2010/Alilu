@@ -2195,3 +2195,337 @@ src/Api/Alilu.Api`, depois `dotnet ef database update ...`) na sua
 máquina. Também não pode ser verificado aqui: um push de verdade chegando
 num dispositivo (precisa de um projeto EAS configurado — ver seção React
 Native acima, "Configurar device token").
+
+## Etapa 12 — administração (Administration)
+
+PROMPT 12 — "implementar SOMENTE Administração". Diferente de todas as
+etapas anteriores, esta não é sobre UM módulo novo com um fluxo de negócio
+próprio — é sobre fechar um buraco de autorização que existia desde a
+Etapa 04: `CondominiumRequesterRole.CondominiumAdmin` (e os papéis
+equivalentes dos outros módulos) sempre foi aceito pelos controllers
+administrativos, mas **nenhum código, em lugar nenhum, jamais checou QUAL
+condomínio aquele CondominiumAdmin podia administrar** — na prática, até
+esta etapa, qualquer CondominiumAdmin autenticado conseguia aprovar
+moradores, bloquear unidades ou moderar recomendações de **qualquer**
+condomínio do sistema, bastando saber o Id. O prompt nomeia isso
+explicitamente: "CondominiumAdmin somente pode administrar seu próprio
+condomínio" e "nunca confiar no condominiumId enviado pelo frontend —
+obter o escopo do usuário autenticado no backend".
+
+### O núcleo: módulo Administration + `AdminScope`
+
+- **`CondominiumAdministrator`** (`Administration.Domain`) — a única
+  entidade nova: `UserId`, `CondominiumId`, `CreatedAt`/`UpdatedAt`.
+  Modela "este usuário (CondominiumAdmin) administra este condomínio" —
+  **um condomínio por administrador** nesta etapa (decisão de escopo
+  deliberada de MVP, mesmo espírito de `DeviceToken` na Etapa 11: um
+  usuário administrando mais de um condomínio ao mesmo tempo não foi
+  pedido; se precisar no futuro, é uma extensão desta entidade, não uma
+  mudança de design). `Assign` cria; `Reassign` faz upsert (o vínculo é
+  substituído, nunca duplicado — `ICondominiumAdministratorRepository.GetByUserIdAsync`
+  é único por `UserId`, reforçado por um índice único no EF Core).
+- **`AdminScope`** (`Administration.Application`, `record AdminUserId,
+  CondominiumId?`) — o resultado, já resolvido, de "o que este usuário
+  autenticado pode acessar": `CondominiumId` nulo = SuperAdmin (acesso
+  irrestrito); não-nulo = o único condomínio de um CondominiumAdmin.
+  `CanAccess(targetId)`/`EnsureCanAccess(targetId, exceptionFactory)` são
+  os dois métodos que todo o resto do sistema usa — o segundo permite a
+  cada módulo lançar a **própria** `InsufficientPermissionsException` (já
+  mapeada para 403 em cada mapa do `ExceptionHandlingMiddleware`) sem o
+  módulo Administration precisar conhecer os tipos de exceção dos outros
+  módulos.
+- **`IAdminScopeService.ResolveScopeAsync(requesterRole, userId)`** — chamado
+  pela Api no início de **todo** endpoint administrativo, de qualquer
+  módulo. SuperAdmin sempre recebe escopo global; CondominiumAdmin sem
+  nenhuma atribuição lança `AdminNotAssignedToCondominiumException` (403 —
+  "este administrador ainda não foi vinculado a nenhum condomínio", ver
+  Pendências abaixo); qualquer outro papel (Resident/Professional) lança
+  `InsufficientPermissionsException`. `AssignAsync`/`ListAssignmentsAsync`
+  (SuperAdmin-only) são o próprio mecanismo de atribuição — ver endpoint
+  `AdminCondominiumAdministratorsController` abaixo.
+
+### O padrão repetido nos cinco módulos de negócio existentes
+
+Condominium, Resident, Professional e Recommendations (Scheduling é um
+caso à parte, ver abaixo) ganharam o mesmo tratamento, method a method:
+
+1. Todo método administrativo pré-existente ganhou um novo parâmetro
+   **opcional** `Guid? scopeCondominiumId = null`, sempre posicionado
+   **depois** dos parâmetros já existentes e **antes** do
+   `CancellationToken` final. Isso foi deliberado: por ser opcional e por
+   não mudar a ordem de nenhum parâmetro existente, **nenhuma chamada
+   pré-existente** (nem de produção, nem das suítes de teste já grandes de
+   cada módulo) precisou mudar — `null` preserva exatamente o
+   comportamento anterior à Etapa 12 (sem restrição — é o valor que
+   SuperAdmin sempre usa).
+2. Dentro do método, logo depois de buscar a entidade-alvo (que quase todo
+   método administrativo já fazia, para validar que ela existe), um
+   helper privado `EnsureScopeMatches(scopeCondominiumId, entidade.CondominiumId)`
+   lança a `InsufficientPermissionsException` **própria** do módulo quando
+   `scopeCondominiumId` não é nulo e diverge do condomínio da entidade —
+   **sem nenhuma query extra**, reaproveitando a entidade que o método já
+   havia buscado.
+3. A Api resolve o `AdminScope` uma vez, no início do método do
+   controller, e repassa `scope.CondominiumId` para a Application — nunca
+   confia em nenhum `condominiumId` vindo da rota/corpo da requisição para
+   decidir o que o usuário **pode** acessar (só para dizer o que ele
+   **quer** acessar; a Application é quem confere se ele pode).
+
+Módulo a módulo, o que mudou:
+
+- **Condominium** — `CreateCondominiumAsync` **não** ganhou
+  `scopeCondominiumId`: virou **SuperAdmin-only** (mudança de
+  comportamento explícita e testada — criar um condomínio novo não é
+  "administrar o MEU condomínio [já existente]"). `ListCondominiumsAsync`
+  passou a devolver só o próprio condomínio quando escopado.
+  `CreateUnitAsync`/`ListUnitsAsync`/`CreateInvitationAsync`/`GetInvitationAsync`
+  ganharam o parâmetro. Três métodos novos para "Unidades: editar/
+  bloquear/visualizar": `EditUnitAsync` (não permite trocar de
+  condomínio — `EditUnitRequest` nem tem esse campo),
+  `BlockUnitAsync` (desativa — reativar não foi pedido, embora o Domain já
+  suporte `Activate()`), `GetUnitAsync`. `ICondominiumUnitRepository.ExistsByCondominiumIdAndCodeAsync`
+  ganhou um `excludingUnitId` opcional, para `EditUnitAsync` não se
+  autobloquear por duplicidade ao manter o próprio código.
+- **Resident** — `ListPendingAsync` e os três métodos de decisão
+  (`ApproveAsync`/`RejectAsync`/`BlockAsync`) ganharam o parâmetro. Dois
+  métodos novos: `ListByCondominiumAsync` ("Moradores: listar", qualquer
+  status) e `GetByIdAsync`/`GetActiveByUnitAsync` ("Moradores: visualizar"
+  e "Unidades: visualizar morador vinculado" — este último **nunca lança**
+  por "não encontrado": unidade vaga é uma resposta válida, não um erro).
+- **Professional** — `ListPendingCondominiumRequestsAsync`/`ApproveCondominiumAsync`/`RejectCondominiumAsync`
+  ganharam o parâmetro. Três métodos novos: `ListByCondominiumAsync`
+  ("visualizar histórico" — todos os status), `BlockAsync` ("Profissionais:
+  bloquear" — desativa o vínculo `ProfessionalCondominium` com **este**
+  condomínio, nunca o `Professional.Status` global; um mesmo profissional
+  pode atender vários condomínios, e um bloqueio de um administrador não
+  deve afetar sua situação nos outros) e `AssociateAsync` ("associar ao
+  condomínio" — cadastro direto, sem solicitação prévia do profissional;
+  primeiro caminho de código real para `ProfessionalCondominiumSource.AdminApproved`,
+  reservado desde a Etapa 06). `AssociateAsync` precisou de uma nova
+  dependência no construtor de `ProfessionalAdministrationService`
+  (`IProfessionalRepository`, para validar que `professionalId` existe
+  antes de criar o vínculo).
+- **Recommendations** — `ListPendingAsync`/`ApproveAsync`/`RejectAsync`/`BlockAsync`
+  ganharam o parâmetro. Um método novo, `ListByCondominiumAsync` (qualquer
+  status) — **necessário para "Recomendações: bloquear" funcionar de
+  verdade**: sem uma forma de listar recomendações já `Approved` de um
+  condomínio, um administrador nunca teria como descobrir o Id de uma
+  recomendação para bloquear (o único outro endpoint de leitura,
+  `ListPendingAsync`, só devolve `Pending`).
+- **Scheduling — caso à parte, de propósito.** `ListBookingsByCondominiumIdAsync`
+  (novo, "agendamentos" do dashboard + "visualizar histórico" de
+  profissional) **não** ganhou `scopeCondominiumId` nem nenhuma checagem
+  de papel — mesma decisão de design já usada por
+  `ListConfirmedBookingsByDateRangeAsync` (Etapa 11, chamado só pelo
+  `BookingReminderBackgroundService`): o módulo Scheduling nunca teve
+  conceito de autorização administrativa antes desta etapa, e criar um
+  `SchedulingRequesterRole`/`InsufficientPermissionsException` novos só
+  para este único método seria inflar o módulo por um caso de uso que a
+  Api já protege inteiramente (`[Authorize(Roles = ...)]` +
+  `IAdminScopeService`, resolvidos **antes** deste método ser chamado —
+  ele nunca é exposto a um endpoint self-service).
+
+### Composição com Identity — nome/e-mail do morador
+
+`CondominiumMembership` (Resident) só guarda `UserId` — o módulo Resident
+não pode referenciar Identity (independência de módulos, PROMPT 01), então
+"Moradores: listar/visualizar" precisaria devolver só Guids crus, inútil
+para uma tela de administração. Por isso o módulo Identity ganhou
+`IAuthService.GetUsersByIdsAsync(userIds)` — uma única consulta em lote
+("sem nenhuma query N+1", ids desconhecidos são omitidos, nunca lançam) —
+e `AdminMembershipsController` a usa para compor `MembershipAdminResponse`
+(o `MembershipResponse` do módulo + `UserName`/`UserEmail`) em todo
+endpoint de leitura (`pending`, `condominiums/{id}`, `{id}`,
+`units/{id}/active-membership`). Nenhuma mudança de código foi necessária
+no módulo Professional para o equivalente — `Professional` já tem seu
+próprio `DisplayName`, não depende de Identity para exibição.
+
+### Endpoints
+
+Todos exigem `[Authorize(Roles = "CondominiumAdmin,SuperAdmin")]`, exceto
+onde marcado. Todo endpoint (exceto a criação de condomínio) resolve o
+`AdminScope` via `IAdminScopeService` antes de chamar a Application.
+
+`CondominiumsController` (`api/admin/condominiums`) e
+`CondominiumInvitationsController` (`api/admin/invitations`):
+
+- `POST /api/admin/condominiums` — criar condomínio (**SuperAdmin-only**)
+- `GET /api/admin/condominiums` — listar (escopado)
+- `POST/GET /api/admin/condominiums/{condominiumId}/units` — criar/listar unidades
+- `GET /api/admin/condominiums/units/{unitId}` — "Unidades: visualizar"
+- `PUT /api/admin/condominiums/units/{unitId}` — "Unidades: editar"
+- `POST /api/admin/condominiums/units/{unitId}/block` — "Unidades: bloquear"
+- `POST /api/admin/condominiums/{condominiumId}/invitations` — criar convite
+- `GET /api/admin/invitations/{id}` — consultar convite
+
+`AdminMembershipsController` (`api/admin/memberships`):
+
+- `GET /api/admin/memberships/pending` — fila de solicitações
+- `GET /api/admin/memberships/condominiums/{condominiumId}` — "Moradores: listar"
+- `GET /api/admin/memberships/{id}` — "Moradores: visualizar"
+- `GET /api/admin/memberships/units/{unitId}/active-membership` — "Unidades: visualizar morador vinculado" (200 com corpo vazio quando vaga)
+- `POST /api/admin/memberships/{id}/approve|reject|block`
+
+`AdminProfessionalCondominiumsController` (`api/admin/professional-condominiums`):
+
+- `GET /api/admin/professional-condominiums/pending`
+- `GET /api/admin/professional-condominiums/condominiums/{condominiumId}` — "visualizar histórico" (todos os status)
+- `POST /api/admin/professional-condominiums/{id}/approve|reject|block`
+- `POST /api/admin/professional-condominiums/associate` — "associar ao condomínio"
+
+`AdminRecommendationsController` (`api/admin/recommendations`):
+
+- `GET /api/admin/recommendations/pending`
+- `GET /api/admin/recommendations/condominiums/{condominiumId}` — todos os status (suporte para achar uma `Approved` a bloquear)
+- `POST /api/admin/recommendations/{id}/approve|reject|block`
+
+`AdminCondominiumAdministratorsController` (`api/admin/condominium-administrators`, **SuperAdmin-only**):
+
+- `GET /api/admin/condominium-administrators` — listar atribuições
+- `POST /api/admin/condominium-administrators` — atribuir/reatribuir um CondominiumAdmin a um condomínio
+
+`AdminDashboardController` (`api/admin/dashboard`):
+
+- `GET /api/admin/dashboard?condominiumId={id}` — os seis números do
+  prompt (moradores, unidades, profissionais, agendamentos, solicitações
+  pendentes, recomendações pendentes), compostos na Api a partir dos cinco
+  módulos de negócio. `condominiumId` é ignorado para CondominiumAdmin
+  (sempre usa o próprio escopo) e obrigatório para SuperAdmin (escopo
+  global — precisa dizer qual condomínio quer ver). Decisões de contagem
+  documentadas no XML doc da classe: "moradores" conta só vínculos
+  `Active`; "unidades" conta todas (qualquer status); "profissionais" conta
+  só vínculos `Active`; "agendamentos" conta todos os já criados, qualquer
+  status; "solicitações pendentes" soma as duas filas de decisão
+  pré-existentes (acesso de morador + atendimento de profissional).
+
+### Decisões de escopo (o que este prompt não pediu)
+
+- **Um condomínio por `CondominiumAdmin`** — ver seção da entidade acima.
+- **Sem endpoint de "reativar" unidade** — o Domain já suporta
+  (`CondominiumUnit.Activate()`), só não foi pedido "Unidades: reativar".
+- **"Bloquear profissional" nunca afeta o perfil global** — decisão de
+  escopo documentada na Application (ver acima), para um bloqueio de um
+  condomínio nunca vazar para os outros que o mesmo profissional atende.
+- **Sem validação cruzada em `POST /api/admin/condominium-administrators`**
+  — a Api não confere que `userId` é de fato um `CondominiumAdmin` nem que
+  `condominiumId` existe; fica a critério do SuperAdmin que usa o
+  endpoint, mesma confiança já dada a esse papel em outras operações
+  irrestritas do sistema. Uma validação cruzada (`IAuthService`/`ICondominiumService`)
+  é uma extensão direta, se pedida numa etapa futura.
+
+### Pendência operacional — nenhum CondominiumAdmin funciona "de fábrica"
+
+Diferente de todo módulo anterior, esta etapa não tem um seed de
+desenvolvimento (nenhum `CondominiumAdministrator` fictício é criado):
+**um SuperAdmin precisa usar `POST /api/admin/condominium-administrators`
+para vincular um CondominiumAdmin existente ao condomínio "Monte Carlo"
+antes que esse administrador consiga fazer qualquer coisa** — sem essa
+atribuição, todo endpoint administrativo que ele chamar lança
+`AdminNotAssignedToCondominiumException` (403). Isso é intencional (o
+prompt não pediu um seed aqui, e inventar um vínculo automático
+contradiria "nunca confiar" — a atribuição é, ela mesma, uma decisão
+administrativa), mas é a primeira coisa a fazer depois de rodar as
+migrations — ver README do módulo.
+
+### `admin-web` — painel administrativo web (novo app)
+
+PROMPT 12: "criar um painel web administrativo separado. NÃO colocar
+funcionalidades administrativas dentro do app mobile do morador." Terceiro
+app do monorepo (`admin-web/`, ao lado de `backend/` e `mobile/`) — Vite +
+React + TypeScript, sem framework de UI externo (CSS simples, mesma
+paleta do mobile — ver `mobile/src/theme/colors.ts` — para a mesma
+identidade visual do ALILU, agora também num browser).
+
+- **`services/api.ts`/`services/authTokenStore.ts`** — mesmo Axios com
+  interceptor de refresh automático do mobile
+  (`mobile/src/services/api.ts`), adaptado para browser: o access token
+  vive só em memória (nunca em disco), o refresh token fica em
+  `localStorage` (`utils/webStorage.ts` — equivalente web do Secure Store
+  do dispositivo, usado pelo mobile).
+- **`modules/auth/AuthProvider.tsx`** — mesma estrutura do
+  `AuthProvider` do mobile, com uma diferença central: depois de um login
+  bem-sucedido, se `user.role` não for `CondominiumAdmin`/`SuperAdmin`, a
+  sessão é descartada e o refresh token recém-emitido é revogado
+  (`NotAnAdminError`) — só uma conveniência de UX (a autorização de
+  verdade é sempre o `[Authorize(Roles = ...)]` de cada endpoint do
+  backend).
+- **`modules/condominium/CondominiumScopeContext.tsx`** — resolve "qual
+  condomínio esta tela está administrando" reaproveitando
+  `GET /api/admin/condominiums`, que a Api já filtra pelo escopo do
+  usuário: um CondominiumAdmin recebe sempre uma lista de UM item (nunca
+  precisa escolher); um SuperAdmin recebe todos e escolhe pelo seletor
+  (`CondominiumPicker`, some sozinho quando só há uma opção).
+- **Cinco telas** (`pages/`), uma por FUNCIONALIDADE do prompt:
+  `DashboardPage` (os seis números), `MoradoresPage` (listar/visualizar/
+  aprovar/rejeitar/bloquear), `UnidadesPage` (criar/editar/bloquear/
+  visualizar morador vinculado — reaproveita a mesma listagem de vínculos
+  Active da tela de Moradores para não fazer uma segunda consulta por
+  unidade), `ProfissionaisPage` (aprovar/rejeitar/bloquear/associar —
+  associar usa `GET /api/directory/professionals`, o mesmo diretório
+  público do morador, só para dar um seletor por nome em vez de um Guid
+  cru) e `RecomendacoesPage` (aprovar/rejeitar/bloquear).
+- **CORS** (`Program.cs`, `appsettings.json`, seção `Cors:AdminWebOrigins`)
+  — primeira vez que este backend precisa de CORS: o app mobile não roda
+  num browser, então nunca precisou. Lista de origens vazia por padrão
+  (nenhuma passa) — cada ambiente configura a URL real do `admin-web`
+  publicado; `appsettings.Development.json` já aponta para
+  `http://localhost:5173` (porta padrão do Vite).
+
+### Testes
+
+Um projeto novo, `Administration.Application.Tests/`
+(`AdminScopeServiceTests`/`AdminScopeTests`) — resolução de escopo por
+papel, upsert/reatribuição, autorização de `AssignAsync`/`ListAssignmentsAsync`.
+Cada um dos cinco módulos existentes ganhou um `AdminScopingTests.cs` novo
+(Condominium também ganhou `AdminScopingTests`+`EditAndBlockUnitTests`,
+e reescreveu `AuthorizationTests`/`CreateCondominiumTests` para cobrir o
+SuperAdmin-only de `CreateCondominiumAsync`) cobrindo "fora do escopo
+lança `InsufficientPermissionsException`" para cada operação, mais
+"SuperAdmin com escopo nulo acessa qualquer condomínio". Scheduling ganhou
+`AdministrationCompositionTests.cs` (só duas verificações — o método não
+tem autorização própria, ver decisão de design acima).
+
+### Limitação do sandbox de build (Claude) nesta etapa
+
+Mesma limitação de sempre para `Infrastructure`/`Application.Tests`
+(pacotes NuGet só resolvíveis com acesso à internet) — mitigada pelas
+mesmas técnicas das etapas anteriores:
+
+- Todo `Domain`/`Application` dos oito módulos (incluindo o novo
+  Administration) — **0 erros/0 warnings**.
+- Toda a lógica de negócio desta etapa (resolução de escopo,
+  upsert/reatribuição, `EnsureScopeMatches` em cada um dos cinco módulos,
+  `AssociateAsync` validando o profissional, `ListByCondominiumAsync` de
+  Recommendations) validada com fakes em memória — **mais de 60
+  verificações avulsas, todas passaram**, além dos testes xUnit novos
+  escritos (não executáveis aqui, mas revisados linha a linha).
+- A camada Api inteira (todos os 19 controllers, incluindo os dois novos
+  desta etapa e os cinco editados, `ExceptionHandlingMiddleware`,
+  `ClaimsPrincipalExtensions`, `BackgroundServices`) compilada contra os
+  `.dll` reais de todas as Applications — **0 erros/0 warnings**. Essa
+  verificação pegou uma regressão real antes da entrega:
+  `CondominiumInvitationsController` (não tocado até então nesta etapa)
+  chamava `GetInvitationAsync` com a assinatura antiga — o novo parâmetro
+  opcional teria quebrado a compilação se este controller não tivesse
+  sido incluído na verificação e corrigido.
+- `python3 scripts/check-references.py` — **0 violações, 0 ciclos** (39
+  projetos, um a mais que a Etapa 11: `Administration.Application.Tests`,
+  que faltava no `.sln`).
+- **`admin-web`, pela primeira vez neste projeto, tem acesso a
+  `npm install`/`npm run build` dentro do próprio sandbox** (é JavaScript,
+  não .NET — sem a limitação de pacotes NuGet): `npx tsc -b` — 0 erros;
+  `npm run build` (produção, Vite) — build completo com sucesso; `npm run
+  lint` (oxlint) — 0 erros (só avisos estilísticos aceitáveis, "set-state
+  em efeito" — padrão comum de busca de dados, "only-export-components" —
+  padrão comum de arquivo de contexto React).
+
+O que este sandbox **não pode** provar:
+`Alilu.Modules.Administration.Infrastructure` (mapeamento EF Core, índice
+único) contra um PostgreSQL real — rode `dotnet restore && dotnet build`,
+os comandos de migration (`dotnet ef migrations add AddAdministrationModule
+--project src/Infrastructure/Alilu.Infrastructure --startup-project
+src/Api/Alilu.Api`, depois `dotnet ef database update ...`) e, antes de
+qualquer coisa, `POST /api/admin/condominium-administrators` (ver
+Pendência operacional acima) na sua máquina. Também não pode ser
+verificado aqui: o `admin-web` rodando de fato contra a Api (`npm run dev`
++ CORS real) num browser.

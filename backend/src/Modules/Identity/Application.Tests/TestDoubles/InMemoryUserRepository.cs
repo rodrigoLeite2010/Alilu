@@ -24,6 +24,9 @@ public sealed class InMemoryUserRepository : IUserRepository
     public Task<bool> ExistsByEmailAsync(string normalizedEmail, CancellationToken cancellationToken = default) =>
         Task.FromResult(_users.Values.Any(u => u.Email.Value == normalizedEmail));
 
+    public Task<IReadOnlyList<User>> ListByIdsAsync(IReadOnlyCollection<Guid> ids, CancellationToken cancellationToken = default) =>
+        Task.FromResult<IReadOnlyList<User>>(_users.Values.Where(u => ids.Contains(u.Id)).ToList());
+
     public Task AddAsync(User user, CancellationToken cancellationToken = default)
     {
         _users[user.Id] = user;

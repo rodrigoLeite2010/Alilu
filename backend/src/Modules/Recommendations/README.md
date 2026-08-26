@@ -79,6 +79,17 @@ Diretório público, composto na Api (`ProfessionalDirectoryController`, módulo
 Moderação administrativa (`AdminRecommendationsController`, `api/admin/recommendations`, `[Authorize(Roles = "CondominiumAdmin,SuperAdmin")]`):
 
 - `GET /api/admin/recommendations/pending` — fila de moderação
+- `GET /api/admin/recommendations/condominiums/{condominiumId}` — todos os status (Etapa 12)
 - `POST /api/admin/recommendations/{id}/approve`
 - `POST /api/admin/recommendations/{id}/reject`
 - `POST /api/admin/recommendations/{id}/block`
+
+## Extensão para o módulo Administration (Etapa 12)
+
+Todo método de `IRecommendationAdministrationService` ganhou um
+`scopeCondominiumId` opcional. Um método novo, `ListByCondominiumAsync`
+(qualquer status) — **necessário para "Recomendações: bloquear" funcionar
+de verdade**: sem uma forma de listar recomendações já `Approved`, um
+administrador não teria como descobrir o Id de uma para bloquear (o único
+outro endpoint de leitura, `pending`, só devolve `Pending`). Ver
+ARCHITECTURE.md, "Etapa 12".

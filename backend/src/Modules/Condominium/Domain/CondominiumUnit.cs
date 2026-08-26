@@ -66,6 +66,24 @@ public sealed class CondominiumUnit : AggregateRoot
 
     public bool IsActive => Status == UnitStatus.Active;
 
+    /// <summary>"Unidades: editar" (PROMPT 12) — troca código/tipo; a unicidade do novo código dentro do condomínio (excluindo esta própria unidade) é responsabilidade da Application, mesma divisão de <see cref="Register"/>.</summary>
+    public void Edit(string code, UnitType type)
+    {
+        if (string.IsNullOrWhiteSpace(code))
+        {
+            throw new DomainException("O código da unidade não pode ser vazio.");
+        }
+
+        var trimmedCode = code.Trim();
+        if (trimmedCode.Length > 20)
+        {
+            throw new DomainException("O código da unidade não pode ter mais de 20 caracteres.");
+        }
+
+        Code = trimmedCode;
+        Type = type;
+    }
+
     public void Deactivate() => Status = UnitStatus.Inactive;
 
     public void Activate() => Status = UnitStatus.Active;

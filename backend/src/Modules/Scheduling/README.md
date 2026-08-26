@@ -91,3 +91,15 @@ extensões das Etapas 07/08/10): lista agendamentos `Confirmed` num
 intervalo de datas. Usado só por `BookingReminderBackgroundService`
 (`Alilu.Api`) para encontrar os agendamentos candidatos ao lembrete de
 serviço — ver ARCHITECTURE.md, "Etapa 11".
+
+## Extensão para o módulo Administration (Etapa 12)
+
+`IBookingService.ListBookingsByCondominiumIdAsync`/
+`IBookingRepository.ListByCondominiumIdAsync` — todos os agendamentos
+(qualquer status) de um condomínio, usado pelo dashboard administrativo
+("agendamentos") e por "Profissionais: visualizar histórico".
+Deliberadamente **sem** `scopeCondominiumId`/checagem de papel própria
+(mesma decisão de design de `ListConfirmedBookingsByDateRangeAsync`
+acima): este módulo nunca teve conceito de autorização administrativa; a
+Api resolve o escopo (`Administration.IAdminScopeService`) e só chama isto
+depois — ver ARCHITECTURE.md, "Etapa 12".

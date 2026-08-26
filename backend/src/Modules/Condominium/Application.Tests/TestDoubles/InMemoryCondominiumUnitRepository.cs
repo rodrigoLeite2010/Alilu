@@ -16,8 +16,8 @@ public sealed class InMemoryCondominiumUnitRepository : ICondominiumUnitReposito
         Task.FromResult<IReadOnlyList<CondominiumUnit>>(
             _units.Values.Where(u => u.CondominiumId == condominiumId).OrderBy(u => u.Code).ToList());
 
-    public Task<bool> ExistsByCondominiumIdAndCodeAsync(Guid condominiumId, string code, CancellationToken cancellationToken = default) =>
-        Task.FromResult(_units.Values.Any(u => u.CondominiumId == condominiumId && u.Code == code));
+    public Task<bool> ExistsByCondominiumIdAndCodeAsync(Guid condominiumId, string code, Guid? excludingUnitId = null, CancellationToken cancellationToken = default) =>
+        Task.FromResult(_units.Values.Any(u => u.CondominiumId == condominiumId && u.Code == code && u.Id != excludingUnitId));
 
     public Task AddAsync(CondominiumUnit unit, CancellationToken cancellationToken = default)
     {

@@ -91,4 +91,17 @@ public interface IBookingService
         DateOnly fromDate,
         DateOnly toDate,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Etapa 12 (PROMPT 12) — ponto de extensão Api-only para o módulo
+    /// Administration: todos os agendamentos de um condomínio (qualquer
+    /// status), usado para compor o dashboard administrativo
+    /// ("agendamentos") e "Profissionais: visualizar histórico". Sem
+    /// checagem de papel/escopo aqui — mesma decisão de
+    /// <see cref="ListConfirmedBookingsByDateRangeAsync"/>: só é chamado
+    /// pela Api, já depois de <c>[Authorize(Roles = ...)]</c> e da resolução
+    /// de escopo (<c>Administration.IAdminScopeService</c>), nunca por um
+    /// endpoint self-service.
+    /// </summary>
+    Task<IReadOnlyList<BookingResponse>> ListBookingsByCondominiumIdAsync(Guid condominiumId, CancellationToken cancellationToken = default);
 }

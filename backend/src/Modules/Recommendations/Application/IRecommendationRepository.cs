@@ -16,8 +16,24 @@ public interface IRecommendationRepository
     /// <summary>React Native: ProfessionalRecommendationsScreen — recomendações já aprovadas para este profissional, mais recente primeiro. Só faz sentido para recomendações vinculadas (<see cref="Recommendation.ProfessionalId"/> não nulo) — indicações externas nunca aparecem aqui.</summary>
     Task<IReadOnlyList<Recommendation>> ListApprovedByProfessionalIdAsync(Guid professionalId, CancellationToken cancellationToken = default);
 
-    /// <summary>Fila de moderação do administrador ("Administrador pode moderar"), mais antiga primeiro.</summary>
-    Task<IReadOnlyList<Recommendation>> ListPendingAsync(CancellationToken cancellationToken = default);
+    /// <summary>
+    /// Fila de moderação do administrador ("Administrador pode moderar"),
+    /// mais antiga primeiro. <paramref name="condominiumId"/> (Etapa 12,
+    /// opcional) filtra para um único condomínio — usado quando quem pede é
+    /// um CondominiumAdmin (escopo resolvido pela Api); nulo lista de todos
+    /// os condomínios (SuperAdmin).
+    /// </summary>
+    Task<IReadOnlyList<Recommendation>> ListPendingAsync(Guid? condominiumId = null, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Etapa 12 — todas as recomendações (qualquer status) de um condomínio,
+    /// mais recente primeiro; suporte necessário para "Recomendações:
+    /// bloquear" (achar uma já Approved para bloquear — sem isto, o
+    /// administrador não teria como descobrir o Id de uma recomendação
+    /// aprovada) e para o dashboard administrativo, não um item separado
+    /// da lista de FUNCIONALIDADES do prompt.
+    /// </summary>
+    Task<IReadOnlyList<Recommendation>> ListByCondominiumIdAsync(Guid condominiumId, CancellationToken cancellationToken = default);
 
     Task AddAsync(Recommendation recommendation, CancellationToken cancellationToken = default);
 }

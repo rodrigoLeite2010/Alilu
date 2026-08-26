@@ -28,3 +28,12 @@ Identity/
 Regras de negócio ficam no Domain/Application. Controllers finos apenas
 traduzem requisições HTTP em chamadas para a Application. Entidades nunca
 são expostas diretamente pela API — sempre via DTOs.
+
+## Extensão usada pelo módulo Administration (Etapa 12)
+
+`IAuthService.GetUsersByIdsAsync(userIds)` (sem endpoint próprio) — uma
+única consulta em lote ("sem nenhuma query N+1"), ids desconhecidos são
+omitidos, nunca lançam. Usado pela Api (`AdminMembershipsController`) para
+compor nome/e-mail nas respostas de "Moradores: listar/visualizar" —
+`CondominiumMembership` (módulo Resident) só guarda `UserId`, sem nome —
+ver ARCHITECTURE.md, "Etapa 12".

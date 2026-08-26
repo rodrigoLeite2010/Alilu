@@ -27,10 +27,16 @@ public sealed class RecommendationRepository(AliluDbContext dbContext) : IRecomm
             .OrderByDescending(r => r.CreatedAt)
             .ToListAsync(cancellationToken);
 
-    public async Task<IReadOnlyList<Recommendation>> ListPendingAsync(CancellationToken cancellationToken = default) =>
+    public async Task<IReadOnlyList<Recommendation>> ListPendingAsync(Guid? condominiumId = null, CancellationToken cancellationToken = default) =>
         await dbContext.Set<Recommendation>()
-            .Where(r => r.Status == RecommendationStatus.Pending)
+            .Where(r => r.Status == RecommendationStatus.Pending && (condominiumId == null || r.CondominiumId == condominiumId))
             .OrderBy(r => r.CreatedAt)
+            .ToListAsync(cancellationToken);
+
+    public async Task<IReadOnlyList<Recommendation>> ListByCondominiumIdAsync(Guid condominiumId, CancellationToken cancellationToken = default) =>
+        await dbContext.Set<Recommendation>()
+            .Where(r => r.CondominiumId == condominiumId)
+            .OrderByDescending(r => r.CreatedAt)
             .ToListAsync(cancellationToken);
 
     public async Task AddAsync(Recommendation recommendation, CancellationToken cancellationToken = default) =>

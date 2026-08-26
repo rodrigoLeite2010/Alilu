@@ -53,7 +53,8 @@ Alilu/
 │           ├── Recommendations/{Domain,Application,Infrastructure}/
 │           ├── Notifications/{Domain,Application,Infrastructure}/
 │           └── Administration/{Domain,Application,Infrastructure}/
-├── mobile/                          # app Expo (React Native + TypeScript)
+├── mobile/                          # app Expo (React Native + TypeScript) — morador/profissional
+├── admin-web/                       # painel administrativo web (Vite + React + TypeScript) — Etapa 12
 └── docs/
 ```
 
@@ -124,6 +125,54 @@ Scripts disponíveis:
 npm run lint        # ESLint (eslint-config-expo)
 npm run typecheck    # tsc --noEmit
 npm start            # expo start
+```
+
+## Como rodar o admin-web
+
+Painel administrativo web (Etapa 12) — **não é o app mobile**: uso
+exclusivo de `CondominiumAdmin`/`SuperAdmin` (moradores e profissionais
+continuam usando só o app Expo).
+
+Pré-requisitos: [Node.js](https://nodejs.org/) e o backend rodando
+localmente (ver "Como rodar o backend" acima).
+
+```bash
+cd admin-web
+npm install
+cp .env.example .env.local   # ajuste VITE_API_URL se a Api não estiver em localhost:5205
+npm run dev
+```
+
+Abre em `http://localhost:5173`. Para gerar o build de produção:
+
+```bash
+npm run build      # gera admin-web/dist
+npm run preview    # serve o build gerado, localmente
+```
+
+> **Importante — CORS:** o backend só aceita chamadas de browser vindas de
+> origens listadas em `Cors:AdminWebOrigins`
+> (`backend/src/Api/Alilu.Api/appsettings*.json`). Em desenvolvimento,
+> `http://localhost:5173` já vem liberado por padrão
+> (`appsettings.Development.json`); em produção, adicione a URL real do
+> admin-web publicado em `appsettings.json` (ou variável de ambiente
+> equivalente).
+
+> **⚠️ Pendência operacional antes do primeiro login:** não existe seed de
+> `CondominiumAdmin` — um `SuperAdmin` precisa primeiro vincular um usuário
+> a um condomínio via
+> `POST /api/admin/condominium-administrators { "userId": "...", "condominiumId": "..." }`
+> (ver `backend/src/Modules/Administration/README.md`). Sem isso, um
+> usuário com papel `CondominiumAdmin` faz login mas não enxerga nenhum
+> condomínio no seletor do painel.
+
+Scripts disponíveis:
+
+```bash
+npm run dev       # servidor de desenvolvimento (Vite)
+npm run build     # tsc -b && vite build
+npm run lint      # oxlint
+npm run preview   # serve o build de produção localmente
 ```
 
 ## Banco de dados

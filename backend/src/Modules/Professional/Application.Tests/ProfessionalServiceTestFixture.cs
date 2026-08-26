@@ -41,7 +41,7 @@ internal sealed class ProfessionalServiceTestFixture
         ProfessionalAvailabilityExceptionRepository);
 
     public ProfessionalAdministrationService CreateAdministrationSut() => new(
-        ProfessionalCondominiumRepository, new NoOpUnitOfWork());
+        ProfessionalRepository, ProfessionalCondominiumRepository, new NoOpUnitOfWork());
 
     public ProfessionalAvailabilityService CreateAvailabilitySut() => new(
         ProfessionalRepository, ProfessionalAvailabilityRepository, ProfessionalAvailabilityExceptionRepository, new NoOpUnitOfWork());

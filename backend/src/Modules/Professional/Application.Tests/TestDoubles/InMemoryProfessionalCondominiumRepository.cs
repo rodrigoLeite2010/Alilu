@@ -21,9 +21,16 @@ public sealed class InMemoryProfessionalCondominiumRepository : IProfessionalCon
                 && pc.CondominiumId == condominiumId
                 && (pc.Status == ProfessionalCondominiumStatus.Pending || pc.Status == ProfessionalCondominiumStatus.Active)));
 
-    public Task<IReadOnlyList<ProfessionalCondominium>> ListPendingAsync(CancellationToken cancellationToken = default) =>
+    public Task<IReadOnlyList<ProfessionalCondominium>> ListPendingAsync(Guid? condominiumId = null, CancellationToken cancellationToken = default) =>
         Task.FromResult<IReadOnlyList<ProfessionalCondominium>>(
-            _associations.Values.Where(pc => pc.Status == ProfessionalCondominiumStatus.Pending).OrderBy(pc => pc.CreatedAt).ToList());
+            _associations.Values
+                .Where(pc => pc.Status == ProfessionalCondominiumStatus.Pending && (condominiumId == null || pc.CondominiumId == condominiumId))
+                .OrderBy(pc => pc.CreatedAt)
+                .ToList());
+
+    public Task<IReadOnlyList<ProfessionalCondominium>> ListByCondominiumIdAsync(Guid condominiumId, CancellationToken cancellationToken = default) =>
+        Task.FromResult<IReadOnlyList<ProfessionalCondominium>>(
+            _associations.Values.Where(pc => pc.CondominiumId == condominiumId).OrderByDescending(pc => pc.CreatedAt).ToList());
 
     public Task AddAsync(ProfessionalCondominium professionalCondominium, CancellationToken cancellationToken = default)
     {

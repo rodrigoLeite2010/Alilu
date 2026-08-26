@@ -27,6 +27,9 @@ public sealed record CondominiumResponse(
 
 public sealed record CreateUnitRequest(Guid CondominiumId, string Code, UnitType Type);
 
+/// <summary>"Unidades: editar" (PROMPT 12) — não permite mudar <c>CondominiumId</c> (mover a unidade para outro condomínio não foi pedido, e quebraria o pressuposto de escopo do próprio admin que está editando).</summary>
+public sealed record EditUnitRequest(Guid UnitId, string Code, UnitType Type);
+
 public sealed record CondominiumUnitResponse(
     Guid Id,
     Guid CondominiumId,

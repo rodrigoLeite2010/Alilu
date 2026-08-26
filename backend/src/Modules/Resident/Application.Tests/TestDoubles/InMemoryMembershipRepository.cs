@@ -24,9 +24,19 @@ public sealed class InMemoryMembershipRepository : IMembershipRepository
                 && m.UnitId == unitId
                 && (m.Status == MembershipStatus.Pending || m.Status == MembershipStatus.Active)));
 
-    public Task<IReadOnlyList<CondominiumMembership>> ListPendingAsync(CancellationToken cancellationToken = default) =>
+    public Task<IReadOnlyList<CondominiumMembership>> ListPendingAsync(Guid? condominiumId = null, CancellationToken cancellationToken = default) =>
         Task.FromResult<IReadOnlyList<CondominiumMembership>>(
-            _memberships.Values.Where(m => m.Status == MembershipStatus.Pending).OrderBy(m => m.CreatedAt).ToList());
+            _memberships.Values
+                .Where(m => m.Status == MembershipStatus.Pending && (condominiumId == null || m.CondominiumId == condominiumId))
+                .OrderBy(m => m.CreatedAt)
+                .ToList());
+
+    public Task<IReadOnlyList<CondominiumMembership>> ListByCondominiumIdAsync(Guid condominiumId, CancellationToken cancellationToken = default) =>
+        Task.FromResult<IReadOnlyList<CondominiumMembership>>(
+            _memberships.Values.Where(m => m.CondominiumId == condominiumId).OrderByDescending(m => m.CreatedAt).ToList());
+
+    public Task<CondominiumMembership?> GetActiveByUnitIdAsync(Guid unitId, CancellationToken cancellationToken = default) =>
+        Task.FromResult(_memberships.Values.FirstOrDefault(m => m.UnitId == unitId && m.Status == MembershipStatus.Active));
 
     public Task AddAsync(CondominiumMembership membership, CancellationToken cancellationToken = default)
     {

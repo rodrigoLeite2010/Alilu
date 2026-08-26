@@ -73,3 +73,13 @@ e `CondominiumDirectoryController` em `Alilu.Api`.
 endpoint próprio — é chamado internamente pela Api
 (`ProfessionalProfileController.RequestCondominium`, módulo Professional)
 antes de criar um vínculo profissional↔condomínio.
+
+## Extensão para o módulo Administration (Etapa 12)
+
+Todo método administrativo pré-existente ganhou um `scopeCondominiumId`
+opcional (`null` preserva o comportamento anterior); `CreateCondominiumAsync`
+virou **SuperAdmin-only** (mudança de comportamento — criar um condomínio
+novo não é "administrar o MEU condomínio"). Três métodos novos para
+"Unidades: editar/bloquear/visualizar" (`EditUnitAsync`/`BlockUnitAsync`/
+`GetUnitAsync`). Ver ARCHITECTURE.md, "Etapa 12", para o design completo
+do padrão de escopo repetido neste e em mais quatro módulos.

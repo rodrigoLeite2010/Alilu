@@ -126,6 +126,12 @@ public sealed class AuthService(
         return ToResponse(user);
     }
 
+    public async Task<IReadOnlyList<UserResponse>> GetUsersByIdsAsync(IReadOnlyCollection<Guid> userIds, CancellationToken cancellationToken = default)
+    {
+        var users = await userRepository.ListByIdsAsync(userIds, cancellationToken);
+        return users.Select(ToResponse).ToList();
+    }
+
     private async Task<AuthTokensResponse> IssueTokensAsync(User user, CancellationToken cancellationToken)
     {
         var (accessToken, accessTokenExpiresAtUtc) = jwtTokenGenerator.GenerateAccessToken(user);

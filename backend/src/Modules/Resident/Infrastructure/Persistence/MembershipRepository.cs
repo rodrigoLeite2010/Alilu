@@ -30,11 +30,21 @@ public sealed class MembershipRepository(AliluDbContext dbContext) : IMembership
                     && (m.Status == MembershipStatus.Pending || m.Status == MembershipStatus.Active),
                 cancellationToken);
 
-    public async Task<IReadOnlyList<CondominiumMembership>> ListPendingAsync(CancellationToken cancellationToken = default) =>
+    public async Task<IReadOnlyList<CondominiumMembership>> ListPendingAsync(Guid? condominiumId = null, CancellationToken cancellationToken = default) =>
         await dbContext.Set<CondominiumMembership>()
-            .Where(m => m.Status == MembershipStatus.Pending)
+            .Where(m => m.Status == MembershipStatus.Pending && (condominiumId == null || m.CondominiumId == condominiumId))
             .OrderBy(m => m.CreatedAt)
             .ToListAsync(cancellationToken);
+
+    public async Task<IReadOnlyList<CondominiumMembership>> ListByCondominiumIdAsync(Guid condominiumId, CancellationToken cancellationToken = default) =>
+        await dbContext.Set<CondominiumMembership>()
+            .Where(m => m.CondominiumId == condominiumId)
+            .OrderByDescending(m => m.CreatedAt)
+            .ToListAsync(cancellationToken);
+
+    public Task<CondominiumMembership?> GetActiveByUnitIdAsync(Guid unitId, CancellationToken cancellationToken = default) =>
+        dbContext.Set<CondominiumMembership>()
+            .FirstOrDefaultAsync(m => m.UnitId == unitId && m.Status == MembershipStatus.Active, cancellationToken);
 
     public async Task AddAsync(CondominiumMembership membership, CancellationToken cancellationToken = default) =>
         await dbContext.Set<CondominiumMembership>().AddAsync(membership, cancellationToken);

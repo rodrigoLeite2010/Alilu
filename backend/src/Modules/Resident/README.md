@@ -88,3 +88,12 @@ Diretório público de condomínios/unidades (módulo Condominium, `[Authorize]`
 `ValidateActiveMembershipAsync` (Etapa 08) não é um endpoint próprio —
 é chamado pela Api dentro de `POST /api/resident/bookings` (módulo
 Scheduling), antes de criar o agendamento.
+
+## Extensão para o módulo Administration (Etapa 12)
+
+Todo método de `IMembershipAdministrationService` ganhou um
+`scopeCondominiumId` opcional. Três métodos novos: `ListByCondominiumAsync`
+("Moradores: listar"), `GetByIdAsync` ("Moradores: visualizar") e
+`GetActiveByUnitAsync` ("Unidades: visualizar morador vinculado" — nunca
+lança por "não encontrado", unidade vaga é uma resposta válida). Ver
+ARCHITECTURE.md, "Etapa 12".

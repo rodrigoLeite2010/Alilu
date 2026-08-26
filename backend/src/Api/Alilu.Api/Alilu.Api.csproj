@@ -42,6 +42,10 @@
     <!-- Módulo Notifications (PROMPT 11) — mesmo raciocínio do módulo Identity acima. -->
     <ProjectReference Include="..\..\Modules\Notifications\Application\Alilu.Modules.Notifications.Application.csproj" />
     <ProjectReference Include="..\..\Modules\Notifications\Infrastructure\Alilu.Modules.Notifications.Infrastructure.csproj" />
+
+    <!-- Módulo Administration (Etapa 12 / PROMPT 12) — mesmo raciocínio do módulo Identity acima. -->
+    <ProjectReference Include="..\..\Modules\Administration\Application\Alilu.Modules.Administration.Application.csproj" />
+    <ProjectReference Include="..\..\Modules\Administration\Infrastructure\Alilu.Modules.Administration.Infrastructure.csproj" />
   </ItemGroup>
 
   <ItemGroup>

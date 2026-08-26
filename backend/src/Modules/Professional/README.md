@@ -137,3 +137,15 @@ um `professionalId`, que o DTO público `ProfessionalDirectoryItemResponse`
 propositalmente não expõe. Usado pela Api (`BookingsController.Create`,
 `ReviewsController.Create`, `BookingReminderBackgroundService`) para saber
 quem notificar do lado do profissional — ver ARCHITECTURE.md, "Etapa 11".
+
+## Extensão para o módulo Administration (Etapa 12)
+
+Todo método de `IProfessionalAdministrationService` ganhou um
+`scopeCondominiumId` opcional. Três métodos novos: `ListByCondominiumAsync`
+("visualizar histórico"), `BlockAsync` ("Profissionais: bloquear" —
+desativa só o vínculo com ESTE condomínio, nunca o `Professional.Status`
+global) e `AssociateAsync` ("associar ao condomínio" — cadastro direto,
+primeiro uso real de `ProfessionalCondominiumSource.AdminApproved`,
+reservado desde a Etapa 06; precisou de uma nova dependência,
+`IProfessionalRepository`, para validar que o profissional existe). Ver
+ARCHITECTURE.md, "Etapa 12".

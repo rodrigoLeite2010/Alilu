@@ -1,0 +1,185 @@
+/**
+ * Paleta do ALILU — mesmos valores de `mobile/src/theme/colors.ts`, para o
+ * painel administrativo (Etapa 12 / PROMPT 12: "criar um painel web
+ * administrativo separado") ter a mesma identidade visual do app do
+ * morador/profissional. Suporta claro/escuro via `prefers-color-scheme`
+ * (o app mobile não precisou disso — aqui é a primeira vez que o ALILU
+ * roda num browser).
+ */
+:root {
+  --alilu-brand-primary: #1b2733;
+  --alilu-brand-accent: #b08d57;
+
+  --alilu-neutral-50: #fafaf8;
+  --alilu-neutral-100: #f3f2ee;
+  --alilu-neutral-200: #e6e4dd;
+  --alilu-neutral-300: #d3d0c6;
+  --alilu-neutral-400: #a8a499;
+  --alilu-neutral-500: #7c7869;
+  --alilu-neutral-600: #5b584c;
+  --alilu-neutral-700: #3f3d35;
+  --alilu-neutral-800: #282723;
+  --alilu-neutral-900: #171615;
+
+  --alilu-success: #4c7a5b;
+  --alilu-warning: #b08d57;
+  --alilu-error: #a6473b;
+  --alilu-info: #3c6e8f;
+
+  --bg: var(--alilu-neutral-50);
+  --surface: #ffffff;
+  --surface-alt: var(--alilu-neutral-100);
+  --border: var(--alilu-neutral-200);
+  --text-primary: var(--alilu-brand-primary);
+  --text-secondary: var(--alilu-neutral-600);
+  --text-muted: var(--alilu-neutral-500);
+  --text-inverse: var(--alilu-neutral-50);
+
+  color-scheme: light;
+  font-family:
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--text-primary);
+}
+
+#root {
+  min-height: 100vh;
+}
+
+h1,
+h2,
+h3 {
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 8px;
+}
+
+a {
+  color: var(--alilu-info);
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+}
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+th,
+td {
+  text-align: left;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  font-size: 14px;
+}
+
+th {
+  color: var(--text-secondary);
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+}
+
+input,
+select {
+  font-family: inherit;
+  font-size: 14px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text-primary);
+}
+
+.btn {
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 8px 14px;
+  font-size: 14px;
+  font-weight: 600;
+  background: var(--alilu-brand-primary);
+  color: var(--text-inverse);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-secondary {
+  background: transparent;
+  border-color: var(--border);
+  color: var(--text-primary);
+}
+
+.btn-danger {
+  background: var(--alilu-error);
+}
+
+.btn-accent {
+  background: var(--alilu-brand-accent);
+  color: var(--alilu-neutral-900);
+}
+
+.badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  background: var(--surface-alt);
+  color: var(--text-secondary);
+}
+
+.badge-success {
+  background: rgba(76, 122, 91, 0.15);
+  color: var(--alilu-success);
+}
+
+.badge-warning {
+  background: rgba(176, 141, 87, 0.18);
+  color: var(--alilu-warning);
+}
+
+.badge-error {
+  background: rgba(166, 71, 59, 0.15);
+  color: var(--alilu-error);
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --bg: var(--alilu-neutral-900);
+    --surface: var(--alilu-neutral-800);
+    --surface-alt: var(--alilu-neutral-700);
+    --border: var(--alilu-neutral-700);
+    --text-primary: var(--alilu-neutral-50);
+    --text-secondary: var(--alilu-neutral-300);
+    --text-muted: var(--alilu-neutral-400);
+    --text-inverse: var(--alilu-neutral-900);
+  }
+}

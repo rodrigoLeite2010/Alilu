@@ -52,6 +52,12 @@ public sealed class BookingRepository(AliluDbContext dbContext) : IBookingReposi
             .OrderBy(b => b.ScheduledDate).ThenBy(b => b.StartTime)
             .ToListAsync(cancellationToken);
 
+    public async Task<IReadOnlyList<Booking>> ListByCondominiumIdAsync(Guid condominiumId, CancellationToken cancellationToken = default) =>
+        await dbContext.Set<Booking>()
+            .Where(b => b.CondominiumId == condominiumId)
+            .OrderByDescending(b => b.ScheduledDate).ThenByDescending(b => b.StartTime)
+            .ToListAsync(cancellationToken);
+
     public async Task AddAsync(Booking booking, CancellationToken cancellationToken = default) =>
         await dbContext.Set<Booking>().AddAsync(booking, cancellationToken);
 }

@@ -21,9 +21,9 @@ public sealed class CondominiumUnitRepository(AliluDbContext dbContext) : ICondo
             .OrderBy(u => u.Code)
             .ToListAsync(cancellationToken);
 
-    public Task<bool> ExistsByCondominiumIdAndCodeAsync(Guid condominiumId, string code, CancellationToken cancellationToken = default) =>
+    public Task<bool> ExistsByCondominiumIdAndCodeAsync(Guid condominiumId, string code, Guid? excludingUnitId = null, CancellationToken cancellationToken = default) =>
         dbContext.Set<CondominiumUnit>()
-            .AnyAsync(u => u.CondominiumId == condominiumId && u.Code == code, cancellationToken);
+            .AnyAsync(u => u.CondominiumId == condominiumId && u.Code == code && u.Id != excludingUnitId, cancellationToken);
 
     public async Task AddAsync(CondominiumUnit unit, CancellationToken cancellationToken = default) =>
         await dbContext.Set<CondominiumUnit>().AddAsync(unit, cancellationToken);

@@ -38,5 +38,16 @@ public interface IBookingRepository
         DateOnly toDate,
         CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Etapa 12 (PROMPT 12) — ponto de extensão para o módulo Administration:
+    /// todos os agendamentos de um condomínio, qualquer status, mais recente
+    /// primeiro. Usado pela Api para compor o dashboard administrativo
+    /// ("agendamentos") e "Profissionais: visualizar histórico" — a mesma
+    /// decisão de <see cref="ListConfirmedByScheduledDateRangeAsync"/>: sem
+    /// checagem de papel/escopo aqui, porque só é chamado pela Api depois de
+    /// autorização e resolução de escopo já terem acontecido.
+    /// </summary>
+    Task<IReadOnlyList<Booking>> ListByCondominiumIdAsync(Guid condominiumId, CancellationToken cancellationToken = default);
+
     Task AddAsync(Booking booking, CancellationToken cancellationToken = default);
 }

@@ -138,6 +138,14 @@ public sealed class ExceptionHandlingMiddleware(RequestDelegate next, ILogger<Ex
         // Módulo Notifications (PROMPT 11).
         Alilu.Modules.Notifications.Application.NotificationNotFoundException => (StatusCodes.Status404NotFound, exception.Message),
 
+        // Módulo Administration (Etapa 12 / PROMPT 12) — sexto módulo a
+        // repetir o padrão de InsufficientPermissionsException citado no
+        // comentário da classe; mantido como case explícito por
+        // consistência com os cinco anteriores, mas reforça que vale a
+        // extração de um contrato comum numa próxima etapa que mexa aqui.
+        Alilu.Modules.Administration.Application.AdminNotAssignedToCondominiumException => (StatusCodes.Status403Forbidden, exception.Message),
+        Alilu.Modules.Administration.Application.InsufficientPermissionsException => (StatusCodes.Status403Forbidden, exception.Message),
+
         UnauthorizedAccessException => (StatusCodes.Status401Unauthorized, exception.Message),
         DomainException => (StatusCodes.Status400BadRequest, exception.Message),
         _ => (StatusCodes.Status500InternalServerError, "Ocorreu um erro inesperado."),

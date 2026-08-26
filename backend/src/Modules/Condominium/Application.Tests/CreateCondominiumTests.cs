@@ -62,4 +62,30 @@ public sealed class CreateCondominiumTests
         await Assert.ThrowsAsync<InsufficientPermissionsException>(() =>
             fixture.RegisterCondominiumAsync(sut, requesterRole: nonAdminRole));
     }
+
+    [Fact]
+    public async Task CreateCondominiumAsync_WithCondominiumAdminRole_ThrowsInsufficientPermissionsException()
+    {
+        // Etapa 12 (PROMPT 12, AUTORIZAÇÃO): "criar um NOVO condomínio"
+        // deixou de ser CondominiumAdmin-ou-SuperAdmin (Etapa 04) e passou
+        // a ser SOMENTE SuperAdmin — não se encaixa em "administrar MEU
+        // condomínio" (que pressupõe um condomínio já existente, ao qual o
+        // admin já foi vinculado). Ver ARCHITECTURE.md, "Etapa 12".
+        var fixture = new CondominiumServiceTestFixture();
+        var sut = fixture.CreateSut();
+
+        await Assert.ThrowsAsync<InsufficientPermissionsException>(() =>
+            fixture.RegisterCondominiumAsync(sut, requesterRole: CondominiumRequesterRole.CondominiumAdmin));
+    }
+
+    [Fact]
+    public async Task CreateCondominiumAsync_WithSuperAdminRole_Succeeds()
+    {
+        var fixture = new CondominiumServiceTestFixture();
+        var sut = fixture.CreateSut();
+
+        var result = await fixture.RegisterCondominiumAsync(sut, requesterRole: CondominiumRequesterRole.SuperAdmin);
+
+        Assert.Equal("Monte Carlo", result.Name);
+    }
 }

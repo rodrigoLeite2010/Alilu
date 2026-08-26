@@ -26,9 +26,19 @@ public sealed class InMemoryRecommendationRepository : IRecommendationRepository
                 .OrderByDescending(r => r.CreatedAt)
                 .ToList());
 
-    public Task<IReadOnlyList<Recommendation>> ListPendingAsync(CancellationToken cancellationToken = default) =>
+    public Task<IReadOnlyList<Recommendation>> ListPendingAsync(Guid? condominiumId = null, CancellationToken cancellationToken = default) =>
         Task.FromResult<IReadOnlyList<Recommendation>>(
-            _recommendations.Values.Where(r => r.Status == RecommendationStatus.Pending).OrderBy(r => r.CreatedAt).ToList());
+            _recommendations.Values
+                .Where(r => r.Status == RecommendationStatus.Pending && (condominiumId == null || r.CondominiumId == condominiumId))
+                .OrderBy(r => r.CreatedAt)
+                .ToList());
+
+    public Task<IReadOnlyList<Recommendation>> ListByCondominiumIdAsync(Guid condominiumId, CancellationToken cancellationToken = default) =>
+        Task.FromResult<IReadOnlyList<Recommendation>>(
+            _recommendations.Values
+                .Where(r => r.CondominiumId == condominiumId)
+                .OrderByDescending(r => r.CreatedAt)
+                .ToList());
 
     public Task AddAsync(Recommendation recommendation, CancellationToken cancellationToken = default)
     {

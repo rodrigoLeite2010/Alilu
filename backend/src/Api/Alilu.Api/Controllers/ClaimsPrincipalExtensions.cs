@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using Alilu.Modules.Administration.Application;
 using Alilu.Modules.Condominium.Application;
 using Alilu.Modules.Professional.Application;
 using Alilu.Modules.Recommendations.Application;
@@ -61,6 +62,19 @@ public static class ClaimsPrincipalExtensions
         var roleClaim = user.FindFirstValue(ClaimTypes.Role);
 
         if (roleClaim is null || !Enum.TryParse<RecommendationRequesterRole>(roleClaim, out var role))
+        {
+            throw new UnauthorizedAccessException("O token não contém um papel de usuário válido.");
+        }
+
+        return role;
+    }
+
+    /// <summary>Mesmo claim de papel acima, só que como <see cref="AdministrationRequesterRole"/> — usado pelos controllers administrativos (Etapa 12 / PROMPT 12) para resolver o escopo do CondominiumAdmin via <see cref="IAdminScopeService"/>.</summary>
+    public static AdministrationRequesterRole GetAdministrationRequesterRole(this ClaimsPrincipal user)
+    {
+        var roleClaim = user.FindFirstValue(ClaimTypes.Role);
+
+        if (roleClaim is null || !Enum.TryParse<AdministrationRequesterRole>(roleClaim, out var role))
         {
             throw new UnauthorizedAccessException("O token não contém um papel de usuário válido.");
         }

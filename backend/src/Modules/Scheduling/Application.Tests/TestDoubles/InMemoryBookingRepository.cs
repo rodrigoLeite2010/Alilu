@@ -42,6 +42,11 @@ public sealed class InMemoryBookingRepository : IBookingRepository
                 .OrderBy(b => b.ScheduledDate).ThenBy(b => b.StartTime)
                 .ToList());
 
+    public Task<IReadOnlyList<Booking>> ListByCondominiumIdAsync(Guid condominiumId, CancellationToken cancellationToken = default) =>
+        Task.FromResult<IReadOnlyList<Booking>>(
+            _bookings.Values.Where(b => b.CondominiumId == condominiumId)
+                .OrderByDescending(b => b.ScheduledDate).ThenByDescending(b => b.StartTime).ToList());
+
     public Task AddAsync(Booking booking, CancellationToken cancellationToken = default)
     {
         _bookings[booking.Id] = booking;

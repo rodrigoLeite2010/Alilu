@@ -98,6 +98,12 @@ public sealed class BookingService(
         return await ToResponsesAsync(bookings, cancellationToken);
     }
 
+    public async Task<IReadOnlyList<BookingResponse>> ListBookingsByCondominiumIdAsync(Guid condominiumId, CancellationToken cancellationToken = default)
+    {
+        var bookings = await bookingRepository.ListByCondominiumIdAsync(condominiumId, cancellationToken);
+        return await ToResponsesAsync(bookings, cancellationToken);
+    }
+
     private async Task<Booking> GetOwnBookingOrThrowAsync(Guid residentId, Guid bookingId, CancellationToken cancellationToken)
     {
         var booking = await bookingRepository.GetByIdAsync(bookingId, cancellationToken)

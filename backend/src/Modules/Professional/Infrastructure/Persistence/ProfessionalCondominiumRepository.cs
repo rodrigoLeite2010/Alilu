@@ -26,10 +26,16 @@ public sealed class ProfessionalCondominiumRepository(AliluDbContext dbContext) 
                     && (pc.Status == ProfessionalCondominiumStatus.Pending || pc.Status == ProfessionalCondominiumStatus.Active),
                 cancellationToken);
 
-    public async Task<IReadOnlyList<ProfessionalCondominium>> ListPendingAsync(CancellationToken cancellationToken = default) =>
+    public async Task<IReadOnlyList<ProfessionalCondominium>> ListPendingAsync(Guid? condominiumId = null, CancellationToken cancellationToken = default) =>
         await dbContext.Set<ProfessionalCondominium>()
-            .Where(pc => pc.Status == ProfessionalCondominiumStatus.Pending)
+            .Where(pc => pc.Status == ProfessionalCondominiumStatus.Pending && (condominiumId == null || pc.CondominiumId == condominiumId))
             .OrderBy(pc => pc.CreatedAt)
+            .ToListAsync(cancellationToken);
+
+    public async Task<IReadOnlyList<ProfessionalCondominium>> ListByCondominiumIdAsync(Guid condominiumId, CancellationToken cancellationToken = default) =>
+        await dbContext.Set<ProfessionalCondominium>()
+            .Where(pc => pc.CondominiumId == condominiumId)
+            .OrderByDescending(pc => pc.CreatedAt)
             .ToListAsync(cancellationToken);
 
     public async Task AddAsync(ProfessionalCondominium professionalCondominium, CancellationToken cancellationToken = default) =>

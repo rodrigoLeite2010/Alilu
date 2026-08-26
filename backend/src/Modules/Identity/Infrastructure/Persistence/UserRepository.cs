@@ -23,6 +23,11 @@ public sealed class UserRepository(AliluDbContext dbContext) : IUserRepository
         dbContext.Set<User>()
             .AnyAsync(u => u.Email.Value == normalizedEmail, cancellationToken);
 
+    public async Task<IReadOnlyList<User>> ListByIdsAsync(IReadOnlyCollection<Guid> ids, CancellationToken cancellationToken = default) =>
+        await dbContext.Set<User>()
+            .Where(u => ids.Contains(u.Id))
+            .ToListAsync(cancellationToken);
+
     public async Task AddAsync(User user, CancellationToken cancellationToken = default) =>
         await dbContext.Set<User>().AddAsync(user, cancellationToken);
 }

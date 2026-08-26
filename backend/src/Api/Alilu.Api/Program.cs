@@ -3,6 +3,7 @@ using System.Text.Json.Serialization;
 using Alilu.Api.BackgroundServices;
 using Alilu.Api.Middleware;
 using Alilu.Infrastructure;
+using Alilu.Modules.Administration.Infrastructure;
 using Alilu.Modules.Condominium.Infrastructure;
 using Alilu.Modules.Condominium.Infrastructure.Seed;
 using Alilu.Modules.Identity.Infrastructure;
@@ -80,6 +81,36 @@ builder.Services.AddRecommendationsModule(builder.Configuration);
 // processo de fundo próprio (ver abaixo, AddHostedService).
 builder.Services.AddNotificationsModule(builder.Configuration);
 
+// Módulo Administration (Etapa 12 — PROMPT 12): escopo de autorização do
+// CondominiumAdmin (qual condomínio ele administra) + vínculo
+// administrador↔condomínio (CondominiumAdministrator). Nenhum outro módulo
+// referencia este (independência de módulos, PROMPT 01) — é a Api quem
+// resolve o escopo (IAdminScopeService) e o repassa aos demais módulos via
+// o parâmetro opcional `scopeCondominiumId` que cada um ganhou nesta etapa.
+// Sem seed de desenvolvimento: o primeiro vínculo de um CondominiumAdmin a
+// um condomínio precisa ser criado por um SuperAdmin (endpoint
+// AdminCondominiumAdministratorsController, ver README do módulo).
+builder.Services.AddAdministrationModule(builder.Configuration);
+
+// CORS (Etapa 12 — PROMPT 12): "criar um painel web administrativo
+// separado" introduz, pela primeira vez neste projeto, um cliente que roda
+// em outra origem (o app mobile React Native não usa CORS — não é um
+// browser). As origens permitidas vêm de configuração (nunca
+// hard-coded em produção) — ver appsettings.Development.json para o valor
+// de desenvolvimento (Vite, http://localhost:5173).
+const string adminWebCorsPolicy = "AdminWebCorsPolicy";
+var adminWebOrigins = builder.Configuration.GetSection("Cors:AdminWebOrigins").Get<string[]>() ?? Array.Empty<string>();
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy(adminWebCorsPolicy, policy =>
+    {
+        if (adminWebOrigins.Length > 0)
+        {
+            policy.WithOrigins(adminWebOrigins).AllowAnyHeader().AllowAnyMethod();
+        }
+    });
+});
+
 builder.Services
     .AddControllers()
     // Enums (ex.: UserRole, UserStatus) trafegam como texto ("Resident"),
@@ -121,6 +152,12 @@ var app = builder.Build();
 // capturar qualquer exceção do pipeline abaixo dele.
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 
+// Precisa vir antes de autenticação/autorização (mesma ordem recomendada
+// pela documentação do ASP.NET Core) e só afeta o preflight/response
+// headers dos endpoints acessados pelo admin-web — o app mobile não é
+// afetado (requisições nativas não passam pelo CORS do browser).
+app.UseCors(adminWebCorsPolicy);
+
 app.UseAuthentication();
 app.UseAuthorization();
 
@@ -149,7 +186,7 @@ app.MapGet("/health", () => Results.Ok(new { status = "healthy" }));
 app.MapGet("/", () => Results.Ok(new
 {
     application = "ALILU API",
-    status = "Identity (autenticação), Condominium (condomínios/unidades/convites), Resident (validação do morador), Professional (profissionais/diaristas, incluindo disponibilidade), Scheduling (agendamentos), Reviews (avaliações), Recommendations (indicações) e Notifications (notificações internas e push) implementados",
+    status = "Identity (autenticação), Condominium (condomínios/unidades/convites), Resident (validação do morador), Professional (profissionais/diaristas, incluindo disponibilidade), Scheduling (agendamentos), Reviews (avaliações), Recommendations (indicações), Notifications (notificações internas e push) e Administration (painel administrativo por condomínio) implementados",
 }));
 
 app.Run();
