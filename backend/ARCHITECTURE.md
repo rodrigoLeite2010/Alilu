@@ -1380,3 +1380,255 @@ completa — e, se possível, um teste manual com duas abas/dispositivos
 tentando reservar o mesmo horário ao mesmo tempo, para observar o
 `BookingConflictException` (409) nascido da transação `Serializable`
 de verdade.
+
+## Etapa 09 — avaliações (Reviews)
+
+PROMPT 09 — "implementar SOMENTE Reviews". Módulo novo (`Alilu.Modules.Reviews.*`,
+mesma estrutura em quatro camadas), pequeno e de escopo estrito: o morador
+avalia um `Booking` `Completed`, o profissional só lê o que recebeu. Mesmo
+formato de composição entre módulos já usado na Etapa 08, agora numa
+direção só (Reviews depende de uma validação do Scheduling, nunca o
+contrário).
+
+### Entidade (`Alilu.Modules.Reviews.Domain`)
+
+- **`Review`** — a própria raiz de agregado do módulo: `BookingId`,
+  `ResidentId`, `ProfessionalId`, `Rating` (`int`, 1 a 5), `Comment`
+  (opcional), `CreatedAt`. Mesma decisão de sempre: sem navegação/FK para
+  `Booking` (Scheduling), `User` (Identity) nem `Professional`
+  (Professional) — só os Ids como valores simples.
+  De propósito **não há** `UpdatedAt` — o prompt listou exatamente sete
+  campos para `Review`, diferente de `Booking` (Etapa 08), que listou
+  `CreatedAt` **e** `UpdatedAt` explicitamente; `Edit` muda
+  `Rating`/`Comment` sem tocar em nenhum campo de data, respeitando essa
+  lista à risca.
+  `Create`/`Edit` validam a mesma coisa (`Rating` entre 1 e 5 e, em
+  `Create`, todos os três Ids não-vazios — "não permitir avaliação
+  anônima" é garantido aqui: `ResidentId` nunca pode ser `Guid.Empty`) via
+  `Alilu.Shared.DomainException`, mesmo estilo de `Booking.Request`.
+
+### As REGRAS do prompt e onde cada uma vive
+
+- **"Somente Booking Completed pode ser avaliado"** + **"somente o
+  Resident daquele Booking pode avaliar"** — dependem de dados que
+  pertencem ao módulo Scheduling, que o módulo Reviews não pode
+  referenciar (PROMPT 01). Solução: um novo método de extensão em
+  `IBookingService` (Scheduling) —
+  `ValidateCompletedBookingForReviewAsync(residentId, bookingId)` —
+  reaproveita o `GetOwnBookingOrThrowAsync` já existente (mesma segunda
+  camada de defesa da Etapa 08: dono errado vira `BookingNotFoundException`,
+  nunca um 403 que confirmaria a existência do registro) e lança a nova
+  `BookingNotCompletedException` (409) quando o status não é `Completed`.
+  Devolve o `ProfessionalId` do agendamento — o único jeito do módulo
+  Reviews descobrir esse Id sem referenciar Scheduling. Quem chama esse
+  método, e só então chama `IReviewService` (Reviews), é a Api —
+  `ReviewsController.Create`/`Edit` — exatamente o mesmo papel de
+  `BookingsController` na Etapa 08, só que compondo dois módulos em vez de
+  três.
+- **"Somente uma Review por Booking"** — a única regra desta etapa que o
+  próprio módulo Reviews garante sozinho, porque `Review` é o único dado
+  dela que pertence ao módulo: checagem em memória
+  (`ReviewService.CreateAsync` busca por `BookingId` antes de criar) mais
+  um índice único **sem filtro** em `BookingId`
+  (`ReviewConfiguration.HasIndex(r => r.BookingId).IsUnique()`) como rede
+  de segurança contra a corrida entre duas requisições concorrentes — mesmo
+  raciocínio de `IUnitOfWork.ExecuteInSerializableTransactionAsync` na
+  Etapa 08, mas resolvido com uma constraint simples de unicidade em vez de
+  uma transação `Serializable`: "avaliar de novo o mesmo Booking" não tem o
+  componente de janela de tempo/disponibilidade que motivou a transação
+  forte de `Booking`, só uma restrição de unicidade incondicional — por
+  isso **sem filtro**, diferente do índice único **filtrado** de
+  `MembershipConfiguration` (Etapa 05/06, que permite nova tentativa depois
+  de uma rejeição): aqui não existe "tentar de novo depois de rejeitado",
+  uma vez avaliado, sempre avaliado.
+- **"Rating entre 1 e 5"** — `Review.Create`/`Edit` (Domain), via
+  `DomainException` (400) — mesma convenção de erro de domínio genérico já
+  usada para "horário de início antes do término" (`Booking`) etc.
+- **"Não permitir avaliação anônima"** — `ResidentId` obrigatório e não
+  vazio em `Review.Create` (Domain) — não existe, e nunca existiu, um
+  caminho para criar uma `Review` sem autor.
+- **"Editar avaliação dentro da regra definida"** — decisão de escopo
+  deliberada: a "regra definida" é interpretada como a mesma regra de
+  autoria da criação (só quem avaliou pode editar, verificado por
+  `ReviewService.EditAsync` via `GetOwnReviewOrThrowAsync`, mesmo padrão de
+  `GetOwnBookingOrThrowAsync`), **não** uma nova janela de tempo inventada
+  (ex.: "só pode editar em até 24h") — o prompt não especificou nenhum
+  prazo, e inventar um seria extrapolar o escopo. `EditAsync` não
+  revalida "Booking Completed" de novo (o status de um `Booking` nunca
+  regride depois de `Completed` — ver `Booking.cs`, Etapa 08 — então se
+  valia na criação, continua valendo para sempre).
+
+### Endpoints
+
+Self-service dos dois lados (`[Authorize]`, sempre restritos ao próprio
+usuário — mesma segunda camada de defesa de sempre).
+
+Lado do morador (`ReviewsController`, `api/resident/reviews`):
+
+- `GET /api/resident/reviews` — "visualizar avaliações feitas".
+- `GET /api/resident/reviews/booking/{bookingId}` — devolve a avaliação do
+  morador para aquele agendamento, ou **204 sem corpo** quando ainda não
+  existe (mesmo padrão "204" de `IMembershipService.GetMyActiveMembershipAsync`/
+  `IProfessionalProfileService.GetMyProfileAsync`) — o React Native usa
+  isso para decidir se abre em modo "avaliar" ou "ver/editar avaliação".
+- `POST /api/resident/reviews` — "avaliar profissional" (composição
+  completa, ver seção anterior).
+- `PUT /api/resident/reviews/{id}` — "editar avaliação".
+
+Lado do profissional (`ProfessionalReviewsController`, `api/professional/reviews`):
+
+- `GET /api/professional/reviews` — "visualizar avaliações recebidas".
+- `GET /api/professional/reviews/summary` — "visualizar média"
+  (`ProfessionalRatingSummaryResponse`: total + média; `0`/`0` quando ainda
+  não há nenhuma avaliação, sem divisão por zero).
+
+Mesmo padrão de `ProfessionalBookingsController` (Etapa 08) para resolver
+o `professionalId`: como `Review.ProfessionalId` é o `Professional.Id`
+(perfil) e não o `User.Id` de quem está autenticado, e o módulo Reviews
+não pode referenciar o módulo Professional, é a Api quem resolve o próprio
+perfil do profissional autenticado
+(`IProfessionalProfileService.GetMyProfileAsync`) antes de repassar o
+`professionalId` já resolvido para `IProfessionalReviewService`.
+
+### Decisões de escopo (o que este prompt não pediu)
+
+Registradas explicitamente, mesmo hábito de honestidade de escopo das
+etapas anteriores (ex.: "nenhum profissional/usuário fictício no seed",
+Etapa 06):
+
+- **Sem exposição pública da média para o morador** — o prompt só pediu
+  "visualizar média" do lado do **profissional** ("Profissional: ...
+  visualizar média"); o diretório público de profissionais (módulo
+  Professional, `ProfessionalDirectoryItem`) não ganhou um campo de
+  rating nesta etapa, e `RatingSummary` (React Native) só aparece em
+  `ProfessionalReviewsScreen`, nunca em `ProfessionalProfileScreen`
+  (visão do morador). Se uma etapa futura pedir isso, é uma extensão de
+  `IProfessionalDirectoryService`/`ProfessionalDirectoryItem`, não uma
+  mudança neste módulo.
+- **Sem identificar o autor para o profissional** — `ReviewResponse` nunca
+  devolve nome/dados do morador (só `residentId`, cru); o prompt pediu
+  "visualizar avaliações recebidas", não "saber quem avaliou".
+- **Sem tela de histórico dedicada além das três nomeadas** — "visualizar
+  avaliações feitas" é servido por `ReviewScreen` funcionando como
+  visualizador/editor quando alcançada a partir de um `Booking` específico
+  (`GET .../booking/{bookingId}`) e por `GET /api/resident/reviews` (lista
+  completa, exposta via `useMyReviews`, ainda que nenhuma tela desta etapa
+  a exiba diretamente — fica disponível para composição futura, mesmo
+  padrão de "endpoint pronto, tela específica é decisão de uma etapa
+  futura" já visto em módulos anteriores) — o prompt só nomeou
+  `ReviewScreen`/`ProfessionalReviewsScreen`/`RatingSummary` como
+  componentes React Native, nenhuma quarta tela de "minhas avaliações" foi
+  inventada.
+
+### React Native
+
+- **`ReviewScreen`** — "avaliar profissional" **e** "editar avaliação" na
+  mesma tela: `useMyReviewForBooking(bookingId)` decide o modo (existe
+  avaliação → formulário abre preenchido e o envio vira `PUT`; não existe
+  → formulário em branco e o envio vira `POST`) — mesmo padrão de
+  `ProfessionalEditScreen` (cria vs. edita o mesmo formulário, Etapa 06).
+  O seletor de nota é uma fileira de 5 estrelas tocáveis (`Pressable` +
+  `RATING_STARS`), não um campo de texto — sem necessidade de
+  `z.coerce.number()` no schema Zod, diferente de
+  `bookingItemQuantitySchema` (Etapa 08), porque o valor nunca é digitado.
+  "Não permitir avaliação antes da conclusão" é garantido pelo **ponto de
+  entrada** (só alcançável a partir de "Avaliar", que só aparece em
+  `Booking` `Completed` — ver `reviewSlot` abaixo), não por uma checagem
+  redundante dentro da própria tela; o servidor revalida de qualquer jeito
+  (`BookingNotCompletedException`, 409, aparece como mensagem de erro
+  comum se o estado mudar entre abrir a tela e enviar).
+- **`ProfessionalReviewsScreen`** — "visualizar avaliações recebidas;
+  visualizar média": `RatingSummary` no topo, lista das avaliações abaixo
+  (estrelas + comentário + data, nunca o autor — ver decisão de escopo
+  acima).
+- **`RatingSummary`** — componente puro (`averageRating`/`totalReviews`),
+  usado só dentro de `ProfessionalReviewsScreen` (ver decisão de escopo
+  "sem exposição pública" acima).
+
+**Ponto de extensão `reviewSlot` — o mesmo problema de composição da Etapa
+08, resolvido do mesmo jeito, agora no React Native:** o módulo
+`scheduling` não pode importar o módulo `reviews` (mesma regra de
+independência de módulos, espelhada no app desde a Etapa 08). Como
+`BookingDetailsScreen` (módulo `scheduling`) é quem decide *quando* mostrar
+o botão "Avaliar"/"Ver avaliação" (`role === 'resident' && booking.status
+=== 'Completed'`), mas não pode ser quem o *renderiza* (isso exigiria
+importar `reviews`), a tela ganhou uma prop opcional
+`reviewSlot?: (booking: Booking) => ReactNode` — um render-prop: quem
+quiser mostrar algo ali fornece uma função que recebe o `Booking` e
+devolve o elemento a renderizar. Quem preenche esse slot é a rota
+hospedeira (`app/(resident)/bookings/[id]/index.tsx`), que importa
+`modules/reviews` livremente (rotas não têm essa restrição, mesmo papel
+dos controllers da Api) — ela chama `useMyReviewForBooking` para decidir o
+rótulo do botão ("Avaliar profissional" vs. "Ver avaliação") antes de
+navegar para `bookings/[id]/review`.
+
+**Reestruturação de rota:** `app/(resident)/bookings/[id].tsx` (arquivo
+único desde a Etapa 08) virou uma rota aninhada —
+`app/(resident)/bookings/[id]/index.tsx` (o mesmo `BookingDetailsScreen`
+de antes, agora com o `reviewSlot`) mais um novo
+`app/(resident)/bookings/[id]/review.tsx` (`ReviewScreen`) — mesmo padrão
+já usado por `booking/[professionalId]/*` (Etapa 08) e `availability/*`
+(Etapa 07) para caber mais de uma tela sob o mesmo segmento dinâmico.
+`review.tsx` resolve o nome do profissional (`schedulingDirectoryApi`,
+módulo Scheduling) e repassa como prop pronta para `ReviewScreen` — mesma
+composição de `BookingDetailsScreen`.
+
+`ProfessionalEditScreen` ganhou um atalho "Avaliações", ao lado de
+"Solicitações"/"Configurar disponibilidade", levando para
+`app/(professional)/reviews/index.tsx` (`ProfessionalReviewsScreen`).
+
+### Testes
+
+`Reviews.Application.Tests/` (novo projeto) — `ReviewCreationTests`
+(criação válida, segunda avaliação do mesmo `Booking` falha com
+`DuplicateReviewException`, `Rating` 0/6/-1 falham com `DomainException`,
+`ResidentId` vazio falha com `DomainException`, busca por `Booking` sem
+avaliação devolve `null`, busca por `Booking` de outro morador também
+devolve `null` — segunda camada de defesa mesmo no lookup "nullable") e
+`ReviewEditAndProfessionalViewTests` (dono edita com sucesso, outro
+morador tentando editar falha com `ReviewNotFoundException`, avaliação
+inexistente falha com `ReviewNotFoundException`, `Rating` fora do
+intervalo falha na edição também, listagem do profissional filtra
+corretamente, média com zero avaliações é `0`/`0`, média com duas
+avaliações calcula certo). `Scheduling.Application.Tests` ganhou
+`BookingReviewValidationTests` (4 testes: `Booking` `Completed` do próprio
+morador devolve o `ProfessionalId` certo, `Booking` `Requested` falha com
+`BookingNotCompletedException`, `Booking` cancelado falha com
+`BookingNotCompletedException`, `Booking` `Completed` de outro morador
+falha com `BookingNotFoundException`).
+
+Cobrindo explicitamente as REGRAS do prompt — "somente Booking Completed
+pode ser avaliado", "somente o Resident daquele Booking pode avaliar",
+"somente uma Review por Booking", "Rating entre 1 e 5", "não permitir
+avaliação anônima" — mais os dois lados de "visualizar" (morador e
+profissional).
+
+### Limitação do sandbox de build (Claude) nesta etapa
+
+Mesma limitação de sempre: `Alilu.Modules.Reviews.Infrastructure`,
+`Alilu.Api` e os projetos de teste xUnit (`Reviews.Application.Tests`
+incluso) não puderam ser restaurados/compilados aqui (pacotes NuGet só
+resolvíveis com acesso à internet). O que **foi** verificado:
+
+- `Alilu.Modules.Reviews.Domain`, `Alilu.Modules.Reviews.Application` e
+  `Alilu.Modules.Scheduling.Application` (com o novo
+  `ValidateCompletedBookingForReviewAsync`) — todos com zero dependências
+  NuGet externas — compilam com **0 erros/0 warnings**.
+- Toda a lógica de negócio desta etapa (validação cruzada Scheduling→Reviews,
+  criação/edição, duplicidade, intervalo de nota, autoria, média) foi
+  validada rodando manualmente contra fakes em memória (as mesmas
+  implementações reais dos serviços) — **17 verificações, todas
+  passaram**.
+- `python3 scripts/check-references.py` — **36 projetos, 0 violações, 0
+  ciclos**.
+- Mobile: `npx tsc --noEmit` e `npx eslint .` — **0 erros/0 warnings** em
+  todo o projeto (incluindo os arquivos novos e editados desta etapa).
+
+O que este sandbox **não pode** provar é o índice único de
+`ReviewConfiguration` de fato rejeitando uma segunda avaliação
+concorrente contra um PostgreSQL real (só a checagem em memória foi
+exercitada aqui) — rode `dotnet restore && dotnet build`, `dotnet test
+src/Modules/Reviews/Application.Tests` e os comandos de migration
+(`dotnet ef migrations add AddReviewsModule --project src/Infrastructure/Alilu.Infrastructure --startup-project src/Api/Alilu.Api`,
+depois `dotnet ef database update ...`) na sua máquina para a verificação
+completa.

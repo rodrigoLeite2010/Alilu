@@ -118,6 +118,13 @@ public sealed class ExceptionHandlingMiddleware(RequestDelegate next, ILogger<Ex
         Alilu.Modules.Scheduling.Application.BookingConflictException => (StatusCodes.Status409Conflict, exception.Message),
         Alilu.Modules.Scheduling.Application.InsufficientPermissionsException => (StatusCodes.Status403Forbidden, exception.Message),
 
+        // Validação de agendamento para avaliação — Scheduling (PROMPT 09).
+        Alilu.Modules.Scheduling.Application.BookingNotCompletedException => (StatusCodes.Status409Conflict, exception.Message),
+
+        // Módulo Reviews (PROMPT 09).
+        Alilu.Modules.Reviews.Application.ReviewNotFoundException => (StatusCodes.Status404NotFound, exception.Message),
+        Alilu.Modules.Reviews.Application.DuplicateReviewException => (StatusCodes.Status409Conflict, exception.Message),
+
         UnauthorizedAccessException => (StatusCodes.Status401Unauthorized, exception.Message),
         DomainException => (StatusCodes.Status400BadRequest, exception.Message),
         _ => (StatusCodes.Status500InternalServerError, "Ocorreu um erro inesperado."),

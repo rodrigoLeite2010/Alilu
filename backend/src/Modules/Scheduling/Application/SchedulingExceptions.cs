@@ -33,3 +33,15 @@ public sealed class BookingConflictException()
 /// <summary>Segunda camada de defesa (a primeira é a própria consulta restrita ao dono do agendamento) — mesma filosofia dos demais módulos, tipo próprio deste (nenhum módulo referencia outro).</summary>
 public sealed class InsufficientPermissionsException()
     : SchedulingApplicationException("Você não tem permissão para executar esta ação.");
+
+/// <summary>
+/// "Somente Booking Completed pode ser avaliado" (REGRA CRÍTICA do PROMPT
+/// 09) — lançada por <see cref="IBookingService.ValidateCompletedBookingForReviewAsync"/>,
+/// o método que o módulo Reviews (via a Api, sua composição raiz) chama
+/// para confirmar que um agendamento pode ser avaliado, sem o módulo
+/// Reviews precisar referenciar este módulo — mesmo padrão de
+/// <see cref="BookingNotFoundException"/>/<see cref="InsufficientPermissionsException"/>
+/// para "só o dono pode ver/agir", agora aplicado à avaliação.
+/// </summary>
+public sealed class BookingNotCompletedException()
+    : SchedulingApplicationException("Apenas um agendamento concluído pode ser avaliado.");

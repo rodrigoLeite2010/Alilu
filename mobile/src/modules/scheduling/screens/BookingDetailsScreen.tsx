@@ -1,4 +1,5 @@
 import { router } from 'expo-router';
+import type { ReactNode } from 'react';
 import { useState } from 'react';
 import { ActivityIndicator, ScrollView, View } from 'react-native';
 
@@ -21,11 +22,23 @@ import {
   useStartBooking,
 } from '../hooks';
 import { BOOKING_STATUS_LABEL, formatDateDisplay, formatTimeRange } from '../schedulingFormat';
+import type { Booking } from '../types';
 
 interface BookingDetailsScreenProps {
   bookingId: string;
   /** `resident`: rota `(resident)/bookings/[id]`. `professional`: rota `(professional)/requests/[id]`. Decide quais dados/ações aparecem — mesmo agendamento, duas visões (ver `BookingsController`/`ProfessionalBookingsController` no backend). */
   role: 'resident' | 'professional';
+  /**
+   * Ponto de extensão do PROMPT 09 — o módulo `scheduling` não pode
+   * importar o módulo `reviews` (independência de módulos, mesma regra do
+   * backend), então quem quer mostrar um botão "Avaliar"/"Ver avaliação"
+   * aqui (só faz sentido para `role === 'resident'` com
+   * `booking.status === 'Completed'`) fornece este slot — mesmo papel da
+   * Api compor módulos nos controllers. A rota hospedeira
+   * (`bookings/[id]/index.tsx`) é quem passa isso, importando `modules/reviews`
+   * livremente (ela não tem essa restrição).
+   */
+  reviewSlot?: (booking: Booking) => ReactNode;
 }
 
 /**
@@ -35,7 +48,7 @@ interface BookingDetailsScreenProps {
  * backend para as transições válidas: `EnsureCancellable`/`EnsureStatus`/
  * `Complete`/`MarkNoShow`).
  */
-export function BookingDetailsScreen({ bookingId, role }: BookingDetailsScreenProps) {
+export function BookingDetailsScreen({ bookingId, role, reviewSlot }: BookingDetailsScreenProps) {
   const { spacing, colors } = useTheme();
   const [actionError, setActionError] = useState<string | null>(null);
 
@@ -194,6 +207,8 @@ export function BookingDetailsScreen({ bookingId, role }: BookingDetailsScreenPr
               disabled={isMutating}
             />
           ) : null}
+
+          {role === 'resident' && booking.status === 'Completed' && reviewSlot ? reviewSlot(booking) : null}
 
           <AppButton label="Voltar" variant="ghost" onPress={() => router.back()} />
         </View>

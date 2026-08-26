@@ -77,6 +77,18 @@ public sealed class BookingService(
         return SchedulingMapper.ToResponse(booking, items);
     }
 
+    public async Task<Guid> ValidateCompletedBookingForReviewAsync(Guid residentId, Guid bookingId, CancellationToken cancellationToken = default)
+    {
+        var booking = await GetOwnBookingOrThrowAsync(residentId, bookingId, cancellationToken);
+
+        if (booking.Status != BookingStatus.Completed)
+        {
+            throw new BookingNotCompletedException();
+        }
+
+        return booking.ProfessionalId;
+    }
+
     private async Task<Booking> GetOwnBookingOrThrowAsync(Guid residentId, Guid bookingId, CancellationToken cancellationToken)
     {
         var booking = await bookingRepository.GetByIdAsync(bookingId, cancellationToken)

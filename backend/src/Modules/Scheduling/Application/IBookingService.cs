@@ -58,4 +58,21 @@ public interface IBookingService
 
     /// <summary>React Native: MyBookingsScreen/BookingDetailsScreen — "cancelar". Lança <see cref="Alilu.Shared.DomainException"/> (400) quando o agendamento já começou/terminou — ver <see cref="Domain.Booking.CancelByResident"/>.</summary>
     Task<BookingResponse> CancelMyBookingAsync(Guid residentId, Guid bookingId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Ponto de extensão para o módulo Reviews (PROMPT 09) validar, ANTES de
+    /// criar/editar uma avaliação, que "somente Booking Completed pode ser
+    /// avaliado" e "somente o Resident daquele Booking pode avaliar" — sem
+    /// o módulo Reviews precisar referenciar este módulo (independência de
+    /// módulos, PROMPT 01). É a Api (composição raiz, <c>ReviewsController</c>)
+    /// quem chama este método antes de chamar <c>IReviewService</c> — mesmo
+    /// papel de <c>IMembershipService.HasActiveMembershipAsync</c> na
+    /// composição do PROMPT 08. Lança <see cref="BookingNotFoundException"/>
+    /// quando o agendamento não existe ou não pertence a
+    /// <paramref name="residentId"/>, e <see cref="BookingNotCompletedException"/>
+    /// quando ainda não está <see cref="Domain.BookingStatus.Completed"/>.
+    /// Devolve o <c>ProfessionalId</c> do agendamento, que o módulo Reviews
+    /// precisa gravar na avaliação mas não tem como descobrir sozinho.
+    /// </summary>
+    Task<Guid> ValidateCompletedBookingForReviewAsync(Guid residentId, Guid bookingId, CancellationToken cancellationToken = default);
 }

@@ -16,6 +16,10 @@ import { Stack } from 'expo-router';
  * "receber solicitação → aceitar ou recusar" (ProfessionalRequestsScreen/
  * BookingDetailsScreen, módulo Scheduling), acessível a partir de
  * "Solicitações" em ProfessionalEditScreen.
+ *
+ * Desde o PROMPT 09, `reviews/index` (ProfessionalReviewsScreen, módulo
+ * Reviews — "visualizar avaliações recebidas; visualizar média") é
+ * acessível a partir de "Avaliações" em ProfessionalEditScreen.
  */
 export default function ProfessionalLayout() {
   return (
@@ -27,6 +31,7 @@ export default function ProfessionalLayout() {
       <Stack.Screen name="availability/calendar" />
       <Stack.Screen name="requests/index" />
       <Stack.Screen name="requests/[id]" />
+      <Stack.Screen name="reviews/index" />
     </Stack>
   );
 }

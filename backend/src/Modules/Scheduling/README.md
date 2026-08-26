@@ -27,8 +27,13 @@ conclui, marca não comparecimento ou cancela).
   nome das categorias de serviço** — `Booking`/`BookingItem` só guardam
   Ids; enriquecer para exibição é responsabilidade de quem consome a Api
   (mobile), consultando os diretórios públicos de cada módulo.
-- **Avaliações/reviews** — fora de escopo deste prompt (módulo Reviews,
-  ainda não implementado).
+- **Avaliações/reviews** — módulo próprio (`Reviews`, Etapa 09). Este
+  módulo expõe um único ponto de extensão para isso —
+  `IBookingService.ValidateCompletedBookingForReviewAsync(residentId, bookingId)`
+  — que a Api chama antes de deixar o módulo Reviews criar/editar uma
+  avaliação ("somente Booking Completed pode ser avaliado" + "somente o
+  Resident daquele Booking pode avaliar"); `Scheduling` continua sem
+  referenciar `Reviews` nem saber que ele existe.
 
 ## Estrutura
 

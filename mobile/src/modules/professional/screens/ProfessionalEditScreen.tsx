@@ -41,6 +41,10 @@ interface ProfessionalEditScreenProps {
  * Desde o PROMPT 08 ("o módulo mais crítico"), também vê um atalho para
  * "Solicitações" (ProfessionalRequestsScreen — "receber solicitação →
  * aceitar ou recusar", sob `(professional)/requests/*`).
+ *
+ * Desde o PROMPT 09, também vê um atalho para "Avaliações"
+ * (ProfessionalReviewsScreen — "visualizar avaliações recebidas; visualizar
+ * média", sob `(professional)/reviews/*`).
  */
 export function ProfessionalEditScreen({ profile }: ProfessionalEditScreenProps) {
   const { spacing, colors } = useTheme();
@@ -167,6 +171,11 @@ export function ProfessionalEditScreen({ profile }: ProfessionalEditScreenProps)
                 label="Solicitações"
                 variant="secondary"
                 onPress={() => router.push('/(professional)/requests')}
+              />
+              <AppButton
+                label="Avaliações"
+                variant="secondary"
+                onPress={() => router.push('/(professional)/reviews')}
               />
             </>
           ) : null}

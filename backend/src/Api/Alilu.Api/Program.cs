@@ -8,6 +8,7 @@ using Alilu.Modules.Identity.Infrastructure;
 using Alilu.Modules.Professional.Infrastructure;
 using Alilu.Modules.Professional.Infrastructure.Seed;
 using Alilu.Modules.Resident.Infrastructure;
+using Alilu.Modules.Reviews.Infrastructure;
 using Alilu.Modules.Scheduling.Infrastructure;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
@@ -48,6 +49,13 @@ builder.Services.AddProfessionalModule(builder.Configuration);
 // profissional atende o condomínio, horário disponível) são aplicadas na
 // Api — ver BookingsController.
 builder.Services.AddSchedulingModule(builder.Configuration);
+
+// Módulo Reviews (PROMPT 09): avaliações (Review) do morador sobre o
+// profissional, referentes a um agendamento concluído. Sem seed de
+// desenvolvimento nesta etapa (nasce do fluxo real: o morador avalia um
+// Booking Completed). As REGRAS CRÍTICAS que cruzam módulos (Booking
+// Completed, autoria) são aplicadas na Api — ver ReviewsController.
+builder.Services.AddReviewsModule(builder.Configuration);
 
 builder.Services
     .AddControllers()
@@ -114,7 +122,7 @@ app.MapGet("/health", () => Results.Ok(new { status = "healthy" }));
 app.MapGet("/", () => Results.Ok(new
 {
     application = "ALILU API",
-    status = "Identity (autenticação), Condominium (condomínios/unidades/convites), Resident (validação do morador), Professional (profissionais/diaristas, incluindo disponibilidade) e Scheduling (agendamentos) implementados",
+    status = "Identity (autenticação), Condominium (condomínios/unidades/convites), Resident (validação do morador), Professional (profissionais/diaristas, incluindo disponibilidade), Scheduling (agendamentos) e Reviews (avaliações) implementados",
 }));
 
 app.Run();

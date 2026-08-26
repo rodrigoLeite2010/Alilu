@@ -3,6 +3,11 @@
 > Implementado na **Etapa 08** (PROMPT 08 — "o módulo mais crítico").
 > Ver a seção "Etapa 08 — agendamento (Scheduling)" em
 > `backend/ARCHITECTURE.md` para o design completo (backend + mobile).
+> Desde a **Etapa 09**, `BookingDetailsScreen` ganhou uma prop opcional
+> `reviewSlot` (render-prop) para o botão "Avaliar"/"Ver avaliação" —
+> ver `modules/reviews/README.md` e a seção "Etapa 09 — avaliações
+> (Reviews)" em `backend/ARCHITECTURE.md`. Este módulo continua sem
+> importar `modules/reviews`.
 
 ## Responsabilidade
 

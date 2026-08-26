@@ -30,6 +30,10 @@
     <!-- Módulo Scheduling (PROMPT 08) — mesmo raciocínio do módulo Identity acima. -->
     <ProjectReference Include="..\..\Modules\Scheduling\Application\Alilu.Modules.Scheduling.Application.csproj" />
     <ProjectReference Include="..\..\Modules\Scheduling\Infrastructure\Alilu.Modules.Scheduling.Infrastructure.csproj" />
+
+    <!-- Módulo Reviews (PROMPT 09) — mesmo raciocínio do módulo Identity acima. -->
+    <ProjectReference Include="..\..\Modules\Reviews\Application\Alilu.Modules.Reviews.Application.csproj" />
+    <ProjectReference Include="..\..\Modules\Reviews\Infrastructure\Alilu.Modules.Reviews.Infrastructure.csproj" />
   </ItemGroup>
 
   <ItemGroup>

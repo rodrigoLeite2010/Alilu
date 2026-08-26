@@ -16,8 +16,16 @@ import { Stack } from 'expo-router';
  * módulo Scheduling), acessível a partir de "Agendar" em
  * ProfessionalProfileScreen; `bookings/*` reúne "meus agendamentos"
  * (MyBookingsScreen/BookingDetailsScreen), acessível a partir de "Meus
- * agendamentos" em ResidentHomeScreen. Avaliações ainda não foram
- * implementadas.
+ * agendamentos" em ResidentHomeScreen.
+ *
+ * Desde o PROMPT 09, `bookings/[id]/*` virou uma rota aninhada (era um
+ * arquivo só, `bookings/[id].tsx`) para caber `bookings/[id]/review`
+ * (ReviewScreen, módulo Reviews — "avaliar profissional"/"editar
+ * avaliação") ao lado de `bookings/[id]/index` (BookingDetailsScreen) —
+ * mesmo padrão de `booking/[professionalId]/*` (Etapa 08) e
+ * `availability/*` (Etapa 07). Acessível a partir do botão "Avaliar"/"Ver
+ * avaliação" que `bookings/[id]/index.tsx` injeta no slot `reviewSlot` de
+ * BookingDetailsScreen, só quando o agendamento está Completed.
  */
 export default function ResidentLayout() {
   return (
@@ -36,7 +44,8 @@ export default function ResidentLayout() {
       <Stack.Screen name="booking/[professionalId]/services" />
       <Stack.Screen name="booking/[professionalId]/confirm" />
       <Stack.Screen name="bookings/index" />
-      <Stack.Screen name="bookings/[id]" />
+      <Stack.Screen name="bookings/[id]/index" />
+      <Stack.Screen name="bookings/[id]/review" />
     </Stack>
   );
 }
