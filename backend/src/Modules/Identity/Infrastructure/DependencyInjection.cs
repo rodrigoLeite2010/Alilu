@@ -17,7 +17,18 @@ public static class DependencyInjection
     public static IServiceCollection AddIdentityModule(this IServiceCollection services, IConfiguration configuration)
     {
         services.Configure<JwtOptions>(configuration.GetSection(JwtOptions.SectionName));
-        services.AddSingleton(new AuthOptions());
+
+        // Refresh Token (Etapa 15): 'Auth:RefreshTokenLifetimeDays' agora é
+        // lido de verdade da configuração — antes desta correção, o valor
+        // fixo de 30 dias já documentado em AuthOptions era o único
+        // possível, mesmo que alguém configurasse a chave no appsettings
+        // (ela era silenciosamente ignorada). Sem a chave configurada,
+        // continua exatamente 30 dias (mesmo default de sempre).
+        var refreshTokenLifetimeDays = configuration.GetValue<int?>("Auth:RefreshTokenLifetimeDays") ?? 30;
+        services.AddSingleton(new AuthOptions
+        {
+            RefreshTokenLifetime = TimeSpan.FromDays(refreshTokenLifetimeDays),
+        });
 
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();

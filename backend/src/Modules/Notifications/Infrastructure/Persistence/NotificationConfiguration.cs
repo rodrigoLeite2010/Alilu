@@ -29,8 +29,17 @@ public sealed class NotificationConfiguration : IEntityTypeConfiguration<Notific
 
         // REGRA "não enviar notificações duplicadas" —
         // INotificationRepository.ExistsAsync consulta exatamente esta
-        // combinação antes de qualquer inserção.
-        builder.HasIndex(n => new { n.UserId, n.Type, n.ReferenceId });
+        // combinação antes de qualquer inserção. CORREÇÃO (Etapa 14,
+        // auditoria): a checagem em memória sozinha tinha uma corrida
+        // genuína (ver NotificationDispatcher.NotifyAsync) — o índice
+        // precisa ser ÚNICO para o próprio banco recusar a segunda linha
+        // quando duas requisições concorrentes passam pela checagem ao
+        // mesmo tempo. O PostgreSQL trata cada NULL como distinto num
+        // índice único, então isso não afeta o caso (hoje só teórico,
+        // documentado em Notification.cs) de um tipo de notificação sem
+        // ReferenceId — múltiplas linhas com ReferenceId nulo continuam
+        // permitidas, exatamente como antes desta correção.
+        builder.HasIndex(n => new { n.UserId, n.Type, n.ReferenceId }).IsUnique();
 
         builder.Ignore(n => n.DomainEvents);
     }

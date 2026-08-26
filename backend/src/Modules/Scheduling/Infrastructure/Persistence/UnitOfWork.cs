@@ -17,13 +17,25 @@ namespace Alilu.Modules.Scheduling.Infrastructure.Persistence;
 /// é equivalente a alguma execução *sequencial* das transações
 /// concorrentes. Quando isso não é possível (ex.: duas transações, cada
 /// uma sem ver o INSERT da outra, tentando o mesmo horário do mesmo
-/// profissional), o PostgreSQL recusa o COMMIT de uma delas com o código de
-/// erro SQLSTATE <c>40001</c> ("serialization_failure") — Npgsql expõe isso
-/// como <see cref="PostgresException"/> com <c>SqlState == "40001"</c>,
-/// embrulhado pelo EF Core numa <see cref="DbUpdateException"/>. Este é o
+/// profissional), o PostgreSQL recusa uma delas com o código de erro
+/// SQLSTATE <c>40001</c> ("serialization_failure") — Npgsql expõe isso como
+/// <see cref="PostgresException"/> com <c>SqlState == "40001"</c>. Este é o
 /// único ponto do sistema que conhece esse detalhe do driver; ele traduz a
 /// falha para <see cref="BookingConflictException"/> antes de propagar, para
 /// a Application (e a Api) nunca precisarem depender do Npgsql diretamente.
+///
+/// CORREÇÃO (Etapa 14, auditoria): a falha de serialização do algoritmo SSI
+/// do PostgreSQL pode ser detectada em DOIS momentos diferentes — durante um
+/// comando (INSERT/UPDATE, aí sim embrulhado pelo EF Core numa
+/// <see cref="DbUpdateException"/>) OU só no COMMIT em si (o caso mais comum
+/// para o padrão "lê, decide em memória, insere" usado aqui — ver
+/// <c>BookingService.CreateBookingAsync</c>). <see cref="System.Data.Common.DbTransaction.CommitAsync"/>
+/// não passa pelo pipeline de <c>SaveChanges</c> do EF Core, então uma falha
+/// ali chega como <see cref="PostgresException"/> CRUA, não embrulhada — o
+/// catch original só reconhecia o primeiro caso, deixando o segundo (o mais
+/// provável na prática) escapar como erro 500 genérico em vez do 409
+/// (<see cref="BookingConflictException"/>) que esta REGRA CRÍTICA promete.
+/// Corrigido reconhecendo os dois formatos.
 /// </summary>
 public sealed class UnitOfWork(AliluDbContext dbContext) : IUnitOfWork
 {
@@ -44,7 +56,7 @@ public sealed class UnitOfWork(AliluDbContext dbContext) : IUnitOfWork
             await transaction.CommitAsync(cancellationToken);
             return result;
         }
-        catch (DbUpdateException exception) when (IsSerializationFailure(exception))
+        catch (Exception exception) when (IsSerializationFailure(exception))
         {
             await transaction.RollbackAsync(cancellationToken);
             throw new BookingConflictException();
@@ -55,6 +67,16 @@ public sealed class UnitOfWork(AliluDbContext dbContext) : IUnitOfWork
         // escopo sem commit, então não precisa de um catch genérico aqui.
     }
 
-    private static bool IsSerializationFailure(DbUpdateException exception) =>
-        exception.InnerException is PostgresException { SqlState: PostgresSerializationFailureSqlState };
+    /// <summary>
+    /// Reconhece a falha de serialização crua (lançada direto por
+    /// <c>CommitAsync</c>) OU embrulhada numa <see cref="DbUpdateException"/>
+    /// (lançada por um comando dentro de <c>SaveChanges</c>) — ver comentário
+    /// de correção acima. O filtro `when` desta exceção específica garante
+    /// que nenhuma outra exceção (incluindo outro <see cref="PostgresException"/>
+    /// com um <c>SqlState</c> diferente, ex.: violação de unicidade) seja
+    /// capturada por engano aqui.
+    /// </summary>
+    private static bool IsSerializationFailure(Exception exception) =>
+        exception is PostgresException { SqlState: PostgresSerializationFailureSqlState }
+            or DbUpdateException { InnerException: PostgresException { SqlState: PostgresSerializationFailureSqlState } };
 }

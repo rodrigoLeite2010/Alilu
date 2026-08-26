@@ -79,3 +79,34 @@ Nenhum endpoint cria uma notificação diretamente — isso só acontece via
 ARCHITECTURE.md, tabela "Eventos → quem dispara") e por
 `BookingReminderBackgroundService` (`Alilu.Api/BackgroundServices`, não é
 um endpoint — um processo em segundo plano).
+
+## Configuração do Push Notification (Etapa 15)
+
+`PushNotification:ExpoAccessToken` (opcional, vazio por padrão) — quando
+configurado, `AddNotificationsModule` passa a incluir o cabeçalho
+`Authorization: Bearer <token>` em toda chamada HTTP ao Expo, feita pelo
+`HttpClient` tipado de `ExpoPushNotificationSender`. Recurso oficial do
+Expo ("enhanced push security"); sem a chave configurada, o comportamento
+continua idêntico ao de sempre (endpoint público sem autenticação). Nunca
+hard-coded — vem de `appsettings`/variável de ambiente
+(`PushNotification__ExpoAccessToken`) ou gerenciador de segredos. Ver
+`backend/ARCHITECTURE.md`, "Etapa 15".
+
+## Correção de concorrência (Etapa 14 — auditoria)
+
+"Não enviar notificações duplicadas" era garantida só pela checagem em
+memória `INotificationRepository.ExistsAsync` antes de inserir — um
+clássico "lê, decide, escreve" sem proteção no banco (o índice em
+`(UserId, Type, ReferenceId)` era comum, não único). Duas chamadas
+concorrentes de `NotifyAsync` para o mesmo evento (cenário real:
+`BookingReminderBackgroundService` disparando o mesmo lembrete duas vezes
+por uma corrida própria dele) podiam, ambas, ler "não existe" antes de
+qualquer uma inserir, e as duas persistiam.
+
+Corrigido em duas frentes: (1) o índice virou único
+(`NotificationConfiguration`), com o próprio PostgreSQL agora recusando a
+segunda linha; (2) `IUnitOfWork.SaveChangesOrIgnoreDuplicateAsync`
+(método novo) trata essa violação como sucesso silencioso — a "perdedora"
+da corrida não vê um erro, ela só não reenvia a notificação nem o push
+(idempotente, que é exatamente o comportamento que a regra sempre quis).
+Ver ARCHITECTURE.md, "Etapa 14", para o relatório completo da auditoria.

@@ -2719,3 +2719,518 @@ schema). `admin-web` e `mobile` não precisaram de nenhuma alteração — os
 contratos de resposta dos endpoints tocados não mudaram, só o
 comportamento de autorização em cenários que já deveriam ter sido
 recusados.
+
+## Etapa 14 — testes e segurança (auditoria técnica, sem funcionalidade nova)
+
+PROMPT 14 pediu uma auditoria técnica completa (autenticação, autorização,
+multi-tenancy, SQL Injection, validação, exposição de dados, concorrência,
+avaliações/recomendações falsas, dados sensíveis, logs, exceptions,
+migrations, índices/FKs/constraints), testes (Unit/Integration/
+Authorization/Concurrency) e uma tentativa deliberada de um morador do
+Condomínio A acessar cinco recursos do Condomínio B — com a instrução
+explícita "Corrigir ERROR. Não implementar novas funcionalidades."
+
+### Metodologia
+
+Quatro auditorias independentes (uma por fatia do checklist do prompt),
+cada uma exigida a citar `arquivo:linha` e trecho de código real — nunca
+especular — e a checar `ARCHITECTURE.md` antes de classificar algo como
+ERROR (uma decisão de escopo já documentada e deliberada nunca é ERROR,
+mesmo que seja uma limitação real). Depois, um harness adversarial
+executável (controllers reais, serviços de Application reais, TestDoubles
+em memória — mesma técnica da Etapa 13) tentando exatamente os 5 cenários
+de multi-tenancy pedidos pelo prompt.
+
+### RESULTADO — autenticação / JWT / refresh token / autorização / Membership / permissões
+
+**OK** (nenhum ERROR): hashing PBKDF2-HMACSHA256 (210.000 iterações, salt
+de 16 bytes, comparação em tempo constante); JWT HMAC-SHA256, 15 min,
+`ValidateIssuer/Audience/Lifetime/IssuerSigningKey` todos `true`, clock
+skew de 30s, segredo de produção vazio (força configuração externa);
+refresh token armazenado só como hash SHA-256, rotação a cada uso,
+revogável, expira em 30 dias; todo controller tem `[Authorize]` (só
+`register`/`login`/`refresh`/`revoke` são `[AllowAnonymous]`, como devem
+ser); todo endpoint self-service resolve o ator via `User.GetUserId()` e
+revalida posse via um padrão "get-own-or-throw" (`BookingService.GetOwnBookingOrThrowAsync`,
+`ReviewService.GetOwnReviewOrThrowAsync`,
+`RecommendationService.GetMyRecommendationAsync`,
+`ProfessionalAvailabilityService.GetOwnAvailabilityOrThrowAsync`,
+`NotificationService.GetOwnNotificationOrThrowAsync`); `AdminScope`
+(Etapa 12) é realmente aplicado (não só resolvido) em todo serviço
+administrativo via `EnsureScopeMatches`, verificado módulo a módulo.
+
+**WARNING** (documentado, não corrigido — fora do escopo desta etapa):
+sem detecção de reutilização/revogação de família de refresh tokens; sem
+guarda fail-fast para um `Jwt:Secret` vazio em produção (só falha ao
+*emitir* um token, não na subida do processo); `POST /api/admin/condominium-administrators`
+continua sem validação cruzada de papel/existência (já documentado desde
+a Etapa 12).
+
+### RESULTADO — SQL Injection / validação de entrada / exposição de dados / logs / exceptions
+
+**OK**: zero ocorrências de SQL cru (`FromSqlRaw`/`ExecuteSqlRaw`/ADO.NET
+direto) em todo o `backend/src` — 100% EF Core LINQ parametrizado; toda
+validação de negócio centralizada em factories/guard clauses do Domain
+(`DomainException` → 400), consistente nos 9 módulos; nenhuma senha,
+token bruto ou hash aparece em nenhum Response DTO; JWT claims não levam
+nada sensível; `ExceptionHandlingMiddleware` nunca devolve stack trace ou
+`exception.Message` para o caso 500 genérico, e não há
+`UseDeveloperExceptionPage` em nenhum ambiente.
+
+**WARNING** (documentado, não corrigido): `BookingsController.Create`
+não valida null explícito dentro do array `Items` antes de projetar (um
+elemento `null` no JSON gera um 500 genérico em vez de um 400 — não
+vaza dado, só um erro genérico); `Professional.Phone` é exposto pelo
+diretório público a qualquer usuário autenticado (parece intencional —
+"o morador precisa poder contatar o prestador" — mas vale um aceite de
+produto explícito, já que hoje qualquer papel logado vê o telefone de
+qualquer profissional, não só moradores com agendamento); `NoOpEmailSender`
+loga o e-mail do destinatário em nível Information (PII em log, baixa
+severidade — é um adaptador placeholder documentado desde a Etapa 03).
+
+### RESULTADO — concorrência no Booking / avaliações falsas / recomendações falsas
+
+**ERROR corrigido nesta etapa (1/2 já feitos antes desta seção ser
+escrita, ver "Correções aplicadas" abaixo)**: a detecção de falha de
+serialização do PostgreSQL (`UnitOfWork.ExecuteInSerializableTransactionAsync`,
+módulo Scheduling) só reconhecia o formato embrulhado em
+`DbUpdateException` — o caso mais comum na prática (falha só no
+`CommitAsync`) chegava crua e escapava como 500 genérico em vez do 409
+que a REGRA CRÍTICA promete. Corrigido reconhecendo os dois formatos.
+
+**ERROR corrigido nesta etapa**: nada impedia um morador que também é
+profissional cadastrado de recomendar a si mesmo, inflando a própria
+contagem de recomendações. Corrigido na Api (`RecommendationsController.Create`)
+com `SelfRecommendationException` (400) — só a Api conhece
+`Professional.UserId` e `Recommendation.RecommendedByUserId` ao mesmo
+tempo.
+
+**ERROR corrigido nesta etapa**: "não permitir spam ilimitado"
+(`RecommendationService.RecommendAsync`, teto de 5 recomendações
+pendentes) tinha exatamente a mesma classe de corrida que o Booking já
+sabia ser perigosa — "lê a contagem, decide, insere" sem nenhuma proteção
+de transação. Duas requisições concorrentes do mesmo morador liam a mesma
+contagem antes de qualquer uma commitar, e as duas passavam pela
+checagem, ultrapassando o teto. Corrigido copiando o mecanismo do
+Scheduling: `IUnitOfWork.ExecuteInSerializableTransactionAsync` (método
+novo, também agora no módulo Recommendations) envolve a
+contagem+gravação numa transação `Serializable`; se o PostgreSQL detectar
+o conflito, `RecommendationConflictException` (409, tipo novo deste
+módulo) é lançada em vez de deixar o teto ser ultrapassado
+silenciosamente.
+
+**OK** (verificado, não é bug): `Booking.OverlapsWith`/`OccupiesSlot`
+corretos (intervalo semiaberto `[a,b)`, testado contra reservas
+adjacentes); o check de sobreposição já rodava DENTRO da transação
+Serializable (não antes de abri-la); `IBookingService.CreateBookingAsync`
+só tem um chamador em todo o código (`BookingsController.Create`), que
+sempre valida Membership/condomínio/disponibilidade antes; `Review` só
+pode ser criada por `ReviewService.CreateAsync`, sempre precedida por
+`ValidateCompletedBookingForReviewAsync`, com um índice único em
+`BookingId` como rede de segurança; recomendar o mesmo profissional mais
+de uma vez continua sendo uma decisão de escopo deliberada e já
+documentada (Etapa 10) — não um gap.
+
+**WARNING** (documentado, não corrigido): o índice único de `Review.BookingId`
+protege a integridade (nunca cria duplicata), mas a "perdedora" de uma
+corrida genuína recebe um 500 genérico em vez do 409
+(`DuplicateReviewException`) que o caminho normal devolve — diferente do
+Scheduling/Recommendations, o `UnitOfWork` de Reviews não traduz a
+violação; robustez/UX, não integridade de dado.
+
+### RESULTADO — índices / foreign keys / constraints / migrations
+
+**ERROR corrigido nesta etapa**: "não enviar notificações duplicadas"
+(`NotificationDispatcher.NotifyAsync`) era garantida só pela checagem em
+memória `INotificationRepository.ExistsAsync` — o índice em
+`(UserId, Type, ReferenceId)` era comum, não único, então duas chamadas
+concorrentes para o MESMO evento (cenário real:
+`BookingReminderBackgroundService` disparando o mesmo lembrete duas vezes
+por uma corrida própria dele) podiam inserir duas linhas. Corrigido em
+duas frentes: o índice virou único (`NotificationConfiguration`), e
+`IUnitOfWork.SaveChangesOrIgnoreDuplicateAsync` (método novo) trata a
+violação como sucesso silencioso — idempotente, não é um erro para quem
+chamou `NotifyAsync` (que em vários casos já é uma chamada de efeito
+colateral no meio de uma requisição HTTP que, sem isso, já teria tido
+sucesso — ex.: `BookingsController.Create` já criou o agendamento antes
+de notificar o profissional).
+
+**ERROR, sem correção de código possível nesta etapa (só documentação)**:
+das 9 tabelas de unicidade/negócio verificadas (Review↔Booking,
+Professional↔User, Membership por unidade, CNPJ, código de unidade,
+hash de refresh token, hash de código de convite, e-mail, etc.), 8 já
+tinham `HasIndex(...).IsUnique()` — só a de notificações não tinha (ver
+acima, já corrigido). Migrations: este sandbox não tem acesso a
+`dotnet ef` (sem rede para restaurar as ferramentas), e na máquina real
+do desenvolvedor só 3 dos 9 módulos (Identity, Condominium, Resident) têm
+migration gerada — os outros 6 (Professional, Scheduling, Reviews,
+Recommendations, Notifications, Administration) têm as configurações EF
+Core completas e corretas, só nunca foram transformadas em migration. Não
+é um defeito de código, é um passo pendente na máquina real. Comandos de
+remediação (rodar em `backend/`, na máquina do desenvolvedor, na ordem):
+
+```bash
+dotnet ef migrations add AddProfessionalModule \
+  --project src/Infrastructure/Alilu.Infrastructure --startup-project src/Api/Alilu.Api
+dotnet ef migrations add AddProfessionalAvailability \
+  --project src/Infrastructure/Alilu.Infrastructure --startup-project src/Api/Alilu.Api
+dotnet ef migrations add AddSchedulingModule \
+  --project src/Infrastructure/Alilu.Infrastructure --startup-project src/Api/Alilu.Api
+dotnet ef migrations add AddReviewsModule \
+  --project src/Infrastructure/Alilu.Infrastructure --startup-project src/Api/Alilu.Api
+dotnet ef migrations add AddRecommendationsModule \
+  --project src/Infrastructure/Alilu.Infrastructure --startup-project src/Api/Alilu.Api
+dotnet ef migrations add AddNotificationsModule \
+  --project src/Infrastructure/Alilu.Infrastructure --startup-project src/Api/Alilu.Api
+dotnet ef migrations add AddAdministrationModule \
+  --project src/Infrastructure/Alilu.Infrastructure --startup-project src/Api/Alilu.Api
+dotnet ef database update \
+  --project src/Infrastructure/Alilu.Infrastructure --startup-project src/Api/Alilu.Api
+```
+
+(Professional precisa de duas migrations — Etapa 06, quatro agregados, e
+Etapa 07, disponibilidade — as outras cinco, uma cada. Recomenda-se
+aplicar antes as correções de índice do próximo parágrafo, para que
+entrem na mesma migration em vez de precisar de uma segunda depois.)
+
+**OK**: nenhuma FK relacional entre módulos (arquitetura deliberada,
+verificada — zero `HasOne`/`HasMany` cruzando módulos em todo o código) e
+nenhuma FK relacional sequer DENTRO de um módulo (cada entidade é sua
+própria raiz de agregado, só Ids como valor simples — mesma decisão
+aplicada uniformemente, reforçada por índice em cada caso, não uma
+inconsistência); todo `HasMaxLength` de Infrastructure bate exatamente
+com o limite validado no Domain, nos 9 módulos, sem nenhuma divergência
+encontrada.
+
+**WARNING** (documentado, não corrigido — só performance, sem risco de
+correção): faltam índices de performance em `Booking.CondominiumId`,
+`Booking(Status, ScheduledDate)` (usado pelo `BookingReminderBackgroundService`,
+que roda a cada 30 min — é um scan recorrente, não só um caso raro),
+`CondominiumMembership.UnitId`, `Recommendation.CondominiumId` e
+`Professional.Status`. Nenhum causa resultado incorreto, só scans
+sequenciais desnecessários à medida que as tabelas crescem.
+
+### MULTI-TENANCY — harness adversarial (os 5 cenários exatos do prompt)
+
+Harness executável descartável (mesma técnica da Etapa 13: controllers
+reais — `BookingsController`, `ReviewsController`, `RecommendationsController`
+— rodando contra serviços de Application reais, ligados aos TestDoubles em
+memória que já existiam em cada `Application.Tests/`), simulando dois
+condomínios (A e B) e um morador do Condomínio A (`residentA`, Membership
+Active só em A) tentando os 5 acessos exatos pedidos pelo prompt contra
+recursos do Condomínio B — cada ataque com um "controle" confirmando que
+o caminho legítimo continua funcionando:
+
+1. **Unidade do Condomínio B**: `residentA` tenta `BookingsController.Create`
+   com `condominiumId`/`unitId` do Condomínio B → `NoActiveMembershipException`. ✅ bloqueado.
+2. **Agendamento do Condomínio B**: agendamento legítimo de `residentB`
+   criado em B; `residentA` tenta `GetMine`/`Cancel` sobre ele →
+   `BookingNotFoundException` (404 por posse, sem vazar existência) nos
+   dois casos. ✅ bloqueado.
+3. **Profissional restrito ao Condomínio B**: `residentA` (Active em A)
+   tenta agendar com um profissional que só atende B, usando a PRÓPRIA
+   unidade válida (A) — ou seja, o Membership passa, quem barra é a
+   checagem de "profissional atende o condomínio" →
+   `ProfessionalDoesNotAttendCondominiumException`. ✅ bloqueado.
+4. **Avaliações do Condomínio B**: booking legítimo de `residentB`
+   completado; `residentA` tenta CRIAR uma avaliação para esse booking →
+   `BookingNotFoundException`; tenta EDITAR a avaliação já existente de
+   `residentB` → `ReviewNotFoundException`. ✅ bloqueado nos dois casos.
+5. **Recomendações do Condomínio B**: recomendação legítima de
+   `residentB`; `residentA` tenta visualizá-la →
+   `RecommendationNotFoundException`. ✅ bloqueado.
+
+Bônus (não é um dos 5 cenários pedidos, mas usa a mesma infraestrutura):
+regressão em tempo de execução da correção "não recomendar a si mesmo" —
+`residentB` tentando recomendar a si mesmo → `SelfRecommendationException`. ✅ bloqueado.
+
+**Resultado: 13/13 verificações passaram** (5 controles do caminho
+legítimo + 7 ataques bloqueados + 1 bônus). Nenhum dos 5 cenários
+adversariais pedidos pelo prompt conseguiu atravessar o isolamento entre
+condomínios.
+
+### Testes (Unit / Integration / Authorization / Concurrency)
+
+- **Unit**: os testes xUnit existentes que cobrem exatamente os dois
+  ERRORs de concorrência corrigidos nesta etapa
+  (`RecommendationCreationTests.RecommendAsync_AtPendingCap_ThrowsTooManyPendingRecommendations`
+  e `NotificationDispatcherTests.NotifyAsync_SameUserTypeAndReference_DoesNotDuplicate`)
+  continuam cobrindo o comportamento sequencial correto depois da mudança
+  de assinatura das interfaces — verificado com um harness descartável
+  que reproduz a mesma lógica desses dois testes contra os fakes reais
+  (`FakeUnitOfWork` de cada módulo), já que este sandbox não consegue
+  restaurar xUnit/`Microsoft.NET.Test.Sdk` (mesma limitação de sempre)
+  para rodar os `.csproj` de teste de verdade. Resultado: 9/9 passaram.
+- **Integration**: harness de camada Api (mesma técnica das Etapas 12/13:
+  projeto `Microsoft.NET.Sdk.Web` referenciando as `*.Application.csproj`
+  dos 9 módulos, compilando os arquivos reais de `Controllers/`/`Middleware/`
+  contra o shared framework do ASP.NET Core) — **0 erros/0 warnings**
+  depois de todas as correções desta etapa, confirmando que nada nos
+  outros controllers foi quebrado.
+- **Authorization**: cobertas pelos `AdminScopingTests`/`AdministrationCompositionTests`
+  já existentes em cada módulo (Etapa 12), mais o harness de
+  multi-tenancy acima (autorização entre condomínios, não só entre
+  papéis).
+- **Concurrency**: a garantia REAL de todas as três correções de
+  concorrência desta etapa (Booking, Recommendations, Notifications) só é
+  verificável contra um PostgreSQL de verdade sob isolamento
+  `Serializable` — mesma limitação já documentada desde a Etapa 08 para o
+  Booking. O harness descartável acima prova que a lógica SEQUENCIAL
+  continua correta; a garantia sob concorrência GENUÍNA (duas transações
+  de verdade competindo) depende de rodar contra um banco real na máquina
+  do desenvolvedor.
+
+### Escopo desta etapa
+
+Nenhuma funcionalidade nova — só correções de bugs (ERROR) encontrados na
+auditoria. Arquivos alterados:
+
+- `backend/src/Modules/Scheduling/Infrastructure/Persistence/UnitOfWork.cs` —
+  reconhece falha de serialização em dois formatos.
+- `backend/src/Api/Alilu.Api/Controllers/RecommendationsController.cs` —
+  guarda de auto-recomendação.
+- `backend/src/Modules/Recommendations/Application/RecommendationExceptions.cs` —
+  `SelfRecommendationException` + `RecommendationConflictException` (novos).
+- `backend/src/Modules/Recommendations/Application/IUnitOfWork.cs` /
+  `RecommendationService.cs` — transação Serializable no teto de
+  pendentes.
+- `backend/src/Modules/Recommendations/Infrastructure/Persistence/UnitOfWork.cs` /
+  `Alilu.Modules.Recommendations.Infrastructure.csproj` — implementação +
+  referência ao pacote Npgsql (mesmo motivo do módulo Scheduling).
+- `backend/src/Modules/Recommendations/Application.Tests/TestDoubles/FakeUnitOfWork.cs` —
+  novo método da interface.
+- `backend/src/Modules/Notifications/Application/IUnitOfWork.cs` /
+  `NotificationDispatcher.cs` — `SaveChangesOrIgnoreDuplicateAsync`.
+- `backend/src/Modules/Notifications/Infrastructure/Persistence/UnitOfWork.cs` /
+  `NotificationConfiguration.cs` / `Alilu.Modules.Notifications.Infrastructure.csproj` —
+  implementação + índice único + referência ao pacote Npgsql.
+- `backend/src/Modules/Notifications/Application.Tests/TestDoubles/FakeUnitOfWork.cs` —
+  novo método da interface.
+- `backend/src/Api/Alilu.Api/Middleware/ExceptionHandlingMiddleware.cs` —
+  mapeia `SelfRecommendationException` (400) e `RecommendationConflictException` (409).
+- `backend/src/Modules/Scheduling/README.md`, `Recommendations/README.md`,
+  `Notifications/README.md` — notas de correção.
+
+Todos os WARNINGs listados acima foram deliberadamente **não corrigidos**,
+por instrução explícita do prompt ("Corrigir ERROR. Não implementar novas
+funcionalidades."). Nenhuma migration nova foi gerada (sandbox sem acesso
+a `dotnet ef`) — os comandos de remediação estão documentados acima, para
+rodar na máquina do desenvolvedor.
+
+## Etapa 15 — Docker e ambiente (preparação, sem funcionalidade de negócio nova)
+
+PROMPT 15 pediu preparar o projeto para desenvolvimento e deploy: Docker
+(Postgres, e Redis "somente se já estiver sendo utilizado"), três
+ambientes (Development/Staging/Production, "nunca colocar secrets
+diretamente no código"), configurações (ConnectionStrings, JWT, Refresh
+Token, Push Notification, CORS, Logging), verificação do backend (health
+check, migrations, startup, logs, exception handling — e criar
+`GET /health`), configuração do React Native por ambiente (API URL nunca
+fixa no código) e documentação de como rodar tudo localmente — "Não fazer
+deploy automaticamente."
+
+### Metodologia
+
+Levantamento primeiro, código depois: para cada uma das 6 seções do
+prompt, verificado o que já existia (e por quê) antes de escrever
+qualquer linha — este projeto já tinha bastante coisa pronta desde etapas
+anteriores (ver "O que já existia" em cada seção abaixo), e o prompt pede
+implementação estrita do que falta, não uma reescrita. Toda mudança de
+código foi verificada por um harness descartável (mesma técnica das
+Etapas 12-14): como este sandbox não tem acesso à internet/NuGet.org
+(nenhum pacote em `~/.nuget/packages`, confirmado nesta etapa), nenhum
+projeto `Infrastructure`/`Application.Tests` compila aqui, e a própria
+`Alilu.Api` também não (ela referencia `Microsoft.AspNetCore.Authentication.JwtBearer`,
+um pacote externo — confirmado com uma tentativa real de restauração
+nesta etapa, `NU1101`, a mesma limitação de sempre, não uma introduzida
+agora). Por isso, cada trecho novo foi isolado num projeto `Microsoft.NET.Sdk.Web`
+descartável (que recebe de graça o shared framework do ASP.NET Core —
+`Microsoft.Extensions.Diagnostics.HealthChecks`,
+`Microsoft.AspNetCore.Diagnostics.HealthChecks`, `Microsoft.Extensions.Configuration`,
+`Microsoft.Extensions.DependencyInjection`, `System.Net.Http` — sem
+precisar restaurar nada) e executado de verdade, comparando a saída com o
+esperado.
+
+### DOCKER
+
+**O que já existia**: `backend/docker-compose.yml` só com o serviço
+`postgres` (postgres:16-alpine, porta 5433→5432, volume nomeado). Redis:
+confirmado por busca em todo `backend/src` que nenhum módulo usa (zero
+ocorrências de "Redis") — por isso nenhum serviço de Redis foi
+adicionado, exatamente como o prompt pede ("somente se já estiver sendo
+utilizado" / "não adicionar serviços desnecessários").
+
+**O que mudou**: só um `healthcheck` no serviço `postgres` (`pg_isready`,
+já embutido na imagem oficial, nenhuma ferramenta extra) — permite
+`docker compose up` e qualquer orquestrador saberem quando o banco já
+aceita conexões, não só quando o container "subiu".
+
+### ENVIRONMENTS
+
+**O que já existia**: `appsettings.json` (base, valores sensíveis vazios
+de propósito) + `appsettings.Development.json` (valores reais de
+desenvolvimento local) — convenção padrão do ASP.NET Core
+(`ASPNETCORE_ENVIRONMENT` escolhe qual arquivo `appsettings.{Environment}.json`
+é mesclado por cima do base).
+
+**O que mudou**: dois arquivos novos, `appsettings.Staging.json` e
+`appsettings.Production.json`, cada um com `ConnectionStrings:AliluDatabase`
+e `Jwt:Secret` vazios de propósito (igual ao base) — nenhum segredo real
+em nenhum dos dois, exatamente a instrução do prompt ("nunca colocar
+secrets diretamente no código"). Quem sobe a aplicação nesses ambientes
+define os valores reais via variável de ambiente
+(`ConnectionStrings__AliluDatabase`, `Jwt__Secret` — a sintaxe `__` é
+como o ASP.NET Core mapeia uma variável de ambiente para uma chave
+hierárquica de configuração) ou um gerenciador de segredos de verdade
+(Azure Key Vault, AWS Secrets Manager, etc. — a escolha de qual é decisão
+de infraestrutura, fora do escopo de código). Logging também difere por
+ambiente: Production um pouco mais silencioso (`Default: Warning`) que
+Staging (`Default: Information`, mais próximo de Development, para dar
+visibilidade a quem está testando).
+
+### CONFIGURAÇÕES
+
+- **ConnectionStrings**: já totalmente externalizado desde a Etapa 01
+  (nenhuma mudança de código) — só documentado o padrão de override por
+  variável de ambiente acima.
+- **JWT**: já totalmente externalizado (Etapa 03) — a única lacuna real
+  era o WARNING já documentado na Etapa 14 ("sem guarda fail-fast para um
+  `Jwt:Secret` vazio em produção — só falha ao *emitir* um token, não na
+  subida do processo"). Fechado nesta etapa: `Program.cs` agora lança
+  `InvalidOperationException` e derruba o processo na inicialização se
+  `Jwt:Secret` estiver vazio/ausente, em vez de só descobrir isso no
+  primeiro login. `JwtTokenGenerator.GenerateAccessToken` manteve sua
+  própria guarda (defesa em profundidade — nenhum motivo para removê-la).
+- **Refresh Token**: **ERROR real encontrado e corrigido** (não estava no
+  escopo de uma auditoria — apareceu ao verificar "Refresh Token" desta
+  etapa): `AuthOptions.RefreshTokenLifetime` (30 dias, Etapa 03) nunca
+  era, de fato, configurável — `AddIdentityModule` sempre registrava
+  `new AuthOptions()` (construtor sem parâmetros), ignorando
+  silenciosamente qualquer chave que alguém colocasse no appsettings.
+  Corrigido: `Auth:RefreshTokenLifetimeDays` (opcional, default 30 — o
+  mesmo de sempre) agora é lido de verdade via
+  `configuration.GetValue<int?>(...)`. Verificado num harness descartável
+  (`Microsoft.Extensions.Configuration.GetValue` + `AddSingleton` contra
+  um `IConfiguration` real, em memória): com a chave em 45, o singleton
+  registrado tem `RefreshTokenLifetime.TotalDays == 45`; sem a chave,
+  `== 30` (comportamento de sempre preservado).
+- **Push Notification**: nenhuma configuração existia (Etapa 11 — o
+  endpoint do Expo é uma URL pública fixa, o que está correto, não é um
+  segredo). Adicionado, de forma estritamente opcional:
+  `PushNotification:ExpoAccessToken` (vazio por padrão — endpoint público
+  continua funcionando sem ele). Quando configurado, o `HttpClient`
+  tipado de `ExpoPushNotificationSender` passa a enviar
+  `Authorization: Bearer <token>` em toda chamada — recurso oficial do
+  Expo ("enhanced push security"), não uma funcionalidade de negócio
+  nova. Verificado no mesmo harness descartável acima
+  (`AddHttpClient(...).ConfigureHttpClient(...)` + `AuthenticationHeaderValue`
+  compilam e resolvem corretamente contra o shared framework).
+- **CORS**: já totalmente externalizado (Etapa 12) — `Staging`/`Production`
+  ganharam `Cors:AdminWebOrigins: []` (vazio, seguro por padrão — nenhuma
+  origem passa até ser configurada) com comentário explicando como
+  preencher a origem real do admin-web publicado nesse ambiente.
+- **Logging**: diferenciado por ambiente nos dois arquivos novos (ver
+  ENVIRONMENTS acima).
+
+### BACKEND
+
+- **Health check — `GET /health` criado de verdade**: antes desta etapa,
+  o endpoint era um *stub* que sempre devolvia `{ "status": "healthy" }`,
+  mesmo com o banco de dados fora do ar — inútil para qualquer
+  orquestração real decidir se a instância está pronta para tráfego.
+  Substituído pelo middleware oficial de Health Checks do ASP.NET Core
+  (`Microsoft.Extensions.Diagnostics.HealthChecks` — já vem no shared
+  framework, **nenhum pacote NuGet adicional**): `DatabaseHealthCheck`
+  (novo, `Alilu.Api/HealthChecks/`) chama
+  `AliluDbContext.Database.CanConnectAsync` de verdade (nenhuma query de
+  negócio, só testa a conexão) e nunca deixa uma exceção de conexão
+  derrubar o próprio endpoint (captura e devolve `Unhealthy`, não 500).
+  `HealthCheckJsonWriter` (novo) só troca o formato de resposta padrão do
+  middleware (texto puro "Healthy"/"Unhealthy") por JSON, consistente com
+  o resto desta Api. Verificado com um projeto `Microsoft.NET.Sdk.Web`
+  descartável, rodado de verdade (`dotnet run` + `curl`): `GET /health`
+  devolve 200 com corpo JSON.
+- **Migrations**: nenhuma mudança de código (não pedido, e mudaria
+  comportamento de runtime não solicitado — sem auto-migrate no startup).
+  Estado real, documentado na Etapa 14 e reafirmado aqui: dos 9 módulos,
+  só Identity/Condominium/Resident têm migration gerada na máquina do
+  desenvolvedor; os outros 6 têm o mapeamento EF Core completo, só
+  faltando `dotnet ef migrations add` — comandos exatos já documentados
+  na Etapa 14 acima. Ver também a seção "Como executar migrations" no
+  `README.md` da raiz.
+- **Startup**: guarda fail-fast de `Jwt:Secret` (ver CONFIGURAÇÕES → JWT
+  acima) — a única lacuna real de startup identificada.
+- **Logs**: já auditado como OK na Etapa 14 (nenhuma informação sensível
+  logada) — nenhuma mudança de código necessária além do Logging por
+  ambiente (ver ENVIRONMENTS).
+- **Exception handling**: já auditado como OK na Etapa 14
+  (`ExceptionHandlingMiddleware` nunca vaza stack trace/mensagem de
+  exceção bruta no 500 genérico) — nenhuma mudança de código.
+
+### REACT NATIVE
+
+**O que já existia**: `mobile/src/services/api.ts` já lê a URL base da
+Api de `process.env.EXPO_PUBLIC_API_URL` (com fallback só para
+desenvolvimento local, `http://localhost:5205`) — a API URL **nunca**
+esteve fixa no código, desde a criação deste arquivo. O que faltava era
+formalizar os 3 ambientes pedidos pelo prompt.
+
+**O que mudou**: dois arquivos novos —
+
+- `mobile/.env.example` — documenta `EXPO_PUBLIC_API_URL` (mesmo padrão
+  já usado pelo `admin-web/.env.example`, Etapa 12); nunca versionado como
+  `.env`/`.env.local` de verdade (`.gitignore` já cobria isso).
+- `mobile/eas.json` — perfis de build `development`/`staging`/`production`
+  (convenção oficial do EAS Build para ambientes nomeados além de
+  dev/prod — o `NODE_ENV` do Expo só tem os buckets "development" e
+  "production" por padrão), cada um injetando `EXPO_PUBLIC_API_URL` via
+  o bloco `env` do próprio perfil. `staging`/`production` usam URLs
+  placeholder (`https://api-staging.alilu.com.br` /
+  `https://api.alilu.com.br`) — **nenhuma API de Staging/Production existe
+  publicada ainda**; são valores de exemplo a substituir pelos reais
+  assim que essa infraestrutura existir, não uma alegação de deploy já
+  feito. Nenhum `projectId`/organização do EAS foi inventado (isso nasce
+  de `eas init`, passo manual único do desenvolvedor, documentado no
+  `README.md` da raiz).
+
+### RESULTADO
+
+Documentação em `README.md` (raiz do repositório) — seções novas/
+atualizadas: Docker/Postgres (com o `healthcheck` novo), API (com o novo
+health check e a guarda de `Jwt:Secret`), React Native (com
+`.env.example`/`eas.json`), migrations (comandos completos, referenciando
+a Etapa 14), build Android (`eas build`, referenciando `eas.json`, e os
+passos manuais únicos que continuam sendo do desenvolvedor — `eas init`/
+`eas build:configure`/`android.package` em `app.json`) e uma tabela
+consolidada de todas as variáveis de ambiente do projeto (backend,
+mobile, admin-web). Nenhum comando de build/deploy foi executado por
+Claude — só documentado, exatamente como o prompt pede ("Não fazer
+deploy automaticamente").
+
+### Escopo desta etapa
+
+Nenhuma funcionalidade de negócio nova — preparação de ambiente/deploy, e
+um ERROR real de configuração corrigido (Refresh Token, ver acima).
+Arquivos alterados/criados:
+
+- `backend/docker-compose.yml` — `healthcheck` no serviço `postgres`.
+- `backend/src/Api/Alilu.Api/appsettings.Staging.json`,
+  `appsettings.Production.json` (novos) — ambientes Staging/Production.
+- `backend/src/Api/Alilu.Api/appsettings.json`,
+  `appsettings.Development.json` — seções novas `Auth`/`PushNotification`.
+- `backend/src/Api/Alilu.Api/Program.cs` — guarda fail-fast de
+  `Jwt:Secret`, registro do health check, `GET /health` real.
+- `backend/src/Api/Alilu.Api/HealthChecks/DatabaseHealthCheck.cs`,
+  `HealthCheckJsonWriter.cs` (novos).
+- `backend/src/Modules/Identity/Infrastructure/DependencyInjection.cs` —
+  `Auth:RefreshTokenLifetimeDays` lido de verdade (ERROR corrigido).
+- `backend/src/Modules/Notifications/Infrastructure/DependencyInjection.cs` —
+  `PushNotification:ExpoAccessToken` opcional.
+- `backend/src/Modules/Identity/README.md`,
+  `backend/src/Modules/Notifications/README.md` — notas de configuração.
+- `mobile/.env.example`, `mobile/eas.json` (novos).
+- `README.md` (raiz) — documentação da etapa.
+
+Nenhuma migration nova foi gerada (sem mudança de mapeamento EF Core
+nesta etapa — só configuração). Nenhum comando de deploy/build foi
+executado.

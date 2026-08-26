@@ -22,8 +22,18 @@
       funcionará normalmente. Veja o README para detalhes.
     -->
 
-    <!-- Necessário para IEntityTypeConfiguration<T> / EntityTypeBuilder<T> usados em RecommendationConfiguration.cs. -->
+    <!-- Necessário para IEntityTypeConfiguration<T> / EntityTypeBuilder<T> usados em RecommendationConfiguration.cs, e para DbUpdateException em UnitOfWork.cs. -->
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="8.0.*" />
+
+    <!--
+      Necessário para PostgresException (SqlState "40001" — falha de
+      serialização) em UnitOfWork.cs — CORREÇÃO Etapa 14 (auditoria):
+      "não permitir spam ilimitado" também precisa da transação Serializable,
+      mesmo motivo do módulo Scheduling (ver ARCHITECTURE.md, "Etapa 14").
+      Já chegaria transitivamente via Alilu.Infrastructure, mas fica
+      explícito aqui porque o tipo é usado diretamente neste projeto.
+    -->
+    <PackageReference Include="Npgsql" Version="8.0.*" />
 
     <!-- IServiceCollection / IConfiguration usados em DependencyInjection.cs (AddRecommendationsModule). -->
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="8.0.*" />

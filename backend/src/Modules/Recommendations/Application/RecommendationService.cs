@@ -25,25 +25,34 @@ public sealed class RecommendationService(
         string comment,
         CancellationToken cancellationToken = default)
     {
-        var pendingCount = await recommendationRepository.CountPendingByRecommendedByUserIdAsync(recommendedByUserId, cancellationToken);
-        if (pendingCount >= MaxPendingRecommendationsPerResident)
+        // "Não permitir spam ilimitado" (REGRA CRÍTICA do PROMPT 10): a
+        // contagem+comparação abaixo cobre o caso comum; a transação
+        // Serializable é a rede de segurança para a corrida genuína entre
+        // duas requisições concorrentes do mesmo morador, que a checagem
+        // sozinha não pega — ver comentário de correção (Etapa 14, auditoria)
+        // em IUnitOfWork.ExecuteInSerializableTransactionAsync.
+        return await unitOfWork.ExecuteInSerializableTransactionAsync(async ct =>
         {
-            throw new TooManyPendingRecommendationsException();
-        }
+            var pendingCount = await recommendationRepository.CountPendingByRecommendedByUserIdAsync(recommendedByUserId, ct);
+            if (pendingCount >= MaxPendingRecommendationsPerResident)
+            {
+                throw new TooManyPendingRecommendationsException();
+            }
 
-        var recommendation = Recommendation.Recommend(
-            condominiumId,
-            recommendedByUserId,
-            professionalId,
-            externalProfessionalName,
-            externalPhone,
-            serviceCategoryId,
-            comment);
+            var recommendation = Recommendation.Recommend(
+                condominiumId,
+                recommendedByUserId,
+                professionalId,
+                externalProfessionalName,
+                externalPhone,
+                serviceCategoryId,
+                comment);
 
-        await recommendationRepository.AddAsync(recommendation, cancellationToken);
-        await unitOfWork.SaveChangesAsync(cancellationToken);
+            await recommendationRepository.AddAsync(recommendation, ct);
+            await unitOfWork.SaveChangesAsync(ct);
 
-        return RecommendationMapper.ToResponse(recommendation);
+            return RecommendationMapper.ToResponse(recommendation);
+        }, cancellationToken);
     }
 
     public async Task<IReadOnlyList<RecommendationResponse>> ListMyRecommendationsAsync(Guid recommendedByUserId, CancellationToken cancellationToken = default)

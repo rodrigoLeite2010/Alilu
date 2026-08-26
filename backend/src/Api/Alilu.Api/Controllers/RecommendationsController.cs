@@ -27,9 +27,16 @@ namespace Alilu.Api.Controllers;
 ///    mesma causa raiz (sem vínculo Active).
 /// 2. "Se o profissional já existir no ALILU, vincular ProfessionalId" —
 ///    quando <c>body.ProfessionalId</c> é informado, valida com
-///    <see cref="IProfessionalDirectoryService.GetProfessionalProfileAsync"/>
-///    (módulo Professional, só profissionais Active) antes de repassar.
-/// 3. Só então <see cref="IRecommendationService.RecommendAsync"/> (módulo
+///    <see cref="IProfessionalDirectoryService.GetProfessionalUserIdAsync"/>
+///    (módulo Professional, só profissionais Active — lança
+///    <c>ProfessionalNotFoundException</c> caso contrário) antes de
+///    repassar; o mesmo Id devolvido também resolve a CORREÇÃO abaixo.
+/// 3. CORREÇÃO (Etapa 14, auditoria) — "não recomendar a si mesmo": se o
+///    <c>User.Id</c> por trás do <c>ProfessionalId</c> informado for o
+///    mesmo do morador autenticado, lança <see cref="SelfRecommendationException"/>
+///    ANTES de chamar o módulo Recommendations. Só é possível fazer essa
+///    checagem aqui — nenhum dos dois módulos conhece o outro.
+/// 4. Só então <see cref="IRecommendationService.RecommendAsync"/> (módulo
 ///    Recommendations) — que ainda garante sozinho "não permitir spam
 ///    ilimitado".
 /// </summary>
@@ -72,8 +79,11 @@ public sealed class RecommendationsController(
 
         if (body.ProfessionalId is { } professionalId)
         {
-            _ = await professionalDirectoryService.GetProfessionalProfileAsync(professionalId, cancellationToken)
-                ?? throw new ProfessionalNotFoundException();
+            var recommendedUserId = await professionalDirectoryService.GetProfessionalUserIdAsync(professionalId, cancellationToken);
+            if (recommendedUserId == userId)
+            {
+                throw new SelfRecommendationException();
+            }
         }
 
         var recommendation = await recommendationService.RecommendAsync(

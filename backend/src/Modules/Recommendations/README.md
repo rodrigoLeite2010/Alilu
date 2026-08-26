@@ -93,3 +93,26 @@ de verdade**: sem uma forma de listar recomendações já `Approved`, um
 administrador não teria como descobrir o Id de uma para bloquear (o único
 outro endpoint de leitura, `pending`, só devolve `Pending`). Ver
 ARCHITECTURE.md, "Etapa 12".
+
+## Correções da auditoria (Etapa 14)
+
+Duas correções, uma na Api (composição) e uma neste módulo:
+
+- **"Não recomendar a si mesmo"**: nada impedia um morador que também é
+  profissional cadastrado de recomendar a si mesmo, inflando a própria
+  contagem de recomendações sem nenhum morador de verdade ter indicado
+  nada. Corrigido em `RecommendationsController.Create` (Api — só ela
+  conhece `Professional.UserId`) com `SelfRecommendationException` (tipo
+  novo deste módulo, 400).
+- **"Não permitir spam ilimitado" tinha uma corrida genuína**: a
+  contagem de pendentes vs. o teto (`MaxPendingRecommendationsPerResident`)
+  era um clássico "lê, decide, escreve" sem proteção — duas requisições
+  concorrentes do mesmo morador podiam ler a mesma contagem antes de
+  qualquer uma commitar, e as duas passavam pela checagem. Corrigido com o
+  mesmo mecanismo do módulo Scheduling: `IUnitOfWork.ExecuteInSerializableTransactionAsync`
+  (agora também neste módulo) envolve a contagem+gravação numa transação
+  `Serializable`; se o PostgreSQL detectar o conflito, lança
+  `RecommendationConflictException` (409, tipo novo deste módulo) em vez
+  de deixar o teto ser ultrapassado silenciosamente.
+
+Ver ARCHITECTURE.md, "Etapa 14", para o relatório completo da auditoria.

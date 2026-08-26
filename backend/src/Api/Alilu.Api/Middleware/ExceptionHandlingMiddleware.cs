@@ -134,6 +134,14 @@ public sealed class ExceptionHandlingMiddleware(RequestDelegate next, ILogger<Ex
         Alilu.Modules.Recommendations.Application.RecommendationNotPendingException => (StatusCodes.Status409Conflict, exception.Message),
         Alilu.Modules.Recommendations.Application.RecommendationNotApprovedException => (StatusCodes.Status409Conflict, exception.Message),
         Alilu.Modules.Recommendations.Application.InsufficientPermissionsException => (StatusCodes.Status403Forbidden, exception.Message),
+        // Etapa 14 (auditoria) — "recomendar a si mesmo" é uma requisição
+        // malformada do ponto de vista de negócio, não um conflito de estado.
+        Alilu.Modules.Recommendations.Application.SelfRecommendationException => (StatusCodes.Status400BadRequest, exception.Message),
+
+        // Etapa 14 (auditoria) — corrida genuína entre duas requisições
+        // concorrentes na checagem "não permitir spam ilimitado" (mesmo
+        // espírito de BookingConflictException, tipo próprio deste módulo).
+        Alilu.Modules.Recommendations.Application.RecommendationConflictException => (StatusCodes.Status409Conflict, exception.Message),
 
         // Módulo Notifications (PROMPT 11).
         Alilu.Modules.Notifications.Application.NotificationNotFoundException => (StatusCodes.Status404NotFound, exception.Message),

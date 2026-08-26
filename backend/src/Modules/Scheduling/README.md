@@ -103,3 +103,14 @@ Deliberadamente **sem** `scopeCondominiumId`/checagem de papel própria
 acima): este módulo nunca teve conceito de autorização administrativa; a
 Api resolve o escopo (`Administration.IAdminScopeService`) e só chama isto
 depois — ver ARCHITECTURE.md, "Etapa 12".
+
+## Correção de concorrência (Etapa 14 — auditoria)
+
+`UnitOfWork.ExecuteInSerializableTransactionAsync` (Infrastructure) só
+reconhecia a falha de serialização do PostgreSQL (SQLSTATE `40001`) quando
+ela chegava embrulhada numa `DbUpdateException` — o caso mais comum na
+prática (falha só no `CommitAsync`, fora do pipeline do EF Core) chegava
+como `PostgresException` crua e escapava como erro 500 genérico em vez do
+409 (`BookingConflictException`) que esta REGRA CRÍTICA promete. Corrigido
+reconhecendo os dois formatos. Ver ARCHITECTURE.md, "Etapa 14", para o
+relatório completo da auditoria.

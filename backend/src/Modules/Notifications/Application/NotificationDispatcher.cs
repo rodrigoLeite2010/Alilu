@@ -29,7 +29,17 @@ public sealed class NotificationDispatcher(
 
         var notification = Notification.Create(userId, title, message, type, referenceId);
         await notificationRepository.AddAsync(notification, cancellationToken);
-        await unitOfWork.SaveChangesAsync(cancellationToken);
+
+        // CORREÇÃO (Etapa 14, auditoria): a checagem acima sozinha tinha uma
+        // corrida genuína (ver comentário em IUnitOfWork) — o índice único
+        // (UserId, Type, ReferenceId) em banco é a rede de segurança real;
+        // se a checagem em memória perdeu a corrida, SaveChangesOrIgnoreDuplicateAsync
+        // devolve false e esta chamada simplesmente não reenvia (idempotente,
+        // não é um erro).
+        if (!await unitOfWork.SaveChangesOrIgnoreDuplicateAsync(cancellationToken))
+        {
+            return;
+        }
 
         var deviceToken = await deviceTokenRepository.GetByUserIdAsync(userId, cancellationToken);
         if (deviceToken is not null)

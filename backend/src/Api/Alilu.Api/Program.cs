@@ -1,6 +1,7 @@
 using System.Text;
 using System.Text.Json.Serialization;
 using Alilu.Api.BackgroundServices;
+using Alilu.Api.HealthChecks;
 using Alilu.Api.Middleware;
 using Alilu.Infrastructure;
 using Alilu.Modules.Administration.Infrastructure;
@@ -15,6 +16,7 @@ using Alilu.Modules.Resident.Infrastructure;
 using Alilu.Modules.Reviews.Infrastructure;
 using Alilu.Modules.Scheduling.Infrastructure;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.IdentityModel.Tokens;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -122,6 +124,22 @@ var jwtSecret = builder.Configuration["Jwt:Secret"];
 var jwtIssuer = builder.Configuration["Jwt:Issuer"];
 var jwtAudience = builder.Configuration["Jwt:Audience"];
 
+// Falha rápido na inicialização (Etapa 15) — antes desta checagem, uma
+// 'Jwt:Secret' vazia só era detectada no primeiro login (ver
+// JwtTokenGenerator.GenerateAccessToken), e a aplicação subia
+// normalmente com uma chave de assinatura vazia (Encoding.UTF8.GetBytes(
+// string.Empty)) até então. Preferível derrubar o processo aqui — em
+// qualquer ambiente, nunca deixar 'Jwt:Secret' vazio é responsabilidade
+// de quem sobe a aplicação (variável de ambiente, user-secrets ou
+// gerenciador de segredos — nunca no código).
+if (string.IsNullOrWhiteSpace(jwtSecret))
+{
+    throw new InvalidOperationException(
+        "A configuração 'Jwt:Secret' não foi definida. Configure-a via variável de ambiente " +
+        "(ex.: Jwt__Secret), user-secrets ou gerenciador de segredos antes de subir a aplicação — " +
+        "nunca deixe este valor vazio ou hard-coded no código.");
+}
+
 builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
@@ -140,6 +158,12 @@ builder.Services
     });
 
 builder.Services.AddAuthorization();
+
+// Health check (Etapa 15) — GET /health verifica de verdade a conexão com
+// o PostgreSQL (DatabaseHealthCheck), em vez de só devolver "healthy"
+// sempre. Não usa nenhum pacote NuGet adicional — o middleware de Health
+// Checks já vem no shared framework do ASP.NET Core.
+builder.Services.AddHealthChecks().AddCheck<DatabaseHealthCheck>("database");
 
 // EVENTO "lembrete do serviço" (PROMPT 11) — ver comentário de design em
 // BookingReminderBackgroundService.
@@ -179,9 +203,16 @@ if (app.Environment.IsDevelopment())
     await serviceCategorySeeder.SeedAsync();
 }
 
-// Endpoint de verificação de saúde da aplicação, útil para orquestração
-// (docker, load balancer, etc.). Não requer nenhum pacote NuGet adicional.
-app.MapGet("/health", () => Results.Ok(new { status = "healthy" }));
+// Endpoint de verificação de saúde da aplicação (Etapa 15), útil para
+// orquestração (docker healthcheck, load balancer, rolling deploy).
+// Verifica de verdade a conexão com o PostgreSQL (DatabaseHealthCheck) —
+// antes desta etapa devolvia sempre "healthy", mesmo com o banco fora do
+// ar. Não requer nenhum pacote NuGet adicional (ver HealthCheckJsonWriter
+// para o formato de resposta).
+app.MapHealthChecks("/health", new HealthCheckOptions
+{
+    ResponseWriter = HealthCheckJsonWriter.WriteResponse,
+});
 
 app.MapGet("/", () => Results.Ok(new
 {

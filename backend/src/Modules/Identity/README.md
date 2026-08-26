@@ -29,6 +29,18 @@ Regras de negócio ficam no Domain/Application. Controllers finos apenas
 traduzem requisições HTTP em chamadas para a Application. Entidades nunca
 são expostas diretamente pela API — sempre via DTOs.
 
+## Configuração do Refresh Token (Etapa 15)
+
+`AuthOptions.RefreshTokenLifetime` (30 dias por padrão, desde a Etapa 03)
+agora é de fato configurável via `Auth:RefreshTokenLifetimeDays` no
+appsettings (ou `Auth__RefreshTokenLifetimeDays` como variável de
+ambiente) — antes desta correção, `AddIdentityModule` sempre registrava
+`new AuthOptions()` (o construtor sem parâmetros), ignorando
+silenciosamente qualquer valor que alguém configurasse. Sem a chave
+configurada, o comportamento continua idêntico ao de sempre (30 dias). Ver
+`backend/ARCHITECTURE.md`, "Etapa 15", e
+`Infrastructure/DependencyInjection.cs`.
+
 ## Extensão usada pelo módulo Administration (Etapa 12)
 
 `IAuthService.GetUsersByIdsAsync(userIds)` (sem endpoint próprio) — uma

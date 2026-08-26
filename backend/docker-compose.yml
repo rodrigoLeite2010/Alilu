@@ -14,6 +14,16 @@ services:
       - "5433:5432"
     volumes:
       - alilu_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      # Etapa 15 — permite `docker compose up` (e qualquer orquestrador)
+      # saber quando o Postgres já está pronto para aceitar conexões, não
+      # só quando o container "subiu". `pg_isready` vem embutido na própria
+      # imagem postgres:16-alpine, nenhuma ferramenta extra necessária.
+      test: ["CMD-SHELL", "pg_isready -U alilu -d alilu"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
 volumes:
   alilu_postgres_data:
