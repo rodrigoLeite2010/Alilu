@@ -34,6 +34,10 @@
     <!-- Módulo Reviews (PROMPT 09) — mesmo raciocínio do módulo Identity acima. -->
     <ProjectReference Include="..\..\Modules\Reviews\Application\Alilu.Modules.Reviews.Application.csproj" />
     <ProjectReference Include="..\..\Modules\Reviews\Infrastructure\Alilu.Modules.Reviews.Infrastructure.csproj" />
+
+    <!-- Módulo Recommendations (PROMPT 10) — mesmo raciocínio do módulo Identity acima. -->
+    <ProjectReference Include="..\..\Modules\Recommendations\Application\Alilu.Modules.Recommendations.Application.csproj" />
+    <ProjectReference Include="..\..\Modules\Recommendations\Infrastructure\Alilu.Modules.Recommendations.Infrastructure.csproj" />
   </ItemGroup>
 
   <ItemGroup>

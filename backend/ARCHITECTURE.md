@@ -719,11 +719,15 @@ por índices em Infrastructure.
 **Nota sobre `ResidentRecommended`/`CompletedService`:** o prompt pediu os
 quatro valores de `Source`, mas só `ProfessionalRequested` (self-service,
 "solicitar atendimento em condomínios") tem, nesta etapa, um caminho de
-criação real exposto pela Api. `ResidentRecommended` depende do módulo
-Recommendations e `CompletedService` dos módulos Scheduling/Reviews —
-nenhum dos dois existe ainda. Os valores já estão no enum (o tipo já nasce
-"pronto" para quando esses módulos existirem), mas nenhum caso de uso desta
-etapa os produz — mesmo espírito de deixar uma regra explicitamente
+criação real exposto pela Api. `ResidentRecommended` remete ao módulo
+Recommendations e `CompletedService` aos módulos Scheduling/Reviews —
+os três já existem hoje (Etapas 08, 09 e 10), mas nenhum dos prompts
+recebidos até agora pediu a ligação entre eles e este `Source`: a
+`Recommendation` da Etapa 10, em particular, é uma indicação de confiança
+independente, não um gatilho automático para criar/alterar um
+`ProfessionalCondominium`. Os valores já estão no enum (o tipo já nasceu
+"pronto" para o dia em que essa ligação for pedida), mas nenhum caso de
+uso os produz ainda — mesmo espírito de deixar uma regra explicitamente
 adiada, como a Etapa 05 fez com "morador principal por unidade".
 
 ### Três interfaces de Application (self-service / diretório público / admin)
@@ -1632,3 +1636,295 @@ src/Modules/Reviews/Application.Tests` e os comandos de migration
 (`dotnet ef migrations add AddReviewsModule --project src/Infrastructure/Alilu.Infrastructure --startup-project src/Api/Alilu.Api`,
 depois `dotnet ef database update ...`) na sua máquina para a verificação
 completa.
+
+## Etapa 10 — recomendações (Recommendations)
+
+PROMPT 10 — "implementar SOMENTE Recommendations". Módulo novo
+(`Alilu.Modules.Recommendations.*`, mesma estrutura em quatro camadas).
+Diferente de `Review` (Etapa 09, sempre referente a um `Booking` concluído
+DENTRO do ALILU), uma `Recommendation` é uma indicação de confiança que
+pode se referir a um profissional nunca contratado pelo ALILU (indicação
+externa) — por isso a entidade não depende de nenhum dado do módulo
+Scheduling, e as duas REGRAS CRÍTICAS que cruzam módulos ("morador Active
+pode recomendar", "se o profissional já existir no ALILU, vincular
+ProfessionalId") são resolvidas reaproveitando **dois métodos já
+existentes** dos módulos Resident/Professional — nenhuma mudança de código
+foi necessária nesses dois módulos, diferente das Etapas 08/09, que cada
+uma precisou de um método novo do lado de quem era consultado.
+
+### Entidade (`Alilu.Modules.Recommendations.Domain`)
+
+- **`Recommendation`** — a própria raiz de agregado do módulo:
+  `CondominiumId`, `RecommendedByUserId`, `ProfessionalId` (nullable),
+  `ExternalProfessionalName` (nullable), `ExternalPhone` (nullable),
+  `ServiceCategoryId`, `Comment`, `Status`, `CreatedAt`, `ApprovedAt`
+  (nullable), `ApprovedBy` (nullable). Mesma decisão de sempre: sem
+  navegação/FK para `User` (Identity), `Professional` (Professional) nem
+  `Condominium` (Condominium) — só os Ids como valores simples.
+  De propósito **não há** `UpdatedAt` (mesma decisão de `Review`, Etapa
+  09). O prompt marcou só três campos como "nullable" na lista da
+  entidade — por contraste, **`Comment` é interpretado como
+  obrigatório** (diferente de `Review.Comment`, que ficou opcional na
+  Etapa 09): aqui a indicação **é** o comentário ("por que confio nesse
+  profissional"), não um complemento opcional de uma nota numérica — não
+  existe uma "nota" nesta entidade para o comentário complementar.
+- **Indicação interna vs. externa (XOR)** — exatamente um entre
+  `ProfessionalId` e `ExternalProfessionalName` deve estar preenchido
+  (nunca os dois, nunca nenhum); quando `ProfessionalId` é informado,
+  `ExternalProfessionalName`/`ExternalPhone` devem ser nulos. Validado
+  inteiramente dentro de `Recommendation.Recommend` (Domain), via
+  `Alilu.Shared.DomainException` — mesmo estilo de `Booking.Request`/
+  `Review.Create`.
+- **Transições de status** (`Pending → Approved`, `Pending → Rejected`,
+  `Approved → Blocked`) — `Approve(Guid approvedByUserId)` recebe o ator
+  porque `ApprovedBy` é um campo dedicado da entidade; `Reject()`/
+  `Block()` **não** recebem ator, porque não existe nenhum campo
+  equivalente para recusa/bloqueio — mesma regra aplicada em
+  `ProfessionalCondominium.Approve()/Reject()` (Etapa 06, sem nenhum
+  campo de auditoria) e contrastada com `CondominiumMembership.Approve/
+  Reject/Block` (Etapa 05, todas as três recebem ator porque as três
+  compartilham o mesmo par `ValidatedAt`/`ValidatedBy`): o parâmetro de
+  ator em uma transição de Domain só existe quando há um campo dedicado
+  para guardá-lo, nunca "porque parece mais seguro". `Block` parte de
+  `Approved`, não de `Pending` — `Reject` já cobre o caminho
+  `Pending`→negativo; bloquear é para uma indicação que já ficou pública
+  e precisou ser removida depois (ex.: denúncia).
+
+### As REGRAS do prompt e onde cada uma vive
+
+- **"Morador Active pode recomendar"** — depende do vínculo
+  morador↔condomínio (módulo Resident), que o módulo Recommendations não
+  pode referenciar (PROMPT 01). Solução: **nenhum método novo** —
+  `IMembershipService.GetMyActiveMembershipAsync(userId)` (já existia
+  desde a Etapa 05/08) já devolve exatamente o que falta (o vínculo Active
+  do usuário, incluindo `CondominiumId`) sem precisar de
+  `condominiumId`/`unitId` como parâmetro. Quem chama esse método, lança
+  `NoActiveMembershipException` (reaproveitado do módulo Resident, já
+  mapeado para 403 desde a Etapa 08) quando `null`, e só então chama
+  `IRecommendationService.RecommendAsync` (Recommendations) é a Api —
+  `RecommendationsController.Create` — mesmo papel de `BookingsController`/
+  `ReviewsController` nas etapas anteriores.
+- **"Se o profissional já existir no ALILU, vincular ProfessionalId;
+  caso contrário, armazenar indicação externa"** — mesmo raciocínio:
+  **nenhum método novo** no módulo Professional —
+  `IProfessionalDirectoryService.GetProfessionalProfileAsync(professionalId)`
+  (Etapa 06, só profissionais `Active`) já serve para validar um
+  `ProfessionalId` informado no corpo da requisição, lançando
+  `ProfessionalNotFoundException` (módulo Professional, já mapeada) se
+  inválido/inativo. A decisão XOR em si (vincular vs. externa) é aplicada
+  no Domain (`Recommendation.Recommend`, ver seção anterior) — a Api só
+  decide **quando** chamar essa validação (só se `body.ProfessionalId` foi
+  informado).
+- **"Administrador pode moderar"** — `IRecommendationAdministrationService`
+  (Approve/Reject/Block/ListPending), mesmo padrão de
+  `IMembershipAdministrationService`/`IProfessionalAdministrationService`:
+  `EnsureIsAdmin` primeiro (`RecommendationRequesterRole.CondominiumAdmin`/
+  `SuperAdmin`, senão `InsufficientPermissionsException`), depois um
+  pré-checagem de estado com exceção dedicada
+  (`RecommendationNotPendingException` para Approve/Reject,
+  `RecommendationNotApprovedException` para Block) **antes** de chamar o
+  método de Domain — mesma "segunda camada" de sempre (o Domain ainda
+  guarda com `DomainException` genérica, mas esse caminho não deveria ser
+  alcançável).
+- **"Não permitir spam ilimitado"** — decisão de escopo deliberada: um
+  **único mecanismo simples**, um teto de recomendações simultâneas
+  `Pending` por morador (`RecommendationService.MaxPendingRecommendationsPerResident`,
+  constante = 5), verificado por uma contagem
+  (`CountPendingByRecommendedByUserIdAsync`) antes de criar — lança
+  `TooManyPendingRecommendationsException`, mapeada para **429 Too Many
+  Requests** (primeiro uso de 429 nesta Api — "spam" é, por natureza, uma
+  questão de limite de taxa, não de conflito de estado ou corpo inválido).
+  Deliberadamente **não** foi adicionado um segundo mecanismo (ex.: "não
+  recomendar o mesmo alvo duas vezes") — o prompt pediu só "não permitir
+  spam ilimitado", uma frase, uma regra; um teto por morador já resolve o
+  problema descrito sem inventar escopo novo.
+
+### Endpoints
+
+Self-service do morador (`RecommendationsController`,
+`api/resident/recommendations`, `[Authorize]`, sempre restrito ao próprio
+usuário):
+
+- `GET /api/resident/recommendations` — "minhas recomendações".
+- `GET /api/resident/recommendations/{id}` — detalhe de uma recomendação
+  própria.
+- `POST /api/resident/recommendations` — "recomendar profissional"
+  (composição completa, ver seção anterior).
+
+Diretório público, composto na Api (`ProfessionalDirectoryController`,
+módulo Professional — mesmo controller de `availability-check`, Etapa 08),
+qualquer usuário autenticado:
+
+- `GET /api/directory/professionals/{id}/recommendations` — o "perfil de
+  recomendações" de um profissional do ALILU: nome (módulo Professional),
+  nota média (`IProfessionalReviewService.GetRatingSummaryAsync`, módulo
+  Reviews), contagem e lista de indicações aprovadas
+  (`IRecommendationDirectoryService`, módulo Recommendations) — os três
+  módulos combinados numa única resposta, exatamente o formato do
+  objetivo de UX do prompt ("Carlos Elétrica ⭐ 4.9 Recomendado por 7
+  moradores"). Sem distinção de papel — tanto o morador (avaliando quem
+  contratar) quanto o próprio profissional (vendo o seu perfil) usam o
+  mesmo endpoint.
+
+Moderação administrativa (`AdminRecommendationsController`,
+`api/admin/recommendations`, `[Authorize(Roles = "CondominiumAdmin,SuperAdmin")]`,
+mesmo padrão de `AdminMembershipsController`/`AdminProfessionalCondominiumsController`):
+
+- `GET /api/admin/recommendations/pending` — fila de moderação.
+- `POST /api/admin/recommendations/{id}/approve`
+- `POST /api/admin/recommendations/{id}/reject`
+- `POST /api/admin/recommendations/{id}/block`
+
+### Decisões de escopo (o que este prompt não pediu)
+
+- **Sem "✓ Já prestou serviço no condomínio"** — o objetivo de UX do
+  prompt mostra essa linha no exemplo, mas verificá-la exigiria uma nova
+  consulta ao módulo Scheduling (ex.: "existe algum `Booking` `Completed`
+  deste profissional neste condomínio?"), fora do escopo de uma etapa
+  "SOMENTE Recommendations" — o próprio prompt pede "cada informação deve
+  possuir origem real no banco", cumprido mostrando só o que já existe:
+  nome, nota e contagem/lista de indicações aprovadas. Se uma etapa futura
+  pedir isso, é uma extensão do endpoint composto acima (mais uma consulta
+  ao Scheduling), não uma mudança neste módulo.
+- **`ServiceCategoryId` não é cross-validado contra o diretório de
+  categorias do módulo Professional** — mesmo precedente de
+  `BookingItem.ServiceCategoryId` (Etapa 08): o módulo Recommendations não
+  pode referenciar o módulo Professional para validar isso, e o prompt não
+  pediu essa validação cruzada explicitamente.
+- **Sem tela de moderação no React Native** — mesmo precedente de
+  `IProfessionalAdministrationService`/`IMembershipAdministrationService`
+  (Etapas 05/06, moderação sempre self-service via Api/Postman nesta fase
+  do MVP): o prompt listou exatamente quatro telas React Native, nenhuma
+  delas de moderação administrativa.
+- **Sem tela dedicada de busca/seleção de profissional para
+  RecommendProfessionalScreen** — uma recomendação vinculada a um
+  profissional do ALILU só pode ser criada a partir do próprio perfil dele
+  (`ProfessionalProfileScreen`, botão "Recomendar", mesmo padrão de
+  "Agendar" desde a Etapa 08); chegando em `RecommendProfessionalScreen`
+  sem esse contexto (a partir de "Nova recomendação" em
+  `RecommendationsScreen`), a tela assume indicação externa. O prompt não
+  pediu uma tela de busca dedicada, e inventar uma seria escopo novo.
+
+### React Native
+
+- **`RecommendationsScreen`** — "minhas recomendações": lista com status
+  (rótulo PT-BR) e data, botão "Nova recomendação" (indicação externa) no
+  topo. Acessível a partir de "Minhas recomendações" em
+  `ResidentHomeScreen` (módulo Resident), mesmo padrão de "Meus
+  agendamentos" (Etapa 08).
+- **`RecommendProfessionalScreen`** — dois modos, decididos pela presença
+  de `professionalId` (prop resolvida pela rota, nunca por estado interno
+  da tela): **vinculado** (só categoria + comentário, profissional já
+  definido) e **externo** (nome + telefone opcional + categoria +
+  comentário). A lista de categorias também vem como prop resolvida pela
+  rota — no modo vinculado, as categorias que o **próprio profissional**
+  oferece (mesmo diretório já usado por `ProfessionalProfileScreen`); no
+  modo externo, o diretório público completo (`useRecommendationCategories`,
+  já que não há um profissional específico para restringir a lista).
+- **`RecommendationDetailsScreen`** — detalhe de uma recomendação própria:
+  status, categoria, comentário, profissional (nome resolvido pela rota
+  quando vinculado, ou nome/telefone externos direto da própria entidade),
+  datas de envio/aprovação.
+- **`ProfessionalRecommendationsScreen`** — o "perfil de recomendações"
+  público: nome + `⭐ {nota}` + "Recomendado por N moradores" + lista dos
+  comentários aprovados. Usada duas vezes: pelo morador (a partir de "Ver
+  recomendações" em `ProfessionalProfileScreen`) e pelo próprio
+  profissional (a partir de "Recomendações" em `ProfessionalEditScreen`,
+  resolvendo o próprio `professionalId` via `useMyProfessionalProfile`
+  antes de renderizar a tela — mesmo padrão do gate `(professional)/index.tsx`).
+
+**Composição no app, espelhando a Api:** assim como o módulo
+`recommendations` não referencia os módulos `resident`/`professional`
+(PROMPT 01, espelhado no app desde a Etapa 08), toda resolução de nome de
+profissional/categoria acontece na camada de rotas
+(`app/(resident)/professionals/[id]/recommend.tsx`,
+`app/(resident)/recommendations/[id].tsx`) — mesmo papel dos controllers
+da Api. O diretório de categorias é duplicado em
+`modules/recommendations/api.ts` (`recommendationDirectoryApi.listCategories`),
+mesma convenção de módulos não se importarem entre si já usada em
+`modules/scheduling/api.ts#schedulingDirectoryApi`.
+
+**Reestruturação de rota:** `app/(resident)/professionals/[id].tsx`
+(arquivo único desde a Etapa 06) virou uma rota aninhada —
+`app/(resident)/professionals/[id]/index.tsx` (o mesmo
+`ProfessionalProfileScreen` de antes) mais dois novos arquivos,
+`app/(resident)/professionals/[id]/recommend.tsx`
+(`RecommendProfessionalScreen`, modo vinculado) e
+`app/(resident)/professionals/[id]/recommendations.tsx`
+(`ProfessionalRecommendationsScreen`) — mesmo padrão já usado por
+`bookings/[id]/*` (Etapa 09) para caber mais de uma tela sob o mesmo
+segmento dinâmico. **Pendência do usuário**: como a ponte com o
+dispositivo só grava/sobrescreve arquivos (nunca apaga), o arquivo antigo
+`app/(resident)/professionals/[id].tsx` continua no projeto depois desta
+entrega — apague-o manualmente (o novo
+`app/(resident)/professionals/[id]/index.tsx` já o substitui).
+
+`ProfessionalEditScreen` ganhou um atalho "Recomendações", ao lado de
+"Avaliações"/"Solicitações"/"Configurar disponibilidade", levando para
+`app/(professional)/recommendations/index.tsx`.
+
+### Testes
+
+`Recommendations.Application.Tests/` (novo projeto) —
+`RecommendationCreationTests` (indicação vinculada e externa criadas com
+sucesso, XOR nos dois sentidos falha com `DomainException`, comentário
+vazio/nulo falha com `DomainException`, Ids obrigatórios vazios falham com
+`DomainException`, teto de `Pending` por morador estourado falha com
+`TooManyPendingRecommendationsException` — e é **por morador**, não
+global —, listagem/busca "minhas" respeita autoria),
+`RecommendationAdministrationTests` (aprovar grava `ApprovedBy`/`ApprovedAt`,
+aprovar de novo falha com `RecommendationNotPendingException`, recusar
+funciona, bloquear uma `Pending` falha com `RecommendationNotApprovedException`,
+bloquear uma `Approved` funciona, papel não-admin falha com
+`InsufficientPermissionsException` em todas as três operações + listagem,
+fila de pendentes exclui aprovadas) e `RecommendationDirectoryTests`
+(contagem/lista só de aprovadas vinculadas, indicações externas nunca
+aparecem no perfil de nenhum profissional).
+
+Cobrindo explicitamente as REGRAS do prompt — "morador Active pode
+recomendar" (validado na composição da Api, não aqui — ver nota em
+`RecommendationCreationTests`), "vincular ProfessionalId ou indicação
+externa" (XOR), "administrador pode moderar", "não permitir spam
+ilimitado" — mais a consulta pública composta.
+
+### Limitação do sandbox de build (Claude) nesta etapa
+
+Mesma limitação de sempre: `Alilu.Modules.Recommendations.Infrastructure`
+e os projetos de teste xUnit (`Recommendations.Application.Tests` incluso)
+não puderam ser restaurados/compilados aqui (pacotes NuGet só resolvíveis
+com acesso à internet). O que **foi** verificado, e desta vez incluindo a
+própria `Alilu.Api`:
+
+- `Alilu.Modules.Recommendations.Domain` e
+  `Alilu.Modules.Recommendations.Application` — zero dependências NuGet
+  externas — compilam com **0 erros/0 warnings**.
+- Toda a lógica de negócio desta etapa (XOR interno/externo, comentário
+  obrigatório, teto de spam por morador, moderação Approve/Reject/Block,
+  checagem de papel, diretório público) foi validada rodando manualmente
+  contra fakes em memória (as mesmas implementações reais dos serviços) —
+  **34 verificações, todas passaram**.
+- **Novidade desta etapa**: como `ClaimsPrincipalExtensions.cs`,
+  `ExceptionHandlingMiddleware.cs` e os três controllers novos/editados
+  (`RecommendationsController`, `AdminRecommendationsController`,
+  `ProfessionalDirectoryController`) só dependem de tipos das camadas
+  Application (que compilam sem NuGet) e do framework compartilhado do
+  ASP.NET Core (`Microsoft.AspNetCore.App`, já instalado localmente com o
+  SDK — não é um pacote NuGet), foi possível montar um projeto de
+  verificação avulso, referenciando os `.dll` reais já compilados das
+  Applications e compilando esses arquivos de controller/middleware junto
+  com os controllers já existentes (`ReviewsController`,
+  `AdminMembershipsController`, etc.) — **0 erros/0 warnings**, uma
+  verificação mais forte do que a revisão manual usada nas etapas
+  anteriores para este tipo de arquivo.
+- `python3 scripts/check-references.py` — **0 violações, 0 ciclos**
+  (agora com os quatro novos projetos do módulo Recommendations).
+- Mobile: `npx tsc --noEmit` e `npx eslint .` — **0 erros/0 warnings** em
+  todo o projeto (incluindo os arquivos novos e editados desta etapa).
+
+O que este sandbox **não pode** provar é `Alilu.Modules.Recommendations.Infrastructure`
+(mapeamento EF Core, índices) contra um PostgreSQL real — rode `dotnet
+restore && dotnet build`, `dotnet test src/Modules/Recommendations/Application.Tests`
+e os comandos de migration (`dotnet ef migrations add AddRecommendationsModule
+--project src/Infrastructure/Alilu.Infrastructure --startup-project
+src/Api/Alilu.Api`, depois `dotnet ef database update ...`) na sua máquina
+para a verificação completa.

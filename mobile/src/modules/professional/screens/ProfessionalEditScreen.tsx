@@ -45,6 +45,11 @@ interface ProfessionalEditScreenProps {
  * Desde o PROMPT 09, também vê um atalho para "Avaliações"
  * (ProfessionalReviewsScreen — "visualizar avaliações recebidas; visualizar
  * média", sob `(professional)/reviews/*`).
+ *
+ * Desde o PROMPT 10, também vê um atalho para "Recomendações"
+ * (ProfessionalRecommendationsScreen — o mesmo "perfil de recomendações"
+ * público que o morador vê a partir de ProfessionalProfileScreen, só que
+ * para o próprio profissional, sob `(professional)/recommendations`).
  */
 export function ProfessionalEditScreen({ profile }: ProfessionalEditScreenProps) {
   const { spacing, colors } = useTheme();
@@ -176,6 +181,11 @@ export function ProfessionalEditScreen({ profile }: ProfessionalEditScreenProps)
                 label="Avaliações"
                 variant="secondary"
                 onPress={() => router.push('/(professional)/reviews')}
+              />
+              <AppButton
+                label="Recomendações"
+                variant="secondary"
+                onPress={() => router.push('/(professional)/recommendations')}
               />
             </>
           ) : null}

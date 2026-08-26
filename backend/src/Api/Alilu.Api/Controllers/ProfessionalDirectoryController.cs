@@ -1,4 +1,6 @@
 using Alilu.Modules.Professional.Application;
+using Alilu.Modules.Recommendations.Application;
+using Alilu.Modules.Reviews.Application;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -13,7 +15,10 @@ namespace Alilu.Api.Controllers;
 [ApiController]
 [Route("api/directory/professionals")]
 [Authorize]
-public sealed class ProfessionalDirectoryController(IProfessionalDirectoryService directoryService) : ControllerBase
+public sealed class ProfessionalDirectoryController(
+    IProfessionalDirectoryService directoryService,
+    IProfessionalReviewService professionalReviewService,
+    IRecommendationDirectoryService recommendationDirectoryService) : ControllerBase
 {
     [HttpGet("categories")]
     public async Task<ActionResult<IReadOnlyList<ServiceCategoryResponse>>> ListCategories(CancellationToken cancellationToken)
@@ -74,7 +79,58 @@ public sealed class ProfessionalDirectoryController(IProfessionalDirectoryServic
             return Ok(new AvailabilityCheckResponse(false));
         }
     }
+
+    /// <summary>
+    /// Consulta pública, só-leitura (PROMPT 10, React Native:
+    /// ProfessionalRecommendationsScreen — "Carlos Elétrica ⭐ 4.9
+    /// Recomendado por 7 moradores"). Ponto de COMPOSIÇÃO: o módulo
+    /// Recommendations não pode referenciar os módulos Professional/Reviews
+    /// (PROMPT 01), então é aqui que o nome (Professional), a nota média
+    /// (Reviews) e a contagem/lista de indicações aprovadas
+    /// (Recommendations) são combinados numa única resposta. Sem distinção
+    /// de papel — tanto o morador (avaliando quem contratar) quanto o
+    /// próprio profissional (vendo o seu perfil) podem chamar.
+    ///
+    /// De propósito NÃO inclui "✓ Já prestou serviço no condomínio" (linha
+    /// do objetivo de UX do prompt) — exigiria uma nova consulta no módulo
+    /// Scheduling, fora do escopo de uma etapa "SOMENTE Recommendations";
+    /// ver ARCHITECTURE.md, "Etapa 10", para a decisão completa.
+    /// </summary>
+    [HttpGet("{id:guid}/recommendations")]
+    public async Task<ActionResult<ProfessionalRecommendationProfileResponse>> GetRecommendationProfile(Guid id, CancellationToken cancellationToken)
+    {
+        var profile = await directoryService.GetProfessionalProfileAsync(id, cancellationToken);
+        if (profile is null)
+        {
+            return NotFound();
+        }
+
+        var ratingSummary = await professionalReviewService.GetRatingSummaryAsync(id, cancellationToken);
+        var recommendationSummary = await recommendationDirectoryService.GetSummaryByProfessionalIdAsync(id, cancellationToken);
+        var recommendations = await recommendationDirectoryService.ListApprovedByProfessionalIdAsync(id, cancellationToken);
+
+        return Ok(new ProfessionalRecommendationProfileResponse(
+            id,
+            profile.DisplayName,
+            ratingSummary.AverageRating,
+            ratingSummary.TotalReviews,
+            recommendationSummary.TotalApproved,
+            recommendations));
+    }
 }
 
 /// <summary>Resposta de GET .../availability-check.</summary>
 public sealed record AvailabilityCheckResponse(bool Available);
+
+/// <summary>
+/// Resposta de GET .../recommendations — composta na Api a partir de três
+/// módulos (Professional, Reviews, Recommendations). React Native:
+/// ProfessionalRecommendationsScreen.
+/// </summary>
+public sealed record ProfessionalRecommendationProfileResponse(
+    Guid ProfessionalId,
+    string ProfessionalName,
+    double AverageRating,
+    int TotalReviews,
+    int TotalRecommendations,
+    IReadOnlyList<RecommendationResponse> Recommendations);

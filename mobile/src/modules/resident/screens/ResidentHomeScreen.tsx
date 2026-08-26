@@ -21,7 +21,10 @@ interface ResidentHomeScreenProps {
  * Desde o PROMPT 08, também dá acesso a "meus agendamentos"
  * (MyBookingsScreen, módulo Scheduling) — o início do agendamento em si
  * ("Agendar") fica em ProfessionalProfileScreen, depois de escolher o
- * profissional.
+ * profissional. Desde o PROMPT 10, também dá acesso a "minhas
+ * recomendações" (RecommendationsScreen, módulo Recommendations) — a
+ * própria recomendação de um profissional específico ("Recomendar") fica
+ * em ProfessionalProfileScreen, mesmo padrão de "Agendar".
  */
 export function ResidentHomeScreen({ membership }: ResidentHomeScreenProps) {
   const { spacing } = useTheme();
@@ -49,11 +52,8 @@ export function ResidentHomeScreen({ membership }: ResidentHomeScreenProps) {
         <View style={{ marginTop: spacing.lg, gap: spacing.sm }}>
           <AppButton label="Buscar profissional" onPress={() => router.push('/(resident)/professional-categories')} />
           <AppButton label="Meus agendamentos" variant="secondary" onPress={() => router.push('/(resident)/bookings')} />
+          <AppButton label="Minhas recomendações" variant="secondary" onPress={() => router.push('/(resident)/recommendations')} />
         </View>
-
-        <AppText variant="body" color="secondary" style={{ marginTop: spacing.lg }}>
-          ResidentStack — avaliações ainda não implementadas.
-        </AppText>
 
         <View style={{ marginTop: spacing.xl }}>
           <AppButton label="Sair" variant="ghost" onPress={() => logout()} />

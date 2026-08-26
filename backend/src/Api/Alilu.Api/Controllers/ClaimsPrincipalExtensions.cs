@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Alilu.Modules.Condominium.Application;
 using Alilu.Modules.Professional.Application;
+using Alilu.Modules.Recommendations.Application;
 using Alilu.Modules.Resident.Application;
 
 namespace Alilu.Api.Controllers;
@@ -47,6 +48,19 @@ public static class ClaimsPrincipalExtensions
         var roleClaim = user.FindFirstValue(ClaimTypes.Role);
 
         if (roleClaim is null || !Enum.TryParse<ProfessionalRequesterRole>(roleClaim, out var role))
+        {
+            throw new UnauthorizedAccessException("O token não contém um papel de usuário válido.");
+        }
+
+        return role;
+    }
+
+    /// <summary>Mesmo claim de papel acima, só que como <see cref="RecommendationRequesterRole"/> — usado pelos controllers do módulo Recommendations (PROMPT 10).</summary>
+    public static RecommendationRequesterRole GetRecommendationRequesterRole(this ClaimsPrincipal user)
+    {
+        var roleClaim = user.FindFirstValue(ClaimTypes.Role);
+
+        if (roleClaim is null || !Enum.TryParse<RecommendationRequesterRole>(roleClaim, out var role))
         {
             throw new UnauthorizedAccessException("O token não contém um papel de usuário válido.");
         }

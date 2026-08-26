@@ -7,6 +7,7 @@ using Alilu.Modules.Condominium.Infrastructure.Seed;
 using Alilu.Modules.Identity.Infrastructure;
 using Alilu.Modules.Professional.Infrastructure;
 using Alilu.Modules.Professional.Infrastructure.Seed;
+using Alilu.Modules.Recommendations.Infrastructure;
 using Alilu.Modules.Resident.Infrastructure;
 using Alilu.Modules.Reviews.Infrastructure;
 using Alilu.Modules.Scheduling.Infrastructure;
@@ -56,6 +57,15 @@ builder.Services.AddSchedulingModule(builder.Configuration);
 // Booking Completed). As REGRAS CRÍTICAS que cruzam módulos (Booking
 // Completed, autoria) são aplicadas na Api — ver ReviewsController.
 builder.Services.AddReviewsModule(builder.Configuration);
+
+// Módulo Recommendations (PROMPT 10): indicações (Recommendation) de
+// profissionais feitas por moradores — diferente de Review, pode se
+// referir a um profissional nunca contratado pelo ALILU (indicação
+// externa). Sem seed de desenvolvimento nesta etapa (nasce do fluxo real:
+// o morador recomenda). As REGRAS CRÍTICAS que cruzam módulos (morador
+// Active, "profissional já existe no ALILU") são aplicadas na Api — ver
+// RecommendationsController.
+builder.Services.AddRecommendationsModule(builder.Configuration);
 
 builder.Services
     .AddControllers()
@@ -122,7 +132,7 @@ app.MapGet("/health", () => Results.Ok(new { status = "healthy" }));
 app.MapGet("/", () => Results.Ok(new
 {
     application = "ALILU API",
-    status = "Identity (autenticação), Condominium (condomínios/unidades/convites), Resident (validação do morador), Professional (profissionais/diaristas, incluindo disponibilidade), Scheduling (agendamentos) e Reviews (avaliações) implementados",
+    status = "Identity (autenticação), Condominium (condomínios/unidades/convites), Resident (validação do morador), Professional (profissionais/diaristas, incluindo disponibilidade), Scheduling (agendamentos), Reviews (avaliações) e Recommendations (indicações) implementados",
 }));
 
 app.Run();

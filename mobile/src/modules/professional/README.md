@@ -5,13 +5,15 @@
 > estendido na **Etapa 07** (PROMPT 07) — disponibilidade (agenda
 > recorrente + exceções). Ver as seções "Etapa 06 — módulo Professional",
 > "Etapa 07 — disponibilidade profissional", "Etapa 08 — agendamento
-> (Scheduling)" e "Etapa 09 — avaliações (Reviews)" em
-> `backend/ARCHITECTURE.md` para o design completo (backend + mobile).
-> Booking/reservas vivem no módulo `scheduling` (Etapa 08) e avaliações no
-> módulo `reviews` (Etapa 09), não aqui — `ProfessionalProfileScreen`
-> ganhou o botão "Agendar" e `ProfessionalEditScreen` ganhou
-> "Solicitações" e, desde a Etapa 09, "Avaliações", todos levando para
-> lá.
+> (Scheduling)", "Etapa 09 — avaliações (Reviews)" e "Etapa 10 —
+> recomendações (Recommendations)" em `backend/ARCHITECTURE.md` para o
+> design completo (backend + mobile). Booking/reservas vivem no módulo
+> `scheduling` (Etapa 08), avaliações no módulo `reviews` (Etapa 09) e
+> recomendações no módulo `recommendations` (Etapa 10), não aqui —
+> `ProfessionalProfileScreen` ganhou os botões "Agendar" e, desde a
+> Etapa 10, "Ver recomendações"/"Recomendar"; `ProfessionalEditScreen`
+> ganhou "Solicitações" e, desde a Etapa 09, "Avaliações", e desde a
+> Etapa 10, "Recomendações" — todos levando para lá.
 
 ## Responsabilidade
 

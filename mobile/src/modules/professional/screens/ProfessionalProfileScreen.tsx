@@ -5,7 +5,14 @@ import { AppButton, AppText, Screen } from '../../../components';
 import { useTheme } from '../../../theme';
 import { useProfessionalProfile } from '../hooks';
 
-/** React Native: ProfessionalProfileScreen (PROMPT 06) — "visualizar perfil". Desde o PROMPT 08, também dá acesso a "Agendar" (início do fluxo de agendamento, módulo Scheduling). */
+/**
+ * React Native: ProfessionalProfileScreen (PROMPT 06) — "visualizar
+ * perfil". Desde o PROMPT 08, também dá acesso a "Agendar" (início do
+ * fluxo de agendamento, módulo Scheduling). Desde o PROMPT 10, também dá
+ * acesso a "Recomendar" (RecommendProfessionalScreen, com o profissional
+ * já definido — módulo Recommendations) e "Ver recomendações"
+ * (ProfessionalRecommendationsScreen — "Recomendado por N moradores").
+ */
 export function ProfessionalProfileScreen() {
   const { spacing, colors } = useTheme();
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -48,6 +55,16 @@ export function ProfessionalProfileScreen() {
             <AppButton
               label="Agendar"
               onPress={() => router.push({ pathname: '/(resident)/booking/[professionalId]', params: { professionalId: professional.id } })}
+            />
+            <AppButton
+              label="Ver recomendações"
+              variant="secondary"
+              onPress={() => router.push({ pathname: '/(resident)/professionals/[id]/recommendations', params: { id: professional.id } })}
+            />
+            <AppButton
+              label="Recomendar"
+              variant="secondary"
+              onPress={() => router.push({ pathname: '/(resident)/professionals/[id]/recommend', params: { id: professional.id } })}
             />
           </>
         )}

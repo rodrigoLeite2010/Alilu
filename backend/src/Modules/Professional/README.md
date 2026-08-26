@@ -45,8 +45,13 @@ tem nenhuma relação com `CondominiumMembership` (módulo Resident).
   não por um endpoint administrativo (não pedido pelo prompt).
 - **Origem `ResidentRecommended`/`CompletedService`** — `ProfessionalCondominiumSource`
   já tem os quatro valores pedidos pelo prompt, mas só `ProfessionalRequested`
-  tem um caminho de criação real nesta etapa; os outros dois dependem dos
-  módulos Recommendations/Scheduling+Reviews, que ainda não existem.
+  tem um caminho de criação real nesta etapa. Os módulos Recommendations
+  (Etapa 10) e Scheduling+Reviews (Etapas 08/09) já existem, mas nenhum
+  deles foi conectado a este `Source` — a `Recommendation` da Etapa 10 é
+  uma indicação de confiança independente, não um gatilho para criar/
+  alterar um `ProfessionalCondominium`; nenhum dos prompts recebidos até
+  agora pediu essa ligação, então ela continua em aberto para uma etapa
+  futura.
 - **Chamar o módulo Condominium diretamente** — nenhum módulo referencia
   outro (PROMPT 01). A validação do condomínio informado em "solicitar
   atendimento" é feita pelo módulo Condominium

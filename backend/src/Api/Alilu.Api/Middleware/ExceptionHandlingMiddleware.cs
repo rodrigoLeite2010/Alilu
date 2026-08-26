@@ -125,6 +125,16 @@ public sealed class ExceptionHandlingMiddleware(RequestDelegate next, ILogger<Ex
         Alilu.Modules.Reviews.Application.ReviewNotFoundException => (StatusCodes.Status404NotFound, exception.Message),
         Alilu.Modules.Reviews.Application.DuplicateReviewException => (StatusCodes.Status409Conflict, exception.Message),
 
+        // Módulo Recommendations (PROMPT 10). TooManyPendingRecommendationsException
+        // é o primeiro uso de 429 nesta Api — "não permitir spam ilimitado"
+        // é, por natureza, uma questão de limite de taxa, não de conflito
+        // de estado (409) nem de corpo inválido (400).
+        Alilu.Modules.Recommendations.Application.RecommendationNotFoundException => (StatusCodes.Status404NotFound, exception.Message),
+        Alilu.Modules.Recommendations.Application.TooManyPendingRecommendationsException => (StatusCodes.Status429TooManyRequests, exception.Message),
+        Alilu.Modules.Recommendations.Application.RecommendationNotPendingException => (StatusCodes.Status409Conflict, exception.Message),
+        Alilu.Modules.Recommendations.Application.RecommendationNotApprovedException => (StatusCodes.Status409Conflict, exception.Message),
+        Alilu.Modules.Recommendations.Application.InsufficientPermissionsException => (StatusCodes.Status403Forbidden, exception.Message),
+
         UnauthorizedAccessException => (StatusCodes.Status401Unauthorized, exception.Message),
         DomainException => (StatusCodes.Status400BadRequest, exception.Message),
         _ => (StatusCodes.Status500InternalServerError, "Ocorreu um erro inesperado."),
