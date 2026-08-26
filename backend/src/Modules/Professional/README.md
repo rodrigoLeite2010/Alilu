@@ -149,3 +149,16 @@ primeiro uso real de `ProfessionalCondominiumSource.AdminApproved`,
 reservado desde a Etapa 06; precisou de uma nova dependência,
 `IProfessionalRepository`, para validar que o profissional existe). Ver
 ARCHITECTURE.md, "Etapa 12".
+
+## Correção de integração (Etapa 13)
+
+`ValidateAttendsCondominiumAsync` (Etapa 08) passou a ser chamado de
+DOIS lugares na Api, não só na criação do agendamento: também em
+`ProfessionalBookingsController.Accept`, revalidando que o profissional
+ainda atende o condomínio no momento de aceitar — um administrador podia
+bloquear o vínculo (`BlockAsync`, acima) depois que a solicitação já
+existia, e o profissional ainda conseguia aceitar/iniciar/concluir um
+atendimento num condomínio do qual tinha sido removido. Nenhuma mudança
+de código neste módulo — `ValidateAttendsCondominiumAsync` já existia
+pronta para isso; o gap era só a Api não chamá-la de novo. Ver
+ARCHITECTURE.md, "Etapa 13".

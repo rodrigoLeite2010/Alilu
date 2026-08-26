@@ -2529,3 +2529,193 @@ qualquer coisa, `POST /api/admin/condominium-administrators` (ver
 Pendência operacional acima) na sua máquina. Também não pode ser
 verificado aqui: o `admin-web` rodando de fato contra a Api (`npm run dev`
 + CORS real) num browser.
+
+## Etapa 13 — integração (revisão, sem funcionalidade nova)
+
+> PROMPT 13 pediu explicitamente para **não criar funcionalidade nova**:
+> revisar a integração entre os 9 módulos já existentes (Identity,
+> Condominium, Resident, Professional, Scheduling, Reviews, Recommendations,
+> Notifications, Administration) ao longo dos três fluxos completos
+> (morador, profissional, administrador), procurando por regra duplicada,
+> regra de domínio vazada para dentro de um controller, problema de
+> autorização e problema de multi-tenancy — e rodar testes de integração.
+> Esta seção documenta o que foi encontrado, o que foi corrigido e o que
+> foi revisado e mantido como está (com o porquê).
+
+### Metodologia
+
+Cada um dos três fluxos do prompt foi percorrido ponta a ponta no código
+real (não apenas nos comentários/README): para cada passo, o controller
+que o implementa e o(s) método(s) de Application que ele chama. Além
+disso, uma varredura separada cobriu **todos** os 19+ controllers e
+**todos** os serviços de Application (não interfaces) procurando por três
+coisas especificamente: lógica de negócio dentro de um controller além de
+tradução HTTP↔chamada de módulo; a mesma regra implementada de forma
+independente em dois lugares que podem divergir; e qualquer DTO/endpoint
+expondo uma entidade de Domain diretamente. Duplicação que já era um
+tradeoff deliberado e documentado (ex.: `EnsureScopeMatches`/`EnsureIsAdmin`
+copiados em cada um dos módulos administrativos desde a Etapa 12, porque
+módulos não podem compartilhar código entre si) foi tratada como decisão
+aceita, não como bug — só contaria como problema se as cópias tivessem
+divergido entre si (comparadas lado a lado; não divergiram).
+
+### Problemas encontrados e CORRIGIDOS nesta etapa
+
+**1. Autorização/multi-tenancy — vínculo profissional↔condomínio não era
+revalidado no ACEITE, só na criação do agendamento.**
+`BookingsController.Create` sempre chamou
+`IProfessionalDirectoryService.ValidateAttendsCondominiumAsync` (REGRA
+CRÍTICA "profissional deve atender o condomínio", Etapa 08) — mas nenhum
+endpoint do lado do profissional revalidava isso depois. Um administrador
+podia bloquear o vínculo (`POST /api/admin/professional-condominiums/{id}/block`,
+Etapa 12) DEPOIS que um morador já tinha criado uma solicitação de
+agendamento para aquele profissional naquele condomínio, e o profissional
+ainda conseguia `POST /api/professional/bookings/{id}/accept` (e depois
+iniciar/concluir) um atendimento num condomínio do qual tinha acabado de
+ser removido. **Corrigido** em `ProfessionalBookingsController.Accept`:
+busca a solicitação (já validando que é do próprio profissional), revalida
+`ValidateAttendsCondominiumAsync` com o `CondominiumId` real do booking, e
+só então chama `AcceptAsync`. Deliberadamente **não** repetido em
+`Start`/`Complete`: um agendamento já `Confirmed` é um compromisso com o
+morador — revalidar de novo ali arrisca deixá-lo na mão por causa de uma
+decisão administrativa tomada depois que o profissional já aceitou; o
+ponto de controle é a decisão de aceitar um NOVO compromisso, não as
+etapas seguintes de um que já foi aceito.
+
+**2. Multi-tenancy — oráculo de ocupação em unidade vaga de outro
+condomínio.** `MembershipAdministrationService.GetActiveByUnitAsync`
+("Unidades: visualizar morador vinculado", Etapa 12) retorna `null` para
+unidade vaga **antes** de chamar `EnsureScopeMatches` — não há
+`CondominiumId` de vínculo nenhum para comparar quando não existe vínculo.
+Isso é correto do ponto de vista do módulo Resident sozinho (ele
+literalmente não sabe a que condomínio uma unidade vaga pertence — não
+referencia o módulo Condominium), mas como esse era o ÚNICO lugar que
+checava o escopo para este endpoint, um `CondominiumAdmin` conseguia
+chamar `GET /api/admin/memberships/units/{unitId}/active-membership` com o
+Id de uma unidade de OUTRO condomínio e usar a resposta (`200` com corpo
+vazio = "vaga" vs. `403` = "tem morador, fora do meu escopo") como oráculo
+para descobrir a taxa de ocupação de um condomínio que não administra —
+mesmo sem nunca ver quem é o morador. **Corrigido** em
+`AdminMembershipsController.GetActiveMembershipByUnit`: antes de perguntar
+ao módulo Resident, resolve a unidade no módulo Condominium
+(`ICondominiumService.GetUnitAsync`, que SEMPRE checa escopo,
+independente de a unidade estar ocupada ou não) — unidade fora do escopo
+agora sempre lança `403` primeiro, ocupada ou vaga. Fechando o gap na
+camada certa (a Api, que é a única que conhece os dois módulos ao mesmo
+tempo), não no módulo Resident.
+
+**3. Defesa em profundidade — `AdminDashboardController` passava
+`targetCondominiumId` como argumento de escopo, não `scope.CondominiumId`.**
+Nas três chamadas a `ListUnitsAsync`/`ListByCondominiumAsync`, o controller
+passava `targetCondominiumId` (o condomínio que vai consultar) também como
+`scopeCondominiumId`, fazendo `EnsureScopeMatches` comparar o valor com ele
+mesmo — sempre verdadeiro. Inofensivo hoje, porque `targetCondominiumId` já
+é derivado do escopo real (`scope.CondominiumId ?? condominiumId`) antes
+dessas chamadas — um `CondominiumAdmin` nunca conseguia ver outro
+condomínio pelo dashboard mesmo antes desta correção (confirmado por um
+teste dedicado do harness de integração desta etapa). Mas o padrão de todo
+o resto do código é passar `scope.CondominiumId` (que é `null` para
+SuperAdmin) — este era o único lugar que fugia da convenção, o que deixa
+de demonstrar uma checagem de verdade e fica frágil a um refactor futuro.
+**Corrigido** para seguir a mesma convenção dos demais controllers admin.
+
+### Revisado e MANTIDO como está (não é bug, ou corrigir seria criar funcionalidade nova)
+
+- **Diretório de profissionais não filtra por condomínio** — "Diaristas"
+  mostra todo profissional ativo do sistema, não só quem atende o
+  condomínio do morador; o filtro de tenant só acontece na hora de agendar
+  (`ValidateAttendsCondominiumAsync`), então a experiência é "escolhe um
+  profissional que pode não atender seu prédio, descobre isso só ao tentar
+  agendar". Isso é uma decisão de escopo já documentada desde a Etapa 06 —
+  corrigi-la (adicionar um filtro por `condominiumId` ao diretório) seria
+  literalmente criar uma funcionalidade nova, fora do que o PROMPT 13
+  autorizou. Fica como recomendação para um prompt futuro.
+- **`BookingItem.ServiceCategoryId` não é validado contra os serviços que o
+  profissional realmente oferece** — decisão de escopo documentada desde a
+  Etapa 08 (validação client-side); não é um vazamento entre tenants
+  (nenhum dado de outro morador/condomínio é exposto), só uma referência
+  não validada. Mesma lógica acima: corrigir é funcionalidade nova.
+- **Membership Active do morador também só é validada na criação do
+  booking, não de novo em nenhum passo seguinte** — mesma forma do
+  problema 1 acima, mas do lado do morador; um vínculo bloqueado
+  DEPOIS de o agendamento já existir não impede o morador de, por
+  exemplo, cancelar o próprio agendamento (`BookingsController.Cancel`
+  não revalida). Diferente do problema 1, aqui não há um ganho indevido
+  claro (cancelar o próprio agendamento não beneficia um morador bloqueado
+  às custas de terceiros), então não foi tratado como bug — fica anotado
+  para o caso de uma etapa futura precisar de uma regra mais estrita aqui.
+- **Contagem "Moradores"/"Profissionais" do dashboard filtra por status
+  dentro do próprio controller** (`memberships.Count(m => m.Status ==
+  MembershipStatus.Active)`, mesma coisa para profissionais) em vez de
+  perguntar ao módulo correspondente "quantos ativos". Avaliado como
+  aceitável: o dashboard já recebe a lista completa (escopo já checado)
+  só para compor os seis números pedidos — nenhum outro lugar do sistema
+  reimplementa essa mesma contagem (não há duplicação/divergência real,
+  só uma agregação local de um valor de enum já público na resposta), e
+  este é o único endpoint cujo trabalho inteiro é agregar através de
+  módulos que não podem se enxergar. Criar um método
+  `CountActiveByCondominiumAsync` em cada módulo só para isso foi
+  considerado superengenharia para o ganho (moveria uma comparação de uma
+  linha, sem nenhum risco de divergência hoje).
+- **Cálculo de "está na janela de 24h antes do horário" dentro de
+  `BookingReminderBackgroundService`** (Etapa 11) usa aritmética de
+  `DateTime` diretamente na camada Api — não pertence a nenhum módulo
+  (Scheduling não sabe de lembretes, Notifications não sabe de
+  agendamentos), decisão já documentada na Etapa 11. Recomendação (não
+  aplicada, é só uma melhoria de testabilidade, não um bug de
+  autorização/multi-tenancy): extrair o predicado para um método estático
+  puro, testável sem precisar do `PeriodicTimer`.
+- **`EnsureScopeMatches`/`EnsureIsAdmin` duplicados em Condominium,
+  Resident, Professional e Recommendations, e os cinco `*RequesterRole`
+  enums / `GetXRequesterRole()` do `ClaimsPrincipalExtensions`** —
+  comparados byte a byte entre si nesta revisão: **nenhuma divergência**
+  encontrada em nenhum dos dois grupos. Tradeoff deliberado da
+  independência de módulos (Etapa 12), não um bug.
+
+### Testes de integração executados nesta etapa
+
+Sem acesso a NuGet (mesma limitação de sempre) para rodar os testes xUnit
+existentes contra Postgres real, a verificação desta etapa usou dois
+harnesses descartáveis (não fazem parte da entrega, só prova de trabalho):
+
+1. **Harness de camada Api** (mesma técnica da Etapa 12: um projeto
+   `Microsoft.NET.Sdk.Web` referenciando só as `*.Application.csproj` dos 9
+   módulos, compilando os arquivos reais de `Controllers/`, `Middleware/`
+   e `BackgroundServices/` contra o shared framework do ASP.NET Core) —
+   **0 erros/0 warnings** depois das três correções acima, confirmando que
+   nada foi quebrado nos outros 16+ controllers não tocados.
+2. **Harness de integração NOVO desta etapa**: um executável que instancia
+   os controllers `ProfessionalBookingsController` e
+   `AdminMembershipsController` REAIS, junto com os serviços de
+   Application REAIS de cada módulo envolvido, ligados aos TestDoubles em
+   memória que já existiam em cada `Application.Tests/` — ou seja,
+   exercita a composição de verdade (Api chamando múltiplos módulos em
+   sequência), não só cada módulo isolado. Dois cenários, 7 verificações:
+   - Cenário 1 (bug 1): cria profissional + vínculo Active + agendamento
+     Requested → admin bloqueia o vínculo → `Accept` precisa lançar
+     `ProfessionalDoesNotAttendCondominiumException` e o agendamento
+     precisa continuar `Requested` (não aceito) → controle: com o vínculo
+     Active de novo, `Accept` funciona normalmente (confirma que o fix não
+     quebrou o caminho feliz).
+   - Cenário 2 (bug 2): dois condomínios, cada um com uma unidade vaga →
+     admin do condomínio A chama `GetActiveMembershipByUnit` para a
+     unidade vaga do condomínio B → precisa lançar
+     `InsufficientPermissionsException` (403) → controle: a mesma chamada
+     para uma unidade vaga do PRÓPRIO condomínio A continua devolvendo
+     `200`/corpo vazio (confirma que o fix não quebrou o caminho feliz).
+   - Resultado: **7/7 passaram** depois das correções (e falhavam antes
+     delas, confirmado manualmente revertendo cada fix isoladamente
+     durante o desenvolvimento).
+3. `Domain`+`Application` dos 9 módulos — **0 erros/0 warnings** (sem
+   mudança nenhuma nesta etapa: nenhum arquivo de Domain foi tocado).
+
+### Escopo desta etapa
+
+Só 3 arquivos foram alterados — todos em `backend/src/Api/Alilu.Api/Controllers/`
+(`ProfessionalBookingsController.cs`, `AdminMembershipsController.cs`,
+`AdminDashboardController.cs`). Nenhum módulo, endpoint, tela ou campo
+novo foi criado; nenhuma migration nova é necessária (nenhuma mudança de
+schema). `admin-web` e `mobile` não precisaram de nenhuma alteração — os
+contratos de resposta dos endpoints tocados não mudaram, só o
+comportamento de autorização em cenários que já deveriam ter sido
+recusados.

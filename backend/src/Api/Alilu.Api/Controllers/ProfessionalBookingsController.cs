@@ -21,6 +21,21 @@ namespace Alilu.Api.Controllers;
 /// (<see cref="IProfessionalProfileService.GetMyProfileAsync"/>) antes de
 /// repassar o <c>professionalId</c> já resolvido para
 /// <see cref="IProfessionalBookingService"/>.
+///
+/// SEGUNDA COMPOSIÇÃO, adicionada na Etapa 13 (revisão de integração):
+/// <see cref="Accept"/> revalida "profissional deve atender o condomínio"
+/// (<see cref="IProfessionalDirectoryService.ValidateAttendsCondominiumAsync"/>)
+/// no momento de aceitar, não só na criação (<see cref="BookingsController.Create"/>).
+/// Sem isso, um administrador podia bloquear o vínculo profissional↔condomínio
+/// (<c>POST /api/admin/professional-condominiums/{id}/block</c>) DEPOIS que o
+/// morador já tinha criado a solicitação, e o profissional ainda conseguia
+/// aceitar (e iniciar/concluir) um atendimento num condomínio do qual foi
+/// removido — ver ARCHITECTURE.md, "Etapa 13". Deliberadamente não repetido em
+/// Start/Complete: um agendamento já Confirmed é um compromisso assumido com o
+/// morador; revalidar de novo ali poderia deixar o morador na mão no meio do
+/// atendimento por causa de uma decisão administrativa posterior — o ponto de
+/// controle é a decisão de ACEITAR um novo compromisso, não as etapas seguintes
+/// de um que já foi aceito.
 /// </summary>
 [ApiController]
 [Route("api/professional/bookings")]
@@ -28,6 +43,7 @@ namespace Alilu.Api.Controllers;
 public sealed class ProfessionalBookingsController(
     IProfessionalBookingService professionalBookingService,
     IProfessionalProfileService profileService,
+    IProfessionalDirectoryService professionalDirectoryService,
     INotificationDispatcher notificationDispatcher) : ControllerBase
 {
     /// <summary>React Native: ProfessionalRequestsScreen — "solicitações recebidas"; <paramref name="status"/> opcional filtra (ex.: <c>?status=Requested</c> só as pendentes).</summary>
@@ -55,6 +71,11 @@ public sealed class ProfessionalBookingsController(
     public async Task<ActionResult<BookingResponse>> Accept(Guid id, CancellationToken cancellationToken)
     {
         var professionalId = await ResolveMyProfessionalIdAsync(cancellationToken);
+
+        // REGRA CRÍTICA revalidada aqui (Etapa 13) — ver o doc comment da classe.
+        var pending = await professionalBookingService.GetMyRequestAsync(professionalId, id, cancellationToken);
+        await professionalDirectoryService.ValidateAttendsCondominiumAsync(professionalId, pending.CondominiumId, cancellationToken);
+
         var booking = await professionalBookingService.AcceptAsync(professionalId, id, cancellationToken);
 
         // EVENTO "agendamento aceito" (PROMPT 11) — para o morador.

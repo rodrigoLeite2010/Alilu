@@ -77,16 +77,27 @@ public sealed class AdminDashboardController(
 
         var targetCondominiumId = scope.CondominiumId ?? condominiumId!.Value;
 
+        // CORREÇÃO (Etapa 13): passar `scope.CondominiumId` (não
+        // `targetCondominiumId`) como argumento de escopo em cada chamada —
+        // mesma convenção de TODOS os outros controllers admin. Antes,
+        // `targetCondominiumId` era passado nas duas posições, o que faz
+        // `EnsureScopeMatches` comparar o valor com ele mesmo (sempre
+        // verdadeiro) — inofensivo hoje porque `targetCondominiumId` já é
+        // derivado do escopo real na linha acima, mas deixa de demonstrar
+        // uma checagem de verdade; se um dia a lista devolvida por um desses
+        // métodos passar a depender do parâmetro de escopo (e não só do
+        // `condominiumId`), este ponto de chamada silenciosamente deixaria de
+        // estar protegido. Ver ARCHITECTURE.md, "Etapa 13".
         var units = await condominiumService.ListUnitsAsync(
-            User.GetCondominiumRequesterRole(), targetCondominiumId, targetCondominiumId, cancellationToken);
+            User.GetCondominiumRequesterRole(), targetCondominiumId, scope.CondominiumId, cancellationToken);
 
         var memberships = await membershipAdministrationService.ListByCondominiumAsync(
-            User.GetResidentRequesterRole(), targetCondominiumId, targetCondominiumId, cancellationToken);
+            User.GetResidentRequesterRole(), targetCondominiumId, scope.CondominiumId, cancellationToken);
         var pendingMemberships = await membershipAdministrationService.ListPendingAsync(
             User.GetResidentRequesterRole(), targetCondominiumId, cancellationToken);
 
         var professionalCondominiums = await professionalAdministrationService.ListByCondominiumAsync(
-            User.GetProfessionalRequesterRole(), targetCondominiumId, targetCondominiumId, cancellationToken);
+            User.GetProfessionalRequesterRole(), targetCondominiumId, scope.CondominiumId, cancellationToken);
         var pendingProfessionalCondominiums = await professionalAdministrationService.ListPendingCondominiumRequestsAsync(
             User.GetProfessionalRequesterRole(), targetCondominiumId, cancellationToken);
 

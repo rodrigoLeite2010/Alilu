@@ -97,3 +97,15 @@ Todo método de `IMembershipAdministrationService` ganhou um
 `GetActiveByUnitAsync` ("Unidades: visualizar morador vinculado" — nunca
 lança por "não encontrado", unidade vaga é uma resposta válida). Ver
 ARCHITECTURE.md, "Etapa 12".
+
+## Correção de integração (Etapa 13)
+
+`GetActiveByUnitAsync` sozinho não tem como recusar por escopo uma unidade
+vaga (não há vínculo nenhum cujo `CondominiumId` comparar, e este módulo
+não conhece o módulo Condominium para descobrir de quem é a unidade) — um
+`CondominiumAdmin` conseguia usar "vaga vs. bloqueada por escopo" como
+oráculo para descobrir ocupação de unidades de OUTRO condomínio. Nenhuma
+mudança neste módulo: a correção ficou na Api
+(`AdminMembershipsController`), que agora sempre resolve a unidade no
+módulo Condominium primeiro (que SEMPRE checa escopo, ocupada ou não) antes
+de perguntar a este módulo. Ver ARCHITECTURE.md, "Etapa 13".

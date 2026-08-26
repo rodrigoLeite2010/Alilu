@@ -83,3 +83,13 @@ novo não é "administrar o MEU condomínio"). Três métodos novos para
 "Unidades: editar/bloquear/visualizar" (`EditUnitAsync`/`BlockUnitAsync`/
 `GetUnitAsync`). Ver ARCHITECTURE.md, "Etapa 12", para o design completo
 do padrão de escopo repetido neste e em mais quatro módulos.
+
+## Correção de integração (Etapa 13)
+
+`GetUnitAsync` ganhou um segundo consumidor: `AdminMembershipsController`
+(módulo Resident/Etapa 12) agora chama este método ANTES de perguntar ao
+Resident se a unidade tem morador ativo — porque `GetUnitAsync` sempre
+checa escopo (unidade ocupada ou vaga), o que fecha um oráculo de
+ocupação que existia quando só o Resident, sozinho, decidia o que
+recusar (ver `Resident/README.md` e ARCHITECTURE.md, "Etapa 13"). Nenhuma
+mudança de código neste módulo.

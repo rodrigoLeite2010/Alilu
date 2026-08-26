@@ -1,4 +1,5 @@
 using Alilu.Modules.Administration.Application;
+using Alilu.Modules.Condominium.Application;
 using Alilu.Modules.Identity.Application;
 using Alilu.Modules.Notifications.Application;
 using Alilu.Modules.Notifications.Domain;
@@ -35,6 +36,7 @@ namespace Alilu.Api.Controllers;
 [Authorize(Roles = "CondominiumAdmin,SuperAdmin")]
 public sealed class AdminMembershipsController(
     IMembershipAdministrationService membershipAdministrationService,
+    ICondominiumService condominiumService,
     INotificationDispatcher notificationDispatcher,
     IAdminScopeService adminScopeService,
     IAuthService authService) : ControllerBase
@@ -71,13 +73,33 @@ public sealed class AdminMembershipsController(
         return Ok(composed[0]);
     }
 
-    /// <summary>"Unidades: visualizar morador vinculado" (PROMPT 12) — devolve <c>null</c> (200 com corpo vazio) quando a unidade está vaga, nunca 404.</summary>
+    /// <summary>
+    /// "Unidades: visualizar morador vinculado" (PROMPT 12) — devolve <c>null</c>
+    /// (200 com corpo vazio) quando a unidade está vaga, nunca 404.
+    ///
+    /// CORREÇÃO (Etapa 13): antes de perguntar ao módulo Resident se há
+    /// vínculo Active, resolve a unidade no módulo Condominium
+    /// (<see cref="ICondominiumService.GetUnitAsync"/>), que SEMPRE checa o
+    /// escopo — inclusive quando a unidade está vaga. Sem isso, o módulo
+    /// Resident não tem como saber a que condomínio a unidade pertence
+    /// quando não existe vínculo nenhum (só compara escopo contra o
+    /// <c>CondominiumId</c> do vínculo encontrado), e um <c>CondominiumAdmin</c>
+    /// conseguia usar "vago vs. bloqueado por escopo" como oráculo para
+    /// descobrir a ocupação de unidades de OUTRO condomínio — ver
+    /// ARCHITECTURE.md, "Etapa 13".
+    /// </summary>
     [HttpGet("units/{unitId:guid}/active-membership")]
     public async Task<ActionResult<MembershipAdminResponse?>> GetActiveMembershipByUnit(
         Guid unitId,
         CancellationToken cancellationToken)
     {
         var scope = await ResolveScopeAsync(cancellationToken);
+
+        // Lança 404 (unidade inexistente) ou 403 (fora do escopo) ANTES de
+        // qualquer pergunta ao módulo Resident — fecha o oráculo acima.
+        await condominiumService.GetUnitAsync(
+            User.GetCondominiumRequesterRole(), unitId, scope.CondominiumId, cancellationToken);
+
         var membership = await membershipAdministrationService.GetActiveByUnitAsync(
             User.GetResidentRequesterRole(), unitId, scope.CondominiumId, cancellationToken);
 
