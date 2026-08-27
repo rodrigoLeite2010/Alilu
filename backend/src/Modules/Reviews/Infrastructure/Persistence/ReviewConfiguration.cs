@@ -46,7 +46,7 @@ public sealed class ReviewConfiguration : IEntityTypeConfiguration<Review>
         // nomes do EF Core — os nomes de coluna ficam exatamente como estão
         // em C# (PascalCase).
         builder.HasIndex(r => new { r.ResidentId, r.ProfessionalId })
-            .HasFilter(""BookingId" IS NULL")
+            .HasFilter("\"BookingId\" IS NULL")
             .IsUnique();
 
         // Consultas de listagem self-service (ReviewScreen "avaliações

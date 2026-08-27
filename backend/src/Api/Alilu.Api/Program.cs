@@ -10,6 +10,7 @@ using Alilu.Modules.Condominium.Infrastructure;
 using Alilu.Modules.Condominium.Infrastructure.Seed;
 using Alilu.Modules.Identity.Infrastructure;
 using Alilu.Modules.Identity.Infrastructure.Seed;
+using Alilu.Modules.Mural.Infrastructure;
 using Alilu.Modules.Notifications.Infrastructure;
 using Alilu.Modules.Professional.Infrastructure;
 using Alilu.Modules.Professional.Infrastructure.Seed;
