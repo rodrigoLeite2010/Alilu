@@ -1,5 +1,11 @@
 import { api } from '../../services/api';
-import type { Condominium, CondominiumUnit, CreateUnitPayload, EditUnitPayload } from './types';
+import type {
+  Condominium,
+  CondominiumUnit,
+  CreateCondominiumPayload,
+  CreateUnitPayload,
+  EditUnitPayload,
+} from './types';
 
 const BASE_PATH = '/api/admin/condominiums';
 
@@ -7,6 +13,11 @@ const BASE_PATH = '/api/admin/condominiums';
 export const condominiumApi = {
   list() {
     return api.get<Condominium[]>(BASE_PATH).then((response) => response.data);
+  },
+
+  /** SuperAdmin-only no backend (ver CondominiumsController.Create) — a Application rejeita com 403 se um CondominiumAdmin chamar. */
+  create(payload: CreateCondominiumPayload) {
+    return api.post<Condominium>(BASE_PATH, payload).then((response) => response.data);
   },
 
   listUnits(condominiumId: string) {

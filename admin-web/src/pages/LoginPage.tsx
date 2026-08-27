@@ -45,33 +45,56 @@ export function LoginPage() {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        background: 'var(--alilu-brand-primary)',
+        background:
+          'radial-gradient(circle at 20% 20%, rgba(176,141,87,0.12), transparent 45%), var(--alilu-brand-primary)',
+        padding: 16,
       }}
     >
       <form
         onSubmit={(event) => void handleSubmit(event)}
         className="card"
-        style={{ width: 360, display: 'flex', flexDirection: 'column', gap: 16 }}
+        style={{ width: 380, display: 'flex', flexDirection: 'column', gap: 18, boxShadow: 'var(--shadow-md)' }}
       >
-        <div>
-          <h1 style={{ fontSize: 24 }}>ALILU</h1>
-          <p style={{ color: 'var(--text-muted)', fontSize: 14, margin: 0 }}>
-            Painel administrativo — CondominiumAdmin/SuperAdmin
-          </p>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div
+            aria-hidden
+            style={{
+              width: 40,
+              height: 40,
+              borderRadius: 10,
+              background: 'var(--alilu-brand-accent)',
+              color: 'var(--alilu-neutral-900)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontWeight: 700,
+              fontSize: 18,
+              flexShrink: 0,
+            }}
+          >
+            A
+          </div>
+          <div>
+            <h1 style={{ fontSize: 22, margin: 0 }}>ALILU</h1>
+            <p style={{ color: 'var(--text-muted)', fontSize: 13, margin: 0 }}>
+              Painel administrativo — CondominiumAdmin/SuperAdmin
+            </p>
+          </div>
         </div>
 
-        <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 14 }}>
+        <label style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 14, fontWeight: 500 }}>
           E-mail
           <input
             type="email"
             required
+            autoFocus
             autoComplete="username"
             value={email}
             onChange={(event) => setEmail(event.target.value)}
           />
         </label>
 
-        <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 14 }}>
+        <label style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 14, fontWeight: 500 }}>
           Senha
           <input
             type="password"
@@ -83,12 +106,13 @@ export function LoginPage() {
         </label>
 
         {error && (
-          <p style={{ color: 'var(--alilu-error)', fontSize: 14, margin: 0 }} role="alert">
+          <div className="error-banner" role="alert" style={{ marginBottom: 0 }}>
             {error}
-          </p>
+          </div>
         )}
 
-        <button type="submit" className="btn" disabled={isSubmitting}>
+        <button type="submit" className="btn" disabled={isSubmitting} style={{ padding: '11px 16px' }}>
+          {isSubmitting && <span className="spinner" aria-hidden />}
           {isSubmitting ? 'Entrando…' : 'Entrar'}
         </button>
       </form>

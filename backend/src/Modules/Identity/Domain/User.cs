@@ -81,6 +81,42 @@ public sealed class User : AggregateRoot
         return new User(Guid.NewGuid(), name.Trim(), email, phone?.Trim(), passwordHash, role);
     }
 
+    /// <summary>
+    /// Cria um usuário com papel administrativo (<see cref="UserRole.CondominiumAdmin"/>
+    /// ou <see cref="UserRole.SuperAdmin"/>) — o espelho de <see cref="Register"/>:
+    /// aquele método só aceita Resident/Professional, este só aceita os dois
+    /// papéis administrativos. Nunca é chamado a partir do autocadastro
+    /// público (não existe endpoint que exponha isto a um usuário anônimo);
+    /// hoje só é usado pelo bootstrap do primeiro SuperAdmin (Etapa 16 —
+    /// ver <c>Identity.Infrastructure.Seed.SuperAdminBootstrapper</c>), que
+    /// roda a partir de configuração de servidor, nunca de entrada HTTP.
+    /// </summary>
+    public static User CreateAdministrative(string name, Email email, string? phone, string passwordHash, UserRole role)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            throw new DomainException("O nome não pode ser vazio.");
+        }
+
+        if (name.Length > 200)
+        {
+            throw new DomainException("O nome não pode ter mais de 200 caracteres.");
+        }
+
+        if (string.IsNullOrWhiteSpace(passwordHash))
+        {
+            throw new DomainException("O usuário precisa de uma senha.");
+        }
+
+        if (role is not (UserRole.CondominiumAdmin or UserRole.SuperAdmin))
+        {
+            throw new DomainException(
+                "Este método só cria usuários com papel administrativo (CondominiumAdmin ou SuperAdmin).");
+        }
+
+        return new User(Guid.NewGuid(), name.Trim(), email, phone?.Trim(), passwordHash, role);
+    }
+
     public bool IsActive => Status == UserStatus.Active;
 
     public void ChangePasswordHash(string newPasswordHash)

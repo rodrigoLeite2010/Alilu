@@ -96,13 +96,15 @@ export function ProfissionaisPage() {
   );
 
   if (!selected) {
-    return <p>Selecione um condomínio.</p>;
+    return <div className="empty-state">Selecione um condomínio.</div>;
   }
 
   return (
     <div>
-      <h1>Profissionais</h1>
-      <p style={{ color: 'var(--text-muted)', marginBottom: 16 }}>{selected.name}</p>
+      <div className="page-title">
+        <h1>Profissionais</h1>
+        <p>{selected.name}</p>
+      </div>
 
       <form
         onSubmit={(event) => void handleAssociate(event)}
@@ -131,14 +133,28 @@ export function ProfissionaisPage() {
         </button>
       </form>
 
-      {isLoading && <p>Carregando…</p>}
-      {error && <p style={{ color: 'var(--alilu-error)' }}>{error}</p>}
-      {actionError && <p style={{ color: 'var(--alilu-error)' }}>{actionError}</p>}
+      {isLoading && (
+        <div className="loading-row">
+          <span className="spinner" aria-hidden /> Carregando…
+        </div>
+      )}
+      {error && (
+        <div className="error-banner" role="alert">
+          {error}
+        </div>
+      )}
+      {actionError && (
+        <div className="error-banner" role="alert">
+          {actionError}
+        </div>
+      )}
 
-      {!isLoading && links.length === 0 && !error && <p>Nenhum profissional vinculado a este condomínio ainda.</p>}
+      {!isLoading && links.length === 0 && !error && (
+        <div className="empty-state">Nenhum profissional vinculado a este condomínio ainda.</div>
+      )}
 
       {links.length > 0 && (
-        <div className="card" style={{ overflowX: 'auto' }}>
+        <div className="card table-wrap">
           <table>
             <thead>
               <tr>

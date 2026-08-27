@@ -8,6 +8,7 @@ using Alilu.Modules.Administration.Infrastructure;
 using Alilu.Modules.Condominium.Infrastructure;
 using Alilu.Modules.Condominium.Infrastructure.Seed;
 using Alilu.Modules.Identity.Infrastructure;
+using Alilu.Modules.Identity.Infrastructure.Seed;
 using Alilu.Modules.Notifications.Infrastructure;
 using Alilu.Modules.Professional.Infrastructure;
 using Alilu.Modules.Professional.Infrastructure.Seed;
@@ -186,6 +187,18 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+
+// Bootstrap do primeiro SuperAdmin (Etapa 16) — diferente dos seeds de
+// Development abaixo, este roda em QUALQUER ambiente: é o único jeito de
+// sair do zero em produção sem um UPDATE manual no banco. Só age de fato
+// se 'Bootstrap:SuperAdminEmail'/'Bootstrap:SuperAdminPassword' estiverem
+// configurados (vazios por padrão — ver appsettings); sem eles, é um
+// no-op silencioso em todo ambiente. Idempotente (ver SuperAdminBootstrapper).
+using (var bootstrapScope = app.Services.CreateScope())
+{
+    var superAdminBootstrapper = bootstrapScope.ServiceProvider.GetRequiredService<ISuperAdminBootstrapper>();
+    await superAdminBootstrapper.BootstrapAsync();
+}
 
 // Seed de desenvolvimento (PROMPT 04): condomínio "Monte Carlo" + unidades
 // fictícias. Só roda em Development — nunca em produção — e é idempotente

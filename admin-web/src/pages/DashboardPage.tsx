@@ -53,26 +53,44 @@ export function DashboardPage() {
   }, [selected]);
 
   if (isLoadingScope) {
-    return <p>Carregando…</p>;
+    return (
+      <div className="loading-row">
+        <span className="spinner" aria-hidden /> Carregando…
+      </div>
+    );
   }
 
   if (scopeError) {
-    return <p style={{ color: 'var(--alilu-error)' }}>{scopeError}</p>;
+    return (
+      <div className="error-banner" role="alert">
+        {scopeError}
+      </div>
+    );
   }
 
   if (!selected) {
-    return <p>Nenhum condomínio cadastrado ainda.</p>;
+    return <div className="empty-state">Nenhum condomínio cadastrado ainda.</div>;
   }
 
   return (
     <div>
-      <h1>{selected.name}</h1>
-      <p style={{ color: 'var(--text-muted)', marginBottom: 24 }}>
-        {selected.city} — {selected.state}
-      </p>
+      <div className="page-title">
+        <h1>{selected.name}</h1>
+        <p>
+          {selected.city} — {selected.state}
+        </p>
+      </div>
 
-      {isLoading && <p>Carregando dashboard…</p>}
-      {error && <p style={{ color: 'var(--alilu-error)' }}>{error}</p>}
+      {isLoading && (
+        <div className="loading-row">
+          <span className="spinner" aria-hidden /> Carregando dashboard…
+        </div>
+      )}
+      {error && (
+        <div className="error-banner" role="alert">
+          {error}
+        </div>
+      )}
 
       {dashboard && (
         <div
@@ -83,9 +101,9 @@ export function DashboardPage() {
           }}
         >
           {CARDS.map((card) => (
-            <div key={card.key} className="card">
-              <div style={{ fontSize: 32, fontWeight: 700 }}>{dashboard[card.key]}</div>
-              <div style={{ color: 'var(--text-secondary)', fontSize: 14 }}>{card.label}</div>
+            <div key={card.key} className="card stat-card">
+              <div className="stat-card__value">{dashboard[card.key]}</div>
+              <div className="stat-card__label">{card.label}</div>
             </div>
           ))}
         </div>

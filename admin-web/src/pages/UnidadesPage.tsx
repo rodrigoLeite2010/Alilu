@@ -118,13 +118,15 @@ export function UnidadesPage() {
   }
 
   if (!selected) {
-    return <p>Selecione um condomínio.</p>;
+    return <div className="empty-state">Selecione um condomínio.</div>;
   }
 
   return (
     <div>
-      <h1>Unidades</h1>
-      <p style={{ color: 'var(--text-muted)', marginBottom: 16 }}>{selected.name}</p>
+      <div className="page-title">
+        <h1>Unidades</h1>
+        <p>{selected.name}</p>
+      </div>
 
       <form
         onSubmit={(event) => void handleCreate(event)}
@@ -150,14 +152,26 @@ export function UnidadesPage() {
         </button>
       </form>
 
-      {isLoading && <p>Carregando…</p>}
-      {error && <p style={{ color: 'var(--alilu-error)' }}>{error}</p>}
-      {actionError && <p style={{ color: 'var(--alilu-error)' }}>{actionError}</p>}
+      {isLoading && (
+        <div className="loading-row">
+          <span className="spinner" aria-hidden /> Carregando…
+        </div>
+      )}
+      {error && (
+        <div className="error-banner" role="alert">
+          {error}
+        </div>
+      )}
+      {actionError && (
+        <div className="error-banner" role="alert">
+          {actionError}
+        </div>
+      )}
 
-      {!isLoading && units.length === 0 && !error && <p>Nenhuma unidade cadastrada ainda.</p>}
+      {!isLoading && units.length === 0 && !error && <div className="empty-state">Nenhuma unidade cadastrada ainda.</div>}
 
       {units.length > 0 && (
-        <div className="card" style={{ overflowX: 'auto' }}>
+        <div className="card table-wrap">
           <table>
             <thead>
               <tr>

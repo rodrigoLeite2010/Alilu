@@ -35,3 +35,15 @@ export interface EditUnitPayload {
   code: string;
   type: UnitType;
 }
+
+/** Espelha `CreateCondominiumRequest` — POST /api/admin/condominiums é SuperAdmin-only (ver CondominiumsController.Create). */
+export interface CreateCondominiumPayload {
+  name: string;
+  cnpj: string;
+  address: string;
+  number: string;
+  neighborhood: string;
+  city: string;
+  state: string;
+  zipCode: string;
+}

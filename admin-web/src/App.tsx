@@ -4,6 +4,7 @@ import { Layout } from './components/Layout';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { AuthProvider } from './modules/auth/AuthProvider';
 import { CondominiumScopeProvider } from './modules/condominium/CondominiumScopeContext';
+import { CondominiosPage } from './pages/CondominiosPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { LoginPage } from './pages/LoginPage';
 import { MoradoresPage } from './pages/MoradoresPage';
@@ -30,6 +31,7 @@ function App() {
                 <Layout>
                   <Routes>
                     <Route path="/" element={<DashboardPage />} />
+                    <Route path="/condominios" element={<CondominiosPage />} />
                     <Route path="/moradores" element={<MoradoresPage />} />
                     <Route path="/unidades" element={<UnidadesPage />} />
                     <Route path="/profissionais" element={<ProfissionaisPage />} />

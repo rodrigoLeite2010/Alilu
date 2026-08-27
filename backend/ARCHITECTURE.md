@@ -3234,3 +3234,80 @@ Arquivos alterados/criados:
 Nenhuma migration nova foi gerada (sem mudança de mapeamento EF Core
 nesta etapa — só configuração). Nenhum comando de deploy/build foi
 executado.
+
+## Etapa 16 — Bootstrap do SuperAdmin, tela de condomínios e acerto das lacunas do FLUXOS-DE-USO.md
+
+Ad hoc (fora da sequência numerada de PROMPTs): depois de descrever os
+fluxos completos de morador/profissional/admin em `FLUXOS-DE-USO.md`
+(entregue a pedido de Rodrigo), ele pediu para resolver todas as lacunas
+ali listadas. Investigação primeiro, como sempre: das 6 lacunas
+apontadas, 3 já não existiam mais (ver "O que já estava resolvido"
+abaixo) — só 2 pediam código novo, e 1 seguiu fora do alcance deste
+ambiente (ver "O que ficou fora").
+
+### O que já estava resolvido (nenhuma ação necessária)
+
+- **Migrations dos 6 módulos que faltavam** (Professional, Scheduling,
+  Reviews, Recommendations, Notifications, Administration): o próprio
+  Rodrigo já as havia gerado na própria máquina (`AddProfessionalModule`
+  até `AddAdministrationModule`, todas datadas do mesmo dia), usando os
+  comandos `dotnet ef migrations add` passados durante a troubleshooting
+  anterior a esta etapa. Copiadas do `C:\Alilu` real dele (via a ponte de
+  dispositivo) para este repositório, só para manter os dois lados em
+  paridade de schema.
+- **Edição de perfil/portfólio do profissional**: o `FLUXOS-DE-USO.md`
+  listava isso como lacuna por engano — `Professional` (Domain) já tem
+  `DisplayName`/`Description`/`Phone`/`PhotoUrl` com `UpdateProfile`, mais
+  `ProfessionalService` para vincular especialidades (categorias de
+  serviço), e o mobile já tem `ProfessionalEditScreen.tsx` implementada
+  desde o PROMPT 06/07. Nenhum código novo — só correção do documento.
+
+### SuperAdmin bootstrap (`Identity.Infrastructure.Seed.SuperAdminBootstrapper`)
+
+Ver `Modules/Identity/README.md`, seção "Bootstrap do primeiro SuperAdmin
+(Etapa 16)", para o racional completo. Resumo: `User.CreateAdministrative`
+(novo factory no Domain, espelho de `User.Register` — só aceita
+`CondominiumAdmin`/`SuperAdmin`) + `SuperAdminBootstrapper` (novo serviço
+de Infrastructure, chamado em `Program.cs` em QUALQUER ambiente, antes dos
+seeds de Development) criam o primeiro SuperAdmin a partir de
+`Bootstrap:SuperAdminEmail`/`Bootstrap:SuperAdminPassword` — vazios por
+padrão em todo appsettings (mesma filosofia de secret-via-variável-de-
+ambiente de `Jwt:Secret`), idempotente, nunca promove uma conta existente
+com outro papel. `appsettings.Development.json` ganhou um valor de
+desenvolvimento pronto (`superadmin@alilu.dev` / `SuperAdmin123!`).
+
+Verificação real: como de costume neste sandbox (ver "Metodologia" da
+Etapa 15), `Alilu.Api`/`Infrastructure` não compilam aqui (sem acesso a
+NuGet — `Npgsql`, `Microsoft.Extensions.Options`, etc.). Mas
+`Identity.Domain` não depende de nenhum pacote externo (só
+`Alilu.Shared`), então compilou de verdade (`dotnet build`, 0 erros) e foi
+exercitado por um console descartável com 8 checks: `CreateAdministrative`
+aceita SuperAdmin e CondominiumAdmin, rejeita Resident/Professional/nome
+vazio/hash vazio, e `Register` (autocadastro) continua exatamente como
+antes (aceita Resident, rejeita SuperAdmin) — os 8 passaram.
+
+### Tela de condomínios no admin-web (`CondominiosPage.tsx`)
+
+Faltava uma UI para `POST /api/admin/condominiums` (SuperAdmin-only, já
+existia desde o PROMPT 04 — só nunca teve tela). Nova página com
+formulário (todos os campos de `CreateCondominiumRequest`: nome, CNPJ,
+endereço, número, bairro, cidade, UF, CEP) + tabela dos condomínios já
+cadastrados; visível no menu só para SuperAdmin (`NAV_ITEMS` ganhou
+`adminOnly: true`, filtrado por `user.role`); um CondominiumAdmin que
+tentasse acessar a rota vê uma mensagem explicando que só o SuperAdmin
+cadastra condomínios novos, em vez de bater num 403 sem explicação. Ao
+criar, chama `reload()` do `CondominiumScopeProvider` para o novo
+condomínio aparecer no seletor do cabeçalho sem precisar de F5. Erros de
+validação do backend (CNPJ com dígito verificador inválido, UF fora do
+padrão, CEP com menos de 8 dígitos — todos `DomainException`, que a
+`ExceptionHandlingMiddleware` já mapeia para 400 com a mensagem original)
+são repassados ao usuário em vez de uma mensagem genérica, dado quanto
+esse formulário tem campo validável.
+
+Verificado com `tsc -b` (0 erros) e `vite build` (build de produção OK).
+
+### O que ficou fora desta etapa
+
+- **Build EAS de verdade** e **configuração do Android Studio/emulador**:
+  dependem da conta/máquina do próprio Rodrigo, fora do alcance deste
+  ambiente — sem mudança aqui.

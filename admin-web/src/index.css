@@ -5,6 +5,18 @@
  * morador/profissional. Suporta claro/escuro via `prefers-color-scheme`
  * (o app mobile não precisou disso — aqui é a primeira vez que o ALILU
  * roda num browser).
+ *
+ * Revisão de design (troubleshooting pós-Etapa 15): o modo escuro tinha um
+ * bug real de contraste — texto sobre fundo escuro, quase ilegível na
+ * sidebar e nos botões primários. A causa: `--text-inverse` era
+ * redefinido dentro do media query de modo escuro, mas os únicos
+ * elementos que o usam (sidebar, botão primário) têm fundo fixo
+ * (`--alilu-brand-primary`), que NÃO muda com o tema — então "inverter"
+ * esse texto junto com o tema produzia texto escuro sobre fundo escuro.
+ * Corrigido introduzindo `--text-on-brand`: um token de intenção clara
+ * ("texto sobre a cor de marca, sempre clara") definido uma única vez e
+ * nunca redefinido no modo escuro. Aproveitado para also elevar o
+ * restante do design system (espaçamento, sombras, foco, transições).
  */
 :root {
   --alilu-brand-primary: #1b2733;
@@ -29,11 +41,31 @@
   --bg: var(--alilu-neutral-50);
   --surface: #ffffff;
   --surface-alt: var(--alilu-neutral-100);
+  --surface-hover: var(--alilu-neutral-100);
   --border: var(--alilu-neutral-200);
   --text-primary: var(--alilu-brand-primary);
   --text-secondary: var(--alilu-neutral-600);
   --text-muted: var(--alilu-neutral-500);
-  --text-inverse: var(--alilu-neutral-50);
+
+  /* Texto sobre a cor de marca (sidebar, botão primário) — a cor de marca
+     em si é fixa nos dois temas, então este token TAMBÉM é fixo. Nunca
+     redefinir dentro do media query de modo escuro (ver comentário acima). */
+  --text-on-brand: var(--alilu-neutral-50);
+
+  --shadow-sm: 0 1px 2px rgba(23, 22, 21, 0.06), 0 1px 1px rgba(23, 22, 21, 0.04);
+  --shadow-md: 0 8px 24px rgba(23, 22, 21, 0.10), 0 2px 6px rgba(23, 22, 21, 0.06);
+  --focus-ring: 0 0 0 3px rgba(176, 141, 87, 0.35);
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
 
   color-scheme: light;
   font-family:
@@ -44,7 +76,9 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
-* {
+*,
+*::before,
+*::after {
   box-sizing: border-box;
 }
 
@@ -53,6 +87,9 @@ body {
   min-height: 100vh;
   background: var(--bg);
   color: var(--text-primary);
+  font-size: 15px;
+  line-height: 1.5;
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 #root {
@@ -62,9 +99,19 @@ body {
 h1,
 h2,
 h3 {
-  font-weight: 600;
+  font-weight: 700;
+  letter-spacing: -0.01em;
   color: var(--text-primary);
-  margin: 0 0 8px;
+  margin: 0 0 var(--space-1);
+}
+
+h1 {
+  font-size: 22px;
+}
+
+p {
+  margin: 0 0 var(--space-2);
+  color: var(--text-secondary);
 }
 
 a {
@@ -76,6 +123,12 @@ button {
   cursor: pointer;
 }
 
+:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-radius: var(--radius-sm);
+}
+
 table {
   border-collapse: collapse;
   width: 100%;
@@ -84,38 +137,78 @@ table {
 th,
 td {
   text-align: left;
-  padding: 10px 12px;
+  padding: var(--space-3) var(--space-4);
   border-bottom: 1px solid var(--border);
   font-size: 14px;
 }
 
-th {
-  color: var(--text-secondary);
-  font-weight: 600;
+thead th {
+  color: var(--text-muted);
+  font-weight: 700;
   text-transform: uppercase;
-  font-size: 12px;
-  letter-spacing: 0.04em;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  background: var(--surface-alt);
+  border-bottom: 1px solid var(--border);
+}
+
+tbody tr {
+  transition: background-color 0.12s ease;
+}
+
+tbody tr:hover {
+  background: var(--surface-hover);
+}
+
+tbody tr:last-child td {
+  border-bottom: none;
 }
 
 input,
 select {
   font-family: inherit;
   font-size: 14px;
-  padding: 8px 10px;
+  padding: 9px 12px;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: var(--surface);
   color: var(--text-primary);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+input:hover,
+select:hover {
+  border-color: var(--alilu-neutral-400);
+}
+
+input:focus-visible,
+select:focus-visible {
+  border-color: var(--alilu-brand-accent);
 }
 
 .btn {
   border: 1px solid transparent;
-  border-radius: 6px;
-  padding: 8px 14px;
+  border-radius: var(--radius-sm);
+  padding: 9px 16px;
   font-size: 14px;
   font-weight: 600;
   background: var(--alilu-brand-primary);
-  color: var(--text-inverse);
+  color: var(--text-on-brand);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  transition: filter 0.15s ease, box-shadow 0.15s ease, transform 0.05s ease;
+  white-space: nowrap;
+}
+
+.btn:not(:disabled):hover {
+  filter: brightness(1.12);
+  box-shadow: var(--shadow-sm);
+}
+
+.btn:not(:disabled):active {
+  transform: translateY(1px);
 }
 
 .btn:disabled {
@@ -129,6 +222,12 @@ select {
   color: var(--text-primary);
 }
 
+.btn-secondary:not(:disabled):hover {
+  filter: none;
+  background: var(--surface-alt);
+  box-shadow: none;
+}
+
 .btn-danger {
   background: var(--alilu-error);
 }
@@ -139,13 +238,24 @@ select {
 }
 
 .badge {
-  display: inline-block;
-  padding: 2px 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
   border-radius: 999px;
   font-size: 12px;
   font-weight: 600;
   background: var(--surface-alt);
   color: var(--text-secondary);
+}
+
+.badge::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: currentColor;
+  flex-shrink: 0;
 }
 
 .badge-success {
@@ -166,8 +276,128 @@ select {
 .card {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 16px;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  padding: var(--space-4);
+}
+
+.stat-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  transition: box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+.stat-card:hover {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-1px);
+}
+
+.stat-card__value {
+  font-size: 30px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+}
+
+.stat-card__label {
+  font-size: 13px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.nav-link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 10px;
+  border-radius: 8px;
+  text-decoration: none;
+  color: var(--text-on-brand);
+  font-weight: 500;
+  font-size: 14px;
+  transition: background-color 0.12s ease;
+}
+
+.nav-link:hover {
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.nav-link--active,
+.nav-link--active:hover {
+  background: rgba(255, 255, 255, 0.14);
+  font-weight: 600;
+}
+
+.page-title {
+  margin-bottom: var(--space-5);
+}
+
+.page-title h1 {
+  margin-bottom: 2px;
+}
+
+.page-title p {
+  margin: 0;
+  font-size: 14px;
+}
+
+.card.table-wrap {
+  overflow-x: auto;
+  padding: 0;
+}
+
+.table-wrap table {
+  min-width: 100%;
+}
+
+.empty-state {
+  text-align: center;
+  padding: var(--space-6) var(--space-5);
+  color: var(--text-muted);
+  background: var(--surface);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-lg);
+  font-size: 14px;
+}
+
+.error-banner {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  background: rgba(166, 71, 59, 0.1);
+  color: var(--alilu-error);
+  font-size: 14px;
+  margin-bottom: var(--space-3);
+}
+
+.spinner {
+  display: inline-block;
+  width: 15px;
+  height: 15px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 999px;
+  opacity: 0.85;
+  animation: alilu-spin 0.6s linear infinite;
+  vertical-align: middle;
+}
+
+.loading-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--text-muted);
+  font-size: 14px;
+  padding: var(--space-4) 0;
+}
+
+@keyframes alilu-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 @media (prefers-color-scheme: dark) {
@@ -176,10 +406,17 @@ select {
     --bg: var(--alilu-neutral-900);
     --surface: var(--alilu-neutral-800);
     --surface-alt: var(--alilu-neutral-700);
+    --surface-hover: var(--alilu-neutral-700);
     --border: var(--alilu-neutral-700);
     --text-primary: var(--alilu-neutral-50);
     --text-secondary: var(--alilu-neutral-300);
     --text-muted: var(--alilu-neutral-400);
-    --text-inverse: var(--alilu-neutral-900);
+    /* --text-on-brand NÃO é redefinido aqui — ver comentário no topo do arquivo. */
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3), 0 1px 1px rgba(0, 0, 0, 0.2);
+    --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.4), 0 2px 6px rgba(0, 0, 0, 0.25);
+  }
+
+  thead th {
+    color: var(--text-secondary);
   }
 }

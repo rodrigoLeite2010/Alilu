@@ -9,7 +9,9 @@ export function ProtectedRoute({ children }: PropsWithChildren) {
 
   if (isBootstrapping) {
     return (
-      <div style={{ padding: 32, textAlign: 'center', color: 'var(--text-muted)' }}>Carregando sessão…</div>
+      <div style={{ padding: 32, textAlign: 'center', color: 'var(--text-muted)' }}>
+        <span className="spinner" aria-hidden style={{ marginRight: 8 }} /> Carregando sessão…
+      </div>
     );
   }
 

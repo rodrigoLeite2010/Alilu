@@ -3,6 +3,7 @@ using Alilu.Modules.Identity.Domain;
 using Alilu.Modules.Identity.Infrastructure.Email;
 using Alilu.Modules.Identity.Infrastructure.Persistence;
 using Alilu.Modules.Identity.Infrastructure.Security;
+using Alilu.Modules.Identity.Infrastructure.Seed;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -42,6 +43,12 @@ public static class DependencyInjection
         services.AddScoped<IEmailSender, NoOpEmailSender>();
 
         services.AddScoped<IAuthService, AuthService>();
+
+        // Bootstrap do primeiro SuperAdmin (Etapa 16) — roda em qualquer
+        // ambiente, mas só age se 'Bootstrap:SuperAdminEmail'/
+        // 'Bootstrap:SuperAdminPassword' estiverem configurados (ver
+        // SuperAdminBootstrapper). Chamado a partir de Program.cs.
+        services.AddScoped<ISuperAdminBootstrapper, SuperAdminBootstrapper>();
 
         return services;
     }
