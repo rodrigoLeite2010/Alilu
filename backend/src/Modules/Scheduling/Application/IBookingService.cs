@@ -104,4 +104,22 @@ public interface IBookingService
     /// endpoint self-service.
     /// </summary>
     Task<IReadOnlyList<BookingResponse>> ListBookingsByCondominiumIdAsync(Guid condominiumId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Ponto de extensão Api-only para o módulo Professional/diretório
+    /// público (React Native: DateSelectionScreen/TimeSelectionScreen —
+    /// "só aceitar a hora que o profissional deixou livre", decisão
+    /// atualizada depois da Etapa 08 original — ver o comentário de
+    /// <c>Alilu.Modules.Professional.Application.IProfessionalDirectoryService.ListOpenWindowsAsync</c>
+    /// para o histórico completo). Reaproveita exatamente o mesmo filtro de
+    /// <see cref="CreateBookingAsync"/> (agendamentos Requested/Confirmed/
+    /// InProgress/Completed "seguram" o horário) — ver
+    /// <c>IBookingRepository.ListHoldingByProfessionalIdAndDateAsync</c>.
+    /// Só devolve início/fim de cada janela ocupada, nunca outro dado do
+    /// agendamento (residente, unidade, serviços): é a Api quem subtrai
+    /// essas janelas da disponibilidade recorrente do módulo Professional
+    /// (nenhum dos dois módulos pode falar com o outro) para chegar nas
+    /// janelas realmente livres.
+    /// </summary>
+    Task<IReadOnlyList<BookedTimeWindowResponse>> ListBookedWindowsAsync(Guid professionalId, DateOnly date, CancellationToken cancellationToken = default);
 }

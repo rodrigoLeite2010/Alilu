@@ -8,6 +8,7 @@ import { ActivityIndicator, KeyboardAvoidingView, Platform, View } from 'react-n
 import { AppButton, AppText, AppTextInput, Screen } from '../../../components';
 import { useTheme } from '../../../theme';
 import { getApiErrorMessage } from '../../../utils/apiError';
+import { formatPhoneNumber } from '../../../utils/phone';
 import {
   useAddProfessionalService,
   useCondominiumsForRequest,
@@ -155,7 +156,7 @@ export function ProfessionalEditScreen({ profile, headerSlot }: ProfessionalEdit
                   label="Telefone"
                   keyboardType="phone-pad"
                   value={value}
-                  onChangeText={onChange}
+                  onChangeText={(text) => onChange(formatPhoneNumber(text))}
                   onBlur={onBlur}
                   errorMessage={errors.phone?.message}
                 />

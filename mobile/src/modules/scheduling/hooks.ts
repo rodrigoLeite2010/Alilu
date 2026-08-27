@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
-import { availabilityCheckApi, bookingApi, professionalBookingApi, schedulingDirectoryApi } from './api';
+import { availabilityWindowsApi, bookingApi, professionalBookingApi, schedulingDirectoryApi } from './api';
 import type { BookingStatus, CreateBookingPayload } from './types';
 
 const MY_BOOKINGS_QUERY_KEY = ['scheduling', 'bookings', 'mine'];
@@ -44,18 +44,31 @@ export function useCancelMyBooking() {
 }
 
 /**
- * Consulta sob demanda (React Native: TimeSelectionScreen — "verificar
- * disponibilidade"). `enabled: false` — só roda quando o morador pede
- * explicitamente (botão "Verificar disponibilidade"), nunca
- * automaticamente a cada tecla digitada; ver `TimeSelectionScreen`, que
- * chama `refetch()`.
+ * React Native: TimeSelectionScreen — "só aceitar a hora que o
+ * profissional deixou livre". Ao contrário do antigo `useAvailabilityCheck`
+ * (que só rodava sob demanda, a cada tentativa manual do morador), esta
+ * consulta roda automaticamente assim que `professionalId`/`date` estão
+ * definidos — é o que preenche a lista de horários que o morador pode
+ * tocar para escolher, sem precisar digitar nem "tentar" nada.
  */
-export function useAvailabilityCheck(professionalId: string | undefined, date: string, startTime: string, endTime: string) {
+export function useAvailableTimeWindows(professionalId: string | undefined, date: string | undefined) {
   return useQuery({
-    queryKey: ['scheduling', 'availability-check', professionalId, date, startTime, endTime],
-    queryFn: () => availabilityCheckApi.check(professionalId as string, date, startTime, endTime),
-    enabled: false,
-    retry: false,
+    queryKey: ['scheduling', 'availability-windows', professionalId, date],
+    queryFn: () => availabilityWindowsApi.list(professionalId as string, date as string),
+    enabled: Boolean(professionalId) && Boolean(date),
+  });
+}
+
+/**
+ * React Native: DateSelectionScreen — desabilita, na grade do mês, os dias
+ * sem nenhuma disponibilidade real (além dos dias passados, que a tela já
+ * desabilitava sozinha). `from`/`to` cobrem o mês exibido no momento.
+ */
+export function useAvailableDatesInRange(professionalId: string | undefined, from: string | undefined, to: string | undefined) {
+  return useQuery({
+    queryKey: ['scheduling', 'available-dates', professionalId, from, to],
+    queryFn: () => availabilityWindowsApi.listAvailableDates(professionalId as string, from as string, to as string),
+    enabled: Boolean(professionalId) && Boolean(from) && Boolean(to),
   });
 }
 

@@ -3311,3 +3311,211 @@ Verificado com `tsc -b` (0 erros) e `vite build` (build de produção OK).
 - **Build EAS de verdade** e **configuração do Android Studio/emulador**:
   dependem da conta/máquina do próprio Rodrigo, fora do alcance deste
   ambiente — sem mudança aqui.
+
+## Etapa 17 — Correções ao testar no navegador + agendamento com horários reais
+
+Ad hoc (fora da sequência numerada de PROMPTs): Rodrigo testou o app pela
+primeira vez ponta a ponta via `expo start --web`, reportando um erro de
+cada vez (prints/stack traces). Cada um foi diagnosticado e corrigido
+antes de seguir para o próximo. Lista, na ordem em que apareceram:
+
+1. **`expo-secure-store` sem implementação Web** (`ExpoSecureStore.web.ts`
+   é `export default {}`) — `mobile/src/utils/secureStorage.ts` ganhou um
+   fallback para `localStorage` quando `Platform.OS === 'web'`.
+2. **CORS não cobria as portas do Expo Web** — `Cors:AdminWebOrigins`
+   (`appsettings.Development.json`) ganhou `8081`/`8082`/`8083`/`19006`
+   além da porta do admin-web.
+3. **Import circular no módulo `theme`** (`index.ts` ↔ `ThemeProvider.tsx`)
+   — tolerado pelo Metro nativo, mas quebrava no bundler Web estrito de
+   ESM com "Cannot access 'theme' before initialization". Extraído
+   `theme/theme.ts` (composição pura, sem reexportar o barrel) e
+   `ThemeProvider.tsx` passou a importar dali, não de `./index`.
+4. **Rota duplicada no Expo Router**: um arquivo órfão
+   `(resident)/bookings/[id].tsx` (versão antiga, antes da pasta
+   `bookings/[id]/` existir) sobrou lado a lado com
+   `bookings/[id]/index.tsx` — os dois resolviam para o mesmo padrão de
+   rota. Removido o arquivo órfão.
+5. **Aviso "uncontrolled to controlled input"** em `ProfessionalEditScreen`
+   (campo "Telefone") e `ReviewScreen` (campo "Comentário") — `defaultValues`
+   usava `undefined` para campos opcionais do React Hook Form; trocado por
+   `''`, mesmo padrão que o campo "Nome de exibição" já usava certo.
+6. **Nenhuma rota protegida verificava sessão**: `(resident)/_layout.tsx`,
+   `(professional)/_layout.tsx` e `(administration)/_layout.tsx` nunca
+   redirecionavam para o login quando não havia sessão válida — só
+   `(auth)/_layout.tsx` fazia o caminho inverso. Descoberto ao limpar o
+   Local Storage manualmente para testar login: o app continuava abrindo
+   a tela protegida (só as chamadas à Api voltavam 401). As três telas
+   ganharam a mesma guarda (`if (!isAuthenticated) return <Redirect
+   href="/(auth)/login" />`).
+7. **Coluna `Source` de `professional_condominiums` curta demais**:
+   `HasMaxLength(20)` (copiado do padrão de `Status` acima, sem reparar no
+   valor mais longo do enum vizinho) não cabia
+   `ProfessionalCondominiumSource.ProfessionalRequested` (21 caracteres) —
+   todo "solicitar atendimento a um condomínio" falhava com `500`/
+   `"22001: value too long for type character varying(20)"`. Aumentado
+   para 30 (mesmo padrão já usado por `BookingStatus`/`Notification.Type`/
+   `User.Role` quando o enum tem nomes mais longos). Precisou de uma
+   migration nova (`FixProfessionalCondominiumSourceLength`, gerada por
+   Rodrigo na própria máquina — ver "Metodologia" da Etapa 15).
+
+### Agendamento: "só aceitar a hora que o profissional deixou livre"
+
+Depois dos itens acima, testando o fluxo de agendamento do zero, Rodrigo
+pediu uma mudança de comportamento (não um bug): "quando eu vou
+selecionar um profissional... gostaria que... somente aparecer as
+agendas e horas disponíveis do profissional e não ficar tentando toda
+hora"; esclarecido em seguida — o morador não deve poder digitar/definir
+o horário, só aceitar um horário que o profissional deixou livre.
+
+Isso **reverte de propósito** uma decisão da Etapa 08, documentada à
+época como REGRA CRÍTICA: "o módulo Professional não expõe a agenda
+publicamente" — `TimeSelectionScreen` fazia o morador digitar um horário
+candidato e chamar `GET .../availability-check` (só `{ available: bool
+}`, nunca uma lista) repetidamente até acertar. Na prática, isso virou
+"ficar tentando hora em hora", pior experiência do que o risco de
+privacidade que a decisão original evitava — a agenda de um profissional
+autônomo não é um dado sensível como a de um morador (comparar com
+`CondominiumMembership`/dados de unidade, que continuam nunca expostos
+publicamente). Pedido explícito do dono do produto depois de usar o
+fluxo de verdade > decisão de design de uma etapa anterior.
+
+**Backend** — composição entre dois módulos que não podem se referenciar
+(regra do PROMPT 01), resolvida na Api, mesmo padrão de
+`RequestCondominium`/`GetRecommendationProfile`:
+
+- `Professional.Application.IProfessionalDirectoryService.ListOpenWindowsAsync`
+  (novo): resolve as janelas "abertas" numa data — agenda recorrente +
+  exceções da Etapa 07 (mesma regra de `ValidateAvailableAsync`, que
+  continua existindo e sendo usada por `BookingsController.Create` como
+  a validação real do lado do servidor), só que devolvendo a lista de
+  janelas em vez de validar uma janela específica. Faz subtração/fusão de
+  intervalos (`TimeOnly`) em memória — sem depender de nada externo, por
+  isso compila e roda offline neste sandbox (ver "Metodologia" abaixo).
+  NÃO considera agendamentos já feitos (não pode — módulo Scheduling).
+- `Scheduling.Application.IBookingService.ListBookedWindowsAsync` (novo):
+  reaproveita `IBookingRepository.ListHoldingByProfessionalIdAndDateAsync`
+  (o mesmo filtro Requested/Confirmed/InProgress/Completed já usado por
+  `CreateBookingAsync` para checar conflito) e devolve só início/fim de
+  cada agendamento — nunca outro dado (residente, unidade, serviços).
+- `ProfessionalDirectoryController.ListAvailabilityWindows`
+  (`GET /api/directory/professionals/{id}/availability-windows?date=...`,
+  substitui o antigo `.../availability-check`, removido): chama os dois
+  módulos acima e subtrai as janelas ocupadas das janelas abertas
+  (`SubtractBusyWindows`, privado, só pode viver aqui — cruza dois
+  módulos). Devolve a lista de janelas realmente livres.
+
+**Mobile** — `TimeSelectionScreen` reescrita: em vez de dois campos de
+texto ("Início"/"Término") + botão "Verificar disponibilidade", busca
+automaticamente (`useAvailableTimeWindows`, roda assim que a data está
+definida) e lista as janelas livres como botões — o morador só toca numa
+delas. Sem nenhum campo de texto. `useAvailabilityCheck`/
+`availabilityCheckApi`/`AvailabilityCheckResult`/`timeSelectionSchema`
+foram removidos (substituídos, não deixados como código morto).
+
+**Metodologia de verificação**: `Professional.Application` e
+`Scheduling.Application` (onde vive toda a lógica nova do backend) só
+referenciam seus próprios projetos `Domain` — zero pacote NuGet externo —
+então, ao contrário da maioria das mudanças de backend neste projeto,
+**compilaram de verdade neste sandbox** (`dotnet build`, 0 erros/
+warnings nos dois). A `Api` (onde vive a composição/controller) continua
+não compilando aqui (depende de EF Core/Npgsql/JWT, sem acesso à
+internet) — o algoritmo de subtração/fusão de intervalos usado tanto em
+`ListOpenWindowsAsync` quanto em `SubtractBusyWindows` foi, por isso,
+também extraído para um harness de console descartável e testado com 12
+casos (divisão no meio, no início, no fim, sem sobreposição, fusão de
+janelas sobrepostas/adjacentes, dois agendamentos no mesmo dia, etc.) —
+todos passaram. `mobile` verificado com `tsc --noEmit`/`eslint` (ambos
+limpos).
+
+### O que ficou fora desta etapa
+
+- **Calendário (`DateSelectionScreen`) continua sem "apagar" dias sem
+  nenhuma disponibilidade** — o pedido de Rodrigo, na prática, era sobre
+  os horários (ele foi explícito: "ele pode digitar livremente a hora,
+  desde que esteja disponível... o morador não pode definir a hora do
+  profissional"), não sobre o calendário. Hoje, escolher uma data sem
+  nenhum horário livre simplesmente mostra "nenhum horário disponível" em
+  `TimeSelectionScreen`, com um botão para voltar e tentar outra data —
+  funcional, mas não tão direto quanto já começar com os dias sem agenda
+  desabilitados no calendário. Não implementado agora porque exigiria uma
+  nova consulta pública por INTERVALO de datas (o que hoje só existe por
+  data única) — fica como próximo passo natural se Rodrigo achar que
+  ainda falta.
+
+## Etapa 18 — lista de bugs pós-Etapa 17: máscara de telefone, formato de data, calendário por intervalo e atalhos de período
+
+Rodrigo testou a Etapa 17 de ponta a ponta e trouxe uma lista de cinco
+itens numa mensagem só. Quatro são corrigidos aqui; o quinto (o próprio
+`GET .../availability-windows` da Etapa 17 aparecendo como "Não foi
+possível carregar os horários disponíveis." ao testar) foi revisado por
+código — request/rota/composição batem — e ficou como suspeita de
+backend não reiniciado/recompilado após a Etapa 17 (mesma causa raiz já
+vista com o CORS, nesta mesma sessão de correções), não uma mudança de
+código; ver conversa para o pedido de confirmação feito a Rodrigo.
+
+**1. Máscara de telefone** (`RegisterScreen`, cadastro de morador/
+profissional; `ProfessionalEditScreen`, "criar/editar perfil
+profissional") — `utils/phone.ts#formatPhoneNumber` (novo, sem
+biblioteca externa, mesma convenção de `buildMonthGrid`): formata
+progressivamente enquanto a pessoa digita, decidindo entre fixo
+"(11) 3456-7890" e celular "(11) 91234-5678" só pela quantidade de
+dígitos já digitados. O backend guarda `Phone` como texto livre sem
+validar formato (`Normalize(phone, 20)`) — a máscara é só UX na
+digitação, nunca bloqueia o envio.
+
+**2. Formato de data em "Datas bloqueadas"** — a lista de "Exceções
+cadastradas" mostrava `exception.date` cru ("2026-08-27"). Novo
+`professional/availabilityFormat.ts#formatDateDisplay` (mesma função de
+`scheduling/schedulingFormat.ts`, duplicada pela mesma razão de sempre)
+converte para "27/08/2026" só na exibição — o campo de digitação
+continua pedindo "AAAA-MM-DD" (mesmo formato que a Api espera).
+
+**3. Calendário do morador filtrando por disponibilidade real** — fecha
+exatamente a lacuna registrada em "O que ficou fora" da Etapa 17. Novo
+endpoint `GET /api/directory/professionals/{id}/available-dates?from=&to=`
+(`ProfessionalDirectoryController.ListAvailableDates`) — mesma
+composição de `ListAvailabilityWindows` (janelas abertas do Professional
+menos ocupadas do Scheduling), só que rodada uma data por vez dentro do
+intervalo pedido, sequencialmente (não em paralelo — as duas consultas
+usam o mesmo `DbContext` por requisição, que não é thread-safe; rodar em
+paralelo lançaria "A second operation was started on this context before
+a previous operation completed"). Limite de 62 dias no intervalo. Não
+foi criado nenhum método novo em `IProfessionalDirectoryService`/
+`IBookingService` — é pura composição na Api, reaproveitando o que a
+Etapa 17 já expôs.
+
+`DateSelectionScreen` (mobile) passou a buscar esse intervalo para o mês
+exibido (`useAvailableDatesInRange`) e desabilita, além dos dias
+passados, os dias sem nenhuma janela livre. De propósito **degrada com
+segurança**: se a consulta falhar (`isError`), a tela volta ao
+comportamento antigo (só desabilita dias passados) em vez de travar o
+morador por completo — `TimeSelectionScreen` já trata graciosamente
+"nenhum horário disponível nesta data".
+
+**4. Atalhos de período ao "Liberar" um horário** (`BlockedDatesScreen`)
+— em vez de digitar início/término à mão toda vez, escolher "Liberar"
+agora mostra botões "Dia inteiro"/"Manhã (08:00–12:00)"/"Tarde
+(13:00–18:00)"/"Noite (18:00–22:00)"/"Personalizado" — só o último
+revela os campos de horário manual. Só se aplica a `type === 'Available'`
+("Bloquear" continua com o antigo "Dia inteiro"/"Horário específico" —
+bloquear um período nomeado não faz o mesmo sentido de UX). Implementado
+com `setValue` do react-hook-form a partir do handler do botão de tipo
+(não de um `useEffect` assistindo o campo — dispararia "Calling setState
+synchronously within an effect", pego pelo eslint deste projeto).
+
+**Metodologia de verificação**: `Professional.Application`/
+`Scheduling.Application` inalterados nesta etapa (só a Api e o mobile
+mudaram); o novo endpoint da Api não pôde ser compilado de verdade aqui
+(sem acesso a NuGet), revisado por leitura cuidadosa por reaproveitar só
+métodos já existentes e testados na Etapa 17. `mobile` verificado com
+`tsc --noEmit`/`eslint --max-warnings=0` (ambos limpos após corrigir o
+aviso de `setState` em efeito citado acima).
+
+### O que ficou fora desta etapa
+
+- **O bug #5 da lista de Rodrigo** ("loguei como morador... não apareceu
+  nada" / tela "Não foi possível carregar os horários disponíveis.") não
+  foi corrigido em código — a revisão da Etapa 17 não achou nada errado
+  na rota/composição/formato de data. Fica pendente a confirmação de
+  Rodrigo sobre reinício/recompilação do backend e, se persistir, o
+  status HTTP exato da aba Network do navegador.

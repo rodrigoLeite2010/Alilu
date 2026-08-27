@@ -7,6 +7,7 @@ import { KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
 import { AppButton, AppText, AppTextInput, Screen } from '../../../components';
 import { useTheme } from '../../../theme';
 import { getApiErrorMessage } from '../../../utils/apiError';
+import { formatPhoneNumber } from '../../../utils/phone';
 import { useAuth } from '../AuthProvider';
 import { registerSchema, type RegisterFormValues } from '../schemas';
 import type { SelfRegisterableRole } from '../types';
@@ -117,7 +118,7 @@ export function RegisterScreen() {
                   autoComplete="tel"
                   keyboardType="phone-pad"
                   value={value}
-                  onChangeText={onChange}
+                  onChangeText={(text) => onChange(formatPhoneNumber(text))}
                   onBlur={onBlur}
                   errorMessage={errors.phone?.message}
                 />

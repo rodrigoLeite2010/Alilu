@@ -27,9 +27,17 @@ public sealed class ProfessionalCondominiumConfiguration : IEntityTypeConfigurat
             .HasMaxLength(20)
             .IsRequired();
 
+        // 20 não é suficiente aqui (era o padrão copiado de Status acima):
+        // `ProfessionalCondominiumSource.ProfessionalRequested` tem 21
+        // caracteres — o INSERT de "solicitar atendimento em condomínios"
+        // (fluxo mais comum deste enum) sempre falhava com
+        // "22001: value too long for type character varying(20)" no
+        // Postgres. 30 cobre os quatro valores atuais com folga, mesmo
+        // padrão já usado por BookingStatus/Notification.Type/User.Role
+        // quando o nome mais longo do enum passa de ~15-16 caracteres.
         builder.Property(pc => pc.Source)
             .HasConversion<string>()
-            .HasMaxLength(20)
+            .HasMaxLength(30)
             .IsRequired();
 
         // "Não permitir vínculo duplicado" — mesmo padrão do índice único

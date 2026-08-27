@@ -104,6 +104,15 @@ public sealed class BookingService(
         return await ToResponsesAsync(bookings, cancellationToken);
     }
 
+    public async Task<IReadOnlyList<BookedTimeWindowResponse>> ListBookedWindowsAsync(
+        Guid professionalId,
+        DateOnly date,
+        CancellationToken cancellationToken = default)
+    {
+        var bookings = await bookingRepository.ListHoldingByProfessionalIdAndDateAsync(professionalId, date, cancellationToken);
+        return bookings.Select(booking => new BookedTimeWindowResponse(booking.StartTime, booking.EndTime)).ToList();
+    }
+
     private async Task<Booking> GetOwnBookingOrThrowAsync(Guid residentId, Guid bookingId, CancellationToken cancellationToken)
     {
         var booking = await bookingRepository.GetByIdAsync(bookingId, cancellationToken)

@@ -79,9 +79,32 @@ sentidos — as telas só pedem "HH:MM" ao morador.
 
 ## "Nunca confiar no calendário do React Native"
 
-`TimeSelectionScreen` não lista horários livres (o módulo Professional
-não expõe a agenda publicamente) — o morador digita um horário candidato
-e pede uma checagem explícita (`GET .../availability-check`); mudar
-qualquer um dos campos invalida a checagem anterior. A verificação que de
-fato impede um agendamento inválido é a repetida no servidor dentro de
-`POST /api/resident/bookings`.
+Decisão atualizada (depois de testar o fluxo ponta a ponta com o app de
+verdade): a Etapa 08 original decidia, de propósito, nunca expor a agenda
+do profissional — `TimeSelectionScreen` não listava horários livres, o
+morador digitava um horário candidato e pedia uma checagem explícita
+(`GET .../availability-check`), tentativa atrás da outra, até acertar. Na
+prática isso virou pior experiência do que o risco de privacidade que a
+decisão original evitava (a agenda de um profissional autônomo não é um
+dado sensível como a de um morador).
+
+Por isso `TimeSelectionScreen` agora busca as janelas realmente livres do
+profissional para a data escolhida (`useAvailableTimeWindows`,
+`GET .../availability-windows` — já descontando agenda recorrente,
+exceções e agendamentos existentes, ver
+`ProfessionalDirectoryController.ListAvailabilityWindows` no backend) e o
+morador só pode tocar numa delas — nunca digitar um horário próprio. O
+antigo `.../availability-check`/`useAvailabilityCheck`/
+`timeSelectionSchema` foram removidos.
+
+Mesmo assim, "nunca confiar no calendário do React Native" continua
+valendo: a verificação que de fato impede um agendamento inválido é a
+repetida no servidor dentro de `POST /api/resident/bookings`.
+
+Etapa 18 (mesmo espírito, um passo antes): `DateSelectionScreen` agora
+também busca (`useAvailableDatesInRange`, `GET .../available-dates?from=&to=`
+para o mês exibido) e desabilita os dias sem nenhuma janela livre, além
+dos dias passados — evita o morador escolher uma data para só descobrir
+na tela seguinte que não tem horário nenhum. Degrada com segurança: se
+essa consulta falhar, a tela volta a só desabilitar dias passados, sem
+travar o fluxo.

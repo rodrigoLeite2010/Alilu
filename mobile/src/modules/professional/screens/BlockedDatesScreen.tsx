@@ -6,7 +6,7 @@ import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, View } f
 import { AppButton, AppText, AppTextInput, Screen } from '../../../components';
 import { useTheme } from '../../../theme';
 import { getApiErrorMessage } from '../../../utils/apiError';
-import { toApiTime } from '../availabilityFormat';
+import { formatDateDisplay, toApiTime } from '../availabilityFormat';
 import { useAddAvailabilityException, useMyAvailability, useRemoveAvailabilityException } from '../hooks';
 import { availabilityExceptionSchema, type AvailabilityExceptionFormValues } from '../schemas';
 
@@ -25,6 +25,24 @@ const EMPTY_FORM: AvailabilityExceptionFormValues = {
 };
 
 /**
+ * Atalhos de período para "Liberar" um horário (pedido explícito depois de
+ * testar o fluxo: em vez de digitar início/término à mão toda vez, o
+ * profissional escolhe "Manhã"/"Tarde"/"Noite" — ou "Personalizado" quando
+ * nenhum dos três serve). Só se aplica a `type === 'Available'`; "Bloquear"
+ * continua só com "Dia inteiro"/"Horário específico" (bloquear um período
+ * nomeado não faz o mesmo sentido de UX).
+ */
+type QuickPeriod = 'full' | 'morning' | 'afternoon' | 'evening' | 'custom';
+
+const QUICK_PERIOD_OPTIONS: { key: QuickPeriod; label: string; startTime?: string; endTime?: string }[] = [
+  { key: 'full', label: 'Dia inteiro' },
+  { key: 'morning', label: 'Manhã (08:00–12:00)', startTime: '08:00', endTime: '12:00' },
+  { key: 'afternoon', label: 'Tarde (13:00–18:00)', startTime: '13:00', endTime: '18:00' },
+  { key: 'evening', label: 'Noite (18:00–22:00)', startTime: '18:00', endTime: '22:00' },
+  { key: 'custom', label: 'Personalizado' },
+];
+
+/**
  * React Native: BlockedDatesScreen (PROMPT 07) — "bloquear datas; liberar
  * horários específicos". `isFullDay` decide entre bloquear/liberar o dia
  * inteiro (Api recebe `startTime`/`endTime` nulos) ou só uma janela
@@ -41,6 +59,7 @@ export function BlockedDatesScreen() {
     control,
     handleSubmit,
     reset,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<AvailabilityExceptionFormValues>({
     resolver: zodResolver(availabilityExceptionSchema),
@@ -52,6 +71,32 @@ export function BlockedDatesScreen() {
   // (ver aviso do eslint-plugin-react-hooks); `useWatch` é a forma
   // recomendada pelo react-hook-form para assinar um único campo.
   const isFullDay = useWatch({ control, name: 'isFullDay' });
+  const type = useWatch({ control, name: 'type' });
+  const [quickPeriod, setQuickPeriod] = useState<QuickPeriod>('full');
+
+  // Trocar de "Bloquear" para "Liberar" (ou vice-versa) começa do zero —
+  // evita herdar um horário de um período pensado para o outro tipo. Feito
+  // direto no handler do botão (em vez de um `useEffect` assistindo
+  // `type`) para não disparar um `setState` síncrono dentro de um efeito.
+  function selectType(nextType: 'Blocked' | 'Available', onChange: (value: 'Blocked' | 'Available') => void) {
+    onChange(nextType);
+    setQuickPeriod('full');
+  }
+
+  function selectQuickPeriod(option: (typeof QUICK_PERIOD_OPTIONS)[number]) {
+    setQuickPeriod(option.key);
+    if (option.key === 'full') {
+      setValue('isFullDay', true);
+      setValue('startTime', '');
+      setValue('endTime', '');
+    } else if (option.key === 'custom') {
+      setValue('isFullDay', false);
+    } else {
+      setValue('isFullDay', false);
+      setValue('startTime', option.startTime ?? '');
+      setValue('endTime', option.endTime ?? '');
+    }
+  }
 
   const onSubmit = handleSubmit(async (values) => {
     setSubmitError(null);
@@ -64,6 +109,7 @@ export function BlockedDatesScreen() {
         reason: values.reason || undefined,
       });
       reset(EMPTY_FORM);
+      setQuickPeriod('full');
     } catch (error) {
       setSubmitError(getApiErrorMessage(error, 'Não foi possível salvar a exceção.'));
     }
@@ -110,39 +156,60 @@ export function BlockedDatesScreen() {
                     <AppButton
                       label="Bloquear"
                       variant={value === 'Blocked' ? 'primary' : 'secondary'}
-                      onPress={() => onChange('Blocked')}
+                      onPress={() => selectType('Blocked', onChange)}
                     />
                     <AppButton
                       label="Liberar"
                       variant={value === 'Available' ? 'primary' : 'secondary'}
-                      onPress={() => onChange('Available')}
+                      onPress={() => selectType('Available', onChange)}
                     />
                   </View>
                 </View>
               )}
             />
 
-            <Controller
-              control={control}
-              name="isFullDay"
-              render={({ field: { onChange, value } }) => (
-                <View style={{ gap: spacing.xxs }}>
-                  <AppText variant="caption" color="secondary">
-                    Duração
-                  </AppText>
-                  <View style={{ flexDirection: 'row', gap: spacing.xxs }}>
-                    <AppButton label="Dia inteiro" variant={value ? 'primary' : 'secondary'} onPress={() => onChange(true)} />
+            {type === 'Available' ? (
+              // "Liberar": em vez de digitar início/término à mão, escolhe
+              // um período pronto — só cai nos campos manuais em
+              // "Personalizado".
+              <View style={{ gap: spacing.xxs }}>
+                <AppText variant="caption" color="secondary">
+                  Quando você quer liberar?
+                </AppText>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xxs }}>
+                  {QUICK_PERIOD_OPTIONS.map((option) => (
                     <AppButton
-                      label="Horário específico"
-                      variant={!value ? 'primary' : 'secondary'}
-                      onPress={() => onChange(false)}
+                      key={option.key}
+                      label={option.label}
+                      variant={quickPeriod === option.key ? 'primary' : 'secondary'}
+                      onPress={() => selectQuickPeriod(option)}
                     />
-                  </View>
+                  ))}
                 </View>
-              )}
-            />
+              </View>
+            ) : (
+              <Controller
+                control={control}
+                name="isFullDay"
+                render={({ field: { onChange, value } }) => (
+                  <View style={{ gap: spacing.xxs }}>
+                    <AppText variant="caption" color="secondary">
+                      Duração
+                    </AppText>
+                    <View style={{ flexDirection: 'row', gap: spacing.xxs }}>
+                      <AppButton label="Dia inteiro" variant={value ? 'primary' : 'secondary'} onPress={() => onChange(true)} />
+                      <AppButton
+                        label="Horário específico"
+                        variant={!value ? 'primary' : 'secondary'}
+                        onPress={() => onChange(false)}
+                      />
+                    </View>
+                  </View>
+                )}
+              />
+            )}
 
-            {!isFullDay ? (
+            {(type === 'Available' ? quickPeriod === 'custom' : !isFullDay) ? (
               <View style={{ flexDirection: 'row', gap: spacing.sm }}>
                 <View style={{ flex: 1 }}>
                   <Controller
@@ -216,7 +283,7 @@ export function BlockedDatesScreen() {
                   style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}
                 >
                   <View style={{ flex: 1, gap: spacing.none }}>
-                    <AppText>{`${exception.date} — ${TYPE_LABEL[exception.type] ?? exception.type}`}</AppText>
+                    <AppText>{`${formatDateDisplay(exception.date)} — ${TYPE_LABEL[exception.type] ?? exception.type}`}</AppText>
                     <AppText variant="caption" color="secondary">
                       {exception.startTime && exception.endTime
                         ? `${exception.startTime.slice(0, 5)} - ${exception.endTime.slice(0, 5)}`

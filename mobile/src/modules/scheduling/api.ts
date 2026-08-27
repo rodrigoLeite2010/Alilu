@@ -1,6 +1,6 @@
 import { api } from '../../services/api';
 import type {
-  AvailabilityCheckResult,
+  AvailableTimeWindow,
   Booking,
   BookingCondominiumSummary,
   BookingProfessionalSummary,
@@ -82,19 +82,36 @@ export const professionalBookingApi = {
 };
 
 /**
- * Consulta pública, só-leitura (React Native: TimeSelectionScreen —
- * "verificar disponibilidade"). Ver `ProfessionalDirectoryController.CheckAvailability`
- * no backend: nunca lança erro por indisponibilidade, sempre 200 com
- * `{ available }` — "nunca confiar no calendário do React Native" (REGRA
- * CRÍTICA) continua valendo, esta consulta só melhora a experiência antes
- * do envio; a verificação que de fato vale é a repetida no servidor
- * dentro de `POST /api/resident/bookings`.
+ * Consulta pública, só-leitura (React Native: TimeSelectionScreen — "só
+ * aceitar a hora que o profissional deixou livre"). Substitui o antigo
+ * `availabilityCheckApi`/`.../availability-check` (decisão revertida a
+ * pedido explícito, depois de testar o fluxo ponta a ponta — ver
+ * `ProfessionalDirectoryController.ListAvailabilityWindows` no backend
+ * para o histórico). "Nunca confiar no calendário do React Native" (REGRA
+ * CRÍTICA) continua valendo: a verificação que de fato impede um
+ * agendamento inválido é a repetida no servidor dentro de
+ * `POST /api/resident/bookings`.
  */
-export const availabilityCheckApi = {
-  check(professionalId: string, date: string, startTime: string, endTime: string) {
+export const availabilityWindowsApi = {
+  list(professionalId: string, date: string) {
     return api
-      .get<AvailabilityCheckResult>(`${PROFESSIONAL_DIRECTORY_BASE_PATH}/${professionalId}/availability-check`, {
-        params: { date, startTime, endTime },
+      .get<AvailableTimeWindow[]>(`${PROFESSIONAL_DIRECTORY_BASE_PATH}/${professionalId}/availability-windows`, {
+        params: { date },
+      })
+      .then((response) => response.data);
+  },
+
+  /**
+   * React Native: DateSelectionScreen — "só deixar escolher a data que tem
+   * disponibilidade" (pedido explícito depois de testar o fluxo). Devolve
+   * as datas (dentro de `from`/`to`, formato "yyyy-MM-dd") em que o
+   * profissional tem pelo menos uma janela livre — ver
+   * `ProfessionalDirectoryController.ListAvailableDates` no backend.
+   */
+  listAvailableDates(professionalId: string, from: string, to: string) {
+    return api
+      .get<string[]>(`${PROFESSIONAL_DIRECTORY_BASE_PATH}/${professionalId}/available-dates`, {
+        params: { from, to },
       })
       .then((response) => response.data);
   },

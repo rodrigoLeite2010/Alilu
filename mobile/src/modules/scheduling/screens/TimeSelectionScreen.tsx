@@ -1,15 +1,13 @@
-import { zodResolver } from '@hookform/resolvers/zod';
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Controller, useForm, useWatch } from 'react-hook-form';
-import { ActivityIndicator, View } from 'react-native';
+import { ActivityIndicator, ScrollView, View } from 'react-native';
 
-import { AppButton, AppText, AppTextInput, Screen } from '../../../components';
+import { AppButton, AppText, Screen } from '../../../components';
 import { useTheme } from '../../../theme';
 import { getApiErrorMessage } from '../../../utils/apiError';
-import { useAvailabilityCheck } from '../hooks';
-import { formatDateDisplay, toApiTime } from '../schedulingFormat';
-import { timeSelectionSchema, type TimeSelectionFormValues } from '../schemas';
+import { useAvailableTimeWindows } from '../hooks';
+import { formatDateDisplay, formatTimeRange, fromApiTime } from '../schedulingFormat';
+import type { AvailableTimeWindow } from '../types';
 
 interface TimeSelectionScreenProps {
   professionalId: string;
@@ -17,56 +15,40 @@ interface TimeSelectionScreenProps {
 }
 
 /**
- * React Native: TimeSelectionScreen (PROMPT 08) — "verificar
- * disponibilidade; escolher horário". "Nunca confiar no calendário do
- * React Native" (REGRA CRÍTICA): esta tela não lista horários livres (o
- * módulo Professional não expõe a agenda publicamente desde a Etapa 07) —
- * o morador digita um horário candidato e pede uma verificação explícita
- * (`GET .../availability-check`); só depois de uma checagem OK para os
- * valores atuais o botão "Continuar" libera. Mudar qualquer um dos campos
- * invalida a checagem anterior (`checkedKey`), porque a resposta só vale
- * para aquela janela exata. A verificação real, que de fato impede um
- * agendamento inválido, é a repetida no servidor em `POST .../bookings`.
+ * React Native: TimeSelectionScreen (PROMPT 08, comportamento atualizado
+ * depois de testar o fluxo ponta a ponta com o app de verdade) — "escolher
+ * horário".
+ *
+ * Antes: o morador digitava um horário candidato e pedia uma checagem
+ * explícita (`GET .../availability-check`), tentativa atrás da outra, até
+ * acertar um horário livre — a Etapa 08 original decidiu, de propósito,
+ * nunca expor a agenda do profissional. Na prática isso virou "ficar
+ * tentando hora em hora", pior experiência do que o risco de privacidade
+ * que a decisão original evitava.
+ *
+ * Agora: a tela busca as janelas realmente livres do profissional para a
+ * data escolhida (`useAvailableTimeWindows`, `GET .../availability-windows`
+ * — já descontando agenda recorrente, exceções e agendamentos existentes,
+ * ver `ProfessionalDirectoryController.ListAvailabilityWindows` no
+ * backend) e o morador só pode TOCAR numa delas. REGRA DE PRODUTO: "o
+ * morador não pode definir a hora do profissional, só aceitar a hora que
+ * ele deixou livre" — por isso não há mais nenhum campo de texto aqui.
+ * "Nunca confiar no calendário do React Native" continua valendo: a
+ * verificação que de fato impede um agendamento inválido é a repetida no
+ * servidor dentro de `POST /api/resident/bookings`.
  */
 export function TimeSelectionScreen({ professionalId, date }: TimeSelectionScreenProps) {
   const { spacing, colors } = useTheme();
-  const [checkedKey, setCheckedKey] = useState<string | null>(null);
-  const [checkError, setCheckError] = useState<string | null>(null);
+  const [selected, setSelected] = useState<AvailableTimeWindow | null>(null);
 
   const {
-    control,
-    handleSubmit,
-    formState: { errors },
-  } = useForm<TimeSelectionFormValues>({
-    resolver: zodResolver(timeSelectionSchema),
-    defaultValues: { startTime: '', endTime: '' },
-  });
-
-  const startTime = useWatch({ control, name: 'startTime' });
-  const endTime = useWatch({ control, name: 'endTime' });
-  const currentKey = `${startTime}-${endTime}`;
-
-  const availabilityCheck = useAvailabilityCheck(
-    professionalId,
-    date,
-    startTime ? toApiTime(startTime) : '',
-    endTime ? toApiTime(endTime) : '',
-  );
-
-  const onCheck = handleSubmit(async (values) => {
-    setCheckError(null);
-    try {
-      const result = await availabilityCheck.refetch({ throwOnError: true });
-      if (result.data) {
-        setCheckedKey(`${values.startTime}-${values.endTime}`);
-      }
-    } catch (error) {
-      setCheckError(getApiErrorMessage(error, 'Não foi possível verificar a disponibilidade.'));
-    }
-  });
-
-  const isChecked = checkedKey === currentKey;
-  const isAvailable = isChecked && availabilityCheck.data?.available === true;
+    data: windows,
+    isLoading,
+    isError,
+    error,
+    refetch,
+    isFetching,
+  } = useAvailableTimeWindows(professionalId, date);
 
   return (
     <Screen>
@@ -78,68 +60,50 @@ export function TimeSelectionScreen({ professionalId, date }: TimeSelectionScree
           </AppText>
         </View>
 
-        <View style={{ flexDirection: 'row', gap: spacing.sm }}>
-          <View style={{ flex: 1 }}>
-            <Controller
-              control={control}
-              name="startTime"
-              render={({ field: { onChange, onBlur, value } }) => (
-                <AppTextInput
-                  label="Início (HH:MM)"
-                  value={value}
-                  onChangeText={onChange}
-                  onBlur={onBlur}
-                  placeholder="09:00"
-                  errorMessage={errors.startTime?.message}
-                />
-              )}
-            />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Controller
-              control={control}
-              name="endTime"
-              render={({ field: { onChange, onBlur, value } }) => (
-                <AppTextInput
-                  label="Término (HH:MM)"
-                  value={value}
-                  onChangeText={onChange}
-                  onBlur={onBlur}
-                  placeholder="10:00"
-                  errorMessage={errors.endTime?.message}
-                />
-              )}
-            />
-          </View>
-        </View>
-
-        <AppButton
-          label={availabilityCheck.isFetching ? 'Verificando…' : 'Verificar disponibilidade'}
-          variant="secondary"
-          onPress={onCheck}
-          disabled={availabilityCheck.isFetching}
-        />
-
-        {availabilityCheck.isFetching ? (
+        {isLoading ? (
           <ActivityIndicator color={colors.brand.primary} />
-        ) : checkError ? (
-          <AppText style={{ color: colors.semantic.error }}>{checkError}</AppText>
-        ) : isChecked ? (
-          <AppText style={{ color: isAvailable ? colors.semantic.success : colors.semantic.error }}>
-            {isAvailable ? 'Horário disponível.' : 'Horário indisponível — escolha outro horário.'}
-          </AppText>
-        ) : null}
+        ) : isError ? (
+          <View style={{ gap: spacing.sm }}>
+            <AppText style={{ color: colors.semantic.error }}>
+              {getApiErrorMessage(error, 'Não foi possível carregar os horários disponíveis.')}
+            </AppText>
+            <AppButton label="Tentar novamente" variant="secondary" onPress={() => refetch()} disabled={isFetching} />
+          </View>
+        ) : !windows || windows.length === 0 ? (
+          <AppText color="muted">O profissional não tem nenhum horário livre nesta data — escolha outra data.</AppText>
+        ) : (
+          <ScrollView contentContainerStyle={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs }}>
+            {windows.map((window) => {
+              const isSelected = selected?.startTime === window.startTime && selected?.endTime === window.endTime;
+
+              return (
+                <AppButton
+                  key={`${window.startTime}-${window.endTime}`}
+                  label={formatTimeRange(window.startTime, window.endTime)}
+                  variant={isSelected ? 'primary' : 'secondary'}
+                  onPress={() => setSelected(window)}
+                />
+              );
+            })}
+          </ScrollView>
+        )}
 
         <View style={{ gap: spacing.sm, marginTop: 'auto' }}>
           <AppButton
             label="Continuar"
             onPress={() =>
+              selected &&
               router.push({
                 pathname: '/(resident)/booking/[professionalId]/services',
-                params: { professionalId, date, startTime, endTime },
+                params: {
+                  professionalId,
+                  date,
+                  startTime: fromApiTime(selected.startTime),
+                  endTime: fromApiTime(selected.endTime),
+                },
               })
             }
-            disabled={!isAvailable}
+            disabled={!selected}
           />
           <AppButton label="Voltar" variant="ghost" onPress={() => router.back()} />
         </View>

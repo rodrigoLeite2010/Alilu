@@ -81,3 +81,14 @@ public sealed record ProfessionalAvailabilityExceptionResponse(
 public sealed record ProfessionalAvailabilityOverviewResponse(
     IReadOnlyList<ProfessionalAvailabilityResponse> WeeklySchedule,
     IReadOnlyList<ProfessionalAvailabilityExceptionResponse> Exceptions);
+
+/// <summary>
+/// Uma janela de horário em que o profissional está aberto numa data
+/// (decisão atualizada — ver <see cref="IProfessionalDirectoryService.ListOpenWindowsAsync"/>
+/// para o histórico da mudança de "nunca expor a agenda" para "só expor
+/// as janelas livres"). Resolvida a partir da agenda recorrente + exceções
+/// da Etapa 07 — NÃO considera agendamentos já feitos (módulo Scheduling,
+/// que este módulo não pode referenciar): é a Api quem subtrai isso antes
+/// de devolver ao morador, ver <c>ProfessionalDirectoryController.ListAvailabilityWindows</c>.
+/// </summary>
+public sealed record OpenTimeWindowResponse(TimeOnly StartTime, TimeOnly EndTime);

@@ -1,6 +1,7 @@
 using Alilu.Modules.Professional.Application;
 using Alilu.Modules.Recommendations.Application;
 using Alilu.Modules.Reviews.Application;
+using Alilu.Modules.Scheduling.Application;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -18,7 +19,8 @@ namespace Alilu.Api.Controllers;
 public sealed class ProfessionalDirectoryController(
     IProfessionalDirectoryService directoryService,
     IProfessionalReviewService professionalReviewService,
-    IRecommendationDirectoryService recommendationDirectoryService) : ControllerBase
+    IRecommendationDirectoryService recommendationDirectoryService,
+    IBookingService bookingService) : ControllerBase
 {
     [HttpGet("categories")]
     public async Task<ActionResult<IReadOnlyList<ServiceCategoryResponse>>> ListCategories(CancellationToken cancellationToken)
@@ -46,38 +48,143 @@ public sealed class ProfessionalDirectoryController(
     }
 
     /// <summary>
-    /// Consulta pública, só-leitura (PROMPT 08, React Native:
-    /// TimeSelectionScreen — "verificar disponibilidade"): reaproveita
-    /// <see cref="IProfessionalDirectoryService.ValidateAvailableAsync"/>
-    /// (a mesma validação usada por <c>BookingsController.Create</c>) só que
-    /// devolvendo <c>{ available: false }</c> em vez de lançar, já que aqui
-    /// "indisponível" é uma resposta normal, não um erro — o morador ainda
-    /// está escolhendo um horário, não enviando a solicitação. Isto não
-    /// expõe a agenda do profissional (nenhum horário é devolvido) — só
-    /// responde sim/não sobre a janela pedida, mantendo a Etapa 07 (agenda
-    /// recorrente/exceções são self-service) intacta. "Nunca confiar no
-    /// calendário do React Native" (REGRA CRÍTICA) continua valendo: esta
-    /// consulta só melhora a experiência antes do envio — a verificação que
-    /// de fato vale é a repetida no servidor dentro de
-    /// <see cref="BookingsController.Create"/>.
+    /// Consulta pública, só-leitura (React Native: DateSelectionScreen/
+    /// TimeSelectionScreen — "só aceitar a hora que o profissional deixou
+    /// livre"). Substitui o antigo <c>GET .../availability-check</c> da
+    /// Etapa 08 (que só respondia sim/não para um horário digitado pelo
+    /// morador, numa tentativa atrás da outra) — decisão revertida a
+    /// pedido explícito, depois de testar o fluxo ponta a ponta: ver
+    /// <see cref="IProfessionalDirectoryService.ListOpenWindowsAsync"/>
+    /// para o histórico completo da mudança.
+    ///
+    /// Ponto de COMPOSIÇÃO: nenhum dos dois módulos envolvidos pode
+    /// referenciar o outro (PROMPT 01) — as janelas "abertas" vêm do
+    /// módulo Professional (agenda recorrente + exceções da Etapa 07,
+    /// <see cref="IProfessionalDirectoryService.ListOpenWindowsAsync"/>);
+    /// as janelas já ocupadas vêm do módulo Scheduling
+    /// (<see cref="IBookingService.ListBookedWindowsAsync"/>). Só aqui, na
+    /// Api, os dois se cruzam (subtrai ocupado de aberto) para devolver as
+    /// janelas realmente livres. "Nunca confiar no calendário do React
+    /// Native" (REGRA CRÍTICA da Etapa 08) continua valendo:
+    /// <see cref="BookingsController.Create"/> revalida tudo de novo no
+    /// servidor antes de criar o agendamento — esta consulta só melhora a
+    /// experiência antes do envio.
     /// </summary>
-    [HttpGet("{id:guid}/availability-check")]
-    public async Task<ActionResult<AvailabilityCheckResponse>> CheckAvailability(
+    [HttpGet("{id:guid}/availability-windows")]
+    public async Task<ActionResult<IReadOnlyList<AvailableTimeWindowResponse>>> ListAvailabilityWindows(
         Guid id,
         [FromQuery] DateOnly date,
-        [FromQuery] TimeOnly startTime,
-        [FromQuery] TimeOnly endTime,
         CancellationToken cancellationToken)
     {
-        try
+        var openWindows = await directoryService.ListOpenWindowsAsync(id, date, cancellationToken);
+        var bookedWindows = await bookingService.ListBookedWindowsAsync(id, date, cancellationToken);
+
+        var freeWindows = SubtractBusyWindows(
+            openWindows.Select(window => (window.StartTime, window.EndTime)),
+            bookedWindows.Select(window => (window.StartTime, window.EndTime)));
+
+        return Ok(freeWindows.Select(window => new AvailableTimeWindowResponse(window.Start, window.End)).ToList());
+    }
+
+    /// <summary>
+    /// React Native: DateSelectionScreen — "a experiência do calendário está
+    /// confusa, tinha que só deixar escolher a data que tem disponibilidade"
+    /// (pedido explícito depois de testar o fluxo). Devolve, dentro de
+    /// <paramref name="from"/>/<paramref name="to"/> (inclusive), só as
+    /// datas em que o profissional tem pelo menos uma janela livre — a tela
+    /// usa isso para desabilitar (ficar "cinza") os dias sem disponibilidade
+    /// na grade do mês, além dos dias passados que ela já desabilitava.
+    ///
+    /// Reaproveita a mesma composição de <see cref="ListAvailabilityWindows"/>
+    /// (janelas abertas do módulo Professional menos as ocupadas do módulo
+    /// Scheduling), uma data por vez — "nunca confiar no calendário do React
+    /// Native" continua valendo: quem de fato impede um agendamento inválido
+    /// é a Api dentro de <see cref="BookingsController.Create"/>, isto aqui
+    /// só melhora a experiência antes de chegar lá.
+    ///
+    /// As consultas são sequenciais (não em paralelo) de propósito: as duas
+    /// dependem do mesmo <c>DbContext</c> por requisição (raiz da Api), que
+    /// não é thread-safe — rodar em paralelo lançaria
+    /// "A second operation was started on this context before a previous
+    /// operation completed." Por isso também há um limite de 62 dias no
+    /// intervalo (cerca de dois meses), para não deixar a requisição lenta
+    /// demais nem virar um jeito de sobrecarregar a Api.
+    /// </summary>
+    [HttpGet("{id:guid}/available-dates")]
+    public async Task<ActionResult<IReadOnlyList<DateOnly>>> ListAvailableDates(
+        Guid id,
+        [FromQuery] DateOnly from,
+        [FromQuery] DateOnly to,
+        CancellationToken cancellationToken)
+    {
+        if (to < from)
         {
-            await directoryService.ValidateAvailableAsync(id, date, startTime, endTime, cancellationToken);
-            return Ok(new AvailabilityCheckResponse(true));
+            return BadRequest(new { title = "A data final precisa ser igual ou depois da data inicial." });
         }
-        catch (TimeSlotUnavailableException)
+
+        if (to.DayNumber - from.DayNumber > 62)
         {
-            return Ok(new AvailabilityCheckResponse(false));
+            return BadRequest(new { title = "Intervalo muito longo — no máximo 62 dias." });
         }
+
+        var availableDates = new List<DateOnly>();
+
+        for (var date = from; date <= to; date = date.AddDays(1))
+        {
+            var openWindows = await directoryService.ListOpenWindowsAsync(id, date, cancellationToken);
+            if (openWindows.Count == 0)
+            {
+                continue;
+            }
+
+            var bookedWindows = await bookingService.ListBookedWindowsAsync(id, date, cancellationToken);
+            var freeWindows = SubtractBusyWindows(
+                openWindows.Select(window => (window.StartTime, window.EndTime)),
+                bookedWindows.Select(window => (window.StartTime, window.EndTime)));
+
+            if (freeWindows.Count > 0)
+            {
+                availableDates.Add(date);
+            }
+        }
+
+        return Ok(availableDates);
+    }
+
+    /// <summary>Mesma lógica de subtração de intervalos usada em <c>ProfessionalDirectoryService.ListOpenWindowsAsync</c> (Professional, para exceções) — duplicada aqui de propósito: esta versão cruza dados de dois módulos diferentes (Professional + Scheduling), então só pode viver na Api (composição raiz), nunca dentro de um dos módulos.</summary>
+    private static IReadOnlyList<(TimeOnly Start, TimeOnly End)> SubtractBusyWindows(
+        IEnumerable<(TimeOnly StartTime, TimeOnly EndTime)> openWindows,
+        IEnumerable<(TimeOnly StartTime, TimeOnly EndTime)> busyWindows)
+    {
+        var windows = openWindows.Select(window => (Start: window.StartTime, End: window.EndTime)).ToList();
+
+        foreach (var (busyStart, busyEnd) in busyWindows)
+        {
+            var remaining = new List<(TimeOnly Start, TimeOnly End)>();
+
+            foreach (var (start, end) in windows)
+            {
+                if (busyEnd <= start || busyStart >= end)
+                {
+                    remaining.Add((start, end));
+                    continue;
+                }
+
+                if (busyStart > start)
+                {
+                    remaining.Add((start, busyStart));
+                }
+
+                if (busyEnd < end)
+                {
+                    remaining.Add((busyEnd, end));
+                }
+            }
+
+            windows = remaining;
+        }
+
+        return windows.OrderBy(window => window.Start).ToList();
     }
 
     /// <summary>
@@ -119,8 +226,8 @@ public sealed class ProfessionalDirectoryController(
     }
 }
 
-/// <summary>Resposta de GET .../availability-check.</summary>
-public sealed record AvailabilityCheckResponse(bool Available);
+/// <summary>Resposta de GET .../availability-windows — uma janela livre, já com os horários já reservados descontados (ver comentário do método na controller).</summary>
+public sealed record AvailableTimeWindowResponse(TimeOnly StartTime, TimeOnly EndTime);
 
 /// <summary>
 /// Resposta de GET .../recommendations — composta na Api a partir de três

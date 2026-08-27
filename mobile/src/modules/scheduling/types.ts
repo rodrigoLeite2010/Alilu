@@ -74,9 +74,19 @@ export interface CreateBookingPayload {
   items: BookingItemInput[];
 }
 
-/** Resposta de `GET .../availability-check` (React Native: TimeSelectionScreen — "verificar disponibilidade"). Nunca lista horários livres, só responde sim/não sobre a janela pedida — ver `ProfessionalDirectoryController.CheckAvailability` no backend. */
-export interface AvailabilityCheckResult {
-  available: boolean;
+/**
+ * Uma janela de horário realmente livre para agendar (React Native:
+ * TimeSelectionScreen — "só aceitar a hora que o profissional deixou
+ * livre"). Resposta de `GET .../availability-windows` — substitui o
+ * antigo `AvailabilityCheckResult`/`.../availability-check` (decisão
+ * revertida a pedido explícito depois de testar o fluxo ponta a ponta;
+ * ver `ProfessionalDirectoryController.ListAvailabilityWindows` no
+ * backend para o histórico). `startTime`/`endTime` no formato "HH:mm:ss"
+ * da Api — ver `schedulingFormat.ts#formatTimeRange`.
+ */
+export interface AvailableTimeWindow {
+  startTime: string;
+  endTime: string;
 }
 
 /**

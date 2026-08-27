@@ -61,6 +61,21 @@ export const TIME_PATTERN = /^([01]\d|2[0-3]):([0-5]\d)$/;
 
 export const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
+/**
+ * "2026-08-27" → "27/08/2026" (React Native: BlockedDatesScreen — lista de
+ * "Exceções cadastradas"). O campo de digitação continua pedindo
+ * "AAAA-MM-DD" (mesmo formato que a Api espera, `DATE_PATTERN`), mas a
+ * listagem abaixo mostrava a data crua nesse formato — confuso para quem
+ * está acostumado com dia/mês/ano. Mesma função de
+ * `scheduling/schedulingFormat.ts#formatDateDisplay`, duplicada aqui pela
+ * mesma razão dos demais formatadores deste arquivo (módulos não se
+ * importam entre si).
+ */
+export function formatDateDisplay(date: string): string {
+  const [year, month, day] = date.split('-');
+  return `${day}/${month}/${year}`;
+}
+
 export interface CalendarDay {
   /** "yyyy-MM-dd" — mesmo formato de `DateOnly` usado pela Api. */
   date: string;

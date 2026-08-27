@@ -38,3 +38,11 @@ public sealed record BookingResponse(
     DateTime CreatedAt,
     DateTime UpdatedAt,
     IReadOnlyList<BookingItemResponse> Items);
+
+/// <summary>
+/// Uma janela de horário já ocupada por um agendamento deste profissional
+/// numa data (ver <see cref="IBookingService.ListBookedWindowsAsync"/>) —
+/// só início/fim, nunca outro dado do agendamento (nem para quem é a Api
+/// devolve isso a um morador que só está escolhendo horário).
+/// </summary>
+public sealed record BookedTimeWindowResponse(TimeOnly StartTime, TimeOnly EndTime);
