@@ -44,13 +44,13 @@ export default function Home() {
           )}
 
           <Link href="/(resident)" asChild>
-            <AppText color="secondary">→ Resident (placeholder)</AppText>
+            <AppText color="secondary">→ Área do morador</AppText>
           </Link>
           <Link href="/(professional)" asChild>
-            <AppText color="secondary">→ Professional (placeholder)</AppText>
+            <AppText color="secondary">→ Área do prestador</AppText>
           </Link>
           <Link href="/(administration)" asChild>
-            <AppText color="secondary">→ Administration (placeholder)</AppText>
+            <AppText color="secondary">→ Administração (em breve)</AppText>
           </Link>
         </View>
       </View>
