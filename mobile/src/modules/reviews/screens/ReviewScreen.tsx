@@ -50,7 +50,13 @@ export function ReviewScreen({ bookingId, professionalName }: ReviewScreenProps)
     formState: { errors, isSubmitting },
   } = useForm<ReviewFormValues>({
     resolver: zodResolver(reviewFormSchema),
-    defaultValues: { rating: 5, comment: undefined },
+    // `''`, nunca `undefined` — mesmo ajuste feito em
+    // `ProfessionalEditScreen` (ver comentário lá): um input controlado
+    // (`value` do Controller) começando em `undefined` e só ganhando um
+    // valor real depois (aqui, ao carregar `existingReview`) dispara "A
+    // component is changing an uncontrolled input to be controlled" no
+    // bundler Web do Expo.
+    defaultValues: { rating: 5, comment: '' },
   });
 
   // Se a avaliação já existente chegar depois da primeira renderização,
@@ -58,7 +64,7 @@ export function ReviewScreen({ bookingId, professionalName }: ReviewScreenProps)
   // ProfessionalEditScreen ao receber um `profile` assíncrono).
   useEffect(() => {
     if (existingReview) {
-      reset({ rating: existingReview.rating, comment: existingReview.comment ?? undefined });
+      reset({ rating: existingReview.rating, comment: existingReview.comment ?? '' });
     }
   }, [existingReview, reset]);
 

@@ -1,4 +1,6 @@
-import { Stack } from 'expo-router';
+import { Redirect, Stack } from 'expo-router';
+
+import { useAuth } from '../../modules/auth';
 
 /**
  * ProfessionalStack — telas voltadas ao profissional. Desde o PROMPT 06, o
@@ -20,8 +22,22 @@ import { Stack } from 'expo-router';
  * Desde o PROMPT 09, `reviews/index` (ProfessionalReviewsScreen, módulo
  * Reviews — "visualizar avaliações recebidas; visualizar média") é
  * acessível a partir de "Avaliações" em ProfessionalEditScreen.
+ *
+ * Bug real encontrado testando no navegador (`expo start --web`): nada
+ * aqui barrava quem não está autenticado — ao limpar a sessão manualmente
+ * (Local Storage) e recarregar, esta tela continuava aberta e só as
+ * chamadas à Api voltavam 401 em cascata, sem nunca levar de volta ao
+ * login. `(auth)/_layout.tsx` já fazia o caminho inverso (redireciona para
+ * fora de login quem já está autenticado) — faltava o mesmo tipo de guarda
+ * aqui, em `(resident)/_layout.tsx` e em `(administration)/_layout.tsx`.
  */
 export default function ProfessionalLayout() {
+  const { isAuthenticated } = useAuth();
+
+  if (!isAuthenticated) {
+    return <Redirect href="/(auth)/login" />;
+  }
+
   return (
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="index" />

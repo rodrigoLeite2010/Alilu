@@ -1,4 +1,6 @@
-import { Stack } from 'expo-router';
+import { Redirect, Stack } from 'expo-router';
+
+import { useAuth } from '../../modules/auth';
 
 /**
  * ResidentStack — telas voltadas ao morador. Desde o PROMPT 05, o próprio
@@ -26,8 +28,18 @@ import { Stack } from 'expo-router';
  * `availability/*` (Etapa 07). Acessível a partir do botão "Avaliar"/"Ver
  * avaliação" que `bookings/[id]/index.tsx` injeta no slot `reviewSlot` de
  * BookingDetailsScreen, só quando o agendamento está Completed.
+ *
+ * Guarda de autenticação (mesmo bug/correção de `(professional)/_layout.tsx`
+ * — ver comentário lá): sem sessão válida, redireciona para o login em vez
+ * de deixar as telas montarem e só descobrir 401 chamada por chamada.
  */
 export default function ResidentLayout() {
+  const { isAuthenticated } = useAuth();
+
+  if (!isAuthenticated) {
+    return <Redirect href="/(auth)/login" />;
+  }
+
   return (
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="index" />

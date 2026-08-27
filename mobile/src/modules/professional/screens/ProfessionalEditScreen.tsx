@@ -77,10 +77,17 @@ export function ProfessionalEditScreen({ profile, headerSlot }: ProfessionalEdit
     formState: { errors, isSubmitting },
   } = useForm<ProfessionalProfileFormValues>({
     resolver: zodResolver(professionalProfileSchema),
+    // `''` (nunca `undefined`) nos três campos — mesmo que
+    // `description`/`phone` sejam opcionais no schema Zod, o React exige
+    // que um input controlado (`value` vindo do Controller) comece com um
+    // valor definido; começar em `undefined` e só ganhar um valor real ao
+    // digitar dispara o aviso "A component is changing an uncontrolled
+    // input to be controlled" (`AppTextInput`/`TextInput` via
+    // react-native-web, visível no `expo start --web`).
     defaultValues: {
       displayName: profile?.displayName ?? '',
-      description: profile?.description ?? undefined,
-      phone: profile?.phone ?? undefined,
+      description: profile?.description ?? '',
+      phone: profile?.phone ?? '',
     },
   });
 
@@ -90,8 +97,8 @@ export function ProfessionalEditScreen({ profile, headerSlot }: ProfessionalEdit
     if (profile) {
       reset({
         displayName: profile.displayName,
-        description: profile.description ?? undefined,
-        phone: profile.phone ?? undefined,
+        description: profile.description ?? '',
+        phone: profile.phone ?? '',
       });
     }
   }, [profile, reset]);
