@@ -16,6 +16,7 @@ public sealed record UserResponse(
     string Name,
     string Email,
     string? Phone,
+    string? PhotoUrl,
     UserRole Role,
     UserStatus Status,
     DateTime CreatedAt);

@@ -12,6 +12,23 @@ export const BOOKING_STATUS_LABEL: Record<BookingStatus, string> = {
 };
 
 /**
+ * Etapa 20 (modernização visual) — tom do `Badge` (componente compartilhado
+ * em `components/Badge.tsx`) para cada status, usado em
+ * MyBookingsScreen/ProfessionalRequestsScreen/BookingDetailsScreen no lugar
+ * do rótulo em texto puro sem nenhum destaque visual.
+ */
+export const BOOKING_STATUS_TONE: Record<BookingStatus, 'success' | 'accent' | 'error' | 'info' | 'neutral'> = {
+  Requested: 'accent',
+  Confirmed: 'info',
+  Rejected: 'error',
+  CancelledByResident: 'neutral',
+  CancelledByProfessional: 'neutral',
+  InProgress: 'info',
+  Completed: 'success',
+  NoShow: 'error',
+};
+
+/**
  * A Api usa `TimeOnly` (.NET), que exige o formato completo "HH:mm:ss" no
  * JSON — mesma observação de `professional/availabilityFormat.ts`
  * (Etapa 07). As telas deste módulo só pedem "HH:MM" ao morador; estas

@@ -2,8 +2,8 @@ import { router } from 'expo-router';
 import type { ReactNode } from 'react';
 import { View } from 'react-native';
 
-import { AppButton, AppText, Screen } from '../../../components';
-import { useAuth } from '../../auth';
+import { AppButton, AppText, Card, Screen } from '../../../components';
+import { EditableAvatar, useAuth } from '../../auth';
 import { useTheme } from '../../../theme';
 import { useCondominiums, useCondominiumUnits } from '../hooks';
 import type { Membership } from '../types';
@@ -49,18 +49,21 @@ export function ResidentHomeScreen({ membership, headerSlot }: ResidentHomeScree
     <Screen>
       <View style={{ flex: 1 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-          <AppText variant="title">Olá, {user?.name}</AppText>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+            {user ? <EditableAvatar name={user.name} size={56} /> : null}
+            <AppText variant="title">Olá, {user?.name}</AppText>
+          </View>
           {headerSlot?.()}
         </View>
 
-        <View style={{ marginTop: spacing.md, gap: spacing.xxs }}>
+        <Card style={{ marginTop: spacing.md, gap: spacing.xxs }}>
           <AppText variant="subtitle" color="secondary">
             {condominium?.name ?? 'Seu condomínio'}
           </AppText>
           <AppText variant="body" color="muted">
             {unit ? `Unidade ${unit.code}` : 'Unidade vinculada'}
           </AppText>
-        </View>
+        </Card>
 
         <View style={{ marginTop: spacing.lg, gap: spacing.sm }}>
           <AppButton label="Buscar profissional" onPress={() => router.push('/(resident)/professional-categories')} />

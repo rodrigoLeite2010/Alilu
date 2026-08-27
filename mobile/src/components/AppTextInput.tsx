@@ -1,4 +1,4 @@
-import { forwardRef } from 'react';
+import { forwardRef, useState } from 'react';
 import { StyleSheet, TextInput, type TextInputProps, View } from 'react-native';
 
 import { useTheme } from '../theme';
@@ -11,15 +11,20 @@ interface AppTextInputProps extends TextInputProps {
 
 /**
  * Campo de texto padrão do ALILU (label + input + mensagem de erro).
- * Primeiro uso: telas de autenticação (PROMPT 03) — fica em `components/`
- * porque qualquer formulário futuro (perfil, agendamento, etc.) vai
- * precisar do mesmo campo, junto com AppButton/AppText.
+ * Modernizado na Etapa 20 ("estilo iFood/apps atuais"): fundo preenchido
+ * (`surfaceAlt`) em vez de caixa branca com borda — a borda só aparece em
+ * erro ou quando o campo está focado, no lugar de estar sempre visível.
+ * Cantos mais arredondados (`radii.lg`, antes `radii.md`). Continua sem
+ * nenhuma dependência nova — só `useState` local para o estado de foco.
  */
 export const AppTextInput = forwardRef<TextInput, AppTextInputProps>(function AppTextInput(
-  { label, errorMessage, style, ...rest },
+  { label, errorMessage, style, onFocus, onBlur, ...rest },
   ref,
 ) {
   const { colors, spacing, radii, typography } = useTheme();
+  const [isFocused, setIsFocused] = useState(false);
+
+  const borderColor = errorMessage ? colors.semantic.error : isFocused ? colors.brand.accent : 'transparent';
 
   return (
     <View style={{ gap: spacing.xxs }}>
@@ -32,13 +37,21 @@ export const AppTextInput = forwardRef<TextInput, AppTextInputProps>(function Ap
       <TextInput
         ref={ref}
         placeholderTextColor={colors.text.muted}
+        onFocus={(event) => {
+          setIsFocused(true);
+          onFocus?.(event);
+        }}
+        onBlur={(event) => {
+          setIsFocused(false);
+          onBlur?.(event);
+        }}
         style={[
           styles.input,
           {
-            borderColor: errorMessage ? colors.semantic.error : colors.border,
-            backgroundColor: colors.surface,
+            borderColor,
+            backgroundColor: colors.surfaceAlt,
             color: colors.text.primary,
-            borderRadius: radii.md,
+            borderRadius: radii.lg,
             paddingHorizontal: spacing.sm,
             paddingVertical: spacing.sm,
             fontSize: typography.size.md,
@@ -60,6 +73,6 @@ export const AppTextInput = forwardRef<TextInput, AppTextInputProps>(function Ap
 
 const styles = StyleSheet.create({
   input: {
-    borderWidth: 1,
+    borderWidth: 1.5,
   },
 });

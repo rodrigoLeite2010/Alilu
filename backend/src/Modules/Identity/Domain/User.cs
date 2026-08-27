@@ -19,6 +19,14 @@ public sealed class User : AggregateRoot
     public string PasswordHash { get; private set; }
     public UserRole Role { get; private set; }
     public UserStatus Status { get; private set; }
+    /// <summary>
+    /// Foto pessoal (Etapa 21) — mostrada ao lado do nome em qualquer papel
+    /// (morador/profissional/administrador). URL absoluta apontando para
+    /// <c>Alilu.Api</c> (ver <c>Services/IUserPhotoStorage</c>), nunca um
+    /// caminho relativo — o app mobile usa isto direto num
+    /// <c>&lt;Image&gt;</c>, sem conhecer a base da Api.
+    /// </summary>
+    public string? PhotoUrl { get; private set; }
     public DateTime CreatedAt { get; private set; }
     public DateTime UpdatedAt { get; private set; }
 
@@ -139,6 +147,20 @@ public sealed class User : AggregateRoot
     public void Activate()
     {
         Status = UserStatus.Active;
+        Touch();
+    }
+
+    /// <summary>
+    /// Define ou remove (<paramref name="photoUrl"/> nulo) a foto pessoal
+    /// do usuário. Sem validação de formato aqui — decodificar/validar o
+    /// upload em si (tamanho, tipo de arquivo) é responsabilidade de quem
+    /// gera a URL antes de chamar este método (ver
+    /// <c>Alilu.Api.Services.IUserPhotoStorage</c>); esta entidade só guarda
+    /// o resultado.
+    /// </summary>
+    public void SetPhoto(string? photoUrl)
+    {
+        PhotoUrl = photoUrl;
         Touch();
     }
 

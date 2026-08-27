@@ -2,7 +2,7 @@ import { router } from 'expo-router';
 import { useMemo } from 'react';
 import { ActivityIndicator, ScrollView, View } from 'react-native';
 
-import { AppButton, AppText, Screen } from '../../../components';
+import { AppButton, AppText, Badge, Card, Screen } from '../../../components';
 import { useTheme } from '../../../theme';
 import { DAY_OF_WEEK_LABEL, DAY_OF_WEEK_ORDER } from '../availabilityFormat';
 import { useMyAgenda } from '../hooks';
@@ -18,11 +18,14 @@ const STATUS_LABEL: Record<AgendaPeriodStatus, string> = {
   Unavailable: 'Indisponível',
 };
 
-const STATUS_ICON: Record<AgendaPeriodStatus, string> = {
-  Available: '🟢',
-  Scheduled: '📅',
-  Blocked: '🔒',
-  Unavailable: '⬜',
+// Etapa 20 — cada status ganha um `Badge` colorido (ver componente) no
+// lugar do ícone de emoji cru; a legenda abaixo do cabeçalho usa os mesmos
+// badges, então o significado de cada cor fica óbvio de relance.
+const STATUS_TONE: Record<AgendaPeriodStatus, 'success' | 'accent' | 'error' | 'neutral'> = {
+  Available: 'success',
+  Scheduled: 'accent',
+  Blocked: 'error',
+  Unavailable: 'neutral',
 };
 
 function toDateOnlyString(date: Date): string {
@@ -94,14 +97,9 @@ export function MyAgendaScreen() {
           </View>
         </View>
 
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md }}>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs }}>
           {(Object.keys(STATUS_LABEL) as AgendaPeriodStatus[]).map((status) => (
-            <View key={status} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xxs }}>
-              <AppText>{STATUS_ICON[status]}</AppText>
-              <AppText variant="caption" color="secondary">
-                {STATUS_LABEL[status]}
-              </AppText>
-            </View>
+            <Badge key={status} label={STATUS_LABEL[status]} tone={STATUS_TONE[status]} />
           ))}
         </View>
 
@@ -113,39 +111,26 @@ export function MyAgendaScreen() {
             <AppButton label="Tentar de novo" variant="secondary" onPress={() => refetch()} />
           </View>
         ) : (
-          <View style={{ gap: spacing.sm }}>
+          <View style={{ gap: spacing.xs }}>
             {days.map(({ date, iso }) => {
               const periods = agendaByDate.get(iso) ?? [];
               return (
-                <View
-                  key={iso}
-                  style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    paddingVertical: spacing.xxs,
-                    borderBottomWidth: 1,
-                    borderBottomColor: colors.border,
-                  }}
-                >
+                <Card key={iso} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                   <View style={{ width: 92 }}>
-                    <AppText>{`${DAY_OF_WEEK_LABEL[DAY_OF_WEEK_ORDER[(date.getDay() + 6) % 7]].slice(0, 3)} ${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}`}</AppText>
+                    <AppText style={{ fontWeight: '600' }}>{`${DAY_OF_WEEK_LABEL[DAY_OF_WEEK_ORDER[(date.getDay() + 6) % 7]].slice(0, 3)} ${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}`}</AppText>
                   </View>
-                  <View style={{ flexDirection: 'row', gap: spacing.sm, flex: 1, justifyContent: 'flex-end' }}>
+                  <View style={{ flexDirection: 'row', gap: spacing.xs, flex: 1, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
                     {periods.length === 0 ? (
                       <AppText color="muted">—</AppText>
                     ) : (
                       periods.map((period: AgendaPeriod) => (
-                        <View key={period.name} style={{ alignItems: 'center' }}>
-                          <AppText>{STATUS_ICON[period.status]}</AppText>
-                          <AppText variant="caption" color="secondary">
-                            {period.name}
-                          </AppText>
+                        <View key={period.name} style={{ alignItems: 'center', gap: spacing.xxs / 2 }}>
+                          <Badge label={period.name} tone={STATUS_TONE[period.status]} />
                         </View>
                       ))
                     )}
                   </View>
-                </View>
+                </Card>
               );
             })}
           </View>

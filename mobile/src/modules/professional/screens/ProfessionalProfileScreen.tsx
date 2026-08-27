@@ -1,7 +1,7 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { ActivityIndicator, Linking, View } from 'react-native';
 
-import { AppButton, AppText, Screen } from '../../../components';
+import { Avatar, AppButton, AppText, Card, Screen } from '../../../components';
 import { useTheme } from '../../../theme';
 import { useProfessionalProfile } from '../hooks';
 
@@ -12,6 +12,9 @@ import { useProfessionalProfile } from '../hooks';
  * acesso a "Recomendar" (RecommendProfessionalScreen, com o profissional
  * já definido — módulo Recommendations) e "Ver recomendações"
  * (ProfessionalRecommendationsScreen — "Recomendado por N moradores").
+ *
+ * Modernizado na Etapa 20: cabeçalho com `Avatar` grande + nome/categorias
+ * dentro de um `Card`, no lugar de texto solto no topo da tela.
  */
 export function ProfessionalProfileScreen() {
   const { spacing, colors } = useTheme();
@@ -30,17 +33,21 @@ export function ProfessionalProfileScreen() {
           </View>
         ) : (
           <>
-            <AppText variant="title">{professional.displayName}</AppText>
-
-            {professional.categories.length > 0 ? (
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xxs }}>
-                {professional.categories.map((category) => (
-                  <AppText key={category.id} variant="caption" color="secondary">
-                    {category.name}
-                  </AppText>
-                ))}
+            <Card style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+              <Avatar photoUrl={professional.photoUrl} name={professional.displayName} size={72} />
+              <View style={{ flex: 1, gap: spacing.xxs }}>
+                <AppText variant="title">{professional.displayName}</AppText>
+                {professional.categories.length > 0 ? (
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xxs }}>
+                    {professional.categories.map((category) => (
+                      <AppText key={category.id} variant="caption" color="secondary">
+                        {category.name}
+                      </AppText>
+                    ))}
+                  </View>
+                ) : null}
               </View>
-            ) : null}
+            </Card>
 
             {professional.description ? (
               <AppText variant="body" color="secondary">

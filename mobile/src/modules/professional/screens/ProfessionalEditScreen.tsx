@@ -5,7 +5,8 @@ import { useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { ActivityIndicator, KeyboardAvoidingView, Platform, View } from 'react-native';
 
-import { AppButton, AppText, AppTextInput, Screen } from '../../../components';
+import { AppButton, AppText, AppTextInput, Badge, Screen } from '../../../components';
+import { EditableAvatar, useAuth } from '../../auth';
 import { useTheme } from '../../../theme';
 import { getApiErrorMessage } from '../../../utils/apiError';
 import { formatPhoneNumber } from '../../../utils/phone';
@@ -72,6 +73,7 @@ interface ProfessionalEditScreenProps {
  */
 export function ProfessionalEditScreen({ profile, headerSlot }: ProfessionalEditScreenProps) {
   const { spacing, colors } = useTheme();
+  const { user } = useAuth();
   const createProfile = useCreateProfessionalProfile();
   const updateProfile = useUpdateProfessionalProfile();
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -127,13 +129,16 @@ export function ProfessionalEditScreen({ profile, headerSlot }: ProfessionalEdit
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
         <View style={{ flex: 1, gap: spacing.lg }}>
           <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' }}>
-            <View style={{ flex: 1 }}>
-              <AppText variant="title">{profile ? 'Meu perfil profissional' : 'Criar perfil profissional'}</AppText>
-              <AppText variant="subtitle" color="secondary" style={{ marginTop: spacing.xxs }}>
-                {profile
-                  ? 'Moradores encontram você a partir destas informações'
-                  : 'Preencha seus dados para aparecer na busca dos moradores'}
-              </AppText>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, flex: 1 }}>
+              {user ? <EditableAvatar name={profile?.displayName ?? user.name} size={56} /> : null}
+              <View style={{ flex: 1 }}>
+                <AppText variant="title">{profile ? 'Meu perfil profissional' : 'Criar perfil profissional'}</AppText>
+                <AppText variant="subtitle" color="secondary" style={{ marginTop: spacing.xxs }}>
+                  {profile
+                    ? 'Moradores encontram você a partir destas informações'
+                    : 'Preencha seus dados para aparecer na busca dos moradores'}
+                </AppText>
+              </View>
             </View>
             {headerSlot?.()}
           </View>
@@ -283,6 +288,14 @@ function CondominiumsSection() {
     Inactive: 'Inativo',
   };
 
+  // Etapa 20 (modernização visual) — mesmo padrão de tom por status já usado em scheduling/recommendations.
+  const statusTone: Record<string, 'success' | 'accent' | 'error' | 'neutral'> = {
+    Pending: 'accent',
+    Active: 'success',
+    Rejected: 'error',
+    Inactive: 'neutral',
+  };
+
   return (
     <View style={{ gap: spacing.xs }}>
       <AppText variant="subtitle">Atendo estes condomínios</AppText>
@@ -299,9 +312,7 @@ function CondominiumsSection() {
               >
                 <AppText>{`${condominium.name} — ${condominium.city}/${condominium.state}`}</AppText>
                 {link ? (
-                  <AppText variant="caption" color="secondary">
-                    {statusLabel[link.status] ?? link.status}
-                  </AppText>
+                  <Badge label={statusLabel[link.status] ?? link.status} tone={statusTone[link.status] ?? 'neutral'} />
                 ) : (
                   <AppButton
                     label="Solicitar"

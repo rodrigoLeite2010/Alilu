@@ -17,6 +17,8 @@ export interface AuthUser {
   name: string;
   email: string;
   phone: string | null;
+  /** Etapa 21 — foto pessoal, mostrada ao lado do nome (qualquer papel). `null` até o usuário definir uma; ver `components/EditableAvatar`. */
+  photoUrl: string | null;
   role: UserRole;
   status: UserStatus;
   createdAt: string;

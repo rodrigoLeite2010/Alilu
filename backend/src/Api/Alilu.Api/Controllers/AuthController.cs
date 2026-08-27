@@ -1,5 +1,7 @@
 using System.Security.Claims;
+using Alilu.Api.Services;
 using Alilu.Modules.Identity.Application;
+using Alilu.Modules.Professional.Application;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -10,10 +12,23 @@ namespace Alilu.Api.Controllers;
 /// nada de EF Core, JWT ou hashing — apenas traduz HTTP &lt;-&gt;
 /// <see cref="IAuthService"/> e mapeia exceções de aplicação para status
 /// HTTP (ver <see cref="Middleware.ExceptionHandlingMiddleware"/>).
+///
+/// Ponto de COMPOSIÇÃO desde a Etapa 21 (foto pessoal): <see cref="SetMyPhoto"/>/
+/// <see cref="RemoveMyPhoto"/> também injetam <see cref="IProfessionalProfileService"/>
+/// (módulo Professional) — decisão confirmada com Rodrigo (não uma regra
+/// pré-existente): quem também é profissional tem UMA ÚNICA foto, não duas
+/// independentes, então trocar a foto pessoal aqui espelha automaticamente
+/// em <c>Professional.PhotoUrl</c> (o campo já usado pelo diretório público
+/// que os moradores veem, existente desde o PROMPT 06 mas nunca antes
+/// preenchido por nenhuma tela). Nenhum dos dois módulos poderia fazer essa
+/// composição sozinho (regra do PROMPT 01) — só a Api.
 /// </summary>
 [ApiController]
 [Route("api/auth")]
-public sealed class AuthController(IAuthService authService) : ControllerBase
+public sealed class AuthController(
+    IAuthService authService,
+    IUserPhotoStorage photoStorage,
+    IProfessionalProfileService professionalProfileService) : ControllerBase
 {
     [HttpPost("register")]
     [AllowAnonymous]
@@ -70,6 +85,67 @@ public sealed class AuthController(IAuthService authService) : ControllerBase
         return Ok(user);
     }
 
+    /// <summary>
+    /// Define a foto pessoal do usuário autenticado (Etapa 21) — recebe a
+    /// imagem já recortada/comprimida pelo próprio celular (React Native:
+    /// `expo-image-picker` com `allowsEditing`) como base64, nunca um
+    /// arquivo bruto sem tratamento. Sobrescreve qualquer foto anterior.
+    /// </summary>
+    [HttpPut("me/photo")]
+    [Authorize]
+    public async Task<ActionResult<UserResponse>> SetMyPhoto([FromBody] SetPhotoBody body, CancellationToken cancellationToken)
+    {
+        var userId = GetAuthenticatedUserId();
+
+        var relativePath = await photoStorage.SaveAsync(userId, body.Base64Image, body.ContentType, cancellationToken);
+        var absoluteUrl = $"{Request.Scheme}://{Request.Host}{relativePath}";
+
+        var updatedUser = await authService.SetMyPhotoAsync(userId, absoluteUrl, cancellationToken);
+        await MirrorPhotoToProfessionalProfileAsync(userId, absoluteUrl, cancellationToken);
+
+        return Ok(updatedUser);
+    }
+
+    /// <summary>Remove a foto pessoal do usuário autenticado — volta ao fallback de iniciais (React Native: componente `Avatar`).</summary>
+    [HttpDelete("me/photo")]
+    [Authorize]
+    public async Task<ActionResult<UserResponse>> RemoveMyPhoto(CancellationToken cancellationToken)
+    {
+        var userId = GetAuthenticatedUserId();
+
+        photoStorage.Delete(userId);
+        var updatedUser = await authService.RemoveMyPhotoAsync(userId, cancellationToken);
+        await MirrorPhotoToProfessionalProfileAsync(userId, null, cancellationToken);
+
+        return Ok(updatedUser);
+    }
+
+    /// <summary>
+    /// Composição descrita no comentário da classe: se este usuário também
+    /// tiver um perfil profissional, reaproveita
+    /// <see cref="IProfessionalProfileService.UpdateMyProfileAsync"/> (já
+    /// existente desde o PROMPT 06) passando os demais campos inalterados —
+    /// evita duplicar em Professional a lógica de "definir só a foto".
+    /// No-op silencioso para quem não é profissional (a grande maioria dos
+    /// usuários que vão usar este endpoint).
+    /// </summary>
+    private async Task MirrorPhotoToProfessionalProfileAsync(Guid userId, string? photoUrl, CancellationToken cancellationToken)
+    {
+        var professionalProfile = await professionalProfileService.GetMyProfileAsync(userId, cancellationToken);
+        if (professionalProfile is null)
+        {
+            return;
+        }
+
+        await professionalProfileService.UpdateMyProfileAsync(
+            userId,
+            professionalProfile.DisplayName,
+            professionalProfile.Description,
+            professionalProfile.Phone,
+            photoUrl,
+            cancellationToken);
+    }
+
     private Guid GetAuthenticatedUserId()
     {
         var subjectClaim = User.FindFirstValue(ClaimTypes.NameIdentifier)
@@ -86,3 +162,6 @@ public sealed class AuthController(IAuthService authService) : ControllerBase
         return userId;
     }
 }
+
+/// <summary>Corpo de PUT .../me/photo — imagem já recortada/comprimida pelo cliente, como base64.</summary>
+public sealed record SetPhotoBody(string Base64Image, string ContentType);

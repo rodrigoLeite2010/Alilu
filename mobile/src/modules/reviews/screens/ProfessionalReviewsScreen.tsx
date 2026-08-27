@@ -1,7 +1,7 @@
 import { router } from 'expo-router';
 import { ActivityIndicator, ScrollView, View } from 'react-native';
 
-import { AppButton, AppText, Screen } from '../../../components';
+import { AppButton, AppText, Card, Screen } from '../../../components';
 import { useTheme } from '../../../theme';
 import { RatingSummary } from '../components/RatingSummary';
 import { useMyRatingSummary, useReceivedReviews } from '../hooks';
@@ -44,13 +44,13 @@ export function ProfessionalReviewsScreen() {
 
             <View style={{ gap: spacing.sm }}>
               {(reviews ?? []).map((review) => (
-                <View key={review.id} style={{ gap: spacing.xxs, borderBottomWidth: 1, borderColor: colors.border, paddingBottom: spacing.sm }}>
-                  <AppText style={{ color: colors.brand.primary }}>{starsForRating(review.rating)}</AppText>
+                <Card key={review.id} style={{ gap: spacing.xxs }}>
+                  <AppText style={{ color: colors.brand.accent, fontSize: 18 }}>{starsForRating(review.rating)}</AppText>
                   {review.comment ? <AppText>{review.comment}</AppText> : null}
                   <AppText variant="caption" color="secondary">
                     {formatReviewDate(review.createdAt)}
                   </AppText>
-                </View>
+                </Card>
               ))}
               {(reviews ?? []).length === 0 ? <AppText color="muted">Você ainda não recebeu avaliações.</AppText> : null}
             </View>

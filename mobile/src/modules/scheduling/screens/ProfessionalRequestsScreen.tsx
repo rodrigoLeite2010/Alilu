@@ -2,11 +2,11 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, View } from 'react-native';
 
-import { AppButton, AppText, Screen } from '../../../components';
+import { AppButton, AppText, Badge, Card, Screen } from '../../../components';
 import { useTheme } from '../../../theme';
 import { getApiErrorMessage } from '../../../utils/apiError';
 import { useAcceptBooking, useBookingCondominiumsDirectory, useMyProfessionalRequests, useRejectBooking } from '../hooks';
-import { BOOKING_STATUS_LABEL, formatDateDisplay, formatTimeRange } from '../schedulingFormat';
+import { BOOKING_STATUS_LABEL, BOOKING_STATUS_TONE, formatDateDisplay, formatTimeRange } from '../schedulingFormat';
 import type { BookingStatus } from '../types';
 
 const FILTERS: { label: string; status: BookingStatus | undefined }[] = [
@@ -21,7 +21,7 @@ const FILTERS: { label: string; status: BookingStatus | undefined }[] = [
  * condomínio/data/horário, que já bastam para o profissional decidir.
  */
 export function ProfessionalRequestsScreen() {
-  const { spacing, colors, radii } = useTheme();
+  const { spacing, colors } = useTheme();
   const [filter, setFilter] = useState<BookingStatus | undefined>('Requested');
   const { data: bookings, isLoading, isError, refetch } = useMyProfessionalRequests(filter);
   const { data: condominiums } = useBookingCondominiumsDirectory();
@@ -81,13 +81,13 @@ export function ProfessionalRequestsScreen() {
         ) : (
           <ScrollView contentContainerStyle={{ gap: spacing.xs }}>
             {sorted.map((booking) => (
-              <View key={booking.id} style={{ padding: spacing.sm, borderRadius: radii.md, backgroundColor: colors.surfaceAlt, gap: spacing.xxs }}>
+              <Card key={booking.id} style={{ gap: spacing.xxs }}>
                 <Pressable onPress={() => router.push({ pathname: '/(professional)/requests/[id]', params: { id: booking.id } })}>
-                  <AppText variant="subtitle">{condominiumNameById.get(booking.condominiumId) ?? 'Condomínio'}</AppText>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <AppText variant="subtitle">{condominiumNameById.get(booking.condominiumId) ?? 'Condomínio'}</AppText>
+                    <Badge label={BOOKING_STATUS_LABEL[booking.status]} tone={BOOKING_STATUS_TONE[booking.status]} />
+                  </View>
                   <AppText color="secondary">{`${formatDateDisplay(booking.scheduledDate)} · ${formatTimeRange(booking.startTime, booking.endTime)}`}</AppText>
-                  <AppText variant="caption" color="secondary">
-                    {BOOKING_STATUS_LABEL[booking.status]}
-                  </AppText>
                 </Pressable>
 
                 {booking.status === 'Requested' ? (
@@ -105,7 +105,7 @@ export function ProfessionalRequestsScreen() {
                     />
                   </View>
                 ) : null}
-              </View>
+              </Card>
             ))}
           </ScrollView>
         )}

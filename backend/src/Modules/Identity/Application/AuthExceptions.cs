@@ -37,3 +37,14 @@ public sealed class UserBlockedException()
 
 public sealed class WeakPasswordException()
     : IdentityApplicationException("A senha deve ter pelo menos 8 caracteres.");
+
+/// <summary>
+/// Etapa 21 (foto pessoal) — upload de foto rejeitado: formato não
+/// suportado, base64 malformado ou tamanho acima do limite. Lançada por
+/// <c>Alilu.Api.Services.IUserPhotoStorage</c> (não por este módulo
+/// diretamente) — mora aqui porque toda exceção que a Api mapeia para
+/// HTTP nesta área do sistema já segue esse padrão (ver
+/// <c>ExceptionHandlingMiddleware</c>).
+/// </summary>
+public sealed class InvalidPhotoException(string reason)
+    : IdentityApplicationException(reason);

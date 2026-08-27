@@ -1,14 +1,14 @@
 import { router } from 'expo-router';
-import { ActivityIndicator, Pressable, ScrollView, View } from 'react-native';
+import { ActivityIndicator, ScrollView, View } from 'react-native';
 
-import { AppButton, AppText, Screen } from '../../../components';
+import { AppButton, AppText, Badge, Card, Screen } from '../../../components';
 import { useTheme } from '../../../theme';
 import { useBookingProfessionalsDirectory, useMyBookings } from '../hooks';
-import { BOOKING_STATUS_LABEL, formatDateDisplay, formatTimeRange } from '../schedulingFormat';
+import { BOOKING_STATUS_LABEL, BOOKING_STATUS_TONE, formatDateDisplay, formatTimeRange } from '../schedulingFormat';
 
-/** React Native: MyBookingsScreen (PROMPT 08) — "meus agendamentos". */
+/** React Native: MyBookingsScreen (PROMPT 08) — "meus agendamentos". Modernizado na Etapa 20: cada item é um `Card` com `Badge` de status. */
 export function MyBookingsScreen() {
-  const { spacing, colors, radii } = useTheme();
+  const { spacing, colors } = useTheme();
   const { data: bookings, isLoading, isError, refetch } = useMyBookings();
   const { data: professionals } = useBookingProfessionalsDirectory();
 
@@ -35,17 +35,17 @@ export function MyBookingsScreen() {
         ) : (
           <ScrollView contentContainerStyle={{ gap: spacing.xs }}>
             {sorted.map((booking) => (
-              <Pressable
+              <Card
                 key={booking.id}
                 onPress={() => router.push({ pathname: '/(resident)/bookings/[id]', params: { id: booking.id } })}
-                style={{ padding: spacing.sm, borderRadius: radii.md, backgroundColor: colors.surfaceAlt, gap: spacing.xxs }}
+                style={{ gap: spacing.xxs }}
               >
-                <AppText variant="subtitle">{professionalNameById.get(booking.professionalId) ?? 'Profissional'}</AppText>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <AppText variant="subtitle">{professionalNameById.get(booking.professionalId) ?? 'Profissional'}</AppText>
+                  <Badge label={BOOKING_STATUS_LABEL[booking.status]} tone={BOOKING_STATUS_TONE[booking.status]} />
+                </View>
                 <AppText color="secondary">{`${formatDateDisplay(booking.scheduledDate)} · ${formatTimeRange(booking.startTime, booking.endTime)}`}</AppText>
-                <AppText variant="caption" color="secondary">
-                  {BOOKING_STATUS_LABEL[booking.status]}
-                </AppText>
-              </Pressable>
+              </Card>
             ))}
           </ScrollView>
         )}

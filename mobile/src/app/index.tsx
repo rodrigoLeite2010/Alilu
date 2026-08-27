@@ -2,7 +2,7 @@ import { Link } from 'expo-router';
 import { StyleSheet, View } from 'react-native';
 
 import { AppButton, AppText, Screen } from '../components';
-import { useAuth } from '../modules/auth';
+import { EditableAvatar, useAuth } from '../modules/auth';
 import { useTheme } from '../theme';
 
 /**
@@ -22,9 +22,12 @@ export default function Home() {
         <AppText variant="display">ALILU</AppText>
 
         {isAuthenticated && user ? (
-          <AppText variant="subtitle" color="secondary" style={{ marginTop: spacing.xxs, textAlign: 'center' }}>
-            Olá, {user.name}
-          </AppText>
+          <View style={{ alignItems: 'center', gap: spacing.xs, marginTop: spacing.sm }}>
+            <EditableAvatar name={user.name} />
+            <AppText variant="subtitle" color="secondary" style={{ textAlign: 'center' }}>
+              Olá, {user.name}
+            </AppText>
+          </View>
         ) : (
           <AppText variant="subtitle" color="secondary" style={{ marginTop: spacing.xxs }}>
             Fundação do app — em construção

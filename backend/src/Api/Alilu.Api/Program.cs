@@ -3,6 +3,7 @@ using System.Text.Json.Serialization;
 using Alilu.Api.BackgroundServices;
 using Alilu.Api.HealthChecks;
 using Alilu.Api.Middleware;
+using Alilu.Api.Services;
 using Alilu.Infrastructure;
 using Alilu.Modules.Administration.Infrastructure;
 using Alilu.Modules.Condominium.Infrastructure;
@@ -21,6 +22,15 @@ using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.IdentityModel.Tokens;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Etapa 21 (foto pessoal) — cria a pasta ANTES de `builder.Build()` de
+// propósito: `IWebHostEnvironment.WebRootFileProvider` (usado por
+// `app.UseStaticFiles()` abaixo) é resolvido no momento do `Build()` a
+// partir do que existe em disco naquele instante — se "wwwroot" não
+// existisse ainda, o servidor de arquivos estáticos subiria apontando para
+// um provider vazio e nunca serviria nada, mesmo que a pasta fosse criada
+// depois (ver `Services/UserPhotoStorage`, que grava os arquivos ali).
+Directory.CreateDirectory(Path.Combine(builder.Environment.ContentRootPath, "wwwroot", "uploads", "user-photos"));
 
 // Infraestrutura (persistência, etc.).
 builder.Services.AddInfrastructure(builder.Configuration);
@@ -170,6 +180,11 @@ builder.Services.AddHealthChecks().AddCheck<DatabaseHealthCheck>("database");
 // BookingReminderBackgroundService.
 builder.Services.AddHostedService<BookingReminderBackgroundService>();
 
+// Foto pessoal (Etapa 21) — ver Services/IUserPhotoStorage. Singleton:
+// classe sem estado próprio (só resolve caminhos em disco a cada chamada),
+// então não há necessidade de recriar por requisição.
+builder.Services.AddSingleton<IUserPhotoStorage, UserPhotoStorage>();
+
 var app = builder.Build();
 
 // Traduz exceções de Application (ex.: InvalidCredentialsException) em
@@ -182,6 +197,14 @@ app.UseMiddleware<ExceptionHandlingMiddleware>();
 // headers dos endpoints acessados pelo admin-web — o app mobile não é
 // afetado (requisições nativas não passam pelo CORS do browser).
 app.UseCors(adminWebCorsPolicy);
+
+// Foto pessoal (Etapa 21) — serve o conteúdo de "wwwroot" (só
+// "uploads/user-photos" existe por enquanto) como arquivo estático, sem
+// exigir autenticação: a mesma URL sai em `UserResponse.PhotoUrl`/
+// `ProfessionalResponse.PhotoUrl` e precisa carregar direto num `<Image>`
+// do app, tanto para o próprio usuário quanto para quem vê o diretório
+// público de profissionais.
+app.UseStaticFiles();
 
 app.UseAuthentication();
 app.UseAuthorization();

@@ -45,6 +45,11 @@ public sealed class UserConfiguration : IEntityTypeConfiguration<User>
         builder.Property(u => u.Phone)
             .HasMaxLength(30);
 
+        // Etapa 21 — URL absoluta (ver Alilu.Api.Services.IUserPhotoStorage);
+        // 500 chars é bem folgado para qualquer host/caminho real.
+        builder.Property(u => u.PhotoUrl)
+            .HasMaxLength(500);
+
         // Base64 de PBKDF2 (1 + 4 + 16 + 32 bytes) ≈ 72 caracteres — 200 dá margem
         // caso o formato mude (ex.: mais iterações/salt maior) sem quebrar o schema.
         builder.Property(u => u.PasswordHash)

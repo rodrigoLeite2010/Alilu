@@ -34,6 +34,13 @@
         {
           "icon": "./assets/icon.png"
         }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "O ALILU usa sua galeria para você escolher a foto do seu perfil.",
+          "cameraPermission": "O ALILU usa a câmera para você tirar uma foto do seu perfil."
+        }
       ]
     ]
   }

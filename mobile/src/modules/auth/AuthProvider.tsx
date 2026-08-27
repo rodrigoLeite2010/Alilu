@@ -16,6 +16,14 @@ interface AuthContextValue {
   login: (payload: LoginPayload) => Promise<void>;
   register: (payload: RegisterPayload) => Promise<void>;
   logout: () => Promise<void>;
+  /**
+   * Etapa 21 — atualiza só `photoUrl` no usuário em memória, chamado depois
+   * de `authApi.setPhoto`/`authApi.removePhoto` já terem persistido no
+   * servidor (ver `components/EditableAvatar`). Não existe um `updateUser`
+   * genérico de propósito — nenhuma outra tela edita o próprio `AuthUser`
+   * hoje (nome/e-mail/telefone não têm tela de edição própria ainda).
+   */
+  updateUserPhoto: (photoUrl: string | null) => void;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -78,6 +86,10 @@ export function AuthProvider({ children }: PropsWithChildren) {
 
     await clearSession();
   }, [clearSession]);
+
+  const updateUserPhoto = useCallback((photoUrl: string | null) => {
+    setUser((current) => (current ? { ...current, photoUrl } : current));
+  }, []);
 
   // Chamado pelo interceptor de resposta do Axios quando uma chamada
   // autenticada recebe 401 — tenta renovar a sessão de forma transparente
@@ -143,8 +155,9 @@ export function AuthProvider({ children }: PropsWithChildren) {
       login,
       register,
       logout,
+      updateUserPhoto,
     }),
-    [user, isBootstrapping, login, register, logout],
+    [user, isBootstrapping, login, register, logout, updateUserPhoto],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

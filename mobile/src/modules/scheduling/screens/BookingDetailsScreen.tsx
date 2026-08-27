@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 import { useState } from 'react';
 import { ActivityIndicator, ScrollView, View } from 'react-native';
 
-import { AppButton, AppText, Screen } from '../../../components';
+import { AppButton, AppText, Badge, Card, Screen } from '../../../components';
 import { useTheme } from '../../../theme';
 import { getApiErrorMessage } from '../../../utils/apiError';
 import {
@@ -21,7 +21,7 @@ import {
   useRejectBooking,
   useStartBooking,
 } from '../hooks';
-import { BOOKING_STATUS_LABEL, formatDateDisplay, formatTimeRange } from '../schedulingFormat';
+import { BOOKING_STATUS_LABEL, BOOKING_STATUS_TONE, formatDateDisplay, formatTimeRange } from '../schedulingFormat';
 import type { Booking } from '../types';
 
 interface BookingDetailsScreenProps {
@@ -119,21 +119,19 @@ export function BookingDetailsScreen({ bookingId, role, reviewSlot }: BookingDet
   return (
     <Screen>
       <ScrollView contentContainerStyle={{ gap: spacing.lg }}>
-        <View>
+        <View style={{ gap: spacing.xxs }}>
           <AppText variant="title">{professionalName ?? 'Agendamento'}</AppText>
-          <AppText variant="subtitle" color="secondary" style={{ marginTop: spacing.xxs }}>
-            {BOOKING_STATUS_LABEL[booking.status]}
-          </AppText>
+          <Badge label={BOOKING_STATUS_LABEL[booking.status]} tone={BOOKING_STATUS_TONE[booking.status]} />
         </View>
 
-        <View style={{ gap: spacing.xxs }}>
+        <Card style={{ gap: spacing.xxs }}>
           <AppText color="secondary">{formatDateDisplay(booking.scheduledDate)}</AppText>
           <AppText color="secondary">{formatTimeRange(booking.startTime, booking.endTime)}</AppText>
           {condominium ? <AppText color="secondary">{`${condominium.name} — ${condominium.city}/${condominium.state}`}</AppText> : null}
           {unit ? <AppText color="secondary">{`Unidade ${unit.code}`}</AppText> : null}
-        </View>
+        </Card>
 
-        <View style={{ gap: spacing.xxs }}>
+        <Card style={{ gap: spacing.xxs }}>
           <AppText variant="subtitle">Serviços</AppText>
           {booking.items.map((item) => (
             <AppText key={item.id} color="secondary">
@@ -141,13 +139,13 @@ export function BookingDetailsScreen({ bookingId, role, reviewSlot }: BookingDet
               {item.description ? ` — ${item.description}` : ''}
             </AppText>
           ))}
-        </View>
+        </Card>
 
         {booking.notes ? (
-          <View style={{ gap: spacing.xxs }}>
+          <Card style={{ gap: spacing.xxs }}>
             <AppText variant="subtitle">Observações</AppText>
             <AppText color="secondary">{booking.notes}</AppText>
-          </View>
+          </Card>
         ) : null}
 
         {actionError ? <AppText style={{ color: colors.semantic.error }}>{actionError}</AppText> : null}

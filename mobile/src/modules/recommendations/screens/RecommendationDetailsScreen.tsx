@@ -1,10 +1,10 @@
 import { router } from 'expo-router';
 import { ActivityIndicator, ScrollView, View } from 'react-native';
 
-import { AppButton, AppText, Screen } from '../../../components';
+import { AppButton, AppText, Badge, Screen } from '../../../components';
 import { useTheme } from '../../../theme';
 import { useMyRecommendation } from '../hooks';
-import { formatRecommendationDate, RECOMMENDATION_STATUS_LABEL } from '../recommendationsFormat';
+import { formatRecommendationDate, RECOMMENDATION_STATUS_LABEL, RECOMMENDATION_STATUS_TONE } from '../recommendationsFormat';
 
 interface RecommendationDetailsScreenProps {
   recommendationId: string;
@@ -63,11 +63,11 @@ export function RecommendationDetailsScreen({ recommendationId, professionalName
               </View>
             ) : null}
 
-            <View>
+            <View style={{ gap: spacing.xxs }}>
               <AppText variant="subtitle" color="secondary">
                 Status
               </AppText>
-              <AppText variant="body">{RECOMMENDATION_STATUS_LABEL[recommendation.status]}</AppText>
+              <Badge label={RECOMMENDATION_STATUS_LABEL[recommendation.status]} tone={RECOMMENDATION_STATUS_TONE[recommendation.status]} />
             </View>
 
             <View>

@@ -14,12 +14,15 @@ export const spacing = {
   xxxl: 64,
 } as const;
 
+// Modernização visual (Etapa 20, "estilo iFood/apps atuais") — cantos mais
+// arredondados em toda a escala; só a FORMA muda aqui, nenhuma cor. Valores
+// antigos ficam comentados ao lado para referência de quem revisar o diff.
 export const radii = {
   none: 0,
-  sm: 6,
-  md: 10,
-  lg: 16,
-  xl: 24,
+  sm: 8, // antes: 6
+  md: 14, // antes: 10
+  lg: 20, // antes: 16
+  xl: 28, // antes: 24
   full: 999,
 } as const;
 

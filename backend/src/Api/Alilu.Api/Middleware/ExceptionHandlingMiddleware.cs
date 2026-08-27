@@ -65,6 +65,7 @@ public sealed class ExceptionHandlingMiddleware(RequestDelegate next, ILogger<Ex
         UserNotFoundException => (StatusCodes.Status404NotFound, exception.Message),
         InvalidRoleForSelfRegistrationException => (StatusCodes.Status400BadRequest, exception.Message),
         WeakPasswordException => (StatusCodes.Status400BadRequest, exception.Message),
+        InvalidPhotoException => (StatusCodes.Status400BadRequest, exception.Message),
 
         // Módulo Condominium (PROMPT 04).
         Alilu.Modules.Condominium.Application.CnpjAlreadyInUseException => (StatusCodes.Status409Conflict, exception.Message),

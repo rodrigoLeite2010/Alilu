@@ -11,11 +11,15 @@ interface AppButtonProps extends Omit<PressableProps, 'style'> {
 }
 
 /**
- * Botão padrão do ALILU. Sem animações/efeitos além do feedback nativo de
- * toque (opacidade) — visual limpo, conforme pedido no tema.
+ * Botão padrão do ALILU. Modernizado na Etapa 20 ("estilo iFood/apps
+ * atuais", sem mudar cores da marca): cantos mais arredondados (`radii.lg`,
+ * antes `radii.md`), padding maior e sombra na variante `primary` (o
+ * "botão de ação" ganha profundidade; `secondary`/`ghost` continuam planas
+ * de propósito, para não competir visualmente com a ação principal da
+ * tela). Feedback de toque continua só opacidade — nenhuma animação nova.
  */
 export function AppButton({ label, variant = 'primary', disabled, ...rest }: AppButtonProps) {
-  const { colors, spacing, radii, typography } = useTheme();
+  const { colors, spacing, radii, typography, shadows } = useTheme();
 
   const backgroundColor = {
     primary: colors.brand.primary,
@@ -36,14 +40,16 @@ export function AppButton({ label, variant = 'primary', disabled, ...rest }: App
       disabled={disabled}
       style={({ pressed }) => [
         styles.base,
+        variant === 'primary' && !disabled ? shadows.md : undefined,
         {
           backgroundColor,
           borderColor,
           borderWidth: variant === 'ghost' ? 1 : 0,
-          paddingVertical: spacing.sm,
+          paddingVertical: spacing.sm + spacing.xxs,
           paddingHorizontal: spacing.lg,
-          borderRadius: radii.md,
+          borderRadius: radii.lg,
           opacity: disabled ? 0.5 : pressed ? 0.85 : 1,
+          transform: [{ scale: pressed ? 0.98 : 1 }],
         },
       ]}
       {...rest}

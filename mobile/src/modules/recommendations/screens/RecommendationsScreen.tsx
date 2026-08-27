@@ -1,10 +1,10 @@
 import { router } from 'expo-router';
 import { ActivityIndicator, FlatList, View } from 'react-native';
 
-import { AppButton, AppText, Screen } from '../../../components';
+import { AppButton, AppText, Badge, Card, Screen } from '../../../components';
 import { useTheme } from '../../../theme';
 import { useMyRecommendations } from '../hooks';
-import { formatRecommendationDate, RECOMMENDATION_STATUS_LABEL } from '../recommendationsFormat';
+import { formatRecommendationDate, RECOMMENDATION_STATUS_LABEL, RECOMMENDATION_STATUS_TONE } from '../recommendationsFormat';
 
 /**
  * React Native: RecommendationsScreen (PROMPT 10) — "minhas
@@ -44,15 +44,18 @@ export function RecommendationsScreen() {
             keyExtractor={(item) => item.id}
             contentContainerStyle={{ gap: spacing.sm }}
             renderItem={({ item }) => (
-              <AppButton
-                label={[
-                  item.externalProfessionalName ?? 'Profissional do ALILU',
-                  RECOMMENDATION_STATUS_LABEL[item.status],
-                  formatRecommendationDate(item.createdAt),
-                ].join(' · ')}
-                variant="secondary"
+              <Card
                 onPress={() => router.push({ pathname: '/(resident)/recommendations/[id]', params: { id: item.id } })}
-              />
+                style={{ gap: spacing.xxs }}
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <AppText variant="subtitle">{item.externalProfessionalName ?? 'Profissional do ALILU'}</AppText>
+                  <Badge label={RECOMMENDATION_STATUS_LABEL[item.status]} tone={RECOMMENDATION_STATUS_TONE[item.status]} />
+                </View>
+                <AppText variant="caption" color="secondary">
+                  {formatRecommendationDate(item.createdAt)}
+                </AppText>
+              </Card>
             )}
             ListEmptyComponent={<AppText color="muted">Você ainda não fez nenhuma recomendação.</AppText>}
           />

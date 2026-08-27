@@ -3798,3 +3798,292 @@ fixa exatamente o cenário do bug relatado: dois intervalos recorrentes
 adjacentes (07:00-12:00 e 12:00-18:00) devem permitir um agendamento de
 07:00 a 18:00. `Professional.Application` recompilado com sucesso (0
 Warnings/0 Errors) depois da correção.
+
+## Etapa 20 — Modernização visual do app mobile
+
+Depois de confirmar que a Etapa 19 (agenda) e a correção pós-entrega
+ficaram corretas ("agora ficou perfeito"), Rodrigo pediu para deixar o
+app mobile mais moderno — "estilo iFood ou esses atuais", dizendo que a
+funcionalidade estava boa mas o visual "ficou muito simples". Três
+decisões foram confirmadas com ele antes de começar:
+
+1. **Escopo**: só o app mobile (React Native) — o projeto `admin-web`
+   (separado) não foi tocado.
+2. **Cores**: manter exatamente a paleta da marca (`#1B2733` grafite,
+   `#B08D57` dourado acinzentado) — só a FORMA dos componentes muda
+   (cantos, sombra, espaçamento, hierarquia visual), nenhuma cor nova foi
+   introduzida em nenhum arquivo.
+3. **Rollout**: aplicar em tudo de uma vez, sem uma rodada de aprovação
+   prévia num recorte pequeno.
+
+Esta etapa é só visual — nenhuma tela de negócio, endpoint, tipo ou regra
+mudou de comportamento. Nenhuma dependência nova foi adicionada
+(`package.json` inalterado) — mesma filosofia já documentada em várias
+telas do próprio código ("este projeto não usa nenhuma biblioteca de
+calendário/data", etc.) — os componentes novos usam só React Native puro.
+
+### Camada de base (efeito cascata em todo o app)
+
+- `theme/spacing.ts` — escala `radii` aumentada (`sm` 6→8, `md` 10→14,
+  `lg` 16→20, `xl` 24→28; `full` continua 999) — cantos mais arredondados
+  em tudo que já usava `radii.*`, sem tocar em nenhuma tela.
+- `theme/shadows.ts` (novo) — presets `none`/`sm`/`md`/`lg`
+  (`shadowColor`/`shadowOffset`/`shadowOpacity`/`shadowRadius` para
+  iOS/Web + `elevation` para Android, calibrados para ficarem parecidos
+  nas duas plataformas). Importa os arquivos de token diretamente (nunca
+  de `./index`), seguindo a mesma regra já documentada em
+  `theme.ts`/`ThemeProvider.tsx` para não recriar o ciclo de módulos que
+  quebra no Expo Web. Composto em `theme.ts` e exposto via
+  `useTheme().shadows`.
+- `components/AppButton.tsx` — `radii.lg` (era `radii.md`), padding
+  vertical maior, sombra (`shadows.md`) só na variante `primary` (o botão
+  de ação principal ganha profundidade; `secondary`/`ghost` continuam
+  planas de propósito) e um leve `scale` no toque.
+- `components/AppTextInput.tsx` — fundo preenchido (`surfaceAlt`) no
+  lugar de caixa branca com borda sempre visível; a borda só aparece em
+  erro ou quando o campo está focado (novo estado local `isFocused`).
+  `radii.lg` (era `radii.md`).
+
+### Componentes novos (`components/`)
+
+- **`Card`** — container elevado (`shadows.sm`, `radii.lg`, fundo
+  `colors.surface`, padding), com ou sem `onPress` (vira `Pressable`
+  quando clicável). Substitui os vários `View`/`Pressable` com
+  `backgroundColor: colors.surfaceAlt` que cada tela reimplementava por
+  conta própria desde os primeiros prompts.
+- **`Avatar`** — foto circular (`photoUrl`) com fallback de iniciais
+  (fundo `colors.brand.accent`) quando não há foto ou a URL é nula.
+  Primeiro uso de `<Image>` em todo o app — `photoUrl` existe em
+  `Professional`/`ProfessionalDirectoryItem` desde o PROMPT 06, mas
+  nenhuma tela chegava a renderizar a foto visualmente até agora.
+- **`Badge`** — chip de status colorido por "tom" (`success`/`warning`/
+  `error`/`info`/`neutral`/`accent`), fundo tingido calculado a partir das
+  MESMAS cores semânticas de `theme/colors.ts` via hex de 8 dígitos
+  (`${cor}1F`, React Native aceita `#RRGGBBAA` nativamente) — nenhuma cor
+  nova precisou ser adicionada ao tema. Substitui os mapas de rótulo em
+  texto puro sem nenhum destaque visual que existiam em vários módulos
+  (`BOOKING_STATUS_LABEL`, `RECOMMENDATION_STATUS_LABEL`,
+  `NOTIFICATION_TYPE_LABEL`, e os `STATUS_LABEL`/`TYPE_LABEL` locais de
+  `MyAgendaScreen`/`BlockedDatesScreen`).
+
+Cada módulo que precisou de um tom por status ganhou um mapa `*_TONE` ao
+lado do `*_LABEL` já existente (`schedulingFormat.ts#BOOKING_STATUS_TONE`,
+`recommendationsFormat.ts#RECOMMENDATION_STATUS_TONE`) — mesmo padrão dos
+mapas de rótulo, só que resolvendo uma cor em vez de um texto.
+
+### Onde a modernização foi aplicada tela a tela
+
+Com "aplicar em tudo de uma vez", toda tela do app herda automaticamente
+a camada de base (qualquer `AppButton`/`AppTextInput`/`radii.*` fica mais
+moderno sem precisar editar a tela). Além disso, as telas de maior
+impacto visual — as mais usadas e as que tinham mapas de status em texto
+puro — ganharam os componentes novos diretamente:
+
+- `ProfessionalListScreen`/`ProfessionalProfileScreen` — item de lista e
+  cabeçalho do perfil viraram `Card` com `Avatar` (foto ou iniciais) ao
+  lado do nome.
+- `MyAgendaScreen` — legenda e cada período do dia usam `Badge` (era
+  emoji + texto); cada linha de dia virou `Card`.
+- `BlockedDatesScreen` — cada exceção cadastrada virou `Card` com `Badge`
+  para o tipo (Bloqueado/Liberado).
+- `ProfessionalEditScreen` — status do vínculo com cada condomínio
+  (`CondominiumsSection`) virou `Badge`.
+- `MyBookingsScreen`/`ProfessionalRequestsScreen`/`BookingDetailsScreen`
+  — cada agendamento virou `Card` com `Badge` de status
+  (`BOOKING_STATUS_LABEL`/`BOOKING_STATUS_TONE`).
+- `RatingSummary`/`ProfessionalReviewsScreen` — média e cada avaliação
+  dentro de `Card`; estrelas maiores e na cor de acento da marca
+  (`colors.brand.accent`, antes `colors.brand.primary`) para se destacar
+  como o elemento visual central da tela. `ReviewScreen` (seletor de nota
+  interativo) recebeu o mesmo tratamento (estrelas maiores, acento).
+- `NotificationItem` — sombra sutil nos itens não lidos, `Badge` para a
+  categoria (era só texto em caption).
+- `ResidentHomeScreen` — bloco do condomínio/unidade virou `Card`.
+- `RecommendationsScreen`/`RecommendationDetailsScreen` — item de lista
+  (era um `AppButton` inteiro usado como linha, um "jeitinho" que nunca
+  tinha sido revisto) virou `Card` com `Badge` de status; status no
+  detalhe também virou `Badge`.
+
+Telas não listadas acima (autenticação, seleção de data/hora,
+formulários de reserva, telas de onboarding do morador, etc.) não foram
+editadas individualmente — herdam a modernização só pela camada de base
+(`AppButton`/`AppTextInput`/`radii`), sem o tratamento "profundo" de
+`Card`/`Avatar`/`Badge`. Nenhuma delas tinha mapa de status em texto puro
+nem lista de itens que se beneficiasse claramente de `Card`/`Avatar`, e
+os módulos `administration`/`condominium` não têm nenhuma tela própria no
+mobile (só tipos/hooks) — nada para modernizar visualmente ali.
+
+### Verificação
+
+`npx tsc --noEmit` e `npx eslint . --max-warnings=0` limpos (0 erros, 0
+avisos) no app inteiro depois de todas as mudanças desta etapa.
+
+## Etapa 21 — Foto pessoal (avatar clicável ao lado do nome)
+
+Rodrigo pediu: "criar ao lado do nome da pessoa logado no mobile um perfil
+para inserir foto, fazer crop de inserção de imagem e alteração de
+imagem". Duas decisões foram confirmadas com ele antes de começar:
+
+1. **Escopo**: todos os papéis (morador, profissional, administrador) —
+   não só profissionais.
+2. **Relação com a foto pública do profissional**: `Professional.PhotoUrl`
+   já existia desde o PROMPT 06 (usado no diretório público que os
+   moradores veem), mas nenhuma tela jamais preenchia esse campo — era só
+   um campo morto. Rodrigo confirmou que a nova foto pessoal e essa foto
+   pública devem ser A MESMA, não duas independentes.
+
+### Modelagem do banco
+
+`identity.users` ganhou uma coluna:
+
+- `photo_url` (`nvarchar(500)`, nulável) — URL absoluta (nunca um caminho
+  relativo) apontando para a própria Api. `User.PhotoUrl`/`User.SetPhoto`
+  (Domain), mapeado em `UserConfiguration`.
+
+**Rodrigo precisa gerar e aplicar a migração** (mesma limitação de sempre
+neste sandbox — sem acesso a `dotnet ef`/NuGet):
+
+```
+cd backend
+dotnet ef migrations add AddUserPhotoUrl --project src/Infrastructure/Alilu.Infrastructure --startup-project src/Api/Alilu.Api
+dotnet ef database update --project src/Infrastructure/Alilu.Infrastructure --startup-project src/Api/Alilu.Api
+```
+
+(ajuste os caminhos de `--project`/`--startup-project` se rodar de um
+diretório diferente de `backend/` — ver Etapa 19 para o erro típico de
+caminho duplicado.)
+
+### Armazenamento da imagem — decisão de design
+
+Este projeto não usa (e não vai usar nesta etapa) nenhum serviço de
+armazenamento em nuvem (S3/Azure Blob) — mesma filosofia de simplicidade
+já adotada em todo o resto do código. A imagem é salva em disco, pelo
+próprio processo da Api, em `wwwroot/uploads/user-photos/{userId}.jpg`
+(ou `.png`), servida como arquivo estático
+(`app.UseStaticFiles()` em `Program.cs`, sem exigir autenticação — a
+mesma URL sai em `UserResponse.PhotoUrl`/`ProfessionalResponse.PhotoUrl`
+e precisa carregar direto num `<Image>`, inclusive para quem só está
+navegando o diretório público de profissionais). Isso é suficiente
+porque a Api roda como um único processo (`dotnet run`, sem load
+balancer com múltiplas instâncias sem disco compartilhado) — se isso
+mudar no futuro, `Alilu.Api.Services.IUserPhotoStorage` precisará trocar
+de implementação (o resto do sistema não muda, é só essa uma classe).
+
+`Directory.CreateDirectory(...)` roda ANTES de `builder.Build()` em
+`Program.cs`, de propósito: `IWebHostEnvironment.WebRootFileProvider`
+(usado por `UseStaticFiles()`) é resolvido no momento do `Build()` a
+partir do que já existe em disco naquele instante — criar a pasta depois
+não teria efeito nenhum no provider já resolvido.
+
+### Onde este módulo fica (não é um módulo novo)
+
+Nenhum módulo (Identity, Professional, etc.) ganhou responsabilidade de
+I/O de arquivo — decodificar/validar/gravar bytes de imagem em disco é um
+detalhe de infraestrutura da Api (composição raiz), não uma regra de
+negócio de nenhum módulo. Por isso `IUserPhotoStorage`/`UserPhotoStorage`
+vivem em `Alilu.Api/Services/`, não em `Identity.Application`/
+`Identity.Infrastructure`. `IAuthService.SetMyPhotoAsync` só recebe a URL
+já pronta — nunca bytes de imagem; a decodificação/validação (formato
+JPEG/PNG, base64 malformado, tamanho acima de 4 MB) lança
+`InvalidPhotoException` (nova, em `Identity.Application/AuthExceptions.cs`
+— faz sentido lá porque é uma exceção que a Api mapeia para HTTP igual a
+todas as outras de Identity, mesmo a validação em si acontecendo em
+`Alilu.Api`).
+
+### Endpoints novos
+
+- `PUT /api/auth/me/photo` — body `{ base64Image, contentType }` (só
+  `image/jpeg`/`image/png`, ≤ 4 MB decodificado). Sobrescreve qualquer
+  foto anterior (mesmo se a extensão mudou — `UserPhotoStorage.Delete`
+  remove qualquer arquivo antigo com esse `userId` antes de gravar).
+  Retorna o `UserResponse` atualizado.
+- `DELETE /api/auth/me/photo` — remove a foto, volta a `PhotoUrl: null`.
+  Retorna o `UserResponse` atualizado.
+
+**Composição** (só a Api pode fazer isso — nenhum módulo referencia o
+outro, regra do PROMPT 01): os dois endpoints, depois de persistir em
+`User`, chamam `AuthController.MirrorPhotoToProfessionalProfileAsync`,
+que busca o perfil profissional do usuário
+(`IProfessionalProfileService.GetMyProfileAsync`) e, se existir, chama
+`UpdateMyProfileAsync` de novo passando os mesmos `DisplayName`/
+`Description`/`Phone` e a nova `PhotoUrl` — reaproveitando o método já
+existente desde o PROMPT 06 em vez de duplicar em Professional a lógica
+de "só a foto". Para quem não é profissional (a maioria), isso é um
+no-op silencioso (`GetMyProfileAsync` retorna `null`).
+
+### Mobile
+
+Nova dependência: `expo-image-picker` (`~57.0.14`, mesma faixa de versão
+dos demais pacotes `expo-*` já usados) — inevitável para esta etapa, "não
+usar biblioteca nova" não se aplica aqui porque não existe nenhuma API
+nativa de recorte/seleção de imagem no React Native puro. Nenhuma
+biblioteca de CROP customizada foi adicionada — o recorte é a própria UI
+nativa do sistema operacional, acionada com
+`allowsEditing: true, aspect: [1, 1]` (`expo-image-picker` já embute essa
+tela tanto no iOS quanto no Android). `app.json` ganhou o plugin
+`expo-image-picker` com as strings de permissão (câmera/galeria).
+
+- `modules/auth/types.ts` — `AuthUser.photoUrl: string | null`.
+- `modules/auth/api.ts` — `authApi.setPhoto(base64Image, contentType)`/
+  `authApi.removePhoto()`.
+- `modules/auth/AuthProvider.tsx` — novo `updateUserPhoto(photoUrl)` no
+  contexto, chamado depois do upload/remoção já terem persistido no
+  servidor, para o app inteiro refletir a nova foto sem precisar reabrir.
+- `modules/auth/components/EditableAvatar.tsx` (novo) — o componente em
+  si: toque no badge de lápis abre "Tirar foto"/"Escolher da galeria"/
+  "Cancelar" (`Alert.alert`, sempre 3 botões — Android só garante até 3 de
+  forma confiável, por isso "Remover foto" vive num badge separado, um "x"
+  que só aparece quando já há foto, em vez de um 4º botão no mesmo menu).
+  Fica no módulo `auth` (não em `components/`, que é puramente de tema e
+  não conhece nenhum módulo) porque depende de `useAuth()`/`authApi`
+  diretamente — mesmo critério de `reviews/components/RatingSummary.tsx`/
+  `notifications/components/NotificationItem.tsx`. Sempre lê
+  `user.photoUrl` do contexto (nunca recebe como prop).
+- Depois de um upload/remoção bem-sucedido por um usuário com papel
+  `Professional`, invalida TODAS as queries do TanStack Query
+  (`queryClient.invalidateQueries()`) — o módulo `auth` não pode importar
+  `professional` para invalidar só as chaves certas por nome
+  (independência de módulos), e é assim que `ProfessionalListScreen`/
+  `ProfessionalProfileScreen` (diretório público, que leem
+  `Professional.PhotoUrl` via `react-query`) enxergam a foto nova sem
+  precisar reabrir o app. Só profissionais pagam esse custo (um refetch
+  geral) — moradores/administradores não alimentam nenhum diretório
+  público.
+- `EditableAvatar` colocado ao lado do nome em três lugares — todo canto
+  onde o app hoje mostra "o nome de quem está logado":
+  `app/index.tsx` ("Olá, {user.name}" — tela usada por qualquer papel
+  antes de ter uma home própria, incluindo administradores, que ainda não
+  têm nenhuma tela própria no mobile), `ResidentHomeScreen` ("Olá,
+  {user?.name}") e `ProfessionalEditScreen` (cabeçalho do próprio perfil
+  profissional — mostra `profile.displayName` quando já existe perfil,
+  `user.name` enquanto ainda não).
+
+### O que ficou fora desta etapa
+
+- Compressão/reencodificação da imagem no servidor — o app já limita
+  qualidade (`quality: 0.6`) e recorte (1:1) no próprio `ImagePicker`
+  antes do upload; o servidor só valida tamanho (≤ 4 MB), não reprocessa.
+- Suporte a múltiplos servidores da Api sem disco compartilhado (ver
+  decisão de armazenamento acima).
+- Nenhuma tela de edição de nome/e-mail/telefone do próprio usuário
+  (`AuthUser`) foi criada — por isso `AuthProvider` ganhou só
+  `updateUserPhoto`, não um `updateUser` genérico.
+
+### Verificação
+
+`Identity.Domain`/`Identity.Application` recompilados do zero depois de
+cada mudança (`dotnet build`, 0 Warnings/0 Errors) — `User.PhotoUrl`/
+`SetPhoto`, `AuthService.SetMyPhotoAsync`/`RemoveMyPhotoAsync` e
+`InvalidPhotoException` são código real, verificado, não só lido.
+`Alilu.Api` (novos `Services/IUserPhotoStorage`/`UserPhotoStorage`,
+`AuthController`, `Program.cs`) não pôde ser compilado de verdade aqui
+(sem acesso a NuGet — mesma limitação de sempre neste sandbox), revisado
+por leitura cuidadosa contra as assinaturas reais dos serviços chamados.
+Novo `UserPhotoTests.cs` (`Identity.Application.Tests`, 6 testes:
+definir foto, sobrescrever, usuário inexistente ao definir e ao remover,
+remover volta a `null`, novo usuário nasce com `PhotoUrl: null`) não pôde
+rodar aqui (xunit não restaurado neste sandbox) — Rodrigo precisa rodar
+`dotnet test` na própria máquina, junto com a migração pendente acima.
+`mobile` verificado de ponta a ponta com `tsc --noEmit` e
+`eslint --max-warnings=0` (ambos limpos) — `expo-image-picker` instalado
+de verdade (`npm install`, não só adicionado ao `package.json` à mão).

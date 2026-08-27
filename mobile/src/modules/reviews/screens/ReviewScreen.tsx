@@ -122,7 +122,7 @@ export function ReviewScreen({ bookingId, professionalName }: ReviewScreenProps)
                   <View style={{ flexDirection: 'row', gap: spacing.xxs }}>
                     {RATING_STARS.map((star) => (
                       <Pressable key={star} onPress={() => setValue('rating', star, { shouldValidate: true })} hitSlop={8}>
-                        <AppText variant="title" style={{ color: star <= rating ? colors.brand.primary : colors.text.muted }}>
+                        <AppText style={{ fontSize: 34, color: star <= rating ? colors.brand.accent : colors.text.muted }}>
                           {star <= rating ? '★' : '☆'}
                         </AppText>
                       </Pressable>

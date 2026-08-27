@@ -30,4 +30,18 @@ export const authApi = {
   me() {
     return api.get<AuthUser>(`${BASE_PATH}/me`).then((response) => response.data);
   },
+
+  /**
+   * Etapa 21 — `base64Image` já deve vir recortada/comprimida pelo próprio
+   * celular (ver `components/EditableAvatar`, que usa `expo-image-picker`
+   * com `allowsEditing`); esta função só faz o upload, não sabe nada de
+   * câmera/galeria/permissões.
+   */
+  setPhoto(base64Image: string, contentType: string) {
+    return api.put<AuthUser>(`${BASE_PATH}/me/photo`, { base64Image, contentType }).then((response) => response.data);
+  },
+
+  removePhoto() {
+    return api.delete<AuthUser>(`${BASE_PATH}/me/photo`).then((response) => response.data);
+  },
 };

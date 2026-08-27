@@ -132,6 +132,34 @@ public sealed class AuthService(
         return users.Select(ToResponse).ToList();
     }
 
+    public async Task<UserResponse> SetMyPhotoAsync(Guid userId, string photoUrl, CancellationToken cancellationToken = default)
+    {
+        var user = await userRepository.GetByIdAsync(userId, cancellationToken);
+        if (user is null)
+        {
+            throw new UserNotFoundException();
+        }
+
+        user.SetPhoto(photoUrl);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
+
+        return ToResponse(user);
+    }
+
+    public async Task<UserResponse> RemoveMyPhotoAsync(Guid userId, CancellationToken cancellationToken = default)
+    {
+        var user = await userRepository.GetByIdAsync(userId, cancellationToken);
+        if (user is null)
+        {
+            throw new UserNotFoundException();
+        }
+
+        user.SetPhoto(null);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
+
+        return ToResponse(user);
+    }
+
     private async Task<AuthTokensResponse> IssueTokensAsync(User user, CancellationToken cancellationToken)
     {
         var (accessToken, accessTokenExpiresAtUtc) = jwtTokenGenerator.GenerateAccessToken(user);
@@ -156,6 +184,7 @@ public sealed class AuthService(
         user.Name,
         user.Email.Value,
         user.Phone,
+        user.PhotoUrl,
         user.Role,
         user.Status,
         user.CreatedAt);

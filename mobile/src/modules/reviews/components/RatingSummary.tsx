@@ -1,6 +1,4 @@
-import { View } from 'react-native';
-
-import { AppText } from '../../../components';
+import { AppText, Card } from '../../../components';
 import { useTheme } from '../../../theme';
 import { starsForRating } from '../reviewsFormat';
 
@@ -22,21 +20,19 @@ export function RatingSummary({ averageRating, totalReviews }: RatingSummaryProp
 
   if (totalReviews === 0) {
     return (
-      <View style={{ gap: spacing.xxs }}>
-        <AppText variant="title">☆☆☆☆☆</AppText>
+      <Card style={{ alignItems: 'center', gap: spacing.xxs }}>
+        <AppText style={{ fontSize: 28, color: colors.brand.accent }}>☆☆☆☆☆</AppText>
         <AppText color="secondary">Ainda sem avaliações</AppText>
-      </View>
+      </Card>
     );
   }
 
   return (
-    <View style={{ gap: spacing.xxs }}>
-      <AppText variant="title" style={{ color: colors.brand.primary }}>
-        {starsForRating(averageRating)}
-      </AppText>
+    <Card style={{ alignItems: 'center', gap: spacing.xxs }}>
+      <AppText style={{ fontSize: 28, color: colors.brand.accent }}>{starsForRating(averageRating)}</AppText>
       <AppText color="secondary">
         {`${averageRating.toFixed(1)} de 5 · ${totalReviews} ${totalReviews === 1 ? 'avaliação' : 'avaliações'}`}
       </AppText>
-    </View>
+    </Card>
   );
 }

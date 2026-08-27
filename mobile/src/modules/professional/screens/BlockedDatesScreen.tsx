@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { Controller, useForm, useWatch } from 'react-hook-form';
 import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
 
-import { AppButton, AppText, AppTextInput, Screen } from '../../../components';
+import { AppButton, AppText, AppTextInput, Badge, Card, Screen } from '../../../components';
 import { useTheme } from '../../../theme';
 import { getApiErrorMessage } from '../../../utils/apiError';
 import { formatDateDisplay, formatDateInput, parseDateInput, STANDARD_PERIODS, toApiTime } from '../availabilityFormat';
@@ -277,12 +277,12 @@ export function BlockedDatesScreen() {
               <AppText color="muted">Nenhuma exceção cadastrada.</AppText>
             ) : (
               exceptions.map((exception) => (
-                <View
-                  key={exception.id}
-                  style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}
-                >
-                  <View style={{ flex: 1, gap: spacing.none }}>
-                    <AppText>{`${formatDateDisplay(exception.date)} — ${TYPE_LABEL[exception.type] ?? exception.type}`}</AppText>
+                <Card key={exception.id} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <View style={{ flex: 1, gap: spacing.xxs }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xxs }}>
+                      <AppText style={{ fontWeight: '600' }}>{formatDateDisplay(exception.date)}</AppText>
+                      <Badge label={TYPE_LABEL[exception.type] ?? exception.type} tone={exception.type === 'Blocked' ? 'error' : 'success'} />
+                    </View>
                     <AppText variant="caption" color="secondary">
                       {exception.startTime && exception.endTime
                         ? `${exception.startTime.slice(0, 5)} - ${exception.endTime.slice(0, 5)}`
@@ -296,7 +296,7 @@ export function BlockedDatesScreen() {
                     onPress={() => removeException.mutateAsync(exception.id)}
                     disabled={removeException.isPending}
                   />
-                </View>
+                </Card>
               ))
             )}
           </View>

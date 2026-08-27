@@ -1,7 +1,7 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { ActivityIndicator, FlatList, Pressable, View } from 'react-native';
+import { ActivityIndicator, FlatList, View } from 'react-native';
 
-import { AppButton, AppText, Screen } from '../../../components';
+import { Avatar, AppButton, AppText, Card, Screen } from '../../../components';
 import { useTheme } from '../../../theme';
 import { useProfessionals, useServiceCategories } from '../hooks';
 import type { ProfessionalDirectoryItem } from '../types';
@@ -10,6 +10,9 @@ import type { ProfessionalDirectoryItem } from '../types';
  * React Native: ProfessionalListScreen (PROMPT 06) — "listar
  * profissionais; filtrar categoria". `categoryId` é opcional (vem de
  * ServiceCategoryScreen quando o morador filtrou, ou de "Ver todos").
+ *
+ * Modernizado na Etapa 20: cada item vira um `Card` com `Avatar` (foto ou
+ * iniciais) em vez de um retângulo de fundo plano só com texto.
  */
 export function ProfessionalListScreen() {
   const { spacing, colors } = useTheme();
@@ -61,25 +64,19 @@ export function ProfessionalListScreen() {
 }
 
 function ProfessionalListItem({ professional, onPress }: { professional: ProfessionalDirectoryItem; onPress: () => void }) {
-  const { spacing, colors, radii } = useTheme();
+  const { spacing } = useTheme();
 
   return (
-    <Pressable
-      onPress={onPress}
-      style={({ pressed }) => ({
-        padding: spacing.sm,
-        borderRadius: radii.md,
-        backgroundColor: colors.surfaceAlt,
-        opacity: pressed ? 0.85 : 1,
-        gap: spacing.xxs,
-      })}
-    >
-      <AppText variant="subtitle">{professional.displayName}</AppText>
-      {professional.categories.length > 0 ? (
-        <AppText variant="caption" color="secondary">
-          {professional.categories.map((category) => category.name).join(', ')}
-        </AppText>
-      ) : null}
-    </Pressable>
+    <Card onPress={onPress} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+      <Avatar photoUrl={professional.photoUrl} name={professional.displayName} />
+      <View style={{ flex: 1, gap: spacing.xxs }}>
+        <AppText variant="subtitle">{professional.displayName}</AppText>
+        {professional.categories.length > 0 ? (
+          <AppText variant="caption" color="secondary">
+            {professional.categories.map((category) => category.name).join(', ')}
+          </AppText>
+        ) : null}
+      </View>
+    </Card>
   );
 }

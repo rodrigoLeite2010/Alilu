@@ -1,6 +1,6 @@
 import { Pressable, View } from 'react-native';
 
-import { AppText } from '../../../components';
+import { AppText, Badge } from '../../../components';
 import { useTheme } from '../../../theme';
 import { formatNotificationDate, NOTIFICATION_TYPE_LABEL } from '../notificationsFormat';
 import type { Notification } from '../types';
@@ -17,18 +17,22 @@ interface NotificationItemProps {
  * daqui é lida/não lida (ponto de destaque + peso da fonte).
  */
 export function NotificationItem({ notification, onPress }: NotificationItemProps) {
-  const { colors, spacing, radii } = useTheme();
+  const { colors, spacing, radii, shadows } = useTheme();
 
   return (
     <Pressable
       onPress={onPress}
-      style={{
-        flexDirection: 'row',
-        gap: spacing.xs,
-        padding: spacing.sm,
-        borderRadius: radii.md,
-        backgroundColor: notification.isRead ? colors.surface : colors.surfaceAlt,
-      }}
+      style={({ pressed }) => [
+        notification.isRead ? undefined : shadows.sm,
+        {
+          flexDirection: 'row',
+          gap: spacing.xs,
+          padding: spacing.sm,
+          borderRadius: radii.lg,
+          backgroundColor: notification.isRead ? colors.surfaceAlt : colors.surface,
+          opacity: pressed ? 0.85 : 1,
+        },
+      ]}
     >
       <View
         style={{
@@ -41,9 +45,7 @@ export function NotificationItem({ notification, onPress }: NotificationItemProp
       />
 
       <View style={{ flex: 1, gap: spacing.xxs }}>
-        <AppText variant="caption" color="secondary">
-          {NOTIFICATION_TYPE_LABEL[notification.type]}
-        </AppText>
+        <Badge label={NOTIFICATION_TYPE_LABEL[notification.type]} tone="neutral" />
         <AppText style={{ fontWeight: notification.isRead ? 'normal' : 'bold' }}>{notification.title}</AppText>
         <AppText color="secondary">{notification.message}</AppText>
         <AppText variant="caption" color="muted">
