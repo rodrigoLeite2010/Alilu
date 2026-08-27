@@ -27,10 +27,26 @@ export interface Professional {
   updatedAt: string;
 }
 
+/** "Especialidade" no vocabulário de Rodrigo — folha dentro de uma `ProfessionalCategory` ("Categoria"), ver Etapa 22. */
 export interface ServiceCategory {
   id: string;
   name: string;
   description: string | null;
+  categoryId: string;
+  active: boolean;
+}
+
+/**
+ * "Categoria" no vocabulário de Rodrigo (Etapa 22) — o nível ACIMA de
+ * `ServiceCategory` na navegação do morador ("Categoria → Especialidade →
+ * Lista de profissionais"). React Native: nova tela de categorias, antes de
+ * ServiceCategoryScreen.
+ */
+export interface ProfessionalCategory {
+  id: string;
+  name: string;
+  description: string | null;
+  displayOrder: number;
   active: boolean;
 }
 
@@ -51,7 +67,15 @@ export interface ProfessionalCondominiumLink {
   createdAt: string;
 }
 
-/** Item de diretório público (React Native: ProfessionalListScreen/ProfessionalProfileScreen). */
+/**
+ * Item de diretório público (React Native: ProfessionalListScreen/
+ * ProfessionalProfileScreen). `averageRating`/`totalReviews` chegaram na
+ * Etapa 22 — composição feita na Api (Professional + Reviews), a pedido de
+ * Rodrigo: "mostrar a média de estrelas recebidas" já na busca, não só na
+ * tela de recomendações (que já fazia essa composição desde a Etapa 10) —
+ * ver `Alilu.Api.Controllers.ProfessionalDirectoryController.ComposeWithRatingAsync`
+ * no backend. `totalReviews` zero implica `averageRating` zero.
+ */
 export interface ProfessionalDirectoryItem {
   id: string;
   displayName: string;
@@ -59,6 +83,8 @@ export interface ProfessionalDirectoryItem {
   phone: string | null;
   photoUrl: string | null;
   categories: ServiceCategory[];
+  averageRating: number;
+  totalReviews: number;
 }
 
 /** Espelha `Alilu.Modules.Condominium.Application/Dtos.cs` — mesmo formato usado pelo módulo Resident (ver `modules/resident/types.ts`), aqui para o profissional escolher onde "solicitar atendimento". */

@@ -66,3 +66,9 @@ public sealed class ProfessionalDoesNotAttendCondominiumException()
 /// <summary>"O horário deve estar disponível" (REGRA CRÍTICA) — ver <see cref="IProfessionalDirectoryService.ValidateAvailableAsync"/>.</summary>
 public sealed class TimeSlotUnavailableException()
     : ProfessionalApplicationException("Este profissional não está disponível neste horário.");
+
+// Etapa 23 — convite direto a prestador (WhatsApp/SMS/e-mail via Twilio).
+
+/// <summary>"Limite de envio" (plano da Etapa 23: 10 convites/dia por morador) — primeiro uso de 429 neste módulo, mesmo raciocínio de <c>Recommendations.TooManyPendingRecommendationsException</c> (Etapa 10).</summary>
+public sealed class TooManyInvitationsException()
+    : ProfessionalApplicationException("Você já enviou muitos convites hoje. Tente novamente mais tarde.");

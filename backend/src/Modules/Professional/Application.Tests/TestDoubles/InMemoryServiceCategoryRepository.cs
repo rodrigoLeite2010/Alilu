@@ -8,10 +8,19 @@ public sealed class InMemoryServiceCategoryRepository : IServiceCategoryReposito
 {
     private readonly Dictionary<Guid, ServiceCategory> _categories = new();
 
-    /// <summary>Atalho de teste — mesmo espírito de seed direto usado nas fixtures do módulo Condominium.</summary>
-    public ServiceCategory Seed(string name, bool active = true)
+    /// <summary>Etapa 23 — exposto pra InMemoryProfessionalRepository resolver o filtro por categoria-pai (mesmo padrão de InMemoryProfessionalServiceRepository.Services).</summary>
+    public IReadOnlyCollection<ServiceCategory> Categories => _categories.Values.ToList();
+
+    /// <summary>
+    /// Atalho de teste — mesmo espírito de seed direto usado nas fixtures do
+    /// módulo Condominium. <paramref name="categoryId"/> (Etapa 22) é
+    /// opcional: nenhum teste existente precisa agrupar por categoria-pai,
+    /// então um Guid novo cobre a obrigatoriedade do campo sem exigir que
+    /// todo teste já existente passe um valor.
+    /// </summary>
+    public ServiceCategory Seed(string name, bool active = true, Guid? categoryId = null)
     {
-        var category = ServiceCategory.Create(name, description: null);
+        var category = ServiceCategory.Create(name, description: null, categoryId ?? Guid.NewGuid());
         if (!active)
         {
             category.Deactivate();
@@ -27,6 +36,14 @@ public sealed class InMemoryServiceCategoryRepository : IServiceCategoryReposito
     public Task<IReadOnlyList<ServiceCategory>> ListAsync(CancellationToken cancellationToken = default) =>
         Task.FromResult<IReadOnlyList<ServiceCategory>>(_categories.Values.OrderBy(c => c.Name).ToList());
 
-    public Task<IReadOnlyList<ServiceCategory>> ListActiveAsync(CancellationToken cancellationToken = default) =>
-        Task.FromResult<IReadOnlyList<ServiceCategory>>(_categories.Values.Where(c => c.Active).OrderBy(c => c.Name).ToList());
+    public Task<IReadOnlyList<ServiceCategory>> ListActiveAsync(Guid? categoryId = null, CancellationToken cancellationToken = default)
+    {
+        var query = _categories.Values.Where(c => c.Active);
+        if (categoryId.HasValue)
+        {
+            query = query.Where(c => c.CategoryId == categoryId.Value);
+        }
+
+        return Task.FromResult<IReadOnlyList<ServiceCategory>>(query.OrderBy(c => c.Name).ToList());
+    }
 }

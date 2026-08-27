@@ -27,10 +27,23 @@ namespace Alilu.Modules.Reviews.Domain;
 /// "Não permitir avaliação anônima": <see cref="ResidentId"/> é sempre
 /// obrigatório (nunca nulo/vazio) — não existe conceito de avaliação sem
 /// autor nesta entidade.
+///
+/// Etapa 23 (pedido de Rodrigo: "avaliar qualquer profissional buscando
+/// pelo nome, sem precisar ter contratado antes") — <see cref="BookingId"/>
+/// passou de obrigatório para OPCIONAL: quando nulo, é uma "avaliação
+/// livre" (o morador buscou o profissional pelo diretório, sem nenhum
+/// agendamento envolvido). A regra "somente Booking Completed pode ser
+/// avaliado" (Api, composição raiz) só vale quando <see cref="BookingId"/>
+/// é informado — ver <c>ReviewsController.Create</c>. "Somente uma Review
+/// por Booking" continua garantida pelo índice único em
+/// <see cref="BookingId"/> (Infrastructure, ignora nulos); a avaliação
+/// livre ganhou sua própria regra de duplicidade — "só uma avaliação livre
+/// por (Resident, Professional)" — ver índice único parcial em
+/// Infrastructure e <c>IReviewRepository.GetFreeReviewAsync</c>.
 /// </summary>
 public sealed class Review : AggregateRoot
 {
-    public Guid BookingId { get; private set; }
+    public Guid? BookingId { get; private set; }
     public Guid ResidentId { get; private set; }
     public Guid ProfessionalId { get; private set; }
     public int Rating { get; private set; }
@@ -45,7 +58,7 @@ public sealed class Review : AggregateRoot
 
     private Review(
         Guid id,
-        Guid bookingId,
+        Guid? bookingId,
         Guid residentId,
         Guid professionalId,
         int rating,
@@ -68,12 +81,15 @@ public sealed class Review : AggregateRoot
     /// a própria consistência interna.
     /// </summary>
     public static Review Create(
-        Guid bookingId,
+        Guid? bookingId,
         Guid residentId,
         Guid professionalId,
         int rating,
         string? comment)
     {
+        // Etapa 23: `bookingId` nulo é a avaliação LIVRE (sem agendamento)
+        // — só recusa um Guid.Empty explícito, nunca nulo (comparação
+        // "levantada": `null == Guid.Empty` é sempre false em C#).
         if (bookingId == Guid.Empty)
         {
             throw new DomainException("A avaliação precisa de um agendamento válido.");

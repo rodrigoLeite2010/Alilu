@@ -1,1 +1,1 @@
-export { ServiceCategoryScreen as default } from '../../modules/professional';
+export { ProfessionalCategoryScreen as default } from '../../modules/professional';

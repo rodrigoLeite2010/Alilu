@@ -2,6 +2,7 @@ import type { PropsWithChildren, ReactNode } from 'react';
 import { NavLink } from 'react-router-dom';
 
 import { useAuth } from '../modules/auth/AuthProvider';
+import { translateRole } from '../utils/statusLabels';
 import { CondominiumPicker } from './CondominiumPicker';
 
 /**
@@ -49,6 +50,12 @@ const ICONS: Record<string, ReactNode> = {
       <path d="M4 6.5h1M4 9h1M4 11.5h1" strokeLinecap="round" />
     </svg>
   ),
+  mural: (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round">
+      <rect x="1.5" y="1.5" width="13" height="13" rx="1.5" />
+      <path d="M4.5 5.5h7M4.5 8h7M4.5 10.5h4.5" strokeLinecap="round" />
+    </svg>
+  ),
 };
 
 /** `adminOnly: true` só aparece para SuperAdmin (ver filtro em `Layout`) — hoje só "Condomínios" (criação é SuperAdmin-only, ver `CondominiosPage`). */
@@ -59,6 +66,7 @@ const NAV_ITEMS = [
   { to: '/unidades', label: 'Unidades', icon: 'unidades' },
   { to: '/profissionais', label: 'Profissionais', icon: 'profissionais' },
   { to: '/recomendacoes', label: 'Recomendações', icon: 'recomendacoes' },
+  { to: '/mural', label: 'Mural', icon: 'mural' },
 ];
 
 /** Iniciais do nome pro avatar do header (ex.: "Rodrigo Soares Leite" → "RS"). */
@@ -150,7 +158,8 @@ export function Layout({ children }: PropsWithChildren) {
           <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
             <div style={{ textAlign: 'right' }}>
               <div style={{ fontSize: 14, fontWeight: 600 }}>{user?.name}</div>
-              <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{user?.role}</div>
+              {/* Etapa 23 — mostrava user?.role cru em inglês (Resident/Professional/CondominiumAdmin/SuperAdmin). */}
+              <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{user?.role ? translateRole(user.role) : null}</div>
             </div>
             <div
               aria-hidden

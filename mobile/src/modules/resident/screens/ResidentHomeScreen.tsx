@@ -69,6 +69,12 @@ export function ResidentHomeScreen({ membership, headerSlot }: ResidentHomeScree
           <AppButton label="Buscar profissional" onPress={() => router.push('/(resident)/professional-categories')} />
           <AppButton label="Meus agendamentos" variant="secondary" onPress={() => router.push('/(resident)/bookings')} />
           <AppButton label="Minhas recomendações" variant="secondary" onPress={() => router.push('/(resident)/recommendations')} />
+          <AppButton label="Mural" variant="secondary" onPress={() => router.push('/(resident)/mural')} />
+          <AppButton
+            label="Convidar prestador"
+            variant="secondary"
+            onPress={() => router.push('/(resident)/professional-invitations')}
+          />
         </View>
 
         <View style={{ marginTop: spacing.xl }}>

@@ -2,6 +2,7 @@ using System.Security.Claims;
 using Alilu.Modules.Administration.Application;
 using Alilu.Modules.Condominium.Application;
 using Alilu.Modules.Professional.Application;
+using Alilu.Modules.Mural.Application;
 using Alilu.Modules.Recommendations.Application;
 using Alilu.Modules.Resident.Application;
 
@@ -62,6 +63,19 @@ public static class ClaimsPrincipalExtensions
         var roleClaim = user.FindFirstValue(ClaimTypes.Role);
 
         if (roleClaim is null || !Enum.TryParse<RecommendationRequesterRole>(roleClaim, out var role))
+        {
+            throw new UnauthorizedAccessException("O token não contém um papel de usuário válido.");
+        }
+
+        return role;
+    }
+
+    /// <summary>Mesmo claim de papel acima, só que como <see cref="MuralRequesterRole"/> — usado pelos controllers do módulo Mural (Etapa 23).</summary>
+    public static MuralRequesterRole GetMuralRequesterRole(this ClaimsPrincipal user)
+    {
+        var roleClaim = user.FindFirstValue(ClaimTypes.Role);
+
+        if (roleClaim is null || !Enum.TryParse<MuralRequesterRole>(roleClaim, out var role))
         {
             throw new UnauthorizedAccessException("O token não contém um papel de usuário válido.");
         }

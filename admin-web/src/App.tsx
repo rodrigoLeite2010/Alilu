@@ -8,6 +8,7 @@ import { CondominiosPage } from './pages/CondominiosPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { LoginPage } from './pages/LoginPage';
 import { MoradoresPage } from './pages/MoradoresPage';
+import { MuralPage } from './pages/MuralPage';
 import { ProfissionaisPage } from './pages/ProfissionaisPage';
 import { RecomendacoesPage } from './pages/RecomendacoesPage';
 import { UnidadesPage } from './pages/UnidadesPage';
@@ -36,6 +37,7 @@ function App() {
                     <Route path="/unidades" element={<UnidadesPage />} />
                     <Route path="/profissionais" element={<ProfissionaisPage />} />
                     <Route path="/recomendacoes" element={<RecomendacoesPage />} />
+                    <Route path="/mural" element={<MuralPage />} />
                   </Routes>
                 </Layout>
               </CondominiumScopeProvider>

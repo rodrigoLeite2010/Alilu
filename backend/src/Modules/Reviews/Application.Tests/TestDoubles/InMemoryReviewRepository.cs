@@ -14,6 +14,9 @@ public sealed class InMemoryReviewRepository : IReviewRepository
     public Task<Review?> GetByBookingIdAsync(Guid bookingId, CancellationToken cancellationToken = default) =>
         Task.FromResult(_reviews.Values.FirstOrDefault(r => r.BookingId == bookingId));
 
+    public Task<Review?> GetFreeReviewAsync(Guid residentId, Guid professionalId, CancellationToken cancellationToken = default) =>
+        Task.FromResult(_reviews.Values.FirstOrDefault(r => r.ResidentId == residentId && r.ProfessionalId == professionalId && r.BookingId == null));
+
     public Task<IReadOnlyList<Review>> ListByResidentIdAsync(Guid residentId, CancellationToken cancellationToken = default) =>
         Task.FromResult<IReadOnlyList<Review>>(
             _reviews.Values.Where(r => r.ResidentId == residentId).OrderByDescending(r => r.CreatedAt).ToList());

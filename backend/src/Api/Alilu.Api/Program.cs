@@ -105,6 +105,15 @@ builder.Services.AddNotificationsModule(builder.Configuration);
 // AdminCondominiumAdministratorsController, ver README do módulo).
 builder.Services.AddAdministrationModule(builder.Configuration);
 
+// Módulo Mural (Etapa 23, pedido 3 de Rodrigo): mural aberto do
+// condomínio — reclamações, sugestões, avisos e comentários sobre
+// prestador não cadastrado, publicados livremente por moradores
+// (sem aprovação prévia) e moderados só DEPOIS pelo síndico/admin
+// (bloquear). Sem seed de desenvolvimento: nasce do fluxo real (o
+// morador publica). A REGRA CRÍTICA que cruza módulos (morador Active
+// pode publicar) é aplicada na Api — ver MuralController.
+builder.Services.AddMuralModule(builder.Configuration);
+
 // CORS (Etapa 12 — PROMPT 12): "criar um painel web administrativo
 // separado" introduz, pela primeira vez neste projeto, um cliente que roda
 // em outra origem (o app mobile React Native não usa CORS — não é um
@@ -233,8 +242,15 @@ if (app.Environment.IsDevelopment())
     var condominiumSeeder = seedScope.ServiceProvider.GetRequiredService<ICondominiumSeeder>();
     await condominiumSeeder.SeedAsync();
 
-    // Seed de desenvolvimento (PROMPT 06): sete categorias iniciais de
-    // serviço. Também idempotente (ver ServiceCategorySeeder).
+    // Seed de desenvolvimento (Etapa 22): treze categorias de profissional
+    // — SEMPRE antes do seed de especialidades logo abaixo, que resolve o
+    // CategoryId de cada uma por nome (ver ProfessionalCategorySeeder).
+    var professionalCategorySeeder = seedScope.ServiceProvider.GetRequiredService<IProfessionalCategorySeeder>();
+    await professionalCategorySeeder.SeedAsync();
+
+    // Seed de desenvolvimento (PROMPT 06: sete categorias iniciais de
+    // serviço; Etapa 22: lista completa de especialidades de Rodrigo).
+    // Também idempotente, sem perda de dado (ver ServiceCategorySeeder).
     var serviceCategorySeeder = seedScope.ServiceProvider.GetRequiredService<IServiceCategorySeeder>();
     await serviceCategorySeeder.SeedAsync();
 }

@@ -1,34 +1,55 @@
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { ActivityIndicator, FlatList, View } from 'react-native';
 
 import { AppButton, AppText, Screen } from '../../../components';
 import { useTheme } from '../../../theme';
-import { useServiceCategories } from '../hooks';
+import { useProfessionalCategories, useServiceCategories } from '../hooks';
 
 /**
  * React Native: ServiceCategoryScreen (PROMPT 06) — o morador escolhe uma
- * categoria para filtrar a busca de profissionais (React Native:
+ * especialidade para filtrar a busca de profissionais (React Native:
  * "filtrar categoria"). Navega para ProfessionalListScreen já com o
  * filtro aplicado; "Ver todos" pula direto para a lista sem filtro.
+ *
+ * Desde a Etapa 22, ganhou um nível ACIMA (ProfessionalCategoryScreen, rota
+ * `/(resident)/professional-categories`) — esta tela agora vive em
+ * `/(resident)/professional-categories/[categoryId]` e só mostra as
+ * especialidades daquela categoria escolhida (`categoryId` é a "Categoria",
+ * nunca confundir com o `categoryId` de query que `ProfessionalListScreen`
+ * recebe — lá é o Id da ESPECIALIDADE, aqui é o Id da categoria-pai).
+ *
+ * Etapa 23 — BUG REAL encontrado por Rodrigo: "Ver todos os profissionais"
+ * navegava para a lista SEM NENHUM FILTRO, então aparecia qualquer
+ * profissional ativo (inclusive de outra categoria-pai, ex.: diarista
+ * dentro de "Piscina"). Agora esse botão leva o `categoryId` desta tela
+ * (a categoria-pai já escolhida) como `professionalCategoryId` — a lista
+ * mostra só profissionais com alguma especialidade daquela categoria, em
+ * vez de literalmente todo mundo.
  */
 export function ServiceCategoryScreen() {
   const { spacing, colors } = useTheme();
-  const { data: categories, isLoading, isError, refetch } = useServiceCategories();
+  const { categoryId } = useLocalSearchParams<{ categoryId?: string }>();
+  const { data: professionalCategories } = useProfessionalCategories();
+  const { data: categories, isLoading, isError, refetch } = useServiceCategories(categoryId);
+
+  const activeCategory = professionalCategories?.find((category) => category.id === categoryId);
 
   return (
     <Screen>
       <View style={{ flex: 1, gap: spacing.md }}>
         <View>
-          <AppText variant="title">Categorias de serviço</AppText>
+          <AppText variant="title">{activeCategory ? activeCategory.name : 'Especialidades'}</AppText>
           <AppText variant="subtitle" color="secondary" style={{ marginTop: spacing.xxs }}>
-            Escolha uma categoria para encontrar profissionais
+            Escolha uma especialidade para encontrar profissionais
           </AppText>
         </View>
 
         <AppButton
           label="Ver todos os profissionais"
           variant="secondary"
-          onPress={() => router.push('/(resident)/professionals')}
+          onPress={() =>
+            router.push({ pathname: '/(resident)/professionals', params: categoryId ? { professionalCategoryId: categoryId } : {} })
+          }
         />
 
         {isLoading ? (

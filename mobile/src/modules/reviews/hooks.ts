@@ -28,6 +28,18 @@ export function useMyReviewForBooking(bookingId: string | undefined) {
   });
 }
 
+/**
+ * Etapa 23 — mesmo padrão de `useMyReviewForBooking`, pra avaliação LIVRE
+ * (sem agendamento, morador buscou o profissional pelo nome).
+ */
+export function useMyReviewForProfessional(professionalId: string | undefined) {
+  return useQuery({
+    queryKey: [...MY_REVIEWS_QUERY_KEY, 'professional', professionalId],
+    queryFn: () => reviewApi.getMineForProfessional(professionalId as string),
+    enabled: Boolean(professionalId),
+  });
+}
+
 /** React Native: ReviewScreen — "avaliar profissional". */
 export function useCreateReview() {
   const queryClient = useQueryClient();

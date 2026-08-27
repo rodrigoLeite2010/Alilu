@@ -33,13 +33,16 @@ backend/
 │       ├── Reviews/{Domain,Application,Infrastructure}/
 │       ├── Recommendations/{Domain,Application,Infrastructure}/
 │       ├── Notifications/{Domain,Application,Infrastructure}/
-│       └── Administration/{Domain,Application,Infrastructure}/
+│       ├── Administration/{Domain,Application,Infrastructure}/
+│       └── Mural/{Domain,Application,Infrastructure}/            # Etapa 23
 └── scripts/
     └── check-references.py      # valida as regras de dependência abaixo
 ```
 
-30 projetos no total: `Alilu.Api`, `Alilu.Shared`, `Alilu.Infrastructure` e
-9 módulos × 3 camadas.
+33 projetos no total (sem contar os `Application.Tests` de cada módulo):
+`Alilu.Api`, `Alilu.Shared`, `Alilu.Infrastructure` e 10 módulos × 3
+camadas (o décimo, `Mural`, é da Etapa 23 — ver a seção correspondente no
+final deste documento).
 
 ## Por que "Alilu.Shared" e não mais "Alilu.BuildingBlocks.Domain"?
 
@@ -4087,3 +4090,412 @@ rodar aqui (xunit não restaurado neste sandbox) — Rodrigo precisa rodar
 `mobile` verificado de ponta a ponta com `tsc --noEmit` e
 `eslint --max-warnings=0` (ambos limpos) — `expo-image-picker` instalado
 de verdade (`npm install`, não só adicionado ao `package.json` à mão).
+
+## Etapa 22 — Scroll do perfil profissional, nota média na busca e categorias de profissional
+
+Três pedidos de Rodrigo, testando o app pelo Expo Go no celular:
+"arrumar o scroll dessa página que não está fazendo", "quando pesquisar os
+profissionais mostrar a média de estrelas recebidas" e "cadastrar mais
+categorias em profissionais" (prompt completo com treze categorias e
+~100 especialidades).
+
+### 1. Scroll de `ProfessionalEditScreen`
+
+A tela tinha crescido (foto/crop da Etapa 21 somada a agenda/
+solicitações/avaliações/recomendações já empilhadas) sem nenhum jeito de
+rolar — o fim da lista (Minha Agenda/Solicitações/Avaliações/
+Recomendações) ficava cortado fora da tela em telas menores. `Screen` (o
+container padrão) é só um `View` com `flex: 1` — nunca teve `ScrollView`
+embutido, cada tela que precisa rolar adiciona o seu (mesmo padrão já
+usado em `RegisterScreen`). Fix: `ScrollView` com
+`contentContainerStyle={{ flexGrow: 1 }}` e `keyboardShouldPersistTaps="handled"`
+dentro do `KeyboardAvoidingView` já existente — continua empurrando os
+campos de texto para cima quando o teclado abre, e agora também rola o
+resto do conteúdo.
+
+### 2. Nota média na busca de profissionais
+
+Antes desta etapa, a nota média (`Reviews.ProfessionalRatingSummaryResponse`)
+só aparecia em dois lugares: a auto-visão do profissional
+(`ProfessionalReviewsScreen`) e o "perfil de recomendações"
+(`GetRecommendationProfile`, que já compõe Professional + Reviews +
+Recommendations desde a Etapa 10). `ProfessionalListScreen`/
+`ProfessionalProfileScreen` (a busca em si) nunca mostravam nada — pedido
+de Rodrigo para fechar essa lacuna.
+
+Sem entidade nova: `ProfessionalDirectoryController.ListProfessionals`/
+`GetProfile` passaram a compor cada item com
+`IProfessionalReviewService.GetRatingSummaryAsync` (mesmo serviço já
+usado por `GetRecommendationProfile` — só reaproveitado, chamado com o Id
+de QUALQUER profissional, não só o do próprio usuário logado; o nome
+"self-service" do comentário original da interface descrevia o caso de
+uso original, não uma restrição de código). Resposta nova só na Api,
+`ProfessionalDirectoryListItemResponse` (mesmos campos de
+`ProfessionalDirectoryItemResponse`, do módulo Professional, mais
+`AverageRating`/`TotalReviews`, do módulo Reviews) — nenhum dos dois
+módulos ganhou conhecimento do outro (regra do PROMPT 01), só a Api
+combina. Mesmo trade-off já aceito em `GetRecommendationProfile`: uma
+consulta a Reviews por profissional, sem lote — aceitável no volume atual
+do projeto.
+
+Mobile: `starsForRating`/`RATING_STARS` (antes só em
+`modules/reviews/reviewsFormat.ts`) mudaram de dono para `utils/rating.ts`
+— viraram compartilhadas entre módulos que não podem se importar (só
+`auth` é fundação compartilhada), e são funções puras sem estado, mesmo
+critério de `formatPhoneNumber`/`getApiErrorMessage`. `reviewsFormat.ts`
+reexporta de lá para não quebrar os imports já existentes dentro do
+próprio módulo Reviews. `ProfessionalDirectoryItem` (tipo TypeScript)
+ganhou `averageRating`/`totalReviews`; `ProfessionalListScreen`/
+`ProfessionalProfileScreen` mostram as estrelas com a contagem, ou
+"Ainda sem avaliações" quando `totalReviews` é zero (nunca uma estrela
+vazia — evita parecer uma nota 0 real).
+
+### 3. Categorias de profissional (Categoria → Especialidade)
+
+Antes de implementar, o código existente foi conferido (regra do prompt
+de Rodrigo: "não criar entidades duplicadas") — já existia
+`Professional.Domain.ServiceCategory` (PROMPT 06, sete valores: Diarista,
+Jardineiro, Piscineiro, Eletricista, Encanador, Pedreiro, Pintor), só que
+como uma lista PLANA, sem nenhum agrupamento por categoria. No vocabulário
+de Rodrigo, isso já era a "Especialidade" — só faltava o nível de cima,
+"Categoria". Em vez de renomear `ServiceCategory` (migração disruptiva por
+causa só do nome, quebraria toda referência já existente no código e no
+front-end), a solução foi:
+
+- **`ProfessionalCategory`** (entidade nova, Domain) — "Categoria":
+  `Name`/`Description`/`DisplayOrder`/`Active`, mesmo formato de
+  `ServiceCategory`. `DisplayOrder` existe só para a tela do morador poder
+  mostrar as categorias na ordem sugerida por Rodrigo ("CATEGORIAS
+  PRINCIPAIS PARA O APP") sem hard-codar isso no React Native.
+- **`ServiceCategory.CategoryId`** (propriedade nova) — liga cada
+  especialidade à sua categoria-pai. Mesma decisão de design de
+  `ProfessionalService`/`ProfessionalCondominium`: só o Id como valor
+  simples, sem navegação EF entre as duas entidades (mantém cada uma
+  independente/testável isoladamente, mesmo morando no mesmo módulo).
+
+**Sem perda de dado nas sete especialidades originais**: como não há FK de
+verdade entre `ProfessionalService` e `ServiceCategory` (só o Id como
+valor), apagar e recriar as sete linhas originais para dar a elas um
+`CategoryId` orfanaria qualquer serviço que um profissional já tivesse
+selecionado (ex.: o profissional de teste de Rodrigo, "Rodrigo Leite
+Pintor", já tinha Jardineiro/Pintor/Piscineiro marcados). Por isso
+`ServiceCategorySeeder` foi reescrito para NUNCA apagar/recriar uma
+especialidade já existente (checagem por nome) — só corrige o
+`CategoryId` dela via `ServiceCategory.AssignCategory` quando estiver
+diferente do esperado, preservando o mesmo Id de sempre.
+
+### Modelagem do banco
+
+- `professional.professional_categories` (nova tabela) — `Name` (único),
+  `Description`, `DisplayOrder`, `Active`.
+- `professional.service_categories` ganhou a coluna `category_id`
+  (`uuid`, obrigatória) — populada por `ServiceCategorySeeder` (backfill
+  das sete linhas originais + inserção das novas).
+
+**Rodrigo precisa gerar e aplicar a migração** (mesma limitação de sempre
+neste sandbox — sem acesso a `dotnet ef`/NuGet):
+
+```
+cd backend
+dotnet ef migrations add AddProfessionalCategories --project src/Infrastructure/Alilu.Infrastructure --startup-project src/Api/Alilu.Api
+dotnet ef database update --project src/Infrastructure/Alilu.Infrastructure --startup-project src/Api/Alilu.Api
+```
+
+Como `service_categories.category_id` é uma coluna nova OBRIGATÓRIA numa
+tabela que já tem linhas (as sete especialidades originais, se o banco de
+Rodrigo já rodou o seed antes), o EF vai pedir um valor padrão para as
+linhas existentes ao gerar a migração — responda com qualquer UUID
+(ex.: `00000000-0000-0000-0000-000000000000`) só para a migração aplicar;
+assim que a Api subir de novo, `ProfessionalCategorySeeder` (categorias)
+e `ServiceCategorySeeder` (especialidades, com o backfill do `CategoryId`
+de verdade) rodam automaticamente e corrigem esse valor temporário — é só
+um placeholder para a `ALTER TABLE` funcionar, nunca fica valendo de
+verdade.
+
+### Seed (idempotente, ordem importa)
+
+`Program.cs`, em desenvolvimento: `ProfessionalCategorySeeder` roda
+SEMPRE antes de `ServiceCategorySeeder` — as especialidades resolvem sua
+categoria-pai pelo NOME, procurando entre as já inseridas (lança
+`InvalidOperationException` se a ordem for invertida — erro de
+configuração, não de dado do usuário).
+
+Treze categorias (`ProfessionalCategorySeeder.InitialCategories`, ordem =
+`DisplayOrder`): Limpeza e Serviços Domésticos, Reparos e Manutenção,
+Equipamentos e Instalações, Energia Solar e Aquecimento, Jardim e Área
+Externa, Piscina, Lavagem e Estética Automotiva, Pets, Crianças e
+Família, Cuidados e Acompanhamento, Mudanças e Serviços, Tecnologia e
+Casa Inteligente, Serviços Especializados (as doze primeiras seguem a
+ordem de "CATEGORIAS PRINCIPAIS PARA O APP" do pedido de Rodrigo; a
+décima terceira, que ele listou na taxonomia completa mas não naquela
+lista de prioridade, entra por último, nunca escondida).
+
+~106 especialidades ao todo (`ServiceCategorySeeder.InitialSpecialties`),
+incluindo as sete originais — lista completa de Rodrigo, categoria por
+categoria (Diarista/Faxineira/Passadeira/.../Consultoria residencial).
+"Boiler" (categoria Energia Solar e Aquecimento) mantido como o próprio
+Rodrigo escreveu ("Instalação/Manutenção de boiler") — já claro o
+suficiente ao lado de "aquecedor solar"/"aquecedor a gás" na mesma
+categoria, sem precisar de um rótulo adicional "Boiler e Aquecedores".
+
+**Fora do escopo desta etapa, de propósito** (Rodrigo pediu para não
+impedir isso no futuro, não para implementar agora): nenhuma regra de
+"quais especialidades um condomínio específico permite" (ex.: lavagem de
+carro proibida em algum condomínio) — a modelagem atual (especialidade
+global, sem nenhum vínculo direto com `Condominium`) não impede adicionar
+isso depois como uma tabela de associação nova, sem precisar tocar em
+`ProfessionalCategory`/`ServiceCategory`.
+
+### Endpoints novos/alterados
+
+- `GET /api/directory/professional-categories` (novo, rota própria fora
+  de `.../professionals` — "categoria de profissional" é um recurso
+  independente) — lista as treze categorias ativas, ordenadas por
+  `DisplayOrder`.
+- `GET /api/directory/professionals/categories` (já existia) — ganhou
+  `?categoryId=` opcional, filtrando as especialidades pela categoria-pai
+  escolhida na tela anterior. Sem o parâmetro, continua devolvendo todas
+  (usado por quem ainda mostra a lista plana, ex.: "Meus serviços" em
+  `ProfessionalEditScreen`, que agrupa no próprio React Native).
+
+### Mobile — navegação do morador em três telas
+
+"Categoria → Especialidade → Lista de profissionais", exatamente como no
+pedido de Rodrigo:
+
+- `ProfessionalCategoryScreen` (nova) — as treze categorias. Rota
+  `/(resident)/professional-categories` (substituiu `ServiceCategoryScreen`
+  como destino de "Buscar profissional" em `ResidentHomeScreen`).
+- `ServiceCategoryScreen` (já existia) — agora recebe `categoryId` pela
+  rota (`/(resident)/professional-categories/[categoryId]`, mesmo padrão
+  de arquivo+pasta já usado por `professionals.tsx`/`professionals/[id].tsx`)
+  e mostra só as especialidades daquela categoria, com o nome dela como
+  título.
+- `ProfessionalListScreen` (sem mudança de navegação) — continua
+  recebendo o Id da ESPECIALIDADE escolhida, exatamente como antes.
+
+`ProfessionalEditScreen` ("Meus serviços", cadastro do profissional) —
+antes uma lista plana de sete chips, agora agrupada por categoria (só as
+categorias que têm alguma especialidade cadastrada aparecem), porque uma
+lista plana de ~100 especialidades seria impossível de escanear
+visualmente. Não existe um "selecionar categoria" separado do
+"selecionar especialidade" — marcar qualquer especialidade de uma
+categoria já é, na prática, atuar naquela categoria (evita duplicar o
+vínculo Profissional↔Categoria quando Profissional↔Especialidade já
+implica isso via `ServiceCategory.categoryId`), exatamente como o
+exemplo do pedido original ("Categoria: [Reparos e Manutenção] /
+Especialidades: ☑ Eletricista ☑ Pequenos reparos residenciais").
+
+### Verificação
+
+`Professional.Domain`/`Professional.Application` recompilados do zero
+depois de cada mudança (`dotnet build`, 0 Warnings/0 Errors) —
+`ProfessionalCategory`, `ServiceCategory.CategoryId`/`AssignCategory`,
+`IProfessionalCategoryRepository`, `ProfessionalDirectoryService`
+(`ListProfessionalCategoriesAsync`/`ListCategoriesAsync` com filtro) são
+código real, verificado, não só lido. `Professional.Infrastructure`
+(EF config/repositório/seeders novos) e `Alilu.Api`
+(`ProfessionalDirectoryController`) não puderam ser compilados de verdade
+aqui (sem acesso a NuGet — mesma limitação de sempre neste sandbox),
+revisados por leitura cuidadosa contra as assinaturas reais dos serviços
+chamados; `Professional.Application.Tests` (fakes em memória atualizados
+— `InMemoryServiceCategoryRepository`/nova
+`InMemoryProfessionalCategoryRepository`) também não pôde rodar aqui
+(xunit não restaurado) — Rodrigo precisa rodar `dotnet test` na própria
+máquina, junto com a migração pendente acima. `mobile` verificado de
+ponta a ponta com `tsc --noEmit` e `eslint` (ambos limpos em todos os
+arquivos novos/alterados desta etapa).
+
+## Etapa 23 — Convite de prestador (Twilio/SendGrid), avaliação livre por busca, Mural e correções (categoria/traduções)
+
+Cinco pedidos de Rodrigo, implementados juntos na ordem sugerida no plano
+prévio (`ETAPA-23-PLANO.md`, escrito e aprovado antes de qualquer código
+— mesma disciplina de "nada começa sem aprovação explícita" do resto do
+projeto): (4) bug do filtro de categoria, (5) traduções do admin-web, (2)
+avaliação sem agendamento + busca por nome, (3) módulo Mural, (1) convite
+de prestador via WhatsApp/SMS/e-mail.
+
+### 4 — Bug: "Ver todos os profissionais" ignorava a categoria escolhida
+
+Dentro de uma categoria-pai já escolhida (ex.: "Piscina"), o botão
+navegava para a lista de profissionais sem nenhum filtro — aparecia
+qualquer profissional ativo do condomínio (ex.: diarista, categoria
+"Limpeza"). Corrigido com um novo parâmetro `professionalCategoryId`
+(categoria-pai, via join `ProfessionalService` → `ServiceCategory.CategoryId`)
+em `IProfessionalRepository.ListActiveAsync`/`IProfessionalDirectoryService.ListProfessionalsAsync`/
+`GET /api/directory/professionals`, distinto do `categoryId` já existente
+(que continua sendo a ESPECIALIDADE). `ServiceCategoryScreen.tsx` (mobile)
+agora passa a categoria atual como `professionalCategoryId` em vez de
+navegar sem filtro.
+
+### 5 — Textos internos em inglês no admin-web
+
+`admin-web/src/components/Layout.tsx` (cabeçalho — `user?.role` cru) e
+`StatusBadge.tsx` (5 páginas — `Pending`/`Active`/etc. cru) traduzidos via
+novo `utils/statusLabels.ts` (`translateStatus`/`translateRole`), central
+para não duplicar o mapa por página. O app mobile já traduzia esses
+valores em pelo menos duas telas — o problema estava concentrado no
+admin-web.
+
+### 2 — Avaliar qualquer profissional buscando pelo nome
+
+Rodrigo confirmou (AskUserQuestion: "Permitir avaliar qualquer um"):
+remover a exigência de `Booking` concluído. `Review.BookingId` passou de
+`Guid` para `Guid?` — uma avaliação com `BookingId` nulo é uma "avaliação
+LIVRE". Continua existindo o índice único (sem filtro) em `BookingId`
+(Postgres ignora nulos por padrão) e passou a existir um NOVO índice único
+PARCIAL em `(ResidentId, ProfessionalId) WHERE "BookingId" IS NULL` —
+mesmo padrão de índice filtrado já usado por `MembershipConfiguration` —
+garantindo "só uma avaliação livre por (morador, profissional)", editável
+depois (mesmo padrão de `Review.Edit`). `POST /api/reviews` passou a
+aceitar `professionalId` no lugar de `bookingId`; a regra "só Booking
+Completed pode ser avaliado" (`ReviewsController`) só se aplica quando
+`bookingId` é informado.
+
+Busca por nome: novo parâmetro `name` (`ILike` case-insensitive em
+`DisplayName`) no mesmo `ListActiveAsync`/`ListProfessionalsAsync`/
+`GET /api/directory/professionals` do item 4. Mobile:
+`ProfessionalListScreen` ganhou um campo de busca com debounce de 400ms;
+`ProfessionalProfileScreen` ganhou o botão "Avaliar" sempre visível (antes
+só aparecia a partir de um agendamento concluído).
+
+**Trade-off registrado (não uma correção)**: permitir avaliar sem ter
+contratado facilita avaliação em massa sem relação real de serviço — o
+risco de avaliação falsa/injusta sobe. Rodrigo já decidiu que o benefício
+compensa; só para constar na decisão, mesmo espírito das notas de
+trade-off já registradas em etapas anteriores.
+
+### 3 — Módulo Mural (novo, décimo módulo)
+
+Pedido: "Mural, onde é texto aberto por morador, reclamações, sugestões,
+falar de algum prestador não cadastrado, avisar sobre problemas". Novo
+módulo `Mural` (Domain/Application/Infrastructure/Application.Tests,
+mesmo padrão dos outros nove — nenhum módulo o referencia, ele não
+referencia nenhum outro além de `Alilu.Shared`/`Alilu.Infrastructure`).
+
+`MuralPost`: `Id`, `CondominiumId`, `AuthorUserId`, `Type`
+(`MuralPostType`: `Complaint`/`Suggestion`/`Warning`/
+`UnregisteredProfessional` — os quatro exemplos exatos citados por
+Rodrigo; texto livre — decisão de escopo, sem confirmação explícita
+adicional, registrada aqui e no resumo entregue a Rodrigo), `Content`
+(até 1000 caracteres), `Status`, `CreatedAt`, `BlockedAt`/`BlockedBy`.
+
+**Moderação (confirmada via AskUserQuestion: "Sim, com moderação")**:
+PÓS-moderação, não pré-aprovação — diferente de `Recommendation` (Etapa
+10), que nasce `Pending`, um `MuralPost` nasce `Visible` na hora, visível
+para todo o condomínio; o síndico/admin pode bloquear DEPOIS
+(`MuralPostStatus.Blocked`), e um post bloqueado desaparece do feed geral
+mas continua visível para o próprio autor (histórico) — ver
+`IMuralPostRepository.ListForResidentFeedAsync`
+(`Status == Visible OR AuthorUserId == requestingUserId`).
+
+Endpoints: `POST /api/resident/mural`/`GET /api/resident/mural`
+(self-service), `GET /api/admin/mural/condominiums/{id}`/
+`POST /api/admin/mural/{id}/block` (admin, mesmo padrão de escopo
+CondominiumAdmin/SuperAdmin da Etapa 12). Mobile: tela "Mural" (feed +
+botão "Novo post" com seletor de tipo) a partir de "Mural" em
+`ResidentHomeScreen`. admin-web: nova página "Mural" (mesmo padrão de
+Recomendações) com botão "Bloquear".
+
+Escopo assumido (sem confirmação explícita adicional de Rodrigo, ver
+plano): só morador publica/lê; profissionais não têm acesso ao Mural
+nesta etapa.
+
+### 1 — Convidar prestador (WhatsApp/SMS/e-mail via Twilio)
+
+Pedido: morador informa nome + telefone + e-mail opcional de um
+prestador; a pessoa recebe WhatsApp e e-mail convidando para atender o
+condomínio via ALILU. Fornecedor confirmado por Rodrigo (AskUserQuestion):
+**Twilio** (WhatsApp Business API + Programmable Messaging SMS de
+fallback) e **Twilio SendGrid** (e-mail).
+
+Novo recurso no módulo `Professional` (não um módulo novo — Rodrigo
+descreveu isso como parte do diretório de profissionais): `ProfessionalInvitation`
+(`Id`, `CondominiumId`, `InvitedByUserId`, `Name`, `Phone`, `Email?`,
+`CreatedAt`, `WhatsAppDelivered`, `SmsDelivered`, `EmailDelivered?` — nulo
+quando nenhum e-mail foi informado). `POST /api/resident/professional-invitations`
+(self-service, exige vínculo `Active` — mesma composição de
+`RecommendationsController`/`MuralController`) com limite de 10
+convites/dia por morador (`TooManyInvitationsException`, 429) — mesma
+classe de checagem "contar, comparar, inserir" que a Etapa 14 corrigiu
+para `Recommendations`, mas SEM a transação `Serializable` equivalente
+aqui (aceito de propósito — impacto baixo, é só limite de taxa contra
+abuso casual, não regra de unicidade de negócio; documentado como
+limitação conhecida em `IProfessionalInvitationRepository`).
+
+**Portas** (`IWhatsAppMessageSender`/`ISmsMessageSender`/
+`IEmailMessageSender`, módulo Professional) implementadas na
+Infrastructure via chamada HTTP crua às APIs REST da Twilio/SendGrid
+(sem SDK novo — mesmo espírito de `ExpoPushNotificationSender`, Etapa
+11) — WhatsApp e SMS chamam o mesmo endpoint de Messages da Twilio, só
+com prefixo `"whatsapp:"`; SMS só é tentado como FALLBACK quando o
+WhatsApp não foi entregue. Credenciais novas (`Twilio:AccountSid`/
+`AuthToken`/`WhatsAppFrom`/`SmsFrom`, `SendGrid:ApiKey`/`FromEmail`) em
+`appsettings.json`, vazias por padrão, nunca hard-coded (mesmo padrão de
+`Jwt:Secret`/`PushNotification:ExpoAccessToken`). **Quando não
+configuradas, `AddInvitationChannelSenders` (`Professional.Infrastructure.DependencyInjection`)
+registra senders "fake" (`LoggingWhatsAppSender`/`LoggingSmsSender`/
+`LoggingEmailSender`) que só logam a mensagem e devolvem sucesso** —
+exatamente o que o plano propôs para permitir escrever/testar o recurso
+antes da conta Twilio estar pronta (o template do WhatsApp Business
+também precisa de aprovação prévia da Meta, passo manual fora daqui).
+
+**Pendências de produto, não de código** (registradas no plano, ainda
+sem confirmação de Rodrigo): redação final do texto do convite (rascunho
+em `ProfessionalInvitationService.BuildInvitationMessage`) e se 10
+convites/dia é o número certo.
+
+Mobile: novo módulo `professionalInvitations` — tela "Convidar
+prestador" (formulário nome/telefone/e-mail) + histórico "convites
+enviados" com um badge por canal (WhatsApp/SMS/e-mail, omitindo e-mail
+quando não informado), a partir de "Convidar prestador" em
+`ResidentHomeScreen`.
+
+### Migrações pendentes (Rodrigo precisa rodar na própria máquina)
+
+Mesma limitação de sempre neste sandbox (sem `dotnet`/acesso a
+NuGet.org — ver README). Três mudanças de schema nesta etapa:
+
+```
+cd backend
+dotnet ef migrations add MakeReviewBookingIdOptional --project src/Infrastructure/Alilu.Infrastructure --startup-project src/Api/Alilu.Api
+dotnet ef migrations add AddMuralModule --project src/Infrastructure/Alilu.Infrastructure --startup-project src/Api/Alilu.Api
+dotnet ef migrations add AddProfessionalInvitations --project src/Infrastructure/Alilu.Infrastructure --startup-project src/Api/Alilu.Api
+dotnet ef database update --project src/Infrastructure/Alilu.Infrastructure --startup-project src/Api/Alilu.Api
+```
+
+(as três podem virar uma única migração se preferir rodar `dotnet ef
+migrations add Etapa23 ...` uma vez só — o EF Core detecta as três
+mudanças de uma vez a partir do modelo atual.)
+
+### Verificação
+
+`backend`: nenhum dos três módulos tocados (`Reviews`, `Professional`,
+novo `Mural`) pôde ser compilado de verdade aqui (sem acesso a
+NuGet.org/`dotnet` neste sandbox — mesma limitação de sempre). Em vez
+disso, cada arquivo foi escrito/editado via leitura cuidadosa contra as
+assinaturas reais dos serviços chamados, e `scripts/check-references.py`
+(que não depende de `dotnet`, só faz parsing dos `.csproj`/`.sln`) foi
+rodado depois de cada alteração estrutural — confirma que o novo módulo
+Mural e o novo pacote NuGet do Professional (`Microsoft.Extensions.Http`)
+não introduziram nenhuma dependência circular nem violação de
+independência de módulos (43 projetos no total, todos batendo com o
+grafo esperado). `Alilu.sln` foi editado à mão (novos GUIDs gerados via
+Python `uuid.uuid4()`) e revalidado por contagem de `Project`/`EndProject`/
+`GlobalSection` balanceados. Rodrigo precisa rodar `dotnet build`/
+`dotnet test`/as migrações acima na própria máquina antes de considerar
+esta etapa pronta para produção.
+
+`mobile`/`admin-web`: `npx tsc --noEmit` (mobile) e `npx tsc -b` (admin-web)
+rodados depois de cada lote de mudanças, sempre limpos (0 erros) —
+incluindo depois da correção de numeração desta seção (ver nota abaixo).
+`eslint` não foi rodado nesta etapa (timeout de 45s do sandbox em
+execuções anteriores da sessão) — Rodrigo pode rodar manualmente.
+
+**Nota sobre a numeração**: o plano inicial desta etapa foi rascunhado
+como "Etapa 17" (arquivo `ETAPA-17-PLANO.md`) sem checar contra este
+documento — Etapa 17 já existia (linha 3315, "Correções ao testar no
+navegador + agendamento com horários reais"). Corrigido para Etapa 23
+(próximo número livre depois da Etapa 22) em todos os comentários de
+código escritos nesta sessão antes de finalizar; o plano foi renomeado
+para `ETAPA-23-PLANO.md`.

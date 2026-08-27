@@ -9,7 +9,8 @@
  */
 export interface Review {
   id: string;
-  bookingId: string;
+  /** Etapa 23: nulo numa avaliação LIVRE (sem agendamento — morador buscou o profissional pelo nome). */
+  bookingId: string | null;
   residentId: string;
   professionalId: string;
   rating: number;
@@ -24,9 +25,16 @@ export interface ProfessionalRatingSummary {
   averageRating: number;
 }
 
-/** Corpo de `POST /api/resident/reviews` (React Native: ReviewScreen — "avaliar profissional"). */
+/**
+ * Corpo de `POST /api/resident/reviews` (React Native: ReviewScreen —
+ * "avaliar profissional"). Etapa 23 — exatamente um entre `bookingId`
+ * (avaliar um agendamento concluído) e `professionalId` (avaliação livre,
+ * sem agendamento) deve vir preenchido; `ReviewScreen` garante isso na
+ * hora de montar o payload, nunca os dois juntos.
+ */
 export interface CreateReviewPayload {
-  bookingId: string;
+  bookingId?: string;
+  professionalId?: string;
   rating: number;
   comment?: string;
 }

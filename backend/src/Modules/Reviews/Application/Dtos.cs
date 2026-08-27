@@ -8,7 +8,7 @@ namespace Alilu.Modules.Reviews.Application;
 /// </summary>
 public sealed record ReviewResponse(
     Guid Id,
-    Guid BookingId,
+    Guid? BookingId,
     Guid ResidentId,
     Guid ProfessionalId,
     int Rating,

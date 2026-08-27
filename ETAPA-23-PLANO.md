@@ -1,0 +1,103 @@
+# ALILU — Plano da Etapa 23 (proposta, aguardando aprovação)
+
+> Este documento **não implementa nada ainda** — é o plano detalhado dos 5 pedidos feitos por Rodrigo, pra validação antes de qualquer código (mesma lógica do "Próxima etapa" do README: nada começa sem aprovação explícita do PROMPT numerado). Cada item tem: o que já existe hoje (investigado no código real), o que muda, e as decisões que ainda dependem de Rodrigo.
+
+---
+
+## 1. Convidar prestador (indicação com notificação por WhatsApp/e-mail)
+
+**Pedido:** morador indica um prestador (nome + telefone + e-mail opcional); a pessoa recebe uma mensagem de WhatsApp e um e-mail com o texto de convite para atender aquele condomínio via ALILU.
+
+**O que já existe:** o módulo `Recommendations` já modela indicação de profissional **externo** (`ExternalProfessionalName`/`ExternalPhone`, sem `ProfessionalId`) — mas essa indicação é pública (fica pendente, um admin aprova, depois aparece pra outros moradores como "recomendado por N moradores"), exige um comentário obrigatório ("por que confio nesse profissional") e **não dispara hoje nenhuma mensagem para o prestador** — é só um registro interno.
+
+O que Rodrigo descreveu é outra coisa: um **convite direto** ao prestador, sem exigir comentário nem aprovação de admin — o objetivo é só avisar a pessoa que ela foi indicada e convidá-la a se cadastrar no ALILU.
+
+**Proposta:**
+- Novo recurso no módulo `Professional`: `ProfessionalInvitation` (Id, CondominiumId, InvitedByUserId — o morador, Nome, Telefone, Email opcional, CreatedAt, canais enviados com sucesso/falha).
+- Endpoint `POST /api/professional-invitations` — só morador com vínculo `Active` no condomínio. Limite de envio (ex.: 10 convites/dia por morador) pra evitar spam/abuso — número exato a definir.
+- Texto do convite (rascunho, em português, personalizado com o nome do condomínio):
+  > "Olá! Você foi indicado por um morador do Condomínio {NomeCondominio} para prestar serviços através do ALILU, a plataforma de serviços de confiança do seu condomínio. Baixe o app e cadastre-se: {link}."
+  (redação final é decisão de produto — só um rascunho pra ilustrar o plano)
+- **Fornecedor terceirizado — Twilio** (confirmado por Rodrigo):
+  - **WhatsApp:** Twilio WhatsApp Business API. Mensagem iniciada pela empresa (não é resposta a uma mensagem do usuário) exige um **template pré-aprovado pela Meta** — esse cadastro/aprovação do template é um passo manual fora daqui (feito no Console da Twilio, pode levar de horas a poucos dias).
+  - **SMS (fallback):** Twilio Programmable Messaging — usado se o número não tiver WhatsApp ou a mensagem falhar.
+  - **E-mail:** Twilio SendGrid (mesma conta Twilio, produto de e-mail mais maduro que o Twilio Email nativo).
+  - Credenciais novas em `appsettings`/variáveis de ambiente: `Twilio:AccountSid`, `Twilio:AuthToken`, `Twilio:WhatsAppFrom`, `Twilio:SmsFrom`, `SendGrid:ApiKey`, `SendGrid:FromEmail` — nenhuma fica no código, mesmo padrão do `Jwt:Secret`/`PushNotification:ExpoAccessToken` já existente.
+- **Decisões pendentes de Rodrigo antes de codar:**
+  1. Confirmar que ele já tem (ou vai criar) a conta Twilio e o número/sender do WhatsApp Business — sem isso o recurso fica pronto no código mas não consegue enviar nada de verdade.
+  2. Redação final da mensagem de convite (WhatsApp/SMS/e-mail podem ter textos levemente diferentes por limite de caracteres).
+  3. Limite de convites por morador/dia.
+
+---
+
+## 2. Avaliar qualquer profissional buscando pelo nome
+
+**Pedido:** morador clica em "Buscar", encontra o profissional pelo nome, e avalia — sem precisar ter contratado antes.
+
+**O que já existe:** `Review` (módulo `Reviews`) hoje é **obrigatoriamente amarrada a um `BookingId`** — a avaliação só existe depois de um agendamento chegar a `Completed` (`ReviewsController` valida isso antes de chamar `ReviewService.CreateAsync`; `Review.Create` recusa `BookingId` vazio). Também não existe hoje busca de profissional por nome — só filtro por categoria/especialidade.
+
+Rodrigo confirmou: **remover a exigência de contrato concluído** — qualquer morador pode buscar e avaliar qualquer profissional cadastrado.
+
+**Proposta:**
+- **Busca por nome:** nova tela "Buscar profissional" (`BuscarProfissionalScreen`) com campo de texto; back-end ganha um parâmetro de busca em `ListProfessionalsAsync`/`GET /api/directory/professionals` (`?nome=...`, contains/case-insensitive em `DisplayName`). Acessível a partir da tela de Categorias (`ProfessionalCategoryScreen`), como uma opção extra além de "Ver todos os profissionais".
+- **Avaliação livre (sem Booking):**
+  - `Review.BookingId` passa a ser **opcional** (`Guid?`) — quando nulo, é uma "avaliação livre". Continua existindo o índice único em `BookingId` (ignorando nulos, comportamento padrão do Postgres) e passa a existir **um novo índice único parcial em `(ResidentId, ProfessionalId) WHERE BookingId IS NULL`** — cada morador pode ter só UMA avaliação livre por profissional (pode editá-la depois, mesmo padrão de `Review.Edit`), evitando que a mesma pessoa avalie o mesmo profissional repetidamente sem ter contratado.
+  - Novo endpoint (ou o mesmo `POST /api/reviews` sem exigir `bookingId`) — a Api já não teria mais "só Booking Completed pode ser avaliado" como regra universal; essa regra passa a valer só quando `bookingId` é informado.
+  - Tela de perfil do profissional (`ProfessionalProfileScreen`) ganha o botão "Avaliar" sempre visível (hoje só aparece a partir do agendamento concluído) — abre o mesmo formulário de nota + comentário.
+- **Trade-off a registrar:** isso facilita avaliação em massa sem relação real de serviço — o risco de avaliação falsa/injusta sobe (a checagem "só quem contratou pode avaliar" existia como proteção). Rodrigo já decidiu que o benefício de permitir avaliar qualquer um compensa; registrando aqui só pra constar na decisão.
+
+---
+
+## 3. Mural (reclamações, sugestões, avisos)
+
+**Pedido:** um mural de texto aberto para o morador — reclamações, sugestões, comentar sobre prestador não cadastrado, avisos sobre problemas.
+
+**O que já existe:** nada parecido — o mais próximo é `Recommendation`, que é estruturada (nome/telefone/categoria) e teoricamente positiva, não serve pra reclamação/aviso genérico.
+
+**Proposta — novo módulo `Mural`** (mesmo padrão dos outros: Domain/Application/Infrastructure):
+- Entidade `MuralPost`: `Id`, `CondominiumId`, `AuthorUserId` (morador, `Active` no condomínio), `Type` (`Complaint` reclamação / `Suggestion` sugestão / `Warning` aviso de problema / `UnregisteredProfessional` comentário sobre prestador não cadastrado — enum a confirmar com Rodrigo), `Content` (texto livre, limite de caracteres a definir, ex. 1000), `Status` (`Visible` / `Blocked`), `CreatedAt`, `BlockedAt`/`BlockedBy`.
+- **Moderação (conforme escolha de Rodrigo):** o post nasce **visível na hora** para todos os moradores `Active` daquele condomínio (sem aprovação prévia — diferente de `Recommendation`, que nasce `Pending`) — mas o síndico/admin pode **bloquear/remover** um post depois, ficando fora da lista pra todo mundo (fica só visível pro próprio autor e pro admin, como histórico). Mesmo espírito do `Recommendation.Block()`, só que a partir de "visível" em vez de "aprovado".
+- Endpoints: `POST /api/mural` (criar, morador), `GET /api/mural` (listar do meu condomínio, morador — mais recentes primeiro), `POST /api/admin/mural/{id}/block` (admin do condomínio).
+- Mobile: nova aba/tela "Mural" (lista + botão "Novo post" com seletor do `Type` + textarea).
+- admin-web: nova página "Mural" (mesmo padrão de Moradores/Profissionais/Recomendações) — lista com filtro por tipo e botão "Bloquear".
+- **Decisões pendentes de Rodrigo:** confirmar os 4 tipos de post (ou usar texto livre sem categorização?), e se o mural é só leitura para moradores ou se profissionais também podem ver/postar (hoje assumindo só morador, leitura restrita ao condomínio dele).
+
+---
+
+## 4. BUG — "Ver todos os profissionais" ignora a categoria escolhida
+
+**Confirmado no código, é um bug real.** A navegação tem dois níveis: `ProfessionalCategoryScreen` (categoria, ex. "Piscina") → `ServiceCategoryScreen` (especialidade dentro da categoria, ex. "Piscineiro") → `ProfessionalListScreen` (lista filtrada). O botão **"Ver todos os profissionais" dentro de uma categoria já escolhida** (em `ServiceCategoryScreen.tsx`) navega para `/(resident)/professionals` **sem passar nenhum filtro** — por isso aparece qualquer profissional ativo (inclusive diarista, que é da categoria "Limpeza") mesmo estando dentro de "Piscina".
+
+O back-end hoje só sabe filtrar por **especialidade** (`serviceCategoryId`, ex. "Piscineiro") — não existe filtro pela **categoria-pai** (ex. "Piscina", que pode ter várias especialidades: Piscineiro, Manutenção de bomba, etc.), que é o que esse botão precisa.
+
+**Correção proposta:**
+- Back-end: `IProfessionalDirectoryService.ListProfessionalsAsync` ganha um parâmetro opcional `professionalCategoryId` — filtra profissionais que oferecem QUALQUER especialidade cuja `ServiceCategory.CategoryId` seja essa categoria (join `ProfessionalService` → `ServiceCategory`). `GET /api/directory/professionals` ganha o query param `professionalCategoryId` (junto do já existente `categoryId`, que continua sendo a especialidade).
+- Mobile: em `ServiceCategoryScreen.tsx`, o botão "Ver todos os profissionais" passa a navegar com `professionalCategoryId` = a categoria atual (hoje ignorado) em vez de ir para a lista sem filtro nenhum. `ProfessionalListScreen`/`useProfessionals` passam a aceitar os dois parâmetros (especialidade OU categoria) sem se confundir.
+- O botão "Ver todos os profissionais" de `ProfessionalCategoryScreen.tsx` (o nível de CIMA, antes de escolher qualquer categoria) **continua sem filtro** — esse já está correto, é o "ver literalmente todos" que faz sentido ali.
+
+Este item é pequeno, bem definido e não depende de nenhuma decisão externa — pode ser o primeiro a ser implementado.
+
+---
+
+## 5. Textos internos em inglês → português
+
+**Confirmado no código, dois lugares sistemáticos** (não achei o texto exato "Resident Professional" citado por Rodrigo, mas encontrei o padrão que provavelmente é isso — os valores brutos do enum de papel/status aparecem sem tradução):
+
+1. **`admin-web/src/components/Layout.tsx`, linha 153** — o cabeçalho do painel mostra `{user?.role}` direto: aparece literalmente `Resident`, `Professional`, `CondominiumAdmin` ou `SuperAdmin` em inglês, sem nenhum mapeamento. Correção: mapa `{ Resident: 'Morador', Professional: 'Profissional', CondominiumAdmin: 'Síndico', SuperAdmin: 'Super administrador' }`.
+2. **`admin-web/src/components/StatusBadge.tsx`** — o badge de status usado em **5 páginas** (`CondominiosPage`, `MoradoresPage`, `ProfissionaisPage`, `RecomendacoesPage`, `UnidadesPage`) exibe `{status}` bruto: `Pending`, `Active`, `Approved`, `Rejected`, `Blocked`, `Inactive` aparecem em inglês nos badges de cada tela. Correção: mapa de tradução central (`Pending` → "Pendente", `Active` → "Ativo", `Approved` → "Aprovado", `Rejected` → "Recusado", `Blocked` → "Bloqueado", `Inactive` → "Inativo") usado pelo componente antes de renderizar o texto — a cor do badge (verde/vermelho/amarelo) não muda, só o texto mostrado.
+
+O app mobile (React Native), por outro lado, **já traduz** esses status corretamente em pelo menos duas telas (`MyAgendaScreen`, `ProfessionalEditScreen`, que já têm um `STATUS_LABEL`/`statusLabel` em português) — o problema está concentrado no admin-web.
+
+**Pendência:** se o texto exato que Rodrigo viu era outro (não os dois acima), preciso do print de tela ou do nome da tela pra achar o lugar certo — os dois encontrados são os únicos textos em inglês visíveis ao usuário que localizei no projeto todo (mobile + admin-web).
+
+---
+
+## Ordem sugerida de implementação
+
+1. **Item 4** (bug do filtro) — pequeno, sem decisão pendente, resolve um problema que já está incomodando o uso real.
+2. **Item 5** (traduções) — pequeno, sem decisão pendente.
+3. **Item 2** (avaliar sem contrato + busca por nome) — médio, decisão de produto já tomada por Rodrigo, só falta código (migration nova pro índice único parcial).
+4. **Item 3** (Mural) — módulo novo, maior — precisa só confirmar os tipos de post antes de começar.
+5. **Item 1** (convite por WhatsApp/e-mail) — o maior, e o único que depende de algo fora do código (conta Twilio configurada, template de WhatsApp aprovado pela Meta) — enquanto isso não está pronto, o código pode ser escrito e testado com um sender "fake" (log em vez de enviar de verdade), mesmo padrão que o projeto já usa pra push notification sem `ExpoAccessToken` configurado.
+
+**Aguardando aprovação de Rodrigo pra virar PROMPT numerado (Etapa 23) e começar a implementação.**

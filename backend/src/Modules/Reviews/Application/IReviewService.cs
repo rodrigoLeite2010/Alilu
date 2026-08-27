@@ -16,10 +16,17 @@ namespace Alilu.Modules.Reviews.Application;
 /// </summary>
 public interface IReviewService
 {
-    /// <summary>React Native: ReviewScreen — "avaliar profissional". Lança <see cref="DuplicateReviewException"/> quando o agendamento já foi avaliado.</summary>
+    /// <summary>
+    /// React Native: ReviewScreen — "avaliar profissional". Lança
+    /// <see cref="DuplicateReviewException"/> quando o agendamento já foi
+    /// avaliado (<paramref name="bookingId"/> informado) ou quando já
+    /// existe uma avaliação livre deste morador para este profissional
+    /// (<paramref name="bookingId"/> nulo — Etapa 23, "avaliar qualquer
+    /// profissional buscando pelo nome").
+    /// </summary>
     Task<ReviewResponse> CreateAsync(
         Guid residentId,
-        Guid bookingId,
+        Guid? bookingId,
         Guid professionalId,
         int rating,
         string? comment,
@@ -45,4 +52,13 @@ public interface IReviewService
     /// "avaliar" ou "ver/editar avaliação".
     /// </summary>
     Task<ReviewResponse?> GetMyReviewForBookingAsync(Guid residentId, Guid bookingId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Etapa 23 — mesmo padrão de <see cref="GetMyReviewForBookingAsync"/>,
+    /// pra avaliação LIVRE (sem agendamento): devolve a avaliação deste
+    /// morador para este profissional, ou <c>null</c> quando ainda não
+    /// existe. React Native: ProfessionalProfileScreen usa isso pra decidir
+    /// se o botão "Avaliar" abre em modo criação ou edição.
+    /// </summary>
+    Task<ReviewResponse?> GetMyFreeReviewForProfessionalAsync(Guid residentId, Guid professionalId, CancellationToken cancellationToken = default);
 }

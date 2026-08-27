@@ -16,6 +16,8 @@ internal sealed class ProfessionalServiceTestFixture
 
     public InMemoryServiceCategoryRepository ServiceCategoryRepository { get; } = new();
 
+    public InMemoryProfessionalCategoryRepository ProfessionalCategoryRepository { get; } = new();
+
     public InMemoryProfessionalServiceRepository ProfessionalServiceRepository { get; } = new();
 
     public InMemoryProfessionalCondominiumRepository ProfessionalCondominiumRepository { get; } = new();
@@ -26,7 +28,7 @@ internal sealed class ProfessionalServiceTestFixture
 
     public ProfessionalServiceTestFixture()
     {
-        ProfessionalRepository = new InMemoryProfessionalRepository(ProfessionalServiceRepository);
+        ProfessionalRepository = new InMemoryProfessionalRepository(ProfessionalServiceRepository, ServiceCategoryRepository);
     }
 
     public ProfessionalProfileService CreateProfileSut() => new(
@@ -35,6 +37,7 @@ internal sealed class ProfessionalServiceTestFixture
     public ProfessionalDirectoryService CreateDirectorySut() => new(
         ProfessionalRepository,
         ServiceCategoryRepository,
+        ProfessionalCategoryRepository,
         ProfessionalServiceRepository,
         ProfessionalCondominiumRepository,
         ProfessionalAvailabilityRepository,

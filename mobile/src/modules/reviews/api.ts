@@ -26,6 +26,18 @@ export const reviewApi = {
     return api.get<Review>(`${RESIDENT_REVIEWS_BASE_PATH}/booking/${bookingId}`).then((response) => (response.status === 204 ? null : response.data));
   },
 
+  /**
+   * Etapa 23 — mesmo padrão de `getMineForBooking`, pra avaliação LIVRE
+   * (sem agendamento). React Native: a rota hospedeira
+   * (`professionals/[id]/review.tsx`) usa isso pra decidir se ReviewScreen
+   * abre em modo "avaliar" ou "ver/editar avaliação".
+   */
+  getMineForProfessional(professionalId: string) {
+    return api
+      .get<Review>(`${RESIDENT_REVIEWS_BASE_PATH}/professional/${professionalId}`)
+      .then((response) => (response.status === 204 ? null : response.data));
+  },
+
   /** React Native: ReviewScreen — "avaliar profissional". */
   create(payload: CreateReviewPayload) {
     return api.post<Review>(RESIDENT_REVIEWS_BASE_PATH, payload).then((response) => response.data);

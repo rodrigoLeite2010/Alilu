@@ -29,6 +29,17 @@
     <!-- IServiceCollection / IConfiguration usados em DependencyInjection.cs (AddProfessionalModule). -->
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="8.0.*" />
     <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="8.0.*" />
+
+    <!--
+      Etapa 17 (pedido 1 de Rodrigo — "convidar um prestador via
+      WhatsApp/SMS/e-mail"): AddHttpClient/IHttpClientFactory usados em
+      DependencyInjection.cs para os senders reais (TwilioWhatsAppSender/
+      TwilioSmsSender/SendGridEmailSender) — mesmo pacote já usado pelo
+      módulo Notifications (ExpoPushNotificationSender, Etapa 11). Traz
+      Microsoft.Extensions.Logging.Abstractions transitivamente (ILogger<T>
+      usado por esses senders e pelos fakes de log).
+    -->
+    <PackageReference Include="Microsoft.Extensions.Http" Version="8.0.*" />
   </ItemGroup>
 
 </Project>

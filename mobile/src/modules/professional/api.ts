@@ -8,6 +8,7 @@ import type {
   ProfessionalAvailabilityExceptionItem,
   ProfessionalAvailabilityOverview,
   ProfessionalAvailabilitySlot,
+  ProfessionalCategory,
   ProfessionalCondominiumLink,
   ProfessionalDirectoryItem,
   ProfessionalServiceItem,
@@ -20,6 +21,8 @@ import type {
 
 const PROFILE_BASE_PATH = '/api/professional/profile';
 const DIRECTORY_BASE_PATH = '/api/directory/professionals';
+/** Etapa 22 — recurso próprio, fora de `.../professionals` (ver comentário de `ProfessionalDirectoryController.ListProfessionalCategories` no backend). */
+const PROFESSIONAL_CATEGORIES_PATH = '/api/directory/professional-categories';
 const CONDOMINIUM_DIRECTORY_BASE_PATH = '/api/directory';
 const AVAILABILITY_BASE_PATH = '/api/professional/availability';
 const AGENDA_BASE_PATH = '/api/professional/agenda';
@@ -68,13 +71,33 @@ export const professionalProfileApi = {
 
 /** Diretório público de profissionais/categorias (React Native, morador: ProfessionalListScreen/ServiceCategoryScreen/ProfessionalProfileScreen). */
 export const professionalDirectoryApi = {
-  listCategories() {
-    return api.get<ServiceCategory[]>(`${DIRECTORY_BASE_PATH}/categories`).then((response) => response.data);
+  /** Etapa 22 — o nível de CIMA da navegação ("Categoria"), React Native: nova tela de categorias. */
+  listProfessionalCategories() {
+    return api.get<ProfessionalCategory[]>(PROFESSIONAL_CATEGORIES_PATH).then((response) => response.data);
   },
 
-  listProfessionals(categoryId?: string) {
+  /** "Especialidade". `categoryId` (Etapa 22, opcional) filtra pela categoria escolhida na tela anterior. */
+  listCategories(categoryId?: string) {
     return api
-      .get<ProfessionalDirectoryItem[]>(DIRECTORY_BASE_PATH, { params: categoryId ? { categoryId } : undefined })
+      .get<ServiceCategory[]>(`${DIRECTORY_BASE_PATH}/categories`, { params: categoryId ? { categoryId } : undefined })
+      .then((response) => response.data);
+  },
+
+  /**
+   * Etapa 23 — `professionalCategoryId` (categoria-pai) só é considerado
+   * pela Api quando `categoryId` (especialidade) não é informado — ver
+   * `ProfessionalDirectoryController.ListProfessionals` no backend. Corrige
+   * o bug de "Ver todos os profissionais" dentro de uma categoria mostrar
+   * profissionais de outras categorias. `name` (Etapa 23, "buscar
+   * profissional pelo nome") é combinável com qualquer um dos dois.
+   */
+  listProfessionals(categoryId?: string, professionalCategoryId?: string, name?: string) {
+    const params = {
+      ...(categoryId ? { categoryId } : professionalCategoryId ? { professionalCategoryId } : undefined),
+      ...(name ? { name } : undefined),
+    };
+    return api
+      .get<ProfessionalDirectoryItem[]>(DIRECTORY_BASE_PATH, { params: Object.keys(params).length > 0 ? params : undefined })
       .then((response) => response.data);
   },
 

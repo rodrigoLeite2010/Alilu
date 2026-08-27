@@ -110,6 +110,11 @@ public sealed class ExceptionHandlingMiddleware(RequestDelegate next, ILogger<Ex
         Alilu.Modules.Professional.Application.ProfessionalDoesNotAttendCondominiumException => (StatusCodes.Status400BadRequest, exception.Message),
         Alilu.Modules.Professional.Application.TimeSlotUnavailableException => (StatusCodes.Status409Conflict, exception.Message),
 
+        // Convite direto a prestador via WhatsApp/SMS/e-mail (Etapa 23,
+        // pedido 1 de Rodrigo) — mesmo raciocínio de 429 do módulo
+        // Recommendations ("não permitir spam ilimitado").
+        Alilu.Modules.Professional.Application.TooManyInvitationsException => (StatusCodes.Status429TooManyRequests, exception.Message),
+
         // Validação de agendamento — Resident (PROMPT 08).
         Alilu.Modules.Resident.Application.NoActiveMembershipException => (StatusCodes.Status403Forbidden, exception.Message),
 
@@ -154,6 +159,12 @@ public sealed class ExceptionHandlingMiddleware(RequestDelegate next, ILogger<Ex
         // extração de um contrato comum numa próxima etapa que mexa aqui.
         Alilu.Modules.Administration.Application.AdminNotAssignedToCondominiumException => (StatusCodes.Status403Forbidden, exception.Message),
         Alilu.Modules.Administration.Application.InsufficientPermissionsException => (StatusCodes.Status403Forbidden, exception.Message),
+
+        // Módulo Mural (Etapa 23) — sétimo módulo a repetir o padrão de
+        // InsufficientPermissionsException.
+        Alilu.Modules.Mural.Application.MuralPostNotFoundException => (StatusCodes.Status404NotFound, exception.Message),
+        Alilu.Modules.Mural.Application.MuralPostAlreadyBlockedException => (StatusCodes.Status409Conflict, exception.Message),
+        Alilu.Modules.Mural.Application.InsufficientPermissionsException => (StatusCodes.Status403Forbidden, exception.Message),
 
         UnauthorizedAccessException => (StatusCodes.Status401Unauthorized, exception.Message),
         DomainException => (StatusCodes.Status400BadRequest, exception.Message),

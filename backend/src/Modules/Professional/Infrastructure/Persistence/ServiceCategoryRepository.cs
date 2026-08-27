@@ -17,9 +17,14 @@ public sealed class ServiceCategoryRepository(AliluDbContext dbContext) : IServi
             .OrderBy(c => c.Name)
             .ToListAsync(cancellationToken);
 
-    public async Task<IReadOnlyList<ServiceCategory>> ListActiveAsync(CancellationToken cancellationToken = default) =>
-        await dbContext.Set<ServiceCategory>()
-            .Where(c => c.Active)
-            .OrderBy(c => c.Name)
-            .ToListAsync(cancellationToken);
+    public async Task<IReadOnlyList<ServiceCategory>> ListActiveAsync(Guid? categoryId = null, CancellationToken cancellationToken = default)
+    {
+        var query = dbContext.Set<ServiceCategory>().Where(c => c.Active);
+        if (categoryId.HasValue)
+        {
+            query = query.Where(c => c.CategoryId == categoryId.Value);
+        }
+
+        return await query.OrderBy(c => c.Name).ToListAsync(cancellationToken);
+    }
 }

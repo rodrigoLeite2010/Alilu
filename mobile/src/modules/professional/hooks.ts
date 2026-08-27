@@ -103,19 +103,43 @@ export function useRequestProfessionalCondominium() {
   });
 }
 
-/** Diretório público de categorias (React Native: ServiceCategoryScreen). */
-export function useServiceCategories() {
+/**
+ * Diretório público de categorias de profissional (Etapa 22, React Native:
+ * nova tela de categorias, antes de ServiceCategoryScreen — "Categoria" no
+ * vocabulário de Rodrigo).
+ */
+export function useProfessionalCategories() {
   return useQuery({
-    queryKey: ['professional', 'directory', 'categories'],
-    queryFn: () => professionalDirectoryApi.listCategories(),
+    queryKey: ['professional', 'directory', 'professional-categories'],
+    queryFn: () => professionalDirectoryApi.listProfessionalCategories(),
   });
 }
 
-/** Diretório público de profissionais (React Native: ProfessionalListScreen — "listar profissionais; filtrar categoria"). */
-export function useProfessionals(categoryId?: string) {
+/**
+ * Diretório público de especialidades (React Native: ServiceCategoryScreen
+ * — "Especialidade" no vocabulário de Rodrigo). `categoryId` (Etapa 22,
+ * opcional) filtra pela categoria-pai escolhida na tela anterior; sem ele,
+ * devolve todas (usado, por exemplo, pela lista plana de "Meus serviços"
+ * em ProfessionalEditScreen, que agrupa por categoria no próprio React
+ * Native em vez de pedir uma consulta por categoria).
+ */
+export function useServiceCategories(categoryId?: string) {
   return useQuery({
-    queryKey: ['professional', 'directory', 'professionals', categoryId ?? null],
-    queryFn: () => professionalDirectoryApi.listProfessionals(categoryId),
+    queryKey: ['professional', 'directory', 'categories', categoryId ?? null],
+    queryFn: () => professionalDirectoryApi.listCategories(categoryId),
+  });
+}
+
+/**
+ * Diretório público de profissionais (React Native: ProfessionalListScreen
+ * — "listar profissionais; filtrar categoria"). Etapa 23 —
+ * `professionalCategoryId` (categoria-pai) é usado só quando `categoryId`
+ * (especialidade) não vem preenchido; ver comentário em `api.ts`.
+ */
+export function useProfessionals(categoryId?: string, professionalCategoryId?: string, name?: string) {
+  return useQuery({
+    queryKey: ['professional', 'directory', 'professionals', categoryId ?? null, professionalCategoryId ?? null, name ?? null],
+    queryFn: () => professionalDirectoryApi.listProfessionals(categoryId, professionalCategoryId, name),
   });
 }
 

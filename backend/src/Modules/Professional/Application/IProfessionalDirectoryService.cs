@@ -13,10 +13,39 @@ namespace Alilu.Modules.Professional.Application;
 /// </summary>
 public interface IProfessionalDirectoryService
 {
-    Task<IReadOnlyList<ServiceCategoryResponse>> ListCategoriesAsync(CancellationToken cancellationToken = default);
+    /// <summary>
+    /// Etapa 22 — o nível de CIMA da navegação "Categoria → Especialidade →
+    /// Lista de profissionais" (React Native: nova tela de categorias,
+    /// antes de ServiceCategoryScreen). Só categorias
+    /// <see cref="Domain.ProfessionalCategory.Active"/>, ordenadas por
+    /// <see cref="Domain.ProfessionalCategory.DisplayOrder"/>.
+    /// </summary>
+    Task<IReadOnlyList<ProfessionalCategoryResponse>> ListProfessionalCategoriesAsync(CancellationToken cancellationToken = default);
 
-    /// <summary>Lista profissionais ativos; quando <paramref name="serviceCategoryId"/> é informado, filtra só quem oferece aquela categoria (React Native: "filtrar categoria").</summary>
-    Task<IReadOnlyList<ProfessionalDirectoryItemResponse>> ListProfessionalsAsync(Guid? serviceCategoryId, CancellationToken cancellationToken = default);
+    /// <summary>
+    /// Lista especialidades (React Native: ServiceCategoryScreen). Desde a
+    /// Etapa 22, <paramref name="categoryId"/> filtra pela categoria-pai
+    /// escolhida na tela anterior — nulo devolve todas (usado, por exemplo,
+    /// para resolver o <c>Categories</c> de <see cref="ProfessionalDirectoryItemResponse"/>,
+    /// que não faz sentido restringir a uma única categoria).
+    /// </summary>
+    Task<IReadOnlyList<ServiceCategoryResponse>> ListCategoriesAsync(Guid? categoryId = null, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Lista profissionais ativos; quando <paramref name="serviceCategoryId"/>
+    /// é informado, filtra só quem oferece aquela especialidade (React
+    /// Native: "filtrar categoria"). Etapa 23 — <paramref name="professionalCategoryId"/>,
+    /// quando informado e <paramref name="serviceCategoryId"/> não, filtra
+    /// por qualquer especialidade da categoria-pai informada (ver
+    /// <see cref="IProfessionalRepository.ListActiveAsync"/> — corrige o bug
+    /// de "Ver todos os profissionais" dentro de uma categoria mostrando
+    /// profissionais de outras categorias).
+    /// </summary>
+    Task<IReadOnlyList<ProfessionalDirectoryItemResponse>> ListProfessionalsAsync(
+        Guid? serviceCategoryId,
+        Guid? professionalCategoryId = null,
+        string? name = null,
+        CancellationToken cancellationToken = default);
 
     /// <summary>React Native: "visualizar perfil". Devolve <c>null</c> quando o perfil não existe ou não está mais ativo.</summary>
     Task<ProfessionalDirectoryItemResponse?> GetProfessionalProfileAsync(Guid professionalId, CancellationToken cancellationToken = default);

@@ -6,20 +6,31 @@ namespace Alilu.Modules.Professional.Application;
 public sealed class ProfessionalDirectoryService(
     IProfessionalRepository professionalRepository,
     IServiceCategoryRepository serviceCategoryRepository,
+    IProfessionalCategoryRepository professionalCategoryRepository,
     IProfessionalServiceRepository professionalServiceRepository,
     IProfessionalCondominiumRepository professionalCondominiumRepository,
     IProfessionalAvailabilityRepository availabilityRepository,
     IProfessionalAvailabilityExceptionRepository availabilityExceptionRepository) : IProfessionalDirectoryService
 {
-    public async Task<IReadOnlyList<ServiceCategoryResponse>> ListCategoriesAsync(CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<ProfessionalCategoryResponse>> ListProfessionalCategoriesAsync(CancellationToken cancellationToken = default)
     {
-        var categories = await serviceCategoryRepository.ListActiveAsync(cancellationToken);
+        var categories = await professionalCategoryRepository.ListActiveAsync(cancellationToken);
         return categories.Select(ProfessionalMapper.ToResponse).ToList();
     }
 
-    public async Task<IReadOnlyList<ProfessionalDirectoryItemResponse>> ListProfessionalsAsync(Guid? serviceCategoryId, CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<ServiceCategoryResponse>> ListCategoriesAsync(Guid? categoryId = null, CancellationToken cancellationToken = default)
     {
-        var professionals = await professionalRepository.ListActiveAsync(serviceCategoryId, cancellationToken);
+        var categories = await serviceCategoryRepository.ListActiveAsync(categoryId, cancellationToken);
+        return categories.Select(ProfessionalMapper.ToResponse).ToList();
+    }
+
+    public async Task<IReadOnlyList<ProfessionalDirectoryItemResponse>> ListProfessionalsAsync(
+        Guid? serviceCategoryId,
+        Guid? professionalCategoryId = null,
+        string? name = null,
+        CancellationToken cancellationToken = default)
+    {
+        var professionals = await professionalRepository.ListActiveAsync(serviceCategoryId, professionalCategoryId, name, cancellationToken);
         return await ToDirectoryItemsAsync(professionals, cancellationToken);
     }
 

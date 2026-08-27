@@ -14,10 +14,20 @@ public sealed record ProfessionalResponse(
     DateTime CreatedAt,
     DateTime UpdatedAt);
 
+/// <summary>Uma especialidade (React Native/Rodrigo: "Especialidade") — folha dentro de uma <see cref="ProfessionalCategoryResponse"/> ("Categoria"), ver <see cref="Domain.ServiceCategory"/> para o histórico do nome.</summary>
 public sealed record ServiceCategoryResponse(
     Guid Id,
     string Name,
     string? Description,
+    Guid CategoryId,
+    bool Active);
+
+/// <summary>Uma categoria de profissional (Etapa 22, React Native/Rodrigo: "Categoria") — agrupa várias <see cref="ServiceCategoryResponse"/> ("Especialidade").</summary>
+public sealed record ProfessionalCategoryResponse(
+    Guid Id,
+    string Name,
+    string? Description,
+    int DisplayOrder,
     bool Active);
 
 public sealed record ProfessionalServiceResponse(
@@ -116,3 +126,26 @@ public sealed record DailyOpenWindowsResponse(
     DateOnly Date,
     IReadOnlyList<OpenTimeWindowResponse> OpenWindows,
     IReadOnlyList<BlockedTimeWindowResponse> BlockedWindows);
+
+// Etapa 23 — convite direto a prestador (WhatsApp/SMS/e-mail via Twilio).
+
+/// <summary>
+/// Nunca inclui dados de outro módulo (nome do morador, nome do
+/// condomínio) — só os Ids, exatamente como a entidade os guarda.
+/// Enriquecer para exibição é responsabilidade da Api — mesma decisão de
+/// <c>RecommendationResponse</c>/<c>MuralPostResponse</c>. Os três campos
+/// de entrega (<see cref="WhatsAppDelivered"/>/<see cref="SmsDelivered"/>/
+/// <see cref="EmailDelivered"/>) espelham exatamente os da entidade — ver
+/// comentário de design em <c>Domain.ProfessionalInvitation</c>.
+/// </summary>
+public sealed record ProfessionalInvitationResponse(
+    Guid Id,
+    Guid CondominiumId,
+    Guid InvitedByUserId,
+    string Name,
+    string Phone,
+    string? Email,
+    DateTime CreatedAt,
+    bool WhatsAppDelivered,
+    bool SmsDelivered,
+    bool? EmailDelivered);

@@ -26,6 +26,10 @@ public sealed class ServiceCategoryConfiguration : IEntityTypeConfiguration<Serv
 
         builder.Property(c => c.Description).HasMaxLength(500);
 
+        // Etapa 22 — ver comentário da entidade: valor simples, sem FK de
+        // verdade (mesma decisão de ProfessionalService/ProfessionalCondominium).
+        builder.Property(c => c.CategoryId).IsRequired();
+
         builder.Property(c => c.Active).IsRequired();
 
         builder.Ignore(c => c.DomainEvents);

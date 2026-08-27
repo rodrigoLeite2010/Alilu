@@ -446,6 +446,35 @@ namespace Alilu.Infrastructure.Migrations
                     b.ToTable("professional_availability_exceptions", "professional");
                 });
 
+            modelBuilder.Entity("Alilu.Modules.Professional.Domain.ProfessionalCategory", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("Active")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<int>("DisplayOrder")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Name")
+                        .IsUnique();
+
+                    b.ToTable("professional_categories", "professional");
+                });
+
             modelBuilder.Entity("Alilu.Modules.Professional.Domain.ProfessionalCondominium", b =>
                 {
                     b.Property<Guid>("Id")
@@ -524,6 +553,9 @@ namespace Alilu.Infrastructure.Migrations
 
                     b.Property<bool>("Active")
                         .HasColumnType("boolean");
+
+                    b.Property<Guid>("CategoryId")
+                        .HasColumnType("uuid");
 
                     b.Property<string>("Description")
                         .HasMaxLength(500)

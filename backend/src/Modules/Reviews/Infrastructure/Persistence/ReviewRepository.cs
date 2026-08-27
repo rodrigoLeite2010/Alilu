@@ -14,6 +14,10 @@ public sealed class ReviewRepository(AliluDbContext dbContext) : IReviewReposito
     public Task<Review?> GetByBookingIdAsync(Guid bookingId, CancellationToken cancellationToken = default) =>
         dbContext.Set<Review>().FirstOrDefaultAsync(r => r.BookingId == bookingId, cancellationToken);
 
+    public Task<Review?> GetFreeReviewAsync(Guid residentId, Guid professionalId, CancellationToken cancellationToken = default) =>
+        dbContext.Set<Review>()
+            .FirstOrDefaultAsync(r => r.ResidentId == residentId && r.ProfessionalId == professionalId && r.BookingId == null, cancellationToken);
+
     public async Task<IReadOnlyList<Review>> ListByResidentIdAsync(Guid residentId, CancellationToken cancellationToken = default) =>
         await dbContext.Set<Review>()
             .Where(r => r.ResidentId == residentId)

@@ -20,6 +20,14 @@ internal static class ProfessionalMapper
         category.Id,
         category.Name,
         category.Description,
+        category.CategoryId,
+        category.Active);
+
+    public static ProfessionalCategoryResponse ToResponse(ProfessionalCategory category) => new(
+        category.Id,
+        category.Name,
+        category.Description,
+        category.DisplayOrder,
         category.Active);
 
     public static ProfessionalServiceResponse ToResponse(ProfessionalService service) => new(
@@ -61,4 +69,17 @@ internal static class ProfessionalMapper
         exception.EndTime,
         exception.Type,
         exception.Reason);
+
+    public static ProfessionalInvitationResponse ToResponse(ProfessionalInvitation invitation) => new(
+        invitation.Id,
+        invitation.CondominiumId,
+        invitation.InvitedByUserId,
+        invitation.Name,
+        invitation.Phone,
+        invitation.Email,
+        invitation.CreatedAt,
+        invitation.WhatsAppDelivered,
+        invitation.SmsDelivered,
+        invitation.EmailDelivered);
+
 }

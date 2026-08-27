@@ -9,19 +9,22 @@ public sealed class ReviewService(
 {
     public async Task<ReviewResponse> CreateAsync(
         Guid residentId,
-        Guid bookingId,
+        Guid? bookingId,
         Guid professionalId,
         int rating,
         string? comment,
         CancellationToken cancellationToken = default)
     {
-        // Checagem em memória (o caso comum) — o índice único em BookingId
-        // (Infrastructure) é a rede de segurança para a corrida genuína
-        // entre duas requisições concorrentes, mesmo espírito do conflito de
-        // horário do módulo Scheduling, sem precisar de uma transação
-        // Serializable (não há aqui uma janela de disponibilidade a
-        // proteger, só uma unicidade simples).
-        var existing = await reviewRepository.GetByBookingIdAsync(bookingId, cancellationToken);
+        // Checagem em memória (o caso comum) — o índice único (em
+        // BookingId, ou o parcial em (ResidentId, ProfessionalId) pra
+        // avaliação livre — Etapa 23) é a rede de segurança para a corrida
+        // genuína entre duas requisições concorrentes, mesmo espírito do
+        // conflito de horário do módulo Scheduling, sem precisar de uma
+        // transação Serializable (não há aqui uma janela de disponibilidade
+        // a proteger, só uma unicidade simples).
+        var existing = bookingId is { } id
+            ? await reviewRepository.GetByBookingIdAsync(id, cancellationToken)
+            : await reviewRepository.GetFreeReviewAsync(residentId, professionalId, cancellationToken);
         if (existing is not null)
         {
             throw new DuplicateReviewException();
@@ -64,6 +67,16 @@ public sealed class ReviewService(
         }
 
         return ReviewMapper.ToResponse(review);
+    }
+
+    public async Task<ReviewResponse?> GetMyFreeReviewForProfessionalAsync(Guid residentId, Guid professionalId, CancellationToken cancellationToken = default)
+    {
+        // Sem a segunda camada de defesa "review.ResidentId != residentId"
+        // de GetMyReviewForBookingAsync porque a busca já filtra por
+        // residentId na própria query (GetFreeReviewAsync) — não existe
+        // como vazar a avaliação de outro morador aqui.
+        var review = await reviewRepository.GetFreeReviewAsync(residentId, professionalId, cancellationToken);
+        return review is null ? null : ReviewMapper.ToResponse(review);
     }
 
     private async Task<Review> GetOwnReviewOrThrowAsync(Guid residentId, Guid reviewId, CancellationToken cancellationToken)

@@ -3,6 +3,7 @@ import { ActivityIndicator, Linking, View } from 'react-native';
 
 import { Avatar, AppButton, AppText, Card, Screen } from '../../../components';
 import { useTheme } from '../../../theme';
+import { starsForRating } from '../../../utils';
 import { useProfessionalProfile } from '../hooks';
 
 /**
@@ -15,6 +16,14 @@ import { useProfessionalProfile } from '../hooks';
  *
  * Modernizado na Etapa 20: cabeçalho com `Avatar` grande + nome/categorias
  * dentro de um `Card`, no lugar de texto solto no topo da tela.
+ *
+ * Etapa 23 (pedido de Rodrigo: "avaliar qualquer profissional buscando
+ * pelo nome, sem precisar ter contratado antes") — "Avaliar" agora aparece
+ * SEMPRE aqui, pra qualquer profissional ativo do diretório, sem depender
+ * de um agendamento Completed (ver `professionals/[id]/review.tsx` e
+ * `ReviewScreen`). O fluxo original (avaliar a partir de um agendamento
+ * concluído, em `bookings/[id]/review.tsx`) continua existindo do mesmo
+ * jeito — os dois convivem.
  */
 export function ProfessionalProfileScreen() {
   const { spacing, colors } = useTheme();
@@ -46,6 +55,19 @@ export function ProfessionalProfileScreen() {
                     ))}
                   </View>
                 ) : null}
+                {/* Etapa 22 — mesma nota média já usada em ProfessionalListScreen/ProfessionalRecommendationsScreen, agora também aqui. */}
+                {professional.totalReviews > 0 ? (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xxs }}>
+                    <AppText style={{ color: colors.brand.accent }}>{starsForRating(professional.averageRating)}</AppText>
+                    <AppText variant="caption" color="secondary">
+                      {`${professional.averageRating.toFixed(1)} de 5 · ${professional.totalReviews} ${professional.totalReviews === 1 ? 'avaliação' : 'avaliações'}`}
+                    </AppText>
+                  </View>
+                ) : (
+                  <AppText variant="caption" color="muted">
+                    Ainda sem avaliações
+                  </AppText>
+                )}
               </View>
             </Card>
 
@@ -62,6 +84,11 @@ export function ProfessionalProfileScreen() {
             <AppButton
               label="Agendar"
               onPress={() => router.push({ pathname: '/(resident)/booking/[professionalId]', params: { professionalId: professional.id } })}
+            />
+            <AppButton
+              label="Avaliar"
+              variant="secondary"
+              onPress={() => router.push({ pathname: '/(resident)/professionals/[id]/review', params: { id: professional.id } })}
             />
             <AppButton
               label="Ver recomendações"

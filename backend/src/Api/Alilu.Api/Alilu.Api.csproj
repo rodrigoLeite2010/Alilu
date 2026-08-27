@@ -46,6 +46,10 @@
     <!-- Módulo Administration (Etapa 12 / PROMPT 12) — mesmo raciocínio do módulo Identity acima. -->
     <ProjectReference Include="..\..\Modules\Administration\Application\Alilu.Modules.Administration.Application.csproj" />
     <ProjectReference Include="..\..\Modules\Administration\Infrastructure\Alilu.Modules.Administration.Infrastructure.csproj" />
+
+    <!-- Módulo Mural (Etapa 17) — mesmo raciocínio do módulo Identity acima. -->
+    <ProjectReference Include="..\..\Modules\Mural\Application\Alilu.Modules.Mural.Application.csproj" />
+    <ProjectReference Include="..\..\Modules\Mural\Infrastructure\Alilu.Modules.Mural.Infrastructure.csproj" />
   </ItemGroup>
 
   <ItemGroup>

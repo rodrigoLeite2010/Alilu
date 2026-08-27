@@ -7,13 +7,16 @@ import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, View } fr
 import { AppButton, AppText, AppTextInput, Screen } from '../../../components';
 import { useTheme } from '../../../theme';
 import { getApiErrorMessage } from '../../../utils/apiError';
-import { useCreateReview, useEditReview, useMyReviewForBooking } from '../hooks';
+import { useCreateReview, useEditReview, useMyReviewForBooking, useMyReviewForProfessional } from '../hooks';
 import { RATING_STARS } from '../reviewsFormat';
 import { reviewFormSchema, type ReviewFormValues } from '../schemas';
 
 interface ReviewScreenProps {
-  bookingId: string;
-  /** Resolvido pela rota hospedeira (`bookings/[id]/review.tsx`), que já tem o diretório de profissionais carregado — mesmo espírito de composição de `BookingDetailsScreen`. Opcional só para não travar a tela caso o diretório ainda não tenha carregado. */
+  /** Exatamente um entre `bookingId` e `professionalId` (Etapa 23) — nunca os dois, nunca nenhum. Quem decide qual é a rota hospedeira (`bookings/[id]/review.tsx` ou `professionals/[id]/review.tsx`). */
+  bookingId?: string;
+  /** Etapa 23 — avaliação LIVRE (sem agendamento, morador buscou o profissional pelo diretório e clicou "Avaliar" direto no perfil). */
+  professionalId?: string;
+  /** Resolvido pela rota hospedeira, que já tem o diretório de profissionais carregado — mesmo espírito de composição de `BookingDetailsScreen`. Opcional só para não travar a tela caso o diretório ainda não tenha carregado. */
   professionalName?: string;
 }
 
@@ -25,20 +28,32 @@ interface ReviewScreenProps {
  * abre em branco e o envio vira POST (criar) — mesmo padrão de
  * `ProfessionalEditScreen` (cria vs. edita o mesmo formulário).
  *
- * "Não permitir avaliação antes da conclusão" (REGRA do prompt): esta tela
- * só é alcançável a partir do botão "Avaliar" que `BookingDetailsScreen`
- * mostra apenas quando `booking.status === 'Completed'` (ver o slot
- * `reviewSlot`, injetado pela rota `bookings/[id]/index.tsx`) — e o
- * servidor revalida isso de qualquer forma
- * (`IBookingService.ValidateCompletedBookingForReviewAsync`), então um
- * eventual erro 409 aqui (agendamento não mais elegível) aparece como
+ * "Não permitir avaliação antes da conclusão" (REGRA do prompt, fluxo
+ * original com `bookingId`): esta tela só é alcançável a partir do botão
+ * "Avaliar" que `BookingDetailsScreen` mostra apenas quando
+ * `booking.status === 'Completed'` (ver o slot `reviewSlot`, injetado pela
+ * rota `bookings/[id]/index.tsx`) — e o servidor revalida isso de qualquer
+ * forma (`IBookingService.ValidateCompletedBookingForReviewAsync`), então
+ * um eventual erro 409 aqui (agendamento não mais elegível) aparece como
  * mensagem de erro comum, sem lógica duplicada nesta tela.
+ *
+ * Etapa 23 (pedido de Rodrigo: "avaliar qualquer profissional buscando
+ * pelo nome") — segundo caminho, com `professionalId` no lugar de
+ * `bookingId`: ProfessionalProfileScreen mostra "Avaliar" sempre, sem
+ * exigir nenhum agendamento. As duas chamadas de `useMyReviewFor...` abaixo
+ * são incondicionais (regra dos hooks do React — não dá pra chamar um hook
+ * dentro de um `if`); cada uma só executa de fato quando seu próprio id
+ * está presente (`enabled: Boolean(id)`, ver `hooks.ts`), então só uma das
+ * duas realmente busca algo.
  */
-export function ReviewScreen({ bookingId, professionalName }: ReviewScreenProps) {
+export function ReviewScreen({ bookingId, professionalId, professionalName }: ReviewScreenProps) {
   const { spacing, colors } = useTheme();
   const [submitError, setSubmitError] = useState<string | null>(null);
 
-  const { data: existingReview, isLoading } = useMyReviewForBooking(bookingId);
+  const { data: reviewForBooking, isLoading: isLoadingBookingReview } = useMyReviewForBooking(bookingId);
+  const { data: reviewForProfessional, isLoading: isLoadingProfessionalReview } = useMyReviewForProfessional(professionalId);
+  const existingReview = bookingId ? reviewForBooking : reviewForProfessional;
+  const isLoading = bookingId ? isLoadingBookingReview : isLoadingProfessionalReview;
   const createReview = useCreateReview();
   const editReview = useEditReview();
 
@@ -80,8 +95,10 @@ export function ReviewScreen({ bookingId, professionalName }: ReviewScreenProps)
     try {
       if (existingReview) {
         await editReview.mutateAsync({ id: existingReview.id, payload: values });
-      } else {
+      } else if (bookingId) {
         await createReview.mutateAsync({ bookingId, ...values });
+      } else {
+        await createReview.mutateAsync({ professionalId, ...values });
       }
       router.back();
     } catch (error) {

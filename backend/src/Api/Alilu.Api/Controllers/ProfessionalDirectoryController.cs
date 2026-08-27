@@ -22,29 +22,110 @@ public sealed class ProfessionalDirectoryController(
     IRecommendationDirectoryService recommendationDirectoryService,
     IBookingService bookingService) : ControllerBase
 {
-    [HttpGet("categories")]
-    public async Task<ActionResult<IReadOnlyList<ServiceCategoryResponse>>> ListCategories(CancellationToken cancellationToken)
+    /// <summary>
+    /// Etapa 22 — o nível de CIMA da navegação "Categoria → Especialidade →
+    /// Lista de profissionais" (React Native: nova tela de categorias). Rota
+    /// própria fora do prefixo <c>.../professionals</c> deste controller
+    /// (<c>~/</c>) porque "categoria de profissional" é um recurso
+    /// independente, não um sub-recurso de um profissional específico —
+    /// mesmo raciocínio de manter <c>.../categories</c> (especialidades)
+    /// fora de <c>.../professionals/{id}</c>.
+    /// </summary>
+    [HttpGet("~/api/directory/professional-categories")]
+    public async Task<ActionResult<IReadOnlyList<ProfessionalCategoryResponse>>> ListProfessionalCategories(CancellationToken cancellationToken)
     {
-        var categories = await directoryService.ListCategoriesAsync(cancellationToken);
+        var categories = await directoryService.ListProfessionalCategoriesAsync(cancellationToken);
         return Ok(categories);
     }
 
-    /// <summary>React Native: "listar profissionais; filtrar categoria" — <paramref name="categoryId"/> é opcional.</summary>
-    [HttpGet]
-    public async Task<ActionResult<IReadOnlyList<ProfessionalDirectoryItemResponse>>> ListProfessionals(
+    /// <summary>
+    /// Lista especialidades (React Native: ServiceCategoryScreen).
+    /// <paramref name="categoryId"/> (Etapa 22, opcional) filtra pela
+    /// categoria escolhida na tela anterior — sem ele, devolve todas (usado
+    /// por quem ainda mostra a lista plana, ex.: seleção de serviços do
+    /// próprio profissional em ProfessionalEditScreen).
+    /// </summary>
+    [HttpGet("categories")]
+    public async Task<ActionResult<IReadOnlyList<ServiceCategoryResponse>>> ListCategories(
         [FromQuery] Guid? categoryId,
         CancellationToken cancellationToken)
     {
-        var professionals = await directoryService.ListProfessionalsAsync(categoryId, cancellationToken);
-        return Ok(professionals);
+        var categories = await directoryService.ListCategoriesAsync(categoryId, cancellationToken);
+        return Ok(categories);
     }
 
-    /// <summary>React Native: "visualizar perfil". 404 quando o perfil não existe ou não está mais ativo.</summary>
+    /// <summary>
+    /// React Native: "listar profissionais; filtrar categoria" —
+    /// <paramref name="categoryId"/> (especialidade) é opcional. Desde a
+    /// melhoria pedida por Rodrigo ("mostrar a média de estrelas na
+    /// busca"), cada item já vem com a nota média — ver
+    /// <see cref="ComposeWithRatingAsync"/> para a composição.
+    ///
+    /// Etapa 23 — <paramref name="professionalCategoryId"/> (categoria-pai,
+    /// só é considerado quando <paramref name="categoryId"/> não é
+    /// informado) corrige o bug de "Ver todos os profissionais" dentro de
+    /// uma categoria já escolhida (ex.: "Piscina") devolver profissionais
+    /// de outras categorias (ex.: diarista, de "Limpeza") — ver
+    /// <see cref="IProfessionalDirectoryService.ListProfessionalsAsync"/>.
+    /// </summary>
+    [HttpGet]
+    public async Task<ActionResult<IReadOnlyList<ProfessionalDirectoryListItemResponse>>> ListProfessionals(
+        [FromQuery] Guid? categoryId,
+        [FromQuery] Guid? professionalCategoryId,
+        [FromQuery] string? name,
+        CancellationToken cancellationToken)
+    {
+        var professionals = await directoryService.ListProfessionalsAsync(categoryId, professionalCategoryId, name, cancellationToken);
+        var items = await ComposeWithRatingAsync(professionals, cancellationToken);
+        return Ok(items);
+    }
+
+    /// <summary>React Native: "visualizar perfil". 404 quando o perfil não existe ou não está mais ativo. Também já vem com a nota média (ver <see cref="ListProfessionals"/>).</summary>
     [HttpGet("{id:guid}")]
-    public async Task<ActionResult<ProfessionalDirectoryItemResponse>> GetProfile(Guid id, CancellationToken cancellationToken)
+    public async Task<ActionResult<ProfessionalDirectoryListItemResponse>> GetProfile(Guid id, CancellationToken cancellationToken)
     {
         var profile = await directoryService.GetProfessionalProfileAsync(id, cancellationToken);
-        return profile is null ? NotFound() : Ok(profile);
+        if (profile is null)
+        {
+            return NotFound();
+        }
+
+        var items = await ComposeWithRatingAsync(new[] { profile }, cancellationToken);
+        return Ok(items.Single());
+    }
+
+    /// <summary>
+    /// Ponto de COMPOSIÇÃO (pedido de Rodrigo, depois da Etapa 09/10): o
+    /// diretório público (React Native: ProfessionalListScreen/
+    /// ProfessionalProfileScreen) passa a mostrar a mesma nota média que já
+    /// existia só na tela de recomendações (<see cref="GetRecommendationProfile"/>)
+    /// e na auto-visão do profissional (<c>ProfessionalReviewsScreen</c>).
+    /// Nenhum dos dois módulos pode se referenciar (PROMPT 01) — só a Api
+    /// combina Professional (perfil/categorias) com Reviews (nota média)
+    /// aqui. Uma chamada por profissional (sem consulta em lote no
+    /// repositório de Reviews) — aceitável no volume atual do projeto
+    /// (mesmo trade-off já assumido em <see cref="GetRecommendationProfile"/>).
+    /// </summary>
+    private async Task<IReadOnlyList<ProfessionalDirectoryListItemResponse>> ComposeWithRatingAsync(
+        IReadOnlyList<ProfessionalDirectoryItemResponse> professionals,
+        CancellationToken cancellationToken)
+    {
+        var items = new List<ProfessionalDirectoryListItemResponse>(professionals.Count);
+        foreach (var professional in professionals)
+        {
+            var rating = await professionalReviewService.GetRatingSummaryAsync(professional.Id, cancellationToken);
+            items.Add(new ProfessionalDirectoryListItemResponse(
+                professional.Id,
+                professional.DisplayName,
+                professional.Description,
+                professional.Phone,
+                professional.PhotoUrl,
+                professional.Categories,
+                rating.AverageRating,
+                rating.TotalReviews));
+        }
+
+        return items;
     }
 
     /// <summary>
@@ -228,6 +309,24 @@ public sealed class ProfessionalDirectoryController(
 
 /// <summary>Resposta de GET .../availability-windows — uma janela livre, já com os horários já reservados descontados (ver comentário do método na controller).</summary>
 public sealed record AvailableTimeWindowResponse(TimeOnly StartTime, TimeOnly EndTime);
+
+/// <summary>
+/// Resposta de GET /api/directory/professionals (lista) e GET .../{id}
+/// (perfil) — mesmos campos de <see cref="ProfessionalDirectoryItemResponse"/>
+/// (módulo Professional) + <see cref="AverageRating"/>/<see cref="TotalReviews"/>
+/// (módulo Reviews), compostos na Api (ver <see cref="ComposeWithRatingAsync"/>).
+/// <see cref="TotalReviews"/> zero implica <see cref="AverageRating"/> zero,
+/// mesma convenção de <c>ProfessionalRatingSummaryResponse</c> (Reviews).
+/// </summary>
+public sealed record ProfessionalDirectoryListItemResponse(
+    Guid Id,
+    string DisplayName,
+    string? Description,
+    string? Phone,
+    string? PhotoUrl,
+    IReadOnlyList<ServiceCategoryResponse> Categories,
+    double AverageRating,
+    int TotalReviews);
 
 /// <summary>
 /// Resposta de GET .../recommendations — composta na Api a partir de três
