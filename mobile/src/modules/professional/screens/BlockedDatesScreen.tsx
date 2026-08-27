@@ -6,7 +6,7 @@ import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, View } f
 import { AppButton, AppText, AppTextInput, Screen } from '../../../components';
 import { useTheme } from '../../../theme';
 import { getApiErrorMessage } from '../../../utils/apiError';
-import { formatDateDisplay, toApiTime } from '../availabilityFormat';
+import { formatDateDisplay, formatDateInput, parseDateInput, STANDARD_PERIODS, toApiTime } from '../availabilityFormat';
 import { useAddAvailabilityException, useMyAvailability, useRemoveAvailabilityException } from '../hooks';
 import { availabilityExceptionSchema, type AvailabilityExceptionFormValues } from '../schemas';
 
@@ -25,28 +25,51 @@ const EMPTY_FORM: AvailabilityExceptionFormValues = {
 };
 
 /**
- * Atalhos de período para "Liberar" um horário (pedido explícito depois de
- * testar o fluxo: em vez de digitar início/término à mão toda vez, o
- * profissional escolhe "Manhã"/"Tarde"/"Noite" — ou "Personalizado" quando
- * nenhum dos três serve). Só se aplica a `type === 'Available'`; "Bloquear"
- * continua só com "Dia inteiro"/"Horário específico" (bloquear um período
- * nomeado não faz o mesmo sentido de UX).
+ * Atalhos de período (pedido explícito depois de testar o fluxo: em vez
+ * de digitar início/término à mão toda vez, o profissional escolhe
+ * "Manhã"/"Tarde"/"Noite" — ou "Personalizado" quando nenhum dos três
+ * serve). Vale tanto para "Bloquear" (ex.: "bloquear só a tarde de
+ * folga") quanto para "Liberar" — só o rótulo da pergunta muda.
  */
 type QuickPeriod = 'full' | 'morning' | 'afternoon' | 'evening' | 'custom';
 
+const STANDARD_PERIOD_BY_KEY = Object.fromEntries(STANDARD_PERIODS.map((period) => [period.key, period]));
+
+// Etapa 19 — horários alinhados aos períodos padrão do backend
+// (`ProfessionalAvailabilityPeriods`/`availabilityFormat.ts#STANDARD_PERIODS`,
+// 07-12/12-18/18-22); antes desta etapa esta tela usava 08-12/13-18, só
+// aqui, sem nenhuma relação com o backend — ajuste intencional para as duas
+// pontas baterem.
 const QUICK_PERIOD_OPTIONS: { key: QuickPeriod; label: string; startTime?: string; endTime?: string }[] = [
   { key: 'full', label: 'Dia inteiro' },
-  { key: 'morning', label: 'Manhã (08:00–12:00)', startTime: '08:00', endTime: '12:00' },
-  { key: 'afternoon', label: 'Tarde (13:00–18:00)', startTime: '13:00', endTime: '18:00' },
-  { key: 'evening', label: 'Noite (18:00–22:00)', startTime: '18:00', endTime: '22:00' },
+  {
+    key: 'morning',
+    label: `Manhã (${STANDARD_PERIOD_BY_KEY.morning.startTime}–${STANDARD_PERIOD_BY_KEY.morning.endTime})`,
+    startTime: STANDARD_PERIOD_BY_KEY.morning.startTime,
+    endTime: STANDARD_PERIOD_BY_KEY.morning.endTime,
+  },
+  {
+    key: 'afternoon',
+    label: `Tarde (${STANDARD_PERIOD_BY_KEY.afternoon.startTime}–${STANDARD_PERIOD_BY_KEY.afternoon.endTime})`,
+    startTime: STANDARD_PERIOD_BY_KEY.afternoon.startTime,
+    endTime: STANDARD_PERIOD_BY_KEY.afternoon.endTime,
+  },
+  {
+    key: 'evening',
+    label: `Noite (${STANDARD_PERIOD_BY_KEY.evening.startTime}–${STANDARD_PERIOD_BY_KEY.evening.endTime})`,
+    startTime: STANDARD_PERIOD_BY_KEY.evening.startTime,
+    endTime: STANDARD_PERIOD_BY_KEY.evening.endTime,
+  },
   { key: 'custom', label: 'Personalizado' },
 ];
 
 /**
- * React Native: BlockedDatesScreen (PROMPT 07) — "bloquear datas; liberar
- * horários específicos". `isFullDay` decide entre bloquear/liberar o dia
- * inteiro (Api recebe `startTime`/`endTime` nulos) ou só uma janela
- * específica dentro do dia.
+ * React Native: BlockedDatesScreen (PROMPT 07, atalhos de período e
+ * máscara de data adicionados na Etapa 18) — "bloquear datas; liberar
+ * horários específicos". `isFullDay`/`startTime`/`endTime` (Api recebe os
+ * dois últimos nulos para o dia inteiro) são preenchidos a partir do
+ * período escolhido em `QUICK_PERIOD_OPTIONS`, nunca digitados
+ * diretamente — exceto em "Personalizado".
  */
 export function BlockedDatesScreen() {
   const { spacing, colors } = useTheme();
@@ -70,7 +93,6 @@ export function BlockedDatesScreen() {
   // consegue memoizar com segurança o `watch()` retornado por `useForm`
   // (ver aviso do eslint-plugin-react-hooks); `useWatch` é a forma
   // recomendada pelo react-hook-form para assinar um único campo.
-  const isFullDay = useWatch({ control, name: 'isFullDay' });
   const type = useWatch({ control, name: 'type' });
   const [quickPeriod, setQuickPeriod] = useState<QuickPeriod>('full');
 
@@ -102,7 +124,7 @@ export function BlockedDatesScreen() {
     setSubmitError(null);
     try {
       await addException.mutateAsync({
-        date: values.date,
+        date: parseDateInput(values.date),
         type: values.type,
         startTime: values.isFullDay || !values.startTime ? null : toApiTime(values.startTime),
         endTime: values.isFullDay || !values.endTime ? null : toApiTime(values.endTime),
@@ -134,11 +156,12 @@ export function BlockedDatesScreen() {
               name="date"
               render={({ field: { onChange, onBlur, value } }) => (
                 <AppTextInput
-                  label="Data (AAAA-MM-DD)"
+                  label="Data (DD/MM/AAAA)"
                   value={value}
-                  onChangeText={onChange}
+                  onChangeText={(text) => onChange(formatDateInput(text))}
                   onBlur={onBlur}
-                  placeholder="2026-12-25"
+                  placeholder="25/12/2026"
+                  keyboardType="number-pad"
                   errorMessage={errors.date?.message}
                 />
               )}
@@ -168,48 +191,24 @@ export function BlockedDatesScreen() {
               )}
             />
 
-            {type === 'Available' ? (
-              // "Liberar": em vez de digitar início/término à mão, escolhe
-              // um período pronto — só cai nos campos manuais em
-              // "Personalizado".
-              <View style={{ gap: spacing.xxs }}>
-                <AppText variant="caption" color="secondary">
-                  Quando você quer liberar?
-                </AppText>
-                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xxs }}>
-                  {QUICK_PERIOD_OPTIONS.map((option) => (
-                    <AppButton
-                      key={option.key}
-                      label={option.label}
-                      variant={quickPeriod === option.key ? 'primary' : 'secondary'}
-                      onPress={() => selectQuickPeriod(option)}
-                    />
-                  ))}
-                </View>
+            {/* Em vez de digitar início/término à mão, escolhe um período pronto — só cai nos campos manuais em "Personalizado". */}
+            <View style={{ gap: spacing.xxs }}>
+              <AppText variant="caption" color="secondary">
+                {type === 'Available' ? 'Quando você quer liberar?' : 'Quando você quer bloquear?'}
+              </AppText>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xxs }}>
+                {QUICK_PERIOD_OPTIONS.map((option) => (
+                  <AppButton
+                    key={option.key}
+                    label={option.label}
+                    variant={quickPeriod === option.key ? 'primary' : 'secondary'}
+                    onPress={() => selectQuickPeriod(option)}
+                  />
+                ))}
               </View>
-            ) : (
-              <Controller
-                control={control}
-                name="isFullDay"
-                render={({ field: { onChange, value } }) => (
-                  <View style={{ gap: spacing.xxs }}>
-                    <AppText variant="caption" color="secondary">
-                      Duração
-                    </AppText>
-                    <View style={{ flexDirection: 'row', gap: spacing.xxs }}>
-                      <AppButton label="Dia inteiro" variant={value ? 'primary' : 'secondary'} onPress={() => onChange(true)} />
-                      <AppButton
-                        label="Horário específico"
-                        variant={!value ? 'primary' : 'secondary'}
-                        onPress={() => onChange(false)}
-                      />
-                    </View>
-                  </View>
-                )}
-              />
-            )}
+            </View>
 
-            {(type === 'Available' ? quickPeriod === 'custom' : !isFullDay) ? (
+            {quickPeriod === 'custom' ? (
               <View style={{ flexDirection: 'row', gap: spacing.sm }}>
                 <View style={{ flex: 1 }}>
                   <Controller

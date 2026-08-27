@@ -86,7 +86,7 @@ public sealed class ProfessionalDirectoryService(
         var weeklySchedule = await availabilityRepository.ListByProfessionalIdAsync(professionalId, cancellationToken);
 
         var isWithinRecurringSchedule = weeklySchedule.Any(slot =>
-            slot.Active && slot.DayOfWeek == date.DayOfWeek && slot.StartTime <= startTime && endTime <= slot.EndTime);
+            slot.Active && slot.DayOfWeek == date.DayOfWeek && slot.IsEffectiveOn(date) && slot.StartTime <= startTime && endTime <= slot.EndTime);
 
         if (!isWithinRecurringSchedule)
         {
@@ -106,91 +106,12 @@ public sealed class ProfessionalDirectoryService(
         }
 
         var exceptionsOnDate = await availabilityExceptionRepository.ListByProfessionalIdAndDateAsync(professionalId, date, cancellationToken);
-
-        // Mesma regra de ValidateAvailableAsync: um bloqueio do dia inteiro
-        // fecha tudo, não importa a agenda recorrente.
-        if (exceptionsOnDate.Any(exception => exception.Type == ProfessionalAvailabilityExceptionType.Blocked && exception.IsFullDay))
-        {
-            return Array.Empty<OpenTimeWindowResponse>();
-        }
-
         var weeklySchedule = await availabilityRepository.ListByProfessionalIdAsync(professionalId, cancellationToken);
 
-        var windows = weeklySchedule
-            .Where(slot => slot.Active && slot.DayOfWeek == date.DayOfWeek)
-            .Select(slot => (Start: slot.StartTime, End: slot.EndTime))
-            .ToList();
-
-        // Bloqueios pontuais recortam (ou removem) janelas da agenda recorrente.
-        foreach (var blocked in exceptionsOnDate.Where(exception => exception.Type == ProfessionalAvailabilityExceptionType.Blocked && !exception.IsFullDay))
-        {
-            windows = Subtract(windows, blocked.StartTime!.Value, blocked.EndTime!.Value);
-        }
-
-        // Liberações pontuais somam janelas extras (ex.: abrir um horário
-        // numa quarta normalmente indisponível — exemplo do PROMPT 07),
-        // mesmo por cima da agenda recorrente; dia inteiro liberado vira uma
-        // única janela cobrindo o dia todo.
-        foreach (var opened in exceptionsOnDate.Where(exception => exception.Type == ProfessionalAvailabilityExceptionType.Available))
-        {
-            windows.Add(opened.IsFullDay ? (TimeOnly.MinValue, TimeOnly.MaxValue) : (opened.StartTime!.Value, opened.EndTime!.Value));
-        }
-
-        return MergeAndSort(windows).Select(window => new OpenTimeWindowResponse(window.Start, window.End)).ToList();
-    }
-
-    /// <summary>Remove [<paramref name="blockStart"/>, <paramref name="blockEnd"/>) de cada janela, recortando ou removendo quem colide (uma janela pode virar duas, se o bloqueio cair no meio dela).</summary>
-    private static List<(TimeOnly Start, TimeOnly End)> Subtract(List<(TimeOnly Start, TimeOnly End)> windows, TimeOnly blockStart, TimeOnly blockEnd)
-    {
-        var result = new List<(TimeOnly Start, TimeOnly End)>();
-
-        foreach (var (start, end) in windows)
-        {
-            if (blockEnd <= start || blockStart >= end)
-            {
-                result.Add((start, end));
-                continue;
-            }
-
-            if (blockStart > start)
-            {
-                result.Add((start, blockStart));
-            }
-
-            if (blockEnd < end)
-            {
-                result.Add((blockEnd, end));
-            }
-        }
-
-        return result;
-    }
-
-    /// <summary>Ordena por início e funde janelas sobrepostas/adjacentes (pode acontecer quando uma liberação pontual soma em cima de um trecho já recorrente) — devolve uma lista "limpa", sem sobreposição, pronta para exibição.</summary>
-    private static List<(TimeOnly Start, TimeOnly End)> MergeAndSort(List<(TimeOnly Start, TimeOnly End)> windows)
-    {
-        if (windows.Count == 0)
-        {
-            return windows;
-        }
-
-        var sorted = windows.OrderBy(window => window.Start).ToList();
-        var merged = new List<(TimeOnly Start, TimeOnly End)> { sorted[0] };
-
-        foreach (var current in sorted.Skip(1))
-        {
-            var last = merged[^1];
-            if (current.Start <= last.End)
-            {
-                merged[^1] = (last.Start, current.End > last.End ? current.End : last.End);
-            }
-            else
-            {
-                merged.Add(current);
-            }
-        }
-
-        return merged;
+        // Algoritmo compartilhado com o self-service "Minha Agenda" (Etapa
+        // 19) — ver OpenWindowResolver para o porquê da extração.
+        var (open, _) = OpenWindowResolver.Resolve(date, weeklySchedule, exceptionsOnDate);
+        return open.Select(window => new OpenTimeWindowResponse(window.Start, window.End)).ToList();
     }
 
     public async Task<Guid> GetProfessionalUserIdAsync(Guid professionalId, CancellationToken cancellationToken = default)

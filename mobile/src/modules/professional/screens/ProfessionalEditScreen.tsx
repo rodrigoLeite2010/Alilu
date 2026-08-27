@@ -46,8 +46,13 @@ interface ProfessionalEditScreenProps {
  * resolve tudo a partir do usuário autenticado).
  *
  * Desde o PROMPT 07, quem já tem perfil também vê um atalho para
- * "Configurar disponibilidade" (AvailabilityScreen e as demais telas de
- * agenda, sob `(professional)/availability/*`).
+ * "Configurar disponibilidade" — desde a Etapa 19, este atalho ("Minha
+ * Agenda") leva para o novo hub `(professional)/agenda/*`
+ * (MyAgendaScreen/AddAvailabilityScreen), que por sua vez tem um link
+ * "Avançado" para as telas granulares originais deste PROMPT
+ * (AvailabilityScreen/AvailabilityEditor/BlockedDatesScreen/
+ * CalendarAvailabilityScreen, sob `(professional)/availability/*`) — nada
+ * foi removido, só ganhou uma porta de entrada mais simples na frente.
  *
  * Desde o PROMPT 08 ("o módulo mais crítico"), também vê um atalho para
  * "Solicitações" (ProfessionalRequestsScreen — "receber solicitação →
@@ -192,9 +197,9 @@ export function ProfessionalEditScreen({ profile, headerSlot }: ProfessionalEdit
               <ServicesSection professionalId={profile.id} />
               <CondominiumsSection />
               <AppButton
-                label="Configurar disponibilidade"
+                label="Minha Agenda"
                 variant="secondary"
-                onPress={() => router.push('/(professional)/availability')}
+                onPress={() => router.push('/(professional)/agenda')}
               />
               <AppButton
                 label="Solicitações"

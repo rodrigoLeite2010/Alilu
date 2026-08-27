@@ -3463,12 +3463,20 @@ dígitos já digitados. O backend guarda `Phone` como texto livre sem
 validar formato (`Normalize(phone, 20)`) — a máscara é só UX na
 digitação, nunca bloqueia o envio.
 
-**2. Formato de data em "Datas bloqueadas"** — a lista de "Exceções
-cadastradas" mostrava `exception.date` cru ("2026-08-27"). Novo
-`professional/availabilityFormat.ts#formatDateDisplay` (mesma função de
-`scheduling/schedulingFormat.ts`, duplicada pela mesma razão de sempre)
-converte para "27/08/2026" só na exibição — o campo de digitação
-continua pedindo "AAAA-MM-DD" (mesmo formato que a Api espera).
+**2. Formato de data em "Datas bloqueadas"** — dois pontos, os dois
+corrigidos: a lista de "Exceções cadastradas" mostrava `exception.date`
+cru ("2026-08-27") — novo `professional/availabilityFormat.ts#formatDateDisplay`
+(mesma função de `scheduling/schedulingFormat.ts`, duplicada pela mesma
+razão de sempre) converte para "27/08/2026" só na exibição; e o CAMPO DE
+DIGITAÇÃO em si também pedia "AAAA-MM-DD" — Rodrigo apontou que isso
+também estava errado ("arrumar a data aqui", não só a listagem abaixo).
+Agora o campo tem uma máscara DD/MM/AAAA (`formatDateInput`, progressiva,
+sem biblioteca externa, mesma técnica de `utils/phone.ts` — só dígitos,
+as barras entram sozinhas) e `parseDateInput` converte de volta para
+"yyyy-MM-dd" só na hora de montar o corpo da requisição
+(`DATE_INPUT_PATTERN` substitui `DATE_PATTERN` na validação Zod do
+formulário — a Api continua recebendo exatamente o formato ISO de
+sempre).
 
 **3. Calendário do morador filtrando por disponibilidade real** — fecha
 exatamente a lacuna registrada em "O que ficou fora" da Etapa 17. Novo
@@ -3492,16 +3500,20 @@ comportamento antigo (só desabilita dias passados) em vez de travar o
 morador por completo — `TimeSelectionScreen` já trata graciosamente
 "nenhum horário disponível nesta data".
 
-**4. Atalhos de período ao "Liberar" um horário** (`BlockedDatesScreen`)
-— em vez de digitar início/término à mão toda vez, escolher "Liberar"
-agora mostra botões "Dia inteiro"/"Manhã (08:00–12:00)"/"Tarde
-(13:00–18:00)"/"Noite (18:00–22:00)"/"Personalizado" — só o último
-revela os campos de horário manual. Só se aplica a `type === 'Available'`
-("Bloquear" continua com o antigo "Dia inteiro"/"Horário específico" —
-bloquear um período nomeado não faz o mesmo sentido de UX). Implementado
-com `setValue` do react-hook-form a partir do handler do botão de tipo
-(não de um `useEffect` assistindo o campo — dispararia "Calling setState
-synchronously within an effect", pego pelo eslint deste projeto).
+**4. Atalhos de período** (`BlockedDatesScreen`) — em vez de digitar
+início/término à mão toda vez, a tela agora sempre mostra botões "Dia
+inteiro"/"Manhã (08:00–12:00)"/"Tarde (13:00–18:00)"/"Noite
+(18:00–22:00)"/"Personalizado" — só o último revela os campos de horário
+manual. Primeira versão desta etapa só mostrava os atalhos em
+`type === 'Available'` (mantendo o antigo "Dia inteiro"/"Horário
+específico" em "Bloquear") — Rodrigo testou e apontou que queria os
+mesmos atalhos também para "Bloquear" (faz sentido: "bloquear só a tarde"
+é tão comum quanto "liberar só a tarde"), então os atalhos valem para os
+dois tipos agora; só o texto da pergunta muda ("Quando você quer
+liberar?"/"Quando você quer bloquear?"). Implementado com `setValue` do
+react-hook-form a partir do handler do botão (não de um `useEffect`
+assistindo o campo — dispararia "Calling setState synchronously within an
+effect", pego pelo eslint deste projeto).
 
 **Metodologia de verificação**: `Professional.Application`/
 `Scheduling.Application` inalterados nesta etapa (só a Api e o mobile
@@ -3519,3 +3531,225 @@ aviso de `setState` em efeito citado acima).
   na rota/composição/formato de data. Fica pendente a confirmação de
   Rodrigo sobre reinício/recompilação do backend e, se persistir, o
   status HTTP exato da aba Network do navegador.
+
+## Etapa 19 — Agenda e Disponibilidade dos Profissionais
+
+Rodrigo pediu, num prompt único e extenso, uma "Minha Agenda" completa:
+visão por dia/período (Disponível/Agendado/Bloqueado/Indisponível),
+cadastro de disponibilidade em massa (atalhos de período + dias da semana
++ horários, de uma vez só), rotina semanal recorrente, bloqueio de
+períodos com motivos, e reafirmou como REGRA CRÍTICA algo que já existia:
+"agendar remove da disponibilidade automaticamente; concorrência não pode
+gerar dois agendamentos para o mesmo horário". O prompt pedia
+explicitamente analisar a arquitetura atual ANTES de implementar e não
+duplicar funcionalidade já existente — o que mudou bastante o formato da
+entrega em relação ao pedido original (ver "Decisões de design" abaixo).
+
+### Concorrência — já implementada, só verificada aqui
+
+Antes de escrever qualquer código novo, a base de código foi lida por
+inteiro (`BookingService.CreateBookingAsync`, `UnitOfWork.ExecuteInSerializableTransactionAsync`,
+`Booking.OccupiesSlot`/`OverlapsWith`) para confirmar o que já existia.
+Resultado: a REGRA CRÍTICA de concorrência do prompt **já estava
+implementada e auditada** desde a Etapa 08 (checagem em memória +
+transação `Serializable` do Postgres) e a Etapa 14 (fix de um caso em que
+a falha de serialização do Postgres podia chegar por dois caminhos
+diferentes — `PostgresException` direta ou embrulhada em
+`DbUpdateException` — e só um dos dois era tratado). Dois moradores
+disputando o mesmo horário: o segundo `CreateBookingAsync` que colidir
+recebe `BookingConflictException` (409, "Este horário acabou de ser
+reservado. Escolha outro horário."), nunca um agendamento duplicado.
+"Agendar remove da disponibilidade": `Booking.OccupiesSlot` (Requested/
+Confirmed/InProgress/Completed) já é o único critério usado por toda
+consulta de disponibilidade — cancelar/recusar/no-show automaticamente
+"devolve" o horário, porque não existe um flag separado de "ocupado" para
+ficar dessincronizado; um teste novo (`CreateBookingAsync_SameSlotAfterFirstBookingWasCancelledByResident_DoesNotConflict`)
+fecha a única combinação de status que não tinha um teste explícito
+ainda (só "rejeitado" tinha). **Nenhuma linha nova de concorrência foi
+escrita nesta etapa** — é tudo reaproveitamento do que já existia.
+
+### Decisões de design (o "não duplicar" do prompt)
+
+O prompt sugeria duas entidades novas, `ProfissionalDisponibilidade` e
+`ProfissionalBloqueioAgenda`. Como o módulo já tinha exatamente essas duas
+coisas — `ProfessionalAvailability` (agenda recorrente) e
+`ProfessionalAvailabilityException` (bloqueios/liberações pontuais,
+Etapa 07) — criar entidades novas seria duplicação pura. Em vez disso:
+
+- **`ProfessionalAvailability` ganhou `EffectiveFrom`/`EffectiveUntil`**
+  (`DateOnly?`, ambos opcionais). Ambos nulos (comportamento de toda linha
+  criada antes desta etapa) = recorrente para sempre, sem nenhuma mudança
+  de comportamento para quem só usa os três argumentos originais de
+  `Create`. Quando informados, o intervalo só vale dentro de
+  `[EffectiveFrom, EffectiveUntil]` (`IsEffectiveOn(date)`) — é assim que
+  UMA ÚNICA entidade cobre "disponibilidade recorrente" (o que já existia)
+  e "disponibilidade específica por período" (ex.: "só em setembro", pedido
+  do prompt) sem uma segunda tabela nem gerar um registro por dia
+  individual (pedido explícito do prompt: "sem necessariamente gerar
+  milhares de registros individuais"). `OverlapsWith`/`Create` usam
+  parâmetros opcionais com valor padrão `null` — todo call site já
+  existente (edição de um intervalo por vez, Etapa 07) continua
+  compilando e se comportando exatamente igual.
+- **Bug real encontrado ao estender o domínio, corrigido antes de virar
+  problema em produção**: `ProfessionalDirectoryService.ValidateAvailableAsync`
+  checava a agenda recorrente sem checar `IsEffectiveOn(date)` — sem o
+  fix, um intervalo datado (ex.: "só em setembro") validaria um
+  agendamento em outubro. Corrigido junto com a extensão do domínio, não
+  depois.
+- **`ProfessionalAvailabilityPeriods`** (novo, `Professional.Domain`) —
+  Manhã 07:00-12:00/Tarde 12:00-18:00/Noite 18:00-22:00, exatamente o
+  pedido do prompt ("centralizados em configuração ou constantes de
+  domínio, evitando valores espalhados pelo código"). Único consumidor no
+  backend é `ProfessionalAgendaController` (bucketizar "Minha Agenda" em 3
+  faixas fixas); o cadastro em massa em si aceita qualquer horário — as
+  três faixas são só o ATALHO que a interface oferece, nunca uma restrição
+  do domínio. **Isto exigiu reconciliar um valor já divergente**: o mobile
+  (`BlockedDatesScreen`, Etapa 18) usava Manhã 08:00–12:00/Tarde
+  13:00–18:00 — ajustado nesta etapa para bater com o backend (ver seção
+  mobile abaixo).
+- **`OpenWindowResolver`** (novo, `Professional.Application`, `internal`)
+  — o algoritmo de resolução de janelas livres/bloqueadas (bloqueio
+  recorta, liberação soma, dia inteiro bloqueia tudo) foi EXTRAÍDO de
+  dentro de `ProfessionalDirectoryService.ListOpenWindowsAsync` (Etapa 17)
+  para ser reaproveitado por `GetMyOpenWindowsRangeAsync` (novo — resolve
+  VÁRIAS datas de uma vez, para "Minha Agenda"), em vez de duplicar a
+  lógica ou reescrevê-la. Os dois métodos nunca podem divergir
+  silenciosamente porque compartilham o mesmo código.
+- **`SetBulkAvailabilityAsync`** (novo, `IProfessionalAvailabilityService`)
+  — um único método cobre os TRÊS fluxos de tela do prompt ("+ Adicionar
+  disponibilidade" com atalho de período, "📅 Configurar rotina semanal"
+  com "repetir toda semana"/"repetir até uma data", e "disponibilidade em
+  massa"): todos são "adicionar N intervalos de uma vez, dias × períodos,
+  com ou sem limite de data", só variando o que a tela pré-preenche antes
+  de chamar. **Tudo-ou-nada**: se qualquer combinação dia×período colidir
+  — contra o que já existe no banco OU contra outra combinação do MESMO
+  pedido (ex.: pedir "Manhã" duas vezes por engano para a mesma Segunda) —
+  a chamada inteira falha com `OverlappingAvailabilityException` antes de
+  gravar qualquer coisa. Simplificação deliberada, documentada no XML doc
+  do método: mais simples e previsível do que "salvar o que não colidiu e
+  avisar quais colidiram"; se um dia for preciso um comportamento mais
+  tolerante, o ponto de entrada já está isolado num único método.
+
+### Endpoints novos/alterados
+
+- `GET /api/professional/agenda/minha-agenda?from=&to=` (novo controller
+  `ProfessionalAgendaController`) — "Minha Agenda". Ponto de COMPOSIÇÃO
+  (mesmo papel de `ProfessionalBookingsController`): cruza
+  `IProfessionalAvailabilityService.GetMyOpenWindowsRangeAsync`
+  (disponibilidade/bloqueios, módulo Professional) com
+  `IProfessionalBookingService.ListMyRequestsAsync` (agendamentos, módulo
+  Scheduling) — os dois módulos não podem se referenciar, então só a Api
+  pode fazer este cruzamento. Devolve, por dia, um status por período
+  padrão (`AgendaPeriodStatus`: Available/Scheduled/Blocked/Unavailable),
+  na prioridade pedida pelo prompt: Agendado > Bloqueado > Disponível >
+  Indisponível. Bucketizar em 3 faixas fixas é uma SIMPLIFICAÇÃO
+  deliberada só desta tela-resumo — `GET .../availability` (horário exato)
+  e `GET .../bookings` (agendamento completo) continuam existindo para
+  quem precisa do detalhe.
+- `POST /api/professional/availability/bulk` (novo, no controller já
+  existente `ProfessionalAvailabilityController`) — expõe
+  `SetBulkAvailabilityAsync`. Corpo: dias da semana + períodos (início/fim
+  livres) + `effectiveFrom`/`effectiveUntil` opcionais.
+- Nenhum endpoint do PROMPT 07 foi alterado ou removido — `GET/POST/PUT/
+  DELETE .../availability` e `.../availability/exceptions` continuam
+  exatamente como estavam.
+
+### Modelagem do banco
+
+Uma migração nova é necessária (não gerada aqui — este sandbox não tem
+acesso a um Postgres real nem ao `dotnet ef` restaurado; Rodrigo precisa
+rodar na própria máquina):
+
+```
+dotnet ef migrations add AddProfessionalAvailabilityEffectiveDateRange \
+  --project backend/src/Infrastructure/Alilu.Infrastructure \
+  --startup-project backend/src/Api/Alilu.Api
+```
+
+Ela deve conter só isto: duas colunas novas, nulas, na tabela de
+`ProfessionalAvailability` — `EffectiveFrom date NULL` e `EffectiveUntil
+date NULL`. Nenhuma tabela nova, nenhuma coluna removida, nenhum dado
+existente precisa de backfill (linhas antigas ficam com as duas colunas
+`NULL`, que já significa "recorrente para sempre" — o mesmo que elas
+sempre representaram).
+
+### Mobile — "Minha Agenda"
+
+- **`MyAgendaScreen`** (nova, hub) — lista os próximos 14 dias com um
+  ícone por período (🟢 Disponível/📅 Agendado/🔒 Bloqueado/⬜
+  Indisponível), sem grade de horários nem jargão técnico (pedido
+  explícito: interface pensada para "uma diarista"). Três atalhos:
+  "+ Adicionar disponibilidade", "📅 Configurar rotina semanal" e "🔒
+  Bloquear período" (este último reaproveita `BlockedDatesScreen`, já
+  existente desde o PROMPT 07 — sem duplicar). Um link "Avançado" no
+  rodapé leva à agenda granular original (`AvailabilityScreen` e as
+  demais telas sob `availability/*`) — nada foi removido.
+- **`AddAvailabilityScreen`** (nova) — atende "+ Adicionar
+  disponibilidade" E "📅 Configurar rotina semanal" com o MESMO
+  componente, diferenciado só por um parâmetro de rota `mode` ("quick"
+  mostra os atalhos Hoje/Amanhã/Esta semana/Próxima semana/Este
+  mês/Próximo mês/Personalizado; "routine" mostra "Repetir toda
+  semana"/"Repetir até uma data") — dias da semana (com atalhos "Segunda a
+  Sexta"/"Final de semana"/"Todos os dias") e períodos (Manhã/Tarde/Noite/
+  "Selecionar todos"/"Horário personalizado", com sincronização nos dois
+  sentidos) são exatamente a mesma seção nos dois modos. Reflete, no
+  mobile, a mesma decisão de não duplicar já tomada no backend
+  (`SetBulkAvailabilityAsync` único). Validação de horário personalizado
+  (início obrigatório, término obrigatório, término > início) e de data
+  são feitas no cliente como UX; a Api continua sendo a fonte de verdade
+  (mensagens de `DomainException`/`OverlappingAvailabilityException`
+  aparecem na tela via `getApiErrorMessage`, que já lê o `title` do erro
+  formatado pelo `ExceptionHandlingMiddleware`).
+- **Reconciliação de horários** (`BlockedDatesScreen`) — os atalhos de
+  período desta tela (Etapa 18) usavam 08:00–12:00/13:00–18:00; ajustados
+  nesta etapa para 07:00–12:00/12:00–18:00/18:00–22:00, batendo com
+  `ProfessionalAvailabilityPeriods` (backend) e a nova constante
+  `availabilityFormat.ts#STANDARD_PERIODS` (única fonte no mobile agora —
+  as duas telas leem da mesma constante, evitando a mesma divergência se
+  repetir).
+- `types.ts`/`api.ts`/`hooks.ts` ganharam os tipos/chamadas/hooks novos
+  (`AgendaDay`/`AgendaPeriod`/`SetBulkAvailabilityPayload`,
+  `professionalAgendaApi`/`professionalAvailabilityApi.setBulk`,
+  `useMyAgenda`/`useSetBulkAvailability`); toda mutação de disponibilidade
+  (nova ou já existente) agora invalida tanto a query de agenda recorrente
+  quanto a de "Minha Agenda" juntas (`invalidateAvailabilityQueries`), para
+  as duas telas nunca ficarem dessincronizadas depois de uma mudança.
+
+### Testes
+
+Novo `AgendaTests.cs` (`Professional.Application.Tests`) cobre
+`SetBulkAvailabilityAsync` (um dia/um período, produto cartesiano de
+vários dias × períodos, sem limite de data = recorrente para sempre,
+com limite de data = só dentro do intervalo, conflito contra o banco,
+conflito dentro do mesmo pedido, validações de entrada vazia/data
+invertida, perfil inexistente) e `GetMyOpenWindowsRangeAsync` (uma
+entrada por data do intervalo, bloqueio pontual recortando com motivo
+reportado, limite de 62 dias, data final antes da inicial). Mais um
+teste novo em `BookingCreationTests.cs`
+(`CreateBookingAsync_SameSlotAfterFirstBookingWasCancelledByResident_DoesNotConflict`)
+fechando a lacuna de cobertura "cancelamento do morador libera o
+horário" citada acima.
+
+**Metodologia de verificação**: `Professional.Domain`/`Professional.Application`
+recompilados do zero depois de cada mudança (`dotnet build`, 0
+Warnings/0 Errors) — as extensões de `ProfessionalAvailability`,
+`OpenWindowResolver`, `SetBulkAvailabilityAsync`/`GetMyOpenWindowsRangeAsync`
+e o fix de `ValidateAvailableAsync` são código real, verificado, não só
+lido. `Alilu.Api`/`Alilu.Infrastructure` (novo controller, migração)
+não puderam ser compilados de verdade aqui (sem acesso a NuGet — mesma
+limitação de sempre neste sandbox), revisados por leitura cuidadosa
+contra as assinaturas reais dos serviços chamados. Os testes novos
+(`Application.Tests`) não puderam ser executados aqui (xunit não
+restaurado neste sandbox) — Rodrigo precisa rodar `dotnet test` na
+própria máquina. `mobile` verificado de ponta a ponta com `tsc --noEmit`
+e `eslint --max-warnings=0` (ambos limpos).
+
+### O que ficou fora desta etapa
+
+- A migração do EF Core não foi gerada (precisa de `dotnet ef` com acesso
+  ao projeto restaurado — Rodrigo roda o comando na seção "Modelagem do
+  banco" acima).
+- Nenhum teste novo foi executado neste sandbox (xunit não cacheado) —
+  ver "Metodologia de verificação".
+- O bug #5 ainda pendente da Etapa 18 (ver seção anterior) não foi
+  revisitado aqui — segue esperando a confirmação de Rodrigo.

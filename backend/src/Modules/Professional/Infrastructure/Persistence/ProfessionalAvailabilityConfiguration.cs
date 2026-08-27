@@ -35,6 +35,13 @@ public sealed class ProfessionalAvailabilityConfiguration : IEntityTypeConfigura
 
         builder.Property(a => a.Active).IsRequired();
 
+        // Etapa 19 (agenda/disponibilidade) — nulos por padrão = recorrente
+        // para sempre, sem alterar o significado das linhas já existentes.
+        // DateOnly? mapeia para `date` nullable no Postgres (mesma decisão
+        // de timezone de sempre neste módulo — ver ProfessionalAvailability).
+        builder.Property(a => a.EffectiveFrom);
+        builder.Property(a => a.EffectiveUntil);
+
         // Consulta mais comum: "os intervalos deste profissional, por dia".
         // Sem índice único aqui — "não permitir horários sobrepostos" é uma
         // regra de interseção de intervalos, não uma simples combinação de

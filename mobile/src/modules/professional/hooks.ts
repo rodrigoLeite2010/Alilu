@@ -1,12 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
-import { condominiumDirectoryApi, professionalAvailabilityApi, professionalDirectoryApi, professionalProfileApi } from './api';
+import { condominiumDirectoryApi, professionalAgendaApi, professionalAvailabilityApi, professionalDirectoryApi, professionalProfileApi } from './api';
 import type {
   AddProfessionalAvailabilityExceptionPayload,
   AddProfessionalServicePayload,
   RequestProfessionalCondominiumPayload,
   SaveProfessionalAvailabilityPayload,
   SaveProfessionalProfilePayload,
+  SetBulkAvailabilityPayload,
 } from './types';
 
 /** Chave única do perfil do usuário — usada tanto pelo gate (`(professional)/index.tsx`) quanto para invalidar depois de criar/editar. */
@@ -15,6 +16,19 @@ const MY_SERVICES_QUERY_KEY = ['professional', 'services', 'mine'];
 const MY_CONDOMINIUMS_QUERY_KEY = ['professional', 'condominiums', 'mine'];
 /** Uma única chave para agenda + exceções (PROMPT 07) — mesma resposta única de `GET .../availability`, ver `api.ts`. */
 const MY_AVAILABILITY_QUERY_KEY = ['professional', 'availability', 'mine'];
+/** Etapa 19 — "Minha Agenda" (`GET .../agenda/minha-agenda`); o prefixo (sem `from`/`to`) é usado para invalidar TODOS os intervalos já consultados de uma vez depois de qualquer mudança de disponibilidade/bloqueio. */
+const MY_AGENDA_QUERY_KEY_PREFIX = ['professional', 'agenda', 'mine'];
+
+/**
+ * Agenda recorrente, exceções e "Minha Agenda" mudam sempre juntas — toda
+ * mutação de disponibilidade (Etapa 07) ou de cadastro em massa/agenda
+ * (Etapa 19) invalida as duas de uma vez, para nunca esquecer de atualizar
+ * uma das telas depois da outra mudar o mesmo dado por baixo.
+ */
+function invalidateAvailabilityQueries(queryClient: ReturnType<typeof useQueryClient>) {
+  queryClient.invalidateQueries({ queryKey: MY_AVAILABILITY_QUERY_KEY });
+  queryClient.invalidateQueries({ queryKey: MY_AGENDA_QUERY_KEY_PREFIX });
+}
 
 /**
  * Meu perfil profissional, se houver. O gate do app (ver
@@ -141,7 +155,7 @@ export function useAddAvailability() {
 
   return useMutation({
     mutationFn: (payload: SaveProfessionalAvailabilityPayload) => professionalAvailabilityApi.add(payload),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: MY_AVAILABILITY_QUERY_KEY }),
+    onSuccess: () => invalidateAvailabilityQueries(queryClient),
   });
 }
 
@@ -152,7 +166,7 @@ export function useUpdateAvailability() {
   return useMutation({
     mutationFn: ({ id, payload }: { id: string; payload: SaveProfessionalAvailabilityPayload }) =>
       professionalAvailabilityApi.update(id, payload),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: MY_AVAILABILITY_QUERY_KEY }),
+    onSuccess: () => invalidateAvailabilityQueries(queryClient),
   });
 }
 
@@ -161,7 +175,7 @@ export function useRemoveAvailability() {
 
   return useMutation({
     mutationFn: (id: string) => professionalAvailabilityApi.remove(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: MY_AVAILABILITY_QUERY_KEY }),
+    onSuccess: () => invalidateAvailabilityQueries(queryClient),
   });
 }
 
@@ -171,7 +185,7 @@ export function useAddAvailabilityException() {
 
   return useMutation({
     mutationFn: (payload: AddProfessionalAvailabilityExceptionPayload) => professionalAvailabilityApi.addException(payload),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: MY_AVAILABILITY_QUERY_KEY }),
+    onSuccess: () => invalidateAvailabilityQueries(queryClient),
   });
 }
 
@@ -180,6 +194,32 @@ export function useRemoveAvailabilityException() {
 
   return useMutation({
     mutationFn: (id: string) => professionalAvailabilityApi.removeException(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: MY_AVAILABILITY_QUERY_KEY }),
+    onSuccess: () => invalidateAvailabilityQueries(queryClient),
+  });
+}
+
+/**
+ * Etapa 19 — cadastro em massa (React Native: telas "Adicionar
+ * disponibilidade"/"Configurar rotina semanal").
+ */
+export function useSetBulkAvailability() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (payload: SetBulkAvailabilityPayload) => professionalAvailabilityApi.setBulk(payload),
+    onSuccess: () => invalidateAvailabilityQueries(queryClient),
+  });
+}
+
+/**
+ * Etapa 19 — "Minha Agenda": visão unificada por data/período. `from`/`to`
+ * no formato `DateOnly` ("yyyy-MM-dd"); a query só roda com os dois
+ * presentes (mesmo padrão de `useProfessionalProfile` com `enabled`).
+ */
+export function useMyAgenda(from: string, to: string) {
+  return useQuery({
+    queryKey: [...MY_AGENDA_QUERY_KEY_PREFIX, from, to],
+    queryFn: () => professionalAgendaApi.getMine(from, to),
+    enabled: Boolean(from && to),
   });
 }

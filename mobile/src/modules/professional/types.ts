@@ -140,3 +140,36 @@ export interface AddProfessionalAvailabilityExceptionPayload {
   type: AvailabilityExceptionType;
   reason?: string;
 }
+
+// Etapa 19 (agenda e disponibilidade) — ver ARCHITECTURE.md.
+
+/** Espelha `Alilu.Modules.Professional.Application/Dtos.cs#AvailabilityPeriodInput` — um período dentro de `SetBulkAvailabilityPayload`. */
+export interface AvailabilityPeriodInput {
+  startTime: string;
+  endTime: string;
+}
+
+/** Corpo de `POST .../availability/bulk` — espelha `Alilu.Api.Controllers.SetBulkAvailabilityBody`; ver `IProfessionalAvailabilityService.SetBulkAvailabilityAsync` no backend para a semântica completa (tudo-ou-nada; ambas as datas nulas = recorrente para sempre). */
+export interface SetBulkAvailabilityPayload {
+  daysOfWeek: DayOfWeek[];
+  periods: AvailabilityPeriodInput[];
+  effectiveFrom?: string | null;
+  effectiveUntil?: string | null;
+}
+
+/** Espelha `Alilu.Api.Controllers.AgendaPeriodStatus` — prioridade Agendado &gt; Bloqueado &gt; Disponível &gt; Indisponível (ver `ProfessionalAgendaController.ResolvePeriodStatus` no backend). */
+export type AgendaPeriodStatus = 'Available' | 'Scheduled' | 'Blocked' | 'Unavailable';
+
+/** Espelha `Alilu.Api.Controllers.AgendaPeriodResponse` — um período (Manhã/Tarde/Noite) de um dia em "Minha Agenda", já com o status resolvido. */
+export interface AgendaPeriod {
+  name: string;
+  startTime: string;
+  endTime: string;
+  status: AgendaPeriodStatus;
+}
+
+/** Espelha `Alilu.Api.Controllers.AgendaDayResponse` — resposta de `GET /api/professional/agenda/minha-agenda`. */
+export interface AgendaDay {
+  date: string;
+  periods: AgendaPeriod[];
+}

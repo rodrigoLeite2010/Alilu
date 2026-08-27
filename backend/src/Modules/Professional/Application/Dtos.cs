@@ -92,3 +92,27 @@ public sealed record ProfessionalAvailabilityOverviewResponse(
 /// de devolver ao morador, ver <c>ProfessionalDirectoryController.ListAvailabilityWindows</c>.
 /// </summary>
 public sealed record OpenTimeWindowResponse(TimeOnly StartTime, TimeOnly EndTime);
+
+// Etapa 19 — agenda e disponibilidade (checkboxes/atalhos de período em
+// massa + "Minha Agenda"), ver ARCHITECTURE.md.
+
+/// <summary>Um período (início/término) dentro de um pedido de disponibilidade em massa — React Native: "seleção de horários" (Manhã/Tarde/Noite/Personalizado), <see cref="IProfessionalAvailabilityService.SetBulkAvailabilityAsync"/>.</summary>
+public sealed record AvailabilityPeriodInput(TimeOnly StartTime, TimeOnly EndTime);
+
+/// <summary>
+/// Uma janela de horário BLOQUEADA numa data (ao contrário de
+/// <see cref="OpenTimeWindowResponse"/>, que já vem com os bloqueios
+/// descontados) — só para a composição de "Minha Agenda"
+/// (<c>ProfessionalAgendaController</c>) conseguir rotular um período como
+/// "Bloqueado" em vez de simplesmente "Indisponível" (a diferença importa
+/// para a profissional entender POR QUE não está disponível). Dia inteiro
+/// bloqueado vira uma única janela <see cref="TimeOnly.MinValue"/>-<see cref="TimeOnly.MaxValue"/>,
+/// mesma convenção de liberação de dia inteiro em <c>OpenWindowResolver</c>.
+/// </summary>
+public sealed record BlockedTimeWindowResponse(TimeOnly StartTime, TimeOnly EndTime, string? Reason);
+
+/// <summary>Janelas livres E bloqueadas de UMA data — item de <see cref="IProfessionalAvailabilityService.GetMyOpenWindowsRangeAsync"/> (uma entrada por dia do intervalo pedido).</summary>
+public sealed record DailyOpenWindowsResponse(
+    DateOnly Date,
+    IReadOnlyList<OpenTimeWindowResponse> OpenWindows,
+    IReadOnlyList<BlockedTimeWindowResponse> BlockedWindows);

@@ -142,4 +142,33 @@ public sealed class BookingCreationTests
 
         Assert.Equal(Domain.BookingStatus.Requested, secondBooking.Status);
     }
+
+    [Fact]
+    public async Task CreateBookingAsync_SameSlotAfterFirstBookingWasCancelledByResident_DoesNotConflict()
+    {
+        // Etapa 19 (agenda e disponibilidade) — "cancelamento deve recompor a
+        // disponibilidade corretamente": um cancelamento do MORADOR também
+        // precisa liberar o horário para um novo agendamento, mesma regra de
+        // Booking.OccupiesSlot já coberta acima só para "rejeitado". Não é
+        // um caso novo de comportamento (CancelByResident já tira o status
+        // de OccupiesSlot desde a Etapa 08) — este teste só fecha a lacuna
+        // de cobertura apontada explicitamente no pedido de "Agenda e
+        // Disponibilidade de Profissionais".
+        var fixture = new BookingServiceTestFixture();
+        var residentId = Guid.NewGuid();
+        var residentSut = fixture.CreateResidentSut();
+        var professionalId = Guid.NewGuid();
+        var scheduledDate = DateOnly.FromDateTime(DateTime.UtcNow).AddDays(1);
+
+        var firstBooking = await residentSut.CreateBookingAsync(
+            residentId, professionalId, Guid.NewGuid(), Guid.NewGuid(), scheduledDate,
+            new TimeOnly(9, 0), new TimeOnly(10, 0), null, BookingServiceTestFixture.OneItem());
+        await residentSut.CancelMyBookingAsync(residentId, firstBooking.Id);
+
+        var secondBooking = await residentSut.CreateBookingAsync(
+            Guid.NewGuid(), professionalId, Guid.NewGuid(), Guid.NewGuid(), scheduledDate,
+            new TimeOnly(9, 0), new TimeOnly(10, 0), null, BookingServiceTestFixture.OneItem());
+
+        Assert.Equal(Domain.BookingStatus.Requested, secondBooking.Status);
+    }
 }

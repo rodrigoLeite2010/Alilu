@@ -11,8 +11,15 @@ import { useAuth } from '../../modules/auth';
  *
  * Desde o PROMPT 07, `availability/*` reúne as quatro telas de
  * disponibilidade (AvailabilityScreen/AvailabilityEditor/
- * BlockedDatesScreen/CalendarAvailabilityScreen), acessíveis a partir de
- * "Configurar disponibilidade" em ProfessionalEditScreen.
+ * BlockedDatesScreen/CalendarAvailabilityScreen) — desde a Etapa 19,
+ * reaproveitadas como a opção "Avançado" a partir do novo hub `agenda/*`.
+ *
+ * Etapa 19 (agenda e disponibilidade): `agenda/*` reúne "Minha Agenda"
+ * (MyAgendaScreen — visão por dia/período de Disponível/Agendado/Bloqueado/
+ * Indisponível) e "Adicionar disponibilidade"/"Configurar rotina semanal"
+ * (AddAvailabilityScreen, uma única tela para os dois fluxos — ver
+ * comentário na própria tela), acessíveis a partir de "Minha Agenda" em
+ * ProfessionalEditScreen (antes "Configurar disponibilidade").
  *
  * Desde o PROMPT 08 ("o módulo mais crítico"), `requests/*` reúne o fluxo
  * "receber solicitação → aceitar ou recusar" (ProfessionalRequestsScreen/
@@ -45,6 +52,8 @@ export default function ProfessionalLayout() {
       <Stack.Screen name="availability/editor" />
       <Stack.Screen name="availability/blocked-dates" />
       <Stack.Screen name="availability/calendar" />
+      <Stack.Screen name="agenda/index" />
+      <Stack.Screen name="agenda/add" />
       <Stack.Screen name="requests/index" />
       <Stack.Screen name="requests/[id]" />
       <Stack.Screen name="reviews/index" />

@@ -78,6 +78,26 @@ public sealed class ProfessionalAvailabilityController(IProfessionalAvailability
         await availabilityService.RemoveExceptionAsync(User.GetUserId(), id, cancellationToken);
         return NoContent();
     }
+
+    /// <summary>
+    /// Etapa 19 — cadastro em massa (um ou mais dias da semana × um ou mais
+    /// períodos, de uma vez só, opcionalmente limitado a um período de
+    /// datas). React Native: telas "+ Adicionar disponibilidade" (atalhos
+    /// Hoje/Esta semana/Este mês/Personalizado), "📅 Configurar rotina
+    /// semanal" (repetir toda semana/repetir até uma data) e "Disponibilidade
+    /// em massa" — as três só variam o que pré-preenchem antes de chamar este
+    /// mesmo endpoint; ver comentário completo em
+    /// <see cref="IProfessionalAvailabilityService.SetBulkAvailabilityAsync"/>.
+    /// </summary>
+    [HttpPost("bulk")]
+    public async Task<ActionResult<IReadOnlyList<ProfessionalAvailabilityResponse>>> SetBulkAvailability(
+        [FromBody] SetBulkAvailabilityBody body,
+        CancellationToken cancellationToken)
+    {
+        var created = await availabilityService.SetBulkAvailabilityAsync(
+            User.GetUserId(), body.DaysOfWeek, body.Periods, body.EffectiveFrom, body.EffectiveUntil, cancellationToken);
+        return StatusCode(StatusCodes.Status201Created, created);
+    }
 }
 
 /// <summary>Corpo de POST/PUT .../availability — usado tanto para criar quanto para editar um intervalo recorrente.</summary>
@@ -90,3 +110,10 @@ public sealed record AddProfessionalAvailabilityExceptionBody(
     TimeOnly? EndTime,
     ProfessionalAvailabilityExceptionType Type,
     string? Reason);
+
+/// <summary>Corpo de POST .../availability/bulk — ver <see cref="IProfessionalAvailabilityService.SetBulkAvailabilityAsync"/>.</summary>
+public sealed record SetBulkAvailabilityBody(
+    IReadOnlyList<DayOfWeek> DaysOfWeek,
+    IReadOnlyList<AvailabilityPeriodInput> Periods,
+    DateOnly? EffectiveFrom,
+    DateOnly? EffectiveUntil);

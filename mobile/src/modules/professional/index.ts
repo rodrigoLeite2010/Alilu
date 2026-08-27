@@ -8,3 +8,5 @@ export { AvailabilityScreen } from './screens/AvailabilityScreen';
 export { AvailabilityEditor } from './screens/AvailabilityEditor';
 export { BlockedDatesScreen } from './screens/BlockedDatesScreen';
 export { CalendarAvailabilityScreen } from './screens/CalendarAvailabilityScreen';
+export { MyAgendaScreen } from './screens/MyAgendaScreen';
+export { AddAvailabilityScreen } from './screens/AddAvailabilityScreen';

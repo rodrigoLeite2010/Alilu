@@ -2,6 +2,7 @@ import { api } from '../../services/api';
 import type {
   AddProfessionalAvailabilityExceptionPayload,
   AddProfessionalServicePayload,
+  AgendaDay,
   CondominiumSummary,
   Professional,
   ProfessionalAvailabilityExceptionItem,
@@ -14,12 +15,14 @@ import type {
   SaveProfessionalAvailabilityPayload,
   SaveProfessionalProfilePayload,
   ServiceCategory,
+  SetBulkAvailabilityPayload,
 } from './types';
 
 const PROFILE_BASE_PATH = '/api/professional/profile';
 const DIRECTORY_BASE_PATH = '/api/directory/professionals';
 const CONDOMINIUM_DIRECTORY_BASE_PATH = '/api/directory';
 const AVAILABILITY_BASE_PATH = '/api/professional/availability';
+const AGENDA_BASE_PATH = '/api/professional/agenda';
 
 /**
  * Chamadas HTTP cruas do módulo Professional (PROMPT 06). Espelha
@@ -121,5 +124,26 @@ export const professionalAvailabilityApi = {
 
   removeException(id: string) {
     return api.delete(`${AVAILABILITY_BASE_PATH}/exceptions/${id}`);
+  },
+
+  /**
+   * Etapa 19 — cadastro em massa (React Native: telas "Adicionar
+   * disponibilidade"/"Configurar rotina semanal", que só variam o que
+   * pré-preenchem antes de chamar isto). Ver
+   * `SetBulkAvailabilityAsync`/`SetBulkAvailabilityBody` no backend.
+   */
+  setBulk(payload: SetBulkAvailabilityPayload) {
+    return api.post<ProfessionalAvailabilitySlot[]>(`${AVAILABILITY_BASE_PATH}/bulk`, payload).then((response) => response.data);
+  },
+};
+
+/**
+ * Etapa 19 — "Minha Agenda": visão unificada por data/período
+ * (Disponível/Agendado/Bloqueado/Indisponível). Ver
+ * `Alilu.Api.Controllers.ProfessionalAgendaController` no backend.
+ */
+export const professionalAgendaApi = {
+  getMine(from: string, to: string) {
+    return api.get<AgendaDay[]>(`${AGENDA_BASE_PATH}/minha-agenda`, { params: { from, to } }).then((response) => response.data);
   },
 };

@@ -1,4 +1,5 @@
 using Alilu.Modules.Professional.Domain;
+using Alilu.Shared;
 
 namespace Alilu.Modules.Professional.Application;
 
@@ -138,6 +139,104 @@ public sealed class ProfessionalAvailabilityService(
         {
             throw new OverlappingAvailabilityException();
         }
+    }
+
+    /// <summary>Ver comentário completo em <see cref="IProfessionalAvailabilityService.SetBulkAvailabilityAsync"/>.</summary>
+    public async Task<IReadOnlyList<ProfessionalAvailabilityResponse>> SetBulkAvailabilityAsync(
+        Guid userId,
+        IReadOnlyList<DayOfWeek> daysOfWeek,
+        IReadOnlyList<AvailabilityPeriodInput> periods,
+        DateOnly? effectiveFrom,
+        DateOnly? effectiveUntil,
+        CancellationToken cancellationToken = default)
+    {
+        var distinctDays = daysOfWeek.Distinct().ToList();
+        if (distinctDays.Count == 0)
+        {
+            throw new DomainException("Selecione ao menos um dia da semana.");
+        }
+
+        if (periods.Count == 0)
+        {
+            throw new DomainException("Selecione ao menos um período.");
+        }
+
+        if (effectiveFrom is not null && effectiveUntil is not null && effectiveFrom.Value > effectiveUntil.Value)
+        {
+            throw new DomainException("A data final precisa ser igual ou depois da data inicial.");
+        }
+
+        var professional = await GetOwnProfileOrThrowAsync(userId, cancellationToken);
+        var existing = (await availabilityRepository.ListByProfessionalIdAsync(professional.Id, cancellationToken))
+            .Where(slot => slot.Active)
+            .ToList();
+
+        var created = new List<ProfessionalAvailability>();
+
+        // Tudo-ou-nada (ver comentário da interface): a checagem de
+        // sobreposição olha tanto os intervalos já salvos quanto os que
+        // este mesmo pedido acabou de "criar" em memória (`existing` cresce
+        // a cada iteração) — assim duas combinações do MESMO pedido também
+        // não podem colidir entre si (ex.: pedir "Manhã" duas vezes para a
+        // Segunda por engano).
+        foreach (var dayOfWeek in distinctDays)
+        {
+            foreach (var period in periods)
+            {
+                var conflicts = existing.Any(slot => slot.OverlapsWith(dayOfWeek, period.StartTime, period.EndTime, effectiveFrom, effectiveUntil));
+                if (conflicts)
+                {
+                    throw new OverlappingAvailabilityException();
+                }
+
+                var availability = ProfessionalAvailability.Create(
+                    professional.Id, dayOfWeek, period.StartTime, period.EndTime, effectiveFrom, effectiveUntil);
+
+                await availabilityRepository.AddAsync(availability, cancellationToken);
+                created.Add(availability);
+                existing.Add(availability);
+            }
+        }
+
+        await unitOfWork.SaveChangesAsync(cancellationToken);
+
+        return created.Select(ProfessionalMapper.ToResponse).ToList();
+    }
+
+    /// <summary>Ver comentário completo em <see cref="IProfessionalAvailabilityService.GetMyOpenWindowsRangeAsync"/>.</summary>
+    public async Task<IReadOnlyList<DailyOpenWindowsResponse>> GetMyOpenWindowsRangeAsync(
+        Guid userId,
+        DateOnly from,
+        DateOnly to,
+        CancellationToken cancellationToken = default)
+    {
+        if (to < from)
+        {
+            throw new DomainException("A data final precisa ser igual ou depois da data inicial.");
+        }
+
+        if (to.DayNumber - from.DayNumber > 62)
+        {
+            throw new DomainException("Intervalo muito longo — no máximo 62 dias.");
+        }
+
+        var professional = await GetOwnProfileOrThrowAsync(userId, cancellationToken);
+        var weeklySchedule = await availabilityRepository.ListByProfessionalIdAsync(professional.Id, cancellationToken);
+        var allExceptions = await exceptionRepository.ListByProfessionalIdAsync(professional.Id, cancellationToken);
+
+        var result = new List<DailyOpenWindowsResponse>();
+        for (var date = from; date <= to; date = date.AddDays(1))
+        {
+            var exceptionsOnDate = allExceptions.Where(exception => exception.Date == date).ToList();
+            var (open, blocked) = OpenWindowResolver.Resolve(date, weeklySchedule, exceptionsOnDate);
+
+            result.Add(new DailyOpenWindowsResponse(
+                date,
+                open.Select(window => new OpenTimeWindowResponse(window.Start, window.End)).ToList(),
+                blocked.Select(window => new BlockedTimeWindowResponse(window.Start, window.End, window.Reason)).ToList()));
+        }
+
+        return result;
     }
 
     private async Task<Domain.Professional> GetOwnProfileOrThrowAsync(Guid userId, CancellationToken cancellationToken) =>

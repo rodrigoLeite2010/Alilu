@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { DATE_PATTERN, TIME_PATTERN } from './availabilityFormat';
+import { DATE_INPUT_PATTERN, TIME_PATTERN } from './availabilityFormat';
 
 /** React Native: ProfessionalEditScreen — criação/edição de perfil. */
 export const professionalProfileSchema = z.object({
@@ -36,7 +36,7 @@ export type AvailabilitySlotFormValues = z.infer<typeof availabilitySlotSchema>;
  */
 export const availabilityExceptionSchema = z
   .object({
-    date: z.string().regex(DATE_PATTERN, 'Use o formato AAAA-MM-DD.'),
+    date: z.string().regex(DATE_INPUT_PATTERN, 'Use o formato DD/MM/AAAA.'),
     type: z.enum(['Blocked', 'Available']),
     isFullDay: z.boolean(),
     startTime: z.union([z.string().regex(TIME_PATTERN, 'Use o formato HH:MM.'), z.literal('')]).optional(),
