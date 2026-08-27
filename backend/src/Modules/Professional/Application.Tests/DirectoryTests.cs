@@ -274,6 +274,33 @@ public sealed class DirectoryTests
             directorySut.ValidateAvailableAsync(profile.Id, wednesday, new TimeOnly(14, 0), new TimeOnly(16, 0)));
     }
 
+    [Fact]
+    public async Task ValidateAvailableAsync_WindowSpanningTwoAdjacentRecurringSlots_DoesNotThrow()
+    {
+        // Etapa 19 — BUG REAL encontrado testando "Minha Agenda": a tela do
+        // morador funde intervalos recorrentes adjacentes (ex.: "Manhã"
+        // 07:00-12:00 + "Tarde" 12:00-18:00, criados juntos por
+        // SetBulkAvailabilityAsync) num único bloco visível 07:00-18:00 —
+        // mas a validação antiga só aceitava um horário que coubesse INTEIRO
+        // dentro de UM único intervalo, então pedir exatamente o bloco
+        // exibido ao morador era sempre recusado. Este teste fixa o
+        // comportamento correto: a validação agora usa o mesmo
+        // OpenWindowResolver (que já funde os dois), então os dois nunca
+        // mais podem divergir.
+        var fixture = new ProfessionalServiceTestFixture();
+        var profileSut = fixture.CreateProfileSut();
+        var availabilitySut = fixture.CreateAvailabilitySut();
+        var directorySut = fixture.CreateDirectorySut();
+        var userId = Guid.NewGuid();
+        var profile = await profileSut.CreateProfileAsync(userId, "Thais Diarista", null, null, null);
+        await availabilitySut.AddAvailabilityAsync(userId, DayOfWeek.Monday, new TimeOnly(7, 0), new TimeOnly(12, 0));
+        await availabilitySut.AddAvailabilityAsync(userId, DayOfWeek.Monday, new TimeOnly(12, 0), new TimeOnly(18, 0));
+
+        var monday = NextDateForDayOfWeek(DayOfWeek.Monday);
+
+        await directorySut.ValidateAvailableAsync(profile.Id, monday, new TimeOnly(7, 0), new TimeOnly(18, 0));
+    }
+
     /// <summary>Próxima ocorrência (a partir de hoje) de um dia da semana — evita depender da data em que os testes rodam.</summary>
     private static DateOnly NextDateForDayOfWeek(DayOfWeek dayOfWeek)
     {

@@ -60,35 +60,26 @@ public sealed class ProfessionalDirectoryService(
         }
 
         var exceptionsOnDate = await availabilityExceptionRepository.ListByProfessionalIdAndDateAsync(professionalId, date, cancellationToken);
-
-        // "Exceções sobrescrevem a disponibilidade recorrente" (regra
-        // herdada da Etapa 07): um bloqueio que colide com a janela pedida
-        // sempre vence, mesmo que a agenda recorrente diria disponível.
-        var isBlockedByException = exceptionsOnDate.Any(exception =>
-            exception.Type == ProfessionalAvailabilityExceptionType.Blocked && exception.OverlapsWith(startTime, endTime));
-
-        if (isBlockedByException)
-        {
-            throw new TimeSlotUnavailableException();
-        }
-
-        // Uma liberação pontual que cubra a janela inteira também vence,
-        // independente da agenda recorrente (ex.: abrir um horário numa
-        // quarta normalmente indisponível — exemplo do próprio PROMPT 07).
-        var isOpenedByException = exceptionsOnDate.Any(exception =>
-            exception.Type == ProfessionalAvailabilityExceptionType.Available && FullyContains(exception, startTime, endTime));
-
-        if (isOpenedByException)
-        {
-            return;
-        }
-
         var weeklySchedule = await availabilityRepository.ListByProfessionalIdAsync(professionalId, cancellationToken);
 
-        var isWithinRecurringSchedule = weeklySchedule.Any(slot =>
-            slot.Active && slot.DayOfWeek == date.DayOfWeek && slot.IsEffectiveOn(date) && slot.StartTime <= startTime && endTime <= slot.EndTime);
+        // Etapa 19 — BUG REAL encontrado testando o cadastro em massa: esta
+        // validação costumava exigir que [startTime, endTime) coubesse
+        // inteiro dentro de UM ÚNICO intervalo recorrente, mas
+        // `ListOpenWindowsAsync`/`OpenWindowResolver` (a mesma tela que
+        // mostra ao morador o que está livre) já FUNDE intervalos adjacentes
+        // (ex.: "Manhã" 07:00-12:00 + "Tarde" 12:00-18:00, criados juntos
+        // por `SetBulkAvailabilityAsync`) num único bloco visível
+        // "07:00-18:00". Resultado: o morador via/escolhia um horário que a
+        // Api recusava em seguida, porque nem o intervalo de Manhã nem o de
+        // Tarde, sozinho, cobre as 07:00-18:00 inteiras. Agora esta
+        // validação usa o MESMO `OpenWindowResolver` (bloqueios recortando,
+        // liberações somando, dia inteiro bloqueando tudo) que já resolve
+        // as janelas exibidas — os dois nunca mais podem divergir, porque é
+        // literalmente o mesmo código.
+        var (openWindows, _) = OpenWindowResolver.Resolve(date, weeklySchedule, exceptionsOnDate);
 
-        if (!isWithinRecurringSchedule)
+        var isWithinAnOpenWindow = openWindows.Any(window => window.Start <= startTime && endTime <= window.End);
+        if (!isWithinAnOpenWindow)
         {
             throw new TimeSlotUnavailableException();
         }
@@ -124,10 +115,6 @@ public sealed class ProfessionalDirectoryService(
 
         return professional.UserId;
     }
-
-    /// <summary>A janela pedida cabe inteira dentro da exceção (dia inteiro sempre cabe; janela parcial precisa conter [startTime, endTime) por completo — uma liberação parcial menor que o pedido não é suficiente).</summary>
-    private static bool FullyContains(ProfessionalAvailabilityException exception, TimeOnly startTime, TimeOnly endTime) =>
-        exception.IsFullDay || (exception.StartTime!.Value <= startTime && endTime <= exception.EndTime!.Value);
 
     private async Task<IReadOnlyList<ProfessionalDirectoryItemResponse>> ToDirectoryItemsAsync(
         IReadOnlyList<Domain.Professional> professionals,

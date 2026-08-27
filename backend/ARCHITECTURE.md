@@ -3753,3 +3753,48 @@ e `eslint --max-warnings=0` (ambos limpos).
   ver "Metodologia de verificação".
 - O bug #5 ainda pendente da Etapa 18 (ver seção anterior) não foi
   revisitado aqui — segue esperando a confirmação de Rodrigo.
+
+### Correção pós-entrega — `ValidateAvailableAsync` não aceitava o horário exibido ao morador
+
+Rodrigo testou de ponta a ponta depois da entrega: configurou "Manhã" +
+"Tarde" (07:00-12:00 e 12:00-18:00, dois intervalos recorrentes
+adjacentes, criados juntos pelo cadastro em massa) para uma segunda-feira,
+viu os dois como "Disponível" em "Minha Agenda", mas ao tentar agendar
+como morador — exatamente o horário "07:00 - 18:00" que a tela de seleção
+de horário mostrava — recebeu "Este profissional não está disponível
+neste horário.".
+
+**Causa raiz**: `ListOpenWindowsAsync` (o que o morador vê) sempre usou
+`OpenWindowResolver`, que FUNDE intervalos adjacentes/sobrepostos
+(`MergeAndSort`) — dois intervalos colados viram um único bloco contínuo
+na tela. `ValidateAvailableAsync` (o que decide se o agendamento pode ser
+criado), porém, ainda checava se a janela pedida cabia inteira dentro de
+UM ÚNICO intervalo recorrente (`slot.StartTime <= startTime && endTime <=
+slot.EndTime`) — nunca fazia essa mesma fusão. Um pedido de "07:00-18:00"
+não cabe inteiro nem em "07:00-12:00" nem em "12:00-18:00" isoladamente,
+mesmo os dois juntos cobrindo o dia inteiro sem buraco. Esta divergência
+já existia desde a Etapa 07 (dois intervalos colados sempre foi um caso
+possível), mas ficou muito mais provável de acontecer na prática com o
+cadastro em massa desta etapa — "Selecionar todos" os períodos cria
+exatamente três intervalos adjacentes (Manhã/Tarde/Noite, sem buracos).
+
+**Correção**: `ValidateAvailableAsync` (`ProfessionalDirectoryService.cs`)
+agora chama o mesmo `OpenWindowResolver.Resolve` usado por
+`ListOpenWindowsAsync`, e checa se a janela pedida cabe inteira em
+QUALQUER uma das janelas já fundidas — em vez de reimplementar
+separadamente a lógica de bloqueio/liberação por exceção. Os dois
+métodos agora são literalmente a mesma resolução de disponibilidade,
+então não podem mais divergir. Efeito colateral bom: o método ficou bem
+mais curto (a lógica de "bloqueio vence"/"liberação cobre a janela
+inteira" que antes vivia duplicada aqui já estava dentro do
+`OpenWindowResolver`) — o helper `FullyContains`, que só existia para
+essa duplicação, foi removido.
+
+Todos os 7 testes já existentes de `ValidateAvailableAsync`
+(`DirectoryTests.cs`) foram conferidos manualmente contra a nova
+implementação — mesmo resultado em cada um. Mais um teste novo
+(`ValidateAvailableAsync_WindowSpanningTwoAdjacentRecurringSlots_DoesNotThrow`)
+fixa exatamente o cenário do bug relatado: dois intervalos recorrentes
+adjacentes (07:00-12:00 e 12:00-18:00) devem permitir um agendamento de
+07:00 a 18:00. `Professional.Application` recompilado com sucesso (0
+Warnings/0 Errors) depois da correção.
