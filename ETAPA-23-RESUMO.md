@@ -64,11 +64,28 @@ nunca direto no arquivo em produção):
 ```
 Twilio__AccountSid=...
 Twilio__AuthToken=...
-Twilio__WhatsAppFrom=...     # número com WhatsApp Business habilitado no Console da Twilio
-Twilio__SmsFrom=...          # número comum da Twilio, usado como fallback
+Twilio__WhatsAppFrom=...        # número com WhatsApp Business habilitado no Console da Twilio, já em E.164 (ex.: +17372212163)
+Twilio__WhatsAppContentSid=...  # OBRIGATÓRIO para o WhatsApp funcionar — ver nota abaixo
+Twilio__SmsFrom=...             # número comum da Twilio, usado como fallback
 SendGrid__ApiKey=...
 SendGrid__FromEmail=...
 ```
+
+**Sobre `WhatsAppContentSid`**: mensagem iniciada pela empresa (o prestador
+convidado nunca mandou mensagem antes) só é aceita pela Meta via um Content
+Template pré-aprovado (Console da Twilio -> Messaging -> Content Template
+Builder) — nunca texto livre (`Body`). Sem essa credencial preenchida (junto
+com as outras três), o WhatsApp cai automaticamente no sender fake (log),
+mesmo que `AccountSid`/`AuthToken`/`WhatsAppFrom` já estejam certos — mais
+seguro do que tentar texto livre e a Twilio rejeitar em silêncio.
+
+⚠️ **Sobre o Auth Token compartilhado no chat**: como você colou o
+`AccountSid`/`AuthToken` reais numa mensagem aqui, considere esse Auth Token
+comprometido — recomendo gerar um novo no Console da Twilio (Account ->
+API keys & tokens -> "regenerate secondary token" ou similar) e usar só o
+novo a partir daqui. Nunca cole credenciais reais no chat nem no código-fonte
+— sempre variável de ambiente ou gerenciador de segredos, como já estava
+documentado acima.
 
 **Decisões que ainda são suas** (não são bugs — são escolhas de produto que
 deixei documentadas em vez de decidir por você):
@@ -77,6 +94,31 @@ deixei documentadas em vez de decidir por você):
 - Mural: os 4 tipos de post (Reclamação/Sugestão/Aviso/Prestador não
   cadastrado) e o fato de só morador ter acesso (sem profissional) — se
   quiser mudar, é uma alteração pequena.
+
+## Correções feitas depois da primeira entrega
+
+- **Dois erros reais de `dotnet build`** que você reportou: escaping
+  corrompido em `ReviewConfiguration.cs` (`HasFilter`) e `using` faltando em
+  `Program.cs` (`AddMuralModule`) — ambos corrigidos.
+- **Tela inicial ainda em inglês** ("Resident/Professional/Administration
+  (placeholder)") — era `mobile/src/app/index.tsx`, a tela raiz de navegação,
+  que não tinha sido pega na revisão de tradução original. Traduzida para
+  "Área do morador" / "Área do prestador" / "Administração (em breve)".
+- **Erro "Ocorreu um erro inesperado" ao testar o convite** — causa: a
+  migração desta etapa (tabelas de convite e do Mural) ainda não tinha sido
+  gerada/aplicada. Não é bug de código; é o passo de `dotnet ef migrations
+  add Etapa23` / `dotnet ef database update` acima, que só você consegue
+  rodar (este sandbox não tem `dotnet`).
+- **WhatsApp via Content Template** — o envio original usava texto livre
+  (`Body`), que a Meta rejeita para mensagem iniciada pela empresa. Reescrito
+  para usar `ContentSid` (confirmado por você com uma chamada real
+  funcionando) — ver `Twilio__WhatsAppContentSid` acima.
+- **Telefone sem "+55"** — a tela pede só "Telefone (com DDD)" (ex.:
+  "11987930848"), mas a Twilio exige E.164 (`+5511987930848`) em ambos os
+  canais (WhatsApp e SMS). Adicionada uma normalização automática
+  (`BrazilianPhoneNumberFormatter`) antes de qualquer chamada à Twilio — o
+  valor digitado pelo morador continua sendo o que fica gravado/exibido no
+  histórico de convites, só a cópia enviada à Twilio é reformatada.
 
 ## Verificação que EU consegui fazer
 

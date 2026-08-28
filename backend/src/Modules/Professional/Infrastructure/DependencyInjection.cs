@@ -51,6 +51,14 @@ public static class DependencyInjection
     /// (módulo Notifications, Etapa 11/15), só que lá o endpoint público
     /// funciona SEM credencial — aqui, sem credencial, não há chamada
     /// nenhuma à Twilio/SendGrid (nunca com uma credencial vazia).
+    ///
+    /// <c>WhatsAppContentSid</c> também é exigido para o WhatsApp real
+    /// (além de AccountSid/AuthToken/WhatsAppFrom) — confirmado por
+    /// Rodrigo com uma chamada real à Twilio: mensagem iniciada pela
+    /// empresa só é aceita pela Meta via Content Template pré-aprovado,
+    /// nunca texto livre. Sem ele, mesmo com as outras três credenciais
+    /// preenchidas, cai no sender fake (mais seguro que tentar enviar
+    /// texto livre e a Twilio rejeitar em silêncio).
     /// </summary>
     private static void AddInvitationChannelSenders(IServiceCollection services, IConfiguration configuration)
     {
@@ -60,19 +68,22 @@ public static class DependencyInjection
         var twilioAccountSid = configuration["Twilio:AccountSid"];
         var twilioAuthToken = configuration["Twilio:AuthToken"];
         var twilioWhatsAppFrom = configuration["Twilio:WhatsAppFrom"];
+        var twilioWhatsAppContentSid = configuration["Twilio:WhatsAppContentSid"];
         var twilioSmsFrom = configuration["Twilio:SmsFrom"];
         var sendGridApiKey = configuration["SendGrid:ApiKey"];
         var sendGridFromEmail = configuration["SendGrid:FromEmail"];
 
         var hasTwilioCoreCredentials = !string.IsNullOrWhiteSpace(twilioAccountSid) && !string.IsNullOrWhiteSpace(twilioAuthToken);
 
-        if (hasTwilioCoreCredentials && !string.IsNullOrWhiteSpace(twilioWhatsAppFrom))
+        // "WhatsAppContentSid" também é exigido — ver comentário do método.
+        if (hasTwilioCoreCredentials && !string.IsNullOrWhiteSpace(twilioWhatsAppFrom) && !string.IsNullOrWhiteSpace(twilioWhatsAppContentSid))
         {
             services.AddScoped<IWhatsAppMessageSender>(sp => new TwilioWhatsAppSender(
                 sp.GetRequiredService<IHttpClientFactory>(),
                 twilioAccountSid!,
                 twilioAuthToken!,
                 twilioWhatsAppFrom!,
+                twilioWhatsAppContentSid!,
                 sp.GetRequiredService<ILogger<TwilioWhatsAppSender>>()));
         }
         else

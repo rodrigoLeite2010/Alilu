@@ -20,6 +20,15 @@ namespace Alilu.Modules.Professional.Infrastructure;
 /// contrato de <see cref="Alilu.Modules.Professional.Application.IWhatsAppMessageSender"/>/
 /// <see cref="Alilu.Modules.Professional.Application.ISmsMessageSender"/>.
 ///
+/// <c>contentSid</c> (Etapa 23, confirmado por Rodrigo com uma chamada
+/// real funcionando): mensagem de WhatsApp iniciada pela empresa (não é
+/// resposta a uma mensagem do usuário) só é aceita pela Meta via um
+/// Content Template pré-aprovado — quando informado, o campo <c>ContentSid</c>
+/// substitui <c>Body</c> por completo (nunca os dois juntos, mesmo
+/// comportamento do parâmetro <c>content_sid</c> do SDK oficial da
+/// Twilio); <c>null</c> mantém o envio de texto livre (<c>Body</c>), único
+/// modo usado por SMS, que não tem essa exigência de template.
+///
 /// LIMITAÇÃO DO SANDBOX (Claude): este container de build não tem acesso à
 /// internet, então esta classe nunca foi (nem poderia ser) exercitada
 /// contra a API real da Twilio aqui — mesma limitação já documentada em
@@ -35,20 +44,33 @@ internal static class TwilioMessagingClient
         string authToken,
         string fromNumber,
         string toNumber,
-        string body,
+        string? body,
+        string? contentSid,
         ILogger logger,
         CancellationToken cancellationToken)
     {
         try
         {
+            var formFields = new Dictionary<string, string>
+            {
+                ["To"] = toNumber,
+                ["From"] = fromNumber,
+            };
+
+            // "ContentSid substitui Body por completo" — ver comentário
+            // da classe.
+            if (contentSid is { Length: > 0 })
+            {
+                formFields["ContentSid"] = contentSid;
+            }
+            else
+            {
+                formFields["Body"] = body ?? string.Empty;
+            }
+
             using var request = new HttpRequestMessage(HttpMethod.Post, string.Format(MessagesEndpointFormat, accountSid))
             {
-                Content = new FormUrlEncodedContent(new Dictionary<string, string>
-                {
-                    ["To"] = toNumber,
-                    ["From"] = fromNumber,
-                    ["Body"] = body,
-                }),
+                Content = new FormUrlEncodedContent(formFields),
             };
 
             var basicAuthValue = Convert.ToBase64String(Encoding.ASCII.GetBytes($"{accountSid}:{authToken}"));

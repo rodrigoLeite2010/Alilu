@@ -4430,15 +4430,32 @@ Infrastructure via chamada HTTP crua às APIs REST da Twilio/SendGrid
 11) — WhatsApp e SMS chamam o mesmo endpoint de Messages da Twilio, só
 com prefixo `"whatsapp:"`; SMS só é tentado como FALLBACK quando o
 WhatsApp não foi entregue. Credenciais novas (`Twilio:AccountSid`/
-`AuthToken`/`WhatsAppFrom`/`SmsFrom`, `SendGrid:ApiKey`/`FromEmail`) em
-`appsettings.json`, vazias por padrão, nunca hard-coded (mesmo padrão de
-`Jwt:Secret`/`PushNotification:ExpoAccessToken`). **Quando não
-configuradas, `AddInvitationChannelSenders` (`Professional.Infrastructure.DependencyInjection`)
+`AuthToken`/`WhatsAppFrom`/`WhatsAppContentSid`/`SmsFrom`,
+`SendGrid:ApiKey`/`FromEmail`) em `appsettings.json`, vazias por padrão,
+nunca hard-coded (mesmo padrão de `Jwt:Secret`/`PushNotification:ExpoAccessToken`).
+**Quando não configuradas, `AddInvitationChannelSenders` (`Professional.Infrastructure.DependencyInjection`)
 registra senders "fake" (`LoggingWhatsAppSender`/`LoggingSmsSender`/
 `LoggingEmailSender`) que só logam a mensagem e devolvem sucesso** —
 exatamente o que o plano propôs para permitir escrever/testar o recurso
-antes da conta Twilio estar pronta (o template do WhatsApp Business
-também precisa de aprovação prévia da Meta, passo manual fora daqui).
+antes da conta Twilio estar pronta.
+
+**WhatsApp exige Content Template, não texto livre**: confirmado por
+Rodrigo com uma chamada real à Twilio — mensagem iniciada pela empresa
+(o prestador convidado nunca mandou mensagem antes) só é aceita pela
+Meta via um Content Template pré-aprovado (Console da Twilio ->
+Messaging -> Content Template Builder); por isso `TwilioWhatsAppSender`
+sempre envia `ContentSid` (nunca `Body`) e só é registrado quando
+`WhatsAppContentSid` também está configurado (além das outras três
+credenciais) — sem ele, cai no sender fake em vez de tentar texto livre
+e a Twilio rejeitar em silêncio. `TwilioSmsSender` continua com texto
+livre (`Body`), já que SMS não tem essa exigência.
+
+**Normalização de telefone para E.164**: a tela "Convidar prestador"
+pede só "Telefone (com DDD)" (ex.: "11987930848"), mas a Twilio exige
+E.164 em ambos os canais (`+5511987930848`) — `BrazilianPhoneNumberFormatter`
+(Professional.Infrastructure) normaliza a cópia usada na chamada HTTP
+antes de qualquer envio; o valor original digitado continua gravado em
+`ProfessionalInvitation.Phone` (histórico "convites enviados").
 
 **Pendências de produto, não de código** (registradas no plano, ainda
 sem confirmação de Rodrigo): redação final do texto do convite (rascunho

@@ -23,8 +23,9 @@ public sealed class TwilioSmsSender(
             accountSid,
             authToken,
             smsFromNumber,
-            phoneNumber,
-            message,
+            BrazilianPhoneNumberFormatter.ToE164(phoneNumber),
+            body: message,
+            contentSid: null,
             logger,
             cancellationToken);
 }
