@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/Badge";
 import type { Tool } from "@/data/tools";
 
 export function ToolCard({ tool }: { tool: Tool }) {
-  const isAvailable = tool.status === "disponivel";
+  const isAvailable = tool.status === "ativo";
 
   return (
     <Link

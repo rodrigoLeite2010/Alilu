@@ -7,6 +7,12 @@ interface BuildPageMetadataInput {
   /** Caminho absoluto começando com "/", ex.: "/utilitarios/financeiro" */
   path: string;
   keywords?: string[];
+  /**
+   * Regras de robots para esta página específica (ex.: noindex para
+   * ferramentas "em-breve" — ver lib/seo/publish.ts). Quando omitido, o
+   * comportamento padrão de indexação do Next.js é mantido.
+   */
+  robots?: Metadata["robots"];
 }
 
 /**
@@ -20,6 +26,7 @@ export function buildPageMetadata({
   description,
   path,
   keywords,
+  robots,
 }: BuildPageMetadataInput): Metadata {
   const url = `${SITE_URL}${path}`;
 
@@ -43,5 +50,6 @@ export function buildPageMetadata({
       title,
       description,
     },
+    ...(robots ? { robots } : {}),
   };
 }

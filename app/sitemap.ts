@@ -2,6 +2,7 @@ import type { MetadataRoute } from "next";
 import { categories } from "@/data/categories";
 import { tools } from "@/data/tools";
 import { SITE_URL } from "@/lib/seo/site";
+import { getPublishedTools } from "@/lib/seo/publish";
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const staticRoutes: MetadataRoute.Sitemap = [
@@ -18,11 +19,16 @@ export default function sitemap(): MetadataRoute.Sitemap {
     priority: 0.7,
   }));
 
-  const toolRoutes: MetadataRoute.Sitemap = tools.map((tool) => ({
-    url: `${SITE_URL}/utilitarios/${tool.category}/${tool.slug}`,
-    changeFrequency: "monthly",
-    priority: 0.6,
-  }));
+  // Ferramentas "em-breve" nunca entram no sitemap — ver lib/seo/publish.ts.
+  // Assim que uma ferramenta passa a status "ativo", ela aparece aqui
+  // automaticamente, sem qualquer alteração neste arquivo.
+  const toolRoutes: MetadataRoute.Sitemap = getPublishedTools(tools).map(
+    (tool) => ({
+      url: `${SITE_URL}/utilitarios/${tool.category}/${tool.slug}`,
+      changeFrequency: "monthly",
+      priority: 0.6,
+    })
+  );
 
   return [...staticRoutes, ...categoryRoutes, ...toolRoutes];
 }

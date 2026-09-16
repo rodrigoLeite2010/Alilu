@@ -5,6 +5,7 @@ import { ToolPageTemplate } from "@/components/tools/ToolPageTemplate";
 import { getCategoryById } from "@/data/categories";
 import { getToolBySlug, tools } from "@/data/tools";
 import { buildPageMetadata } from "@/lib/seo/metadata";
+import { getToolRobotsMeta } from "@/lib/seo/publish";
 
 type ToolPageProps = {
   params: Promise<{ categoria: string; ferramenta: string }>;
@@ -32,6 +33,7 @@ export async function generateMetadata({
     description: tool.description,
     path: `/utilitarios/${tool.category}/${tool.slug}`,
     keywords: tool.keywords,
+    robots: getToolRobotsMeta(tool),
   });
 }
 

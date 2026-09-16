@@ -11,9 +11,14 @@ import type { CategoryId } from "./categories";
  * Nesta primeira entrega (Fundação ALILU) todas as ferramentas estão com
  * status "em-breve": a arquitetura e o catálogo já existem, mas a lógica de
  * cálculo de cada ferramenta será implementada em etapas futuras.
+ *
+ * O status também controla a indexação da ferramenta pelos buscadores — ver
+ * lib/seo/publish.ts para a regra central. Resumo:
+ *   "em-breve" -> acessível, mas noindex e fora do sitemap.
+ *   "ativo"    -> indexável e presente no sitemap.
  */
 
-export type ToolStatus = "em-breve" | "disponivel";
+export type ToolStatus = "em-breve" | "ativo";
 
 export interface Tool {
   /** Identificador estável e único do catálogo */
