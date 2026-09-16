@@ -110,6 +110,82 @@ interface Segment {
   text: string;
   /** Valor numérico do grupo de três dígitos (0-999), usado só para decidir o "e" final */
   groupValue: number;
+  /**
+   * Nível de escala do grupo: 0 = unidades (sem palavra de escala),
+   * 1 = milhar ("mil", invariável), 2 = milhão/milhões, 3 = bilhão/bilhões,
+   * 4 = trilhão/trilhões, e assim por diante.
+   */
+  level: number;
+}
+
+/**
+ * Nomes de escala por nível (índices 2+), no singular e no plural. O nível 1
+ * ("mil") é tratado à parte, pois é invariável e nunca recebe "de" antes do
+ * substantivo. Cobre com folga o intervalo de valores monetários realistas
+ * para um recibo (até a casa dos trilhões).
+ */
+const SCALE_NAMES: Record<number, { singular: string; plural: string }> = {
+  2: { singular: "milhão", plural: "milhões" },
+  3: { singular: "bilhão", plural: "bilhões" },
+  4: { singular: "trilhão", plural: "trilhões" },
+  5: { singular: "quatrilhão", plural: "quatrilhões" },
+};
+
+/**
+ * Quebra um inteiro não negativo em grupos de três dígitos (base 1000),
+ * do menos significativo (nível 0 = unidades) para o mais significativo.
+ * `groups[0]` são as unidades/centenas, `groups[1]` os milhares,
+ * `groups[2]` os milhões, `groups[3]` os bilhões, etc.
+ */
+function splitIntoGroupsOfThousand(value: number): number[] {
+  const groups: number[] = [];
+  let remaining = value;
+  do {
+    groups.push(remaining % 1000);
+    remaining = Math.floor(remaining / 1000);
+  } while (remaining > 0);
+  return groups;
+}
+
+/**
+ * Monta os segmentos (do mais para o menos significativo) de um inteiro
+ * positivo, cada um já com sua palavra de escala aplicada quando cabível.
+ * Grupos zerados são omitidos (ex.: 1.000.001 não gera segmento de milhar).
+ */
+function buildSegments(value: number): Segment[] {
+  const groups = splitIntoGroupsOfThousand(value);
+  const segments: Segment[] = [];
+
+  for (let level = groups.length - 1; level >= 0; level -= 1) {
+    const groupValue = groups[level];
+    if (groupValue === 0) {
+      continue;
+    }
+
+    if (level === 0) {
+      segments.push({ text: groupToWords(groupValue), groupValue, level });
+    } else if (level === 1) {
+      const text = groupValue === 1 ? "mil" : `${groupToWords(groupValue)} mil`;
+      segments.push({ text, groupValue, level });
+    } else {
+      const scale = SCALE_NAMES[level];
+      if (!scale) {
+        // Além da faixa de escalas nomeadas (muito acima de qualquer valor
+        // monetário realista) — evita gerar texto incorreto silenciosamente.
+        throw new RangeError(
+          `Valor grande demais para converter por extenso: ${value}`
+        );
+      }
+      const scaleWord = groupValue === 1 ? scale.singular : scale.plural;
+      segments.push({
+        text: `${groupToWords(groupValue)} ${scaleWord}`,
+        groupValue,
+        level,
+      });
+    }
+  }
+
+  return segments;
 }
 
 /** Converte um inteiro não negativo em texto por extenso (sem moeda). */
@@ -118,29 +194,7 @@ function integerToWords(value: number): string {
     return "zero";
   }
 
-  const millions = Math.floor(value / 1_000_000);
-  const remainderAfterMillions = value % 1_000_000;
-  const thousands = Math.floor(remainderAfterMillions / 1000);
-  const units = remainderAfterMillions % 1000;
-
-  const segments: Segment[] = [];
-
-  if (millions > 0) {
-    const scale = millions === 1 ? "milhão" : "milhões";
-    segments.push({
-      text: `${groupToWords(millions)} ${scale}`,
-      groupValue: millions,
-    });
-  }
-
-  if (thousands > 0) {
-    const text = thousands === 1 ? "mil" : `${groupToWords(thousands)} mil`;
-    segments.push({ text, groupValue: thousands });
-  }
-
-  if (units > 0) {
-    segments.push({ text: groupToWords(units), groupValue: units });
-  }
+  const segments = buildSegments(value);
 
   if (segments.length === 1) {
     return segments[0].text;
@@ -163,9 +217,12 @@ function integerToWords(value: number): string {
 
 /**
  * Une um valor inteiro por extenso ao substantivo correto (singular/plural),
- * aplicando a regra do "de" após "milhão"/"milhões" quando não há nenhuma
- * casa de milhar/unidade abaixo dele (ex.: "um milhão de reais", mas
- * "um milhão e cem reais").
+ * aplicando a regra do "de" após uma palavra de escala de milhão ou maior
+ * (milhão/milhões, bilhão/bilhões, trilhão/trilhões, ...) quando ela é o
+ * último grupo do número, ou seja, quando não há nenhuma casa de milhar ou
+ * unidade abaixo dela (ex.: "um milhão de reais", "um bilhão de reais", mas
+ * "um milhão e cem reais" e "um bilhão e cem milhões de reais"). O "mil"
+ * (nível 1) nunca recebe "de" ("mil reais", nunca "mil de reais").
  */
 function integerWithNoun(
   value: number,
@@ -176,11 +233,14 @@ function integerWithNoun(
     return `zero ${plural}`;
   }
 
+  const segments = buildSegments(value);
   const words = integerToWords(value);
   const noun = value === 1 ? singular : plural;
-  const isExactMillions = value >= 1_000_000 && value % 1_000_000 === 0;
 
-  return isExactMillions ? `${words} de ${noun}` : `${words} ${noun}`;
+  const lastSegment = segments[segments.length - 1];
+  const needsDe = lastSegment.level >= 2;
+
+  return needsDe ? `${words} de ${noun}` : `${words} ${noun}`;
 }
 
 /**

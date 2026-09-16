@@ -3,37 +3,59 @@
 import type { InputHTMLAttributes } from "react";
 
 /**
- * Campo numérico genérico, pronto para ser usado pelas futuras
- * calculadoras. Usa teclado numérico no mobile (inputMode="decimal") e
- * aceita vírgula como separador decimal (padrão brasileiro), deixando a
- * conversão para lib/validators/number.ts (parseLocaleNumberBRL).
+ * Campo numérico genérico, usado pelas calculadoras. Usa teclado numérico
+ * no mobile (inputMode="decimal") e aceita vírgula como separador decimal
+ * (padrão brasileiro), deixando a conversão para lib/validators/number.ts
+ * (parseLocaleNumberBRL).
  *
- * Ainda não é utilizado por nenhuma página nesta primeira entrega — nenhuma
- * calculadora foi implementada ainda —, mas fixa o padrão visual e de
- * acessibilidade (label real, área de toque confortável) que as próximas
- * ferramentas devem seguir (PROMPT MESTRE, seções 6 e 7).
+ * Label, dica e erro seguem o mesmo padrão de acessibilidade de
+ * components/forms/TextField.tsx: o rótulo (<label>) contém só o nome do
+ * campo — dica/erro ficam fora dele, ligados via aria-describedby — para
+ * que o nome acessível do campo não inclua texto extra (PROMPT MESTRE,
+ * seções 6, 7 e 10; usado pela primeira vez na Calculadora de Juros
+ * Compostos, ETAPA 3).
  */
 export function NumberField({
   label,
   id,
   suffix,
+  error,
+  hint,
+  className = "",
   ...rest
 }: {
   label: string;
   id: string;
   suffix?: string;
+  error?: string;
+  hint?: string;
+  className?: string;
 } & InputHTMLAttributes<HTMLInputElement>) {
+  const describedBy =
+    [error ? `${id}-error` : null, hint ? `${id}-hint` : null]
+      .filter(Boolean)
+      .join(" ") || undefined;
+
   return (
-    <label htmlFor={id} className="block">
-      <span className="mb-1.5 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
+    <div className={`block ${className}`}>
+      <label
+        htmlFor={id}
+        className="mb-1.5 block text-sm font-medium text-zinc-700 dark:text-zinc-300"
+      >
         {label}
-      </span>
+      </label>
       <span className="relative flex items-center">
         <input
           id={id}
           type="text"
           inputMode="decimal"
-          className="w-full rounded-lg border border-zinc-300 bg-white py-3 px-4 text-base text-zinc-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
+          aria-invalid={error ? true : undefined}
+          aria-describedby={describedBy}
+          className={`w-full rounded-lg border bg-white py-3 px-4 text-base text-zinc-900 focus:outline-none focus:ring-2 dark:bg-zinc-900 dark:text-zinc-50 ${
+            error
+              ? "border-red-400 focus:border-red-500 focus:ring-red-500/30"
+              : "border-zinc-300 focus:border-blue-500 focus:ring-blue-500/30 dark:border-zinc-700"
+          }`}
           {...rest}
         />
         {suffix ? (
@@ -42,6 +64,23 @@ export function NumberField({
           </span>
         ) : null}
       </span>
-    </label>
+      {hint && !error ? (
+        <span
+          id={`${id}-hint`}
+          className="mt-1.5 block text-xs text-zinc-500 dark:text-zinc-500"
+        >
+          {hint}
+        </span>
+      ) : null}
+      {error ? (
+        <span
+          id={`${id}-error`}
+          role="alert"
+          className="mt-1.5 block text-sm text-red-600 dark:text-red-400"
+        >
+          {error}
+        </span>
+      ) : null}
+    </div>
   );
 }

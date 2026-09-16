@@ -62,4 +62,57 @@ export const toolContent: Record<
       },
     ],
   },
+  "juros-compostos": {
+    contentSections: [
+      {
+        title: "O que são juros compostos?",
+        body: "Juros compostos são os juros calculados sobre o saldo total do período anterior, incluindo os juros já ganhos antes — por isso o rendimento cresce cada vez mais rápido ao longo do tempo, diferente dos juros simples.",
+      },
+      {
+        title: "Como funciona o cálculo?",
+        body: "A cada mês, a calculadora aplica a taxa mensal sobre o saldo atual e soma o resultado ao saldo. Se houver aporte mensal, ele é somado ao final do mês e passa a render juros a partir do mês seguinte.",
+      },
+      {
+        title: "Como funcionam os aportes mensais?",
+        body: "O aporte mensal é um valor opcional que você soma ao investimento todo mês, além do valor inicial. Aportes recorrentes aceleram bastante o crescimento do saldo ao longo do tempo.",
+      },
+      {
+        title: "Diferença entre taxa mensal e anual",
+        body: "Se você já sabe a taxa mensal, escolha \"Mensal\". Se só tem a taxa anual (ex.: de um CDB ou poupança), escolha \"Anual\": a calculadora converte automaticamente para a taxa mensal equivalente antes de simular.",
+      },
+      {
+        title: "Exemplo prático",
+        body: "R$ 1.000,00 iniciais, com aporte de R$ 100,00 por mês, a 1% ao mês durante 12 meses, chegam a aproximadamente R$ 2.395,08 — sendo R$ 2.200,00 de capital investido e o restante em juros.",
+      },
+    ],
+    faq: [
+      {
+        question: "Os resultados são uma promessa de rentabilidade?",
+        answer:
+          "Não. Esta é uma simulação matemática baseada nos valores e na taxa que você informar — não é uma garantia nem uma recomendação de investimento.",
+      },
+      {
+        question: "Os meus dados ficam armazenados?",
+        answer:
+          "Não. Todo o cálculo acontece no seu navegador; nenhum valor digitado é enviado ou guardado pela Alilu.",
+      },
+      {
+        question: "Posso simular sem aporte mensal?",
+        answer: "Sim, o aporte mensal é opcional — deixe o campo em branco ou zerado.",
+      },
+      {
+        question: "Posso usar taxa anual em vez de mensal?",
+        answer:
+          "Sim. Escolha \"Anual\" no tipo da taxa que a conversão para a taxa mensal equivalente é feita automaticamente.",
+      },
+      {
+        question: "O período pode ser em anos?",
+        answer: "Sim, escolha \"Anos\" no tipo do período.",
+      },
+      {
+        question: "Posso usar a calculadora pelo celular?",
+        answer: "Sim. Ela funciona bem em celular, tablet e computador.",
+      },
+    ],
+  },
 };

@@ -43,4 +43,38 @@ describe("moneyToWordsBRL", () => {
   it("usa singular para dois milhões exatos apenas no plural correto", () => {
     expect(moneyToWordsBRL(2000000)).toBe("dois milhões de reais");
   });
+
+  // Correção pré-commit da ETAPA 3: valores >= 1 bilhão estavam incorretos
+  // (o grupo de milhar de "bilhões" não era reconhecido, gerando texto como
+  // " milhões de reais" para 1 bilhão). A correção generaliza a quebra em
+  // grupos de três dígitos para qualquer escala (mil, milhão, bilhão,
+  // trilhão, ...), não apenas um patch pontual para bilhões.
+  describe("valores na casa dos bilhões (e acima)", () => {
+    it.each([
+      [1_000_000_000, "um bilhão de reais"],
+      [1_000_000_001, "um bilhão e um reais"],
+      [2_000_000_000, "dois bilhões de reais"],
+      [1_500_000_000, "um bilhão e quinhentos milhões de reais"],
+      [999_999_999_999, "novecentos e noventa e nove bilhões novecentos e noventa e nove milhões novecentos e noventa e nove mil novecentos e noventa e nove reais"],
+    ])("converte %s para \"%s\"", (value, expected) => {
+      expect(moneyToWordsBRL(value)).toBe(expected);
+    });
+
+    it("mantém o singular do substantivo apenas quando o total é exatamente 1", () => {
+      expect(moneyToWordsBRL(1_000_000_000)).not.toContain("reais de");
+      expect(moneyToWordsBRL(1_000_000_000)).toContain("um bilhão");
+    });
+
+    it("respeita plural de milhão dentro de um valor em bilhões", () => {
+      expect(moneyToWordsBRL(1_001_000_000)).toBe(
+        "um bilhão e um milhão de reais"
+      );
+    });
+
+    it("preserva o comportamento já correto para milhares e milhões isolados", () => {
+      expect(moneyToWordsBRL(1000)).toBe("mil reais");
+      expect(moneyToWordsBRL(1_000_000)).toBe("um milhão de reais");
+      expect(moneyToWordsBRL(1_500_000)).toBe("um milhão e quinhentos mil reais");
+    });
+  });
 });

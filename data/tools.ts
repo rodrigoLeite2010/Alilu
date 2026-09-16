@@ -121,11 +121,11 @@ export const tools: Tool[] = [
     slug: "juros-compostos",
     category: "financeiro",
     description:
-      "Simule a evolução de um investimento ou dívida com juros compostos ao longo do tempo.",
+      "Calcule juros compostos, aportes mensais e veja quanto seu dinheiro pode acumular ao longo do tempo.",
     keywords: ["juros compostos", "investimento", "simulador financeiro"],
     icon: "trending-up",
     relatedTools: ["quanto-guardar-por-mes", "parcelamento", "financiamento-veiculo"],
-    status: "em-breve",
+    status: "ativo",
   },
   {
     id: "financiamento-veiculo",

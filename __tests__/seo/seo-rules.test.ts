@@ -168,3 +168,28 @@ describe("G) Gerador de Recibo (ETAPA 2) — primeira ferramenta ativa", () => {
     expect(entries.some((entry) => entry.url === url)).toBe(false);
   });
 });
+
+describe("H) Calculadora de Juros Compostos (ETAPA 3) — segunda ferramenta ativa", () => {
+  const compoundInterest = getToolBySlug("financeiro", "juros-compostos");
+
+  it("está com status ativo no catálogo", () => {
+    expect(compoundInterest?.status).toBe("ativo");
+  });
+
+  it("permite indexação (index: true, follow: true)", () => {
+    expect(compoundInterest).toBeDefined();
+    expect(getToolRobotsMeta(compoundInterest!)).toEqual({ index: true, follow: true });
+  });
+
+  it("aparece no sitemap", () => {
+    const entries = sitemap();
+    const url = `${SITE_URL}/utilitarios/financeiro/juros-compostos`;
+    expect(entries.some((entry) => entry.url === url)).toBe(true);
+  });
+
+  it("o Gerador de Recibo (ETAPA 2) continua ativo e indexável (regressão)", () => {
+    const receipt = getToolBySlug("empresa", "gerador-recibo");
+    expect(receipt?.status).toBe("ativo");
+    expect(getToolRobotsMeta(receipt!)).toEqual({ index: true, follow: true });
+  });
+});

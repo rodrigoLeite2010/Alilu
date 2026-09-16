@@ -1,5 +1,6 @@
 import type { ComponentType } from "react";
 import { ReceiptTool } from "@/components/tools/receipt/ReceiptTool";
+import { CompoundInterestTool } from "@/components/tools/compound-interest/CompoundInterestTool";
 
 /**
  * Registro central que liga o id de uma ferramenta (data/tools.ts) ao
@@ -14,4 +15,5 @@ import { ReceiptTool } from "@/components/tools/receipt/ReceiptTool";
  */
 export const toolComponents: Record<string, ComponentType> = {
   "gerador-recibo": ReceiptTool,
+  "juros-compostos": CompoundInterestTool,
 };
