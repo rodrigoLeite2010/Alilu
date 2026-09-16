@@ -1,0 +1,68 @@
+"use client";
+
+import type { TextareaHTMLAttributes } from "react";
+
+/**
+ * Textarea genérica com label real e mensagem de erro associada, seguindo o
+ * mesmo padrão visual de TextField/NumberField.
+ */
+export function TextareaField({
+  label,
+  id,
+  error,
+  hint,
+  className = "",
+  ...rest
+}: {
+  label: string;
+  id: string;
+  error?: string;
+  hint?: string;
+  className?: string;
+} & TextareaHTMLAttributes<HTMLTextAreaElement>) {
+  const describedBy =
+    [error ? `${id}-error` : null, hint ? `${id}-hint` : null]
+      .filter(Boolean)
+      .join(" ") || undefined;
+
+  return (
+    <div className={`block ${className}`}>
+      {/* Ver comentário equivalente em components/forms/TextField.tsx */}
+      <label
+        htmlFor={id}
+        className="mb-1.5 block text-sm font-medium text-zinc-700 dark:text-zinc-300"
+      >
+        {label}
+      </label>
+      <textarea
+        id={id}
+        aria-invalid={error ? true : undefined}
+        aria-describedby={describedBy}
+        rows={3}
+        className={`w-full rounded-lg border bg-white py-3 px-4 text-base text-zinc-900 focus:outline-none focus:ring-2 dark:bg-zinc-900 dark:text-zinc-50 ${
+          error
+            ? "border-red-400 focus:border-red-500 focus:ring-red-500/30"
+            : "border-zinc-300 focus:border-blue-500 focus:ring-blue-500/30 dark:border-zinc-700"
+        }`}
+        {...rest}
+      />
+      {hint && !error ? (
+        <span
+          id={`${id}-hint`}
+          className="mt-1.5 block text-xs text-zinc-500 dark:text-zinc-500"
+        >
+          {hint}
+        </span>
+      ) : null}
+      {error ? (
+        <span
+          id={`${id}-error`}
+          role="alert"
+          className="mt-1.5 block text-sm text-red-600 dark:text-red-400"
+        >
+          {error}
+        </span>
+      ) : null}
+    </div>
+  );
+}

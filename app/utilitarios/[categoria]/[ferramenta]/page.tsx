@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Container } from "@/components/ui/Container";
 import { ToolPageTemplate } from "@/components/tools/ToolPageTemplate";
+import { toolComponents } from "@/components/tools/tool-registry";
+import { toolContent } from "@/components/tools/tool-content";
 import { getCategoryById } from "@/data/categories";
 import { getToolBySlug, tools } from "@/data/tools";
 import { buildPageMetadata } from "@/lib/seo/metadata";
@@ -46,9 +48,19 @@ export default async function ToolPage({ params }: ToolPageProps) {
     notFound();
   }
 
+  const ToolComponent = toolComponents[tool.id];
+  const content = toolContent[tool.id];
+
   return (
     <Container>
-      <ToolPageTemplate tool={tool} category={category} />
+      <ToolPageTemplate
+        tool={tool}
+        category={category}
+        contentSections={content?.contentSections}
+        faq={content?.faq}
+      >
+        {ToolComponent ? <ToolComponent /> : undefined}
+      </ToolPageTemplate>
     </Container>
   );
 }

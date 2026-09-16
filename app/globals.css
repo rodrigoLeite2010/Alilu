@@ -64,3 +64,21 @@ body {
     color: #93c5fd;
   }
 }
+
+/*
+ * Impressão de documentos gerados por ferramentas (ex.: Gerador de Recibo).
+ * Header, footer, navegação, formulário e conteúdo de SEO já são ocultados
+ * via classe utilitária `print:hidden` (Tailwind) em cada componente; aqui
+ * só ajustamos a página impressa em si para caber bem em A4 (PROMPT ETAPA
+ * 2, seção 9).
+ */
+@media print {
+  @page {
+    size: A4;
+    margin: 16mm;
+  }
+
+  body {
+    background: #ffffff;
+  }
+}

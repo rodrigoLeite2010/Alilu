@@ -45,3 +45,21 @@ export function formatPercentage(value: number, decimals = 1): string {
   }
   return `${formatNumberBRL(value, decimals)}%`;
 }
+
+/**
+ * Converte uma sequência de dígitos digitados pelo usuário (interpretados
+ * como centavos, como em um campo de valor monetário mascarado enquanto se
+ * digita) para um número em reais.
+ *
+ * Ex.: "85000" -> 850 (R$ 850,00); "50" -> 0.5 (R$ 0,50); "" -> 0.
+ *
+ * Usado pelo campo de valor do Gerador de Recibo (e reutilizável por
+ * qualquer calculadora futura que precise do mesmo tipo de campo).
+ */
+export function centsDigitsToAmount(digitsOnly: string): number {
+  const digits = digitsOnly.replace(/\D/g, "");
+  if (digits === "") {
+    return 0;
+  }
+  return Number(digits) / 100;
+}

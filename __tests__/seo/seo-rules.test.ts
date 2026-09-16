@@ -136,3 +136,35 @@ describe("F) rotas principais continuam funcionando (integridade dos dados que a
   // ferramentas, páginas legais) é feita via `next build` + smoke test
   // manual, documentado no relatório desta auditoria.
 });
+
+describe("G) Gerador de Recibo (ETAPA 2) — primeira ferramenta ativa", () => {
+  const receipt = getToolBySlug("empresa", "gerador-recibo");
+
+  it("está com status ativo no catálogo", () => {
+    expect(receipt?.status).toBe("ativo");
+  });
+
+  it("permite indexação (index: true, follow: true)", () => {
+    expect(receipt).toBeDefined();
+    expect(getToolRobotsMeta(receipt!)).toEqual({ index: true, follow: true });
+  });
+
+  it("aparece no sitemap", () => {
+    const entries = sitemap();
+    const url = `${SITE_URL}/utilitarios/empresa/gerador-recibo`;
+    expect(entries.some((entry) => entry.url === url)).toBe(true);
+  });
+
+  it("uma ferramenta em-breve do catálogo continua com noindex e fora do sitemap", () => {
+    const stillComingSoon = tools.find((tool) => tool.status === "em-breve");
+    expect(stillComingSoon).toBeDefined();
+    expect(getToolRobotsMeta(stillComingSoon!)).toEqual({
+      index: false,
+      follow: true,
+    });
+
+    const entries = sitemap();
+    const url = `${SITE_URL}/utilitarios/${stillComingSoon!.category}/${stillComingSoon!.slug}`;
+    expect(entries.some((entry) => entry.url === url)).toBe(false);
+  });
+});

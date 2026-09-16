@@ -8,9 +8,11 @@ import type { CategoryId } from "./categories";
  * palavras-chave de uma ferramenta — tudo deve ser lido a partir deste
  * arquivo.
  *
- * Nesta primeira entrega (Fundação ALILU) todas as ferramentas estão com
- * status "em-breve": a arquitetura e o catálogo já existem, mas a lógica de
- * cálculo de cada ferramenta será implementada em etapas futuras.
+ * A maior parte das ferramentas ainda está com status "em-breve": a
+ * arquitetura e o catálogo já existem, mas a lógica de cálculo será
+ * implementada em etapas futuras. Cada ferramenta muda para "ativo" (e só
+ * então ganha uma interface real) na etapa em que é implementada — ver
+ * components/tools/tool-registry.tsx para o componente real de cada uma.
  *
  * O status também controla a indexação da ferramenta pelos buscadores — ver
  * lib/seo/publish.ts para a regra central. Resumo:
@@ -181,16 +183,16 @@ export const tools: Tool[] = [
   // EMPRESA
   {
     id: "gerador-recibo",
-    name: "Gerador de Recibo",
+    name: "Gerador de Recibo Online Grátis",
     shortName: "Gerador de Recibo",
     slug: "gerador-recibo",
     category: "empresa",
     description:
-      "Gere recibos de pagamento simples e organizados, prontos para impressão ou PDF.",
+      "Crie recibos online gratuitamente. Preencha os dados do pagamento, gere seu recibo e imprima ou salve em PDF diretamente no navegador.",
     keywords: ["recibo", "gerador de recibo", "comprovante de pagamento"],
     icon: "receipt",
     relatedTools: ["gerador-orcamento", "custo-funcionario"],
-    status: "em-breve",
+    status: "ativo",
   },
   {
     id: "gerador-orcamento",
