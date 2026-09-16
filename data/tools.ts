@@ -141,17 +141,27 @@ export const tools: Tool[] = [
     status: "em-breve",
   },
   {
+    // Nota (ETAPA 4): este era o item "Comparador SAC x Price" do catálogo
+    // (slug "sac-x-price", ainda "em-breve"). A ETAPA 4 pediu exatamente a
+    // rota /utilitarios/financeiro/financiamento-sac-price — como as duas
+    // entradas descreveriam a mesma ferramenta (o mesmo simulador SAC x
+    // Price), o slug/nome/descrição deste item existente foram atualizados
+    // para a rota pedida, em vez de criar um segundo item duplicado no
+    // catálogo. O `id` foi mantido para não quebrar relatedTools de outras
+    // ferramentas que já referenciavam "sac-x-price". Como o item ainda
+    // estava "em-breve" (não indexado, fora do sitemap), a troca de slug
+    // não quebra nenhum link já publicado.
     id: "sac-x-price",
-    name: "Comparador SAC x Price",
+    name: "Simulador de Financiamento SAC x Price",
     shortName: "SAC x Price",
-    slug: "sac-x-price",
+    slug: "financiamento-sac-price",
     category: "financeiro",
     description:
-      "Compare os sistemas de amortização SAC e Price para escolher o mais vantajoso para você.",
-    keywords: ["sac", "price", "amortização", "financiamento", "comparador"],
+      "Simule financiamentos pelos sistemas SAC e Price, compare parcelas, juros, valor total e evolução do saldo devedor.",
+    keywords: ["sac", "price", "amortização", "financiamento", "simulador"],
     icon: "scale",
     relatedTools: ["financiamento-veiculo", "juros-compostos"],
-    status: "em-breve",
+    status: "ativo",
   },
   {
     id: "parcelamento",

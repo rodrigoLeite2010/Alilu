@@ -115,4 +115,61 @@ export const toolContent: Record<
       },
     ],
   },
+  // Chave = tool.id ("sac-x-price"), não o slug — ver comentário
+  // equivalente em components/tools/tool-registry.tsx.
+  "sac-x-price": {
+    contentSections: [
+      {
+        title: "O que é Tabela Price?",
+        body: "A Tabela Price é um sistema de amortização em que a prestação é constante do início ao fim do financiamento. No começo, a maior parte da prestação é juros; com o tempo, a parcela de amortização cresce e a de juros diminui, mas o valor total pago por mês não muda.",
+      },
+      {
+        title: "O que é SAC?",
+        body: "No SAC (Sistema de Amortização Constante), a amortização é sempre a mesma a cada parcela. Como os juros incidem sobre um saldo devedor que diminui mais rápido, a prestação começa mais alta e vai caindo mês a mês até o fim do financiamento.",
+      },
+      {
+        title: "Qual a diferença entre SAC e Price?",
+        body: "No Price, a prestação é fixa e a amortização cresce aos poucos. No SAC, a amortização é fixa e a prestação cai aos poucos. Para o mesmo valor financiado, taxa e prazo, o SAC costuma gerar menos juros totais (porque amortiza mais rápido no início), mas exige uma parcela inicial mais alta. A melhor opção depende da sua capacidade de pagamento em cada momento — esta ferramenta não indica um sistema como \"melhor\", apenas mostra as diferenças matemáticas.",
+      },
+      {
+        title: "Como a taxa de juros influencia o financiamento?",
+        body: "Quanto maior a taxa de juros, maior o total pago em ambos os sistemas, e maior também a diferença entre as prestações inicial e final do SAC. Se você informar uma taxa anual, ela é convertida para a taxa mensal equivalente antes da simulação, e não simplesmente dividida por 12.",
+      },
+      {
+        title: "Como funciona esta simulação?",
+        body: "Você informa o valor do bem, uma entrada opcional, a taxa de juros e o número de parcelas. O valor financiado (valor do bem menos a entrada) é simulado pelo sistema escolhido — Price, SAC ou os dois lado a lado — mostrando parcela inicial e final, total pago, total de juros, o gráfico de evolução do saldo devedor e a tabela de amortização completa. É uma simulação matemática: financiamentos reais podem incluir tarifas, seguros, impostos, o Custo Efetivo Total (CET) e outras condições não consideradas aqui.",
+      },
+    ],
+    faq: [
+      {
+        question: "SAC ou Price: qual é melhor?",
+        answer:
+          "Não existe um sistema sempre melhor. O SAC costuma gerar menos juros totais, mas a primeira parcela é mais alta; o Price tem prestação fixa, mais previsível. A escolha depende da sua situação financeira.",
+      },
+      {
+        question: "Os resultados incluem tarifas, seguros ou o CET?",
+        answer:
+          "Não. Esta é uma simulação apenas dos sistemas de amortização SAC e Price. Financiamentos reais podem ter tarifas, seguros, impostos e outras condições que mudam o custo total.",
+      },
+      {
+        question: "Os meus dados ficam armazenados?",
+        answer:
+          "Não. Todo o cálculo acontece no seu navegador; nenhum valor digitado é enviado ou guardado pela Alilu.",
+      },
+      {
+        question: "Posso simular sem entrada?",
+        answer: "Sim, a entrada é opcional — deixe o campo em branco ou zerado.",
+      },
+      {
+        question: "Posso comparar os dois sistemas ao mesmo tempo?",
+        answer:
+          "Sim. Escolha \"Comparar os dois\" no campo Sistema para ver Price e SAC lado a lado.",
+      },
+      {
+        question: "Posso usar taxa anual em vez de mensal?",
+        answer:
+          "Sim. Escolha \"Anual\" no tipo da taxa que a conversão para a taxa mensal equivalente é feita automaticamente.",
+      },
+    ],
+  },
 };

@@ -6,6 +6,8 @@ import robots from "@/app/robots";
 import { categories, getCategoryById } from "@/data/categories";
 import { getToolBySlug, getToolsByCategory, tools, type Tool } from "@/data/tools";
 import { SITE_URL } from "@/lib/seo/site";
+import { toolComponents } from "@/components/tools/tool-registry";
+import { toolContent } from "@/components/tools/tool-content";
 
 /**
  * Testes de comportamento da regra central de SEO "em-breve" x "ativo"
@@ -192,4 +194,81 @@ describe("H) Calculadora de Juros Compostos (ETAPA 3) — segunda ferramenta ati
     expect(receipt?.status).toBe("ativo");
     expect(getToolRobotsMeta(receipt!)).toEqual({ index: true, follow: true });
   });
+});
+
+describe("I) Simulador de Financiamento SAC x Price (ETAPA 4) — terceira ferramenta ativa", () => {
+  const financing = getToolBySlug("financeiro", "financiamento-sac-price");
+
+  it("está com status ativo no catálogo", () => {
+    expect(financing?.status).toBe("ativo");
+  });
+
+  it("permite indexação (index: true, follow: true)", () => {
+    expect(financing).toBeDefined();
+    expect(getToolRobotsMeta(financing!)).toEqual({ index: true, follow: true });
+  });
+
+  it("aparece no sitemap", () => {
+    const entries = sitemap();
+    const url = `${SITE_URL}/utilitarios/financeiro/financiamento-sac-price`;
+    expect(entries.some((entry) => entry.url === url)).toBe(true);
+  });
+
+  it("o financiamento de veículo continua em-breve (não foi implementado nesta etapa)", () => {
+    const financiamentoVeiculo = getToolBySlug("financeiro", "financiamento-veiculo");
+    expect(financiamentoVeiculo?.status).toBe("em-breve");
+    expect(getToolRobotsMeta(financiamentoVeiculo!)).toEqual({
+      index: false,
+      follow: true,
+    });
+  });
+
+  it("o Gerador de Recibo e a Calculadora de Juros Compostos continuam ativos (regressão)", () => {
+    const receipt = getToolBySlug("empresa", "gerador-recibo");
+    const compoundInterest = getToolBySlug("financeiro", "juros-compostos");
+    expect(receipt?.status).toBe("ativo");
+    expect(compoundInterest?.status).toBe("ativo");
+  });
+
+  it("está registrada em tool-registry/tool-content pela chave correta (tool.id)", () => {
+    // Regressão da correção pré-commit da ETAPA 4: o registro estava
+    // indexado pelo slug ("financiamento-sac-price") em vez de tool.id
+    // ("sac-x-price"), que é a chave que a página real
+    // (app/utilitarios/[categoria]/[ferramenta]/page.tsx) usa para buscar o
+    // componente e o conteúdo — a ferramenta ficava "ativa" e indexável,
+    // mas exibia o aviso "Em breve" em vez da calculadora.
+    expect(financing).toBeDefined();
+    expect(toolComponents[financing!.id]).toBeDefined();
+    expect(toolContent[financing!.id]).toBeDefined();
+  });
+});
+
+describe("J) toda ferramenta ativa tem componente e conteúdo registrados por tool.id", () => {
+  // Verificação geral (não específica de uma etapa): a página real
+  // (app/utilitarios/[categoria]/[ferramenta]/page.tsx) busca o componente
+  // e o conteúdo de uma ferramenta por `tool.id`, não por `tool.slug`. Uma
+  // ferramenta "ativa" sem essa chave correta fica indexável no sitemap,
+  // mas mostra o aviso genérico "Em breve" em vez da calculadora real — o
+  // exato bug encontrado pela auditoria da ETAPA 4. Este teste garante que
+  // isso nunca passe despercebido para nenhuma ferramenta ativa, presente
+  // ou futura.
+  const activeTools = tools.filter((tool) => tool.status === "ativo");
+
+  it("existe pelo menos uma ferramenta ativa (checagem de sanidade do próprio teste)", () => {
+    expect(activeTools.length).toBeGreaterThan(0);
+  });
+
+  it.each(activeTools.map((tool) => [tool.id, tool] as const))(
+    "%s possui componente registrado em tool-registry.tsx pela chave tool.id",
+    (id) => {
+      expect(toolComponents[id]).toBeDefined();
+    }
+  );
+
+  it.each(activeTools.map((tool) => [tool.id, tool] as const))(
+    "%s possui conteúdo/FAQ registrado em tool-content.tsx pela chave tool.id",
+    (id) => {
+      expect(toolContent[id]).toBeDefined();
+    }
+  );
 });
