@@ -57,6 +57,7 @@ import {
   Eraser,
   WrapText,
   Wifi,
+  House,
   type LucideIcon,
 } from "lucide-react";
 
@@ -124,6 +125,7 @@ const iconMap: Record<string, LucideIcon> = {
   eraser: Eraser,
   "wrap-text": WrapText,
   wifi: Wifi,
+  home: House,
 };
 
 export interface IconProps {

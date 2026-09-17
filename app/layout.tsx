@@ -4,6 +4,7 @@ import Script from "next/script";
 import "./globals.css";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
+import { SiteSidebar } from "@/components/navigation/SiteNav";
 import { SITE_DESCRIPTION, SITE_NAME, SITE_TITLE_TEMPLATE, SITE_URL } from "@/lib/seo/site";
 
 /**
@@ -64,7 +65,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           strategy="beforeInteractive"
         />
         <Header />
-        <main className="flex-1">{children}</main>
+        <div className="flex min-h-0 flex-1">
+          <SiteSidebar />
+          <main className="min-w-0 flex-1">{children}</main>
+        </div>
         <Footer />
       </body>
     </html>

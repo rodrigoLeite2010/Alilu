@@ -28,6 +28,13 @@ body {
   font-family: var(--font-sans), Arial, Helvetica, sans-serif;
 }
 
+/* Evita que a barra de rolagem do painel lateral desloque o conteúdo ao abrir. */
+@media (min-width: 1280px) {
+  html {
+    scrollbar-gutter: stable;
+  }
+}
+
 /*
  * Estilo simples para conteúdo textual longo (páginas legais, "sobre").
  * Escrito à mão para não depender do plugin @tailwindcss/typography.
