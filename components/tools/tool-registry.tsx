@@ -22,6 +22,29 @@ import { QuoteTool } from "@/components/tools/quote/QuoteTool";
 import { CpfGeneratorTool } from "@/components/tools/cpf-generator/CpfGeneratorTool";
 import { CnpjGeneratorTool } from "@/components/tools/cnpj-generator/CnpjGeneratorTool";
 import { CreditCardGeneratorTool } from "@/components/tools/credit-card-generator/CreditCardGeneratorTool";
+import { PisPasepGeneratorTool } from "@/components/tools/pis-pasep-generator/PisPasepGeneratorTool";
+import { RenavamGeneratorTool } from "@/components/tools/renavam-generator/RenavamGeneratorTool";
+import { CnhGeneratorTool } from "@/components/tools/cnh-generator/CnhGeneratorTool";
+import { VoterIdGeneratorTool } from "@/components/tools/voter-id-generator/VoterIdGeneratorTool";
+import { LicensePlateGeneratorTool } from "@/components/tools/license-plate-generator/LicensePlateGeneratorTool";
+import { PasswordGeneratorTool } from "@/components/tools/password-generator/PasswordGeneratorTool";
+import { RandomNumberGeneratorTool } from "@/components/tools/random-number-generator/RandomNumberGeneratorTool";
+import { NumberDrawTool } from "@/components/tools/number-draw/NumberDrawTool";
+import { NameGeneratorTool } from "@/components/tools/name-generator/NameGeneratorTool";
+import { CepGeneratorTool } from "@/components/tools/cep-generator/CepGeneratorTool";
+import { RgGeneratorTool } from "@/components/tools/rg-generator/RgGeneratorTool";
+import { BankAccountGeneratorTool } from "@/components/tools/bank-account-generator/BankAccountGeneratorTool";
+import { VehicleGeneratorTool } from "@/components/tools/vehicle-generator/VehicleGeneratorTool";
+import { StateTaxIdGeneratorTool } from "@/components/tools/state-tax-id-generator/StateTaxIdGeneratorTool";
+import { PersonGeneratorTool } from "@/components/tools/person-generator/PersonGeneratorTool";
+import { CompanyGeneratorTool } from "@/components/tools/company-generator/CompanyGeneratorTool";
+import { NicknameGeneratorTool } from "@/components/tools/nickname-generator/NicknameGeneratorTool";
+import { FancyTextGeneratorTool } from "@/components/tools/fancy-text-generator/FancyTextGeneratorTool";
+import { SymbolPickerTool } from "@/components/tools/symbol-picker/SymbolPickerTool";
+import { LoremIpsumGeneratorTool } from "@/components/tools/lorem-ipsum-generator/LoremIpsumGeneratorTool";
+import { ResumeBuilderTool } from "@/components/tools/resume-builder/ResumeBuilderTool";
+import { CertificateRegistryGeneratorTool } from "@/components/tools/certificate-registry-generator/CertificateRegistryGeneratorTool";
+import { PlaceholderImageGeneratorTool } from "@/components/tools/placeholder-image-generator/PlaceholderImageGeneratorTool";
 
 /**
  * Registro central que liga o id de uma ferramenta (data/tools.ts) ao
@@ -64,4 +87,30 @@ export const toolComponents: Record<string, ComponentType> = {
   "gerador-cpf": CpfGeneratorTool,
   "gerador-cnpj": CnpjGeneratorTool,
   "gerador-cartao-credito": CreditCardGeneratorTool,
+  // FASE B: geradores com algoritmo de dígito verificador real.
+  "gerador-pis-pasep": PisPasepGeneratorTool,
+  "gerador-renavam": RenavamGeneratorTool,
+  "gerador-cnh": CnhGeneratorTool,
+  "gerador-titulo-eleitor": VoterIdGeneratorTool,
+  "gerador-placa-veiculo": LicensePlateGeneratorTool,
+  "gerador-senha": PasswordGeneratorTool,
+  "gerador-numeros-aleatorios": RandomNumberGeneratorTool,
+  "sorteador-numeros": NumberDrawTool,
+  // FASE C: geradores de dados fictícios base.
+  "gerador-nomes": NameGeneratorTool,
+  "gerador-cep": CepGeneratorTool,
+  "gerador-rg": RgGeneratorTool,
+  "gerador-conta-bancaria": BankAccountGeneratorTool,
+  "gerador-veiculo": VehicleGeneratorTool,
+  "gerador-inscricao-estadual": StateTaxIdGeneratorTool,
+  // FASE D: geradores compostos e utilidades de texto.
+  "gerador-pessoas": PersonGeneratorTool,
+  "gerador-empresas": CompanyGeneratorTool,
+  "gerador-nicks": NicknameGeneratorTool,
+  "gerador-letras-diferentes": FancyTextGeneratorTool,
+  "simbolos-para-copiar": SymbolPickerTool,
+  "gerador-lorem-ipsum": LoremIpsumGeneratorTool,
+  "gerador-curriculo": ResumeBuilderTool,
+  "gerador-certidao": CertificateRegistryGeneratorTool,
+  "gerador-imagem": PlaceholderImageGeneratorTool,
 };

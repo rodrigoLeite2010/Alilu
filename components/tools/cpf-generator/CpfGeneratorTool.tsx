@@ -14,7 +14,8 @@ import {
 } from "@/lib/calculators/cpf-generator";
 
 /**
- * Componente principal do Gerador de CPF (ETAPA 3 da categoria Devs). Toda
+ * Componente principal do Gerador de CPF (ETAPA 3 da categoria Geradores,
+ * ex-"Devs"). Toda
  * a geração acontece 100% no navegador do usuário — nenhum valor gerado é
  * enviado para servidor algum, armazenado ou registrado em log.
  *

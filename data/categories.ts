@@ -5,7 +5,12 @@
  * e SEO devem sempre ler daqui — nunca duplicar esses dados em componentes.
  */
 
-export type CategoryId = "trabalho" | "financeiro" | "empresa" | "outros" | "devs";
+export type CategoryId =
+  | "trabalho"
+  | "financeiro"
+  | "empresa"
+  | "outros"
+  | "geradores";
 
 export interface Category {
   /** Identificador estável, também usado como slug de URL (/utilitarios/[slug]) */
@@ -48,11 +53,16 @@ export const categories: Category[] = [
     icon: "sparkles",
   },
   {
-    id: "devs",
-    name: "Devs",
+    // Antiga categoria "Devs" (id "devs"): renomeada para "Geradores" para
+    // acolher um catálogo bem mais amplo de geradores de dados sintéticos,
+    // textos, números e símbolos — não só ferramentas voltadas a devs/QA.
+    // As 3 ferramentas que já existiam aqui (CPF, CNPJ, Cartão de Crédito)
+    // foram preservadas, só passando a apontar para o novo id de categoria.
+    id: "geradores",
+    name: "Geradores",
     description:
-      "Ferramentas gratuitas para desenvolvedores e profissionais de QA. Gere dados sintéticos para testar formulários, máscaras e validações.",
-    icon: "terminal",
+      "Ferramentas gratuitas para gerar dados sintéticos, textos, números, símbolos e informações úteis para testes, produtividade e uso no dia a dia.",
+    icon: "dices",
   },
 ];
 

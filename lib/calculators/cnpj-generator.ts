@@ -1,6 +1,6 @@
 /**
  * Geração de CNPJs SINTÉTICOS para testes de desenvolvimento e QA (ETAPA 4
- * da categoria Devs). Mantido isolado da interface (PROMPT MESTRE, seção
+ * da categoria Geradores, ex-"Devs"). Mantido isolado da interface (PROMPT MESTRE, seção
  * 14). NUNCA consulta cadastros empresariais da Receita Federal — os
  * números são apenas matematicamente válidos, o que não comprova cadastro
  * ou existência de empresa alguma.
@@ -37,6 +37,8 @@
  * (`calculateCnpjCheckDigits`) cobre os dois formatos.
  */
 
+import { secureRandomInt } from "@/lib/random/secure-random";
+
 /** Quantidade máxima de CNPJs que podem ser gerados em um único lote. */
 export const CNPJ_GENERATOR_MAX_BATCH = 100;
 
@@ -56,32 +58,6 @@ export interface CnpjGeneratorFieldErrors {
 
 const NUMERIC_CHARSET = "0123456789";
 const ALPHANUMERIC_CHARSET = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-
-/** Sorteia um índice inteiro em [0, maxExclusive) usando crypto.getRandomValues. */
-function secureRandomInt(maxExclusive: number): number {
-  if (!Number.isInteger(maxExclusive) || maxExclusive <= 0) {
-    throw new Error("maxExclusive deve ser um inteiro positivo.");
-  }
-
-  const cryptoObj = globalThis.crypto;
-  if (!cryptoObj || typeof cryptoObj.getRandomValues !== "function") {
-    throw new Error(
-      "API Web Crypto (crypto.getRandomValues) indisponível neste ambiente."
-    );
-  }
-
-  const maxUint32 = 0xffffffff;
-  const limit = maxUint32 - (maxUint32 % maxExclusive);
-  const array = new Uint32Array(1);
-
-  let value: number;
-  do {
-    cryptoObj.getRandomValues(array);
-    value = array[0];
-  } while (value > limit);
-
-  return value % maxExclusive;
-}
 
 /** Converte um único caractere (0-9 ou A-Z) para seu valor na fórmula do DV. */
 function charValue(char: string): number {

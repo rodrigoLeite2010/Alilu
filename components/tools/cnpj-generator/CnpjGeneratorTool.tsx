@@ -15,7 +15,8 @@ import {
 } from "@/lib/calculators/cnpj-generator";
 
 /**
- * Componente principal do Gerador de CNPJ (ETAPA 4 da categoria Devs). Toda
+ * Componente principal do Gerador de CNPJ (ETAPA 4 da categoria Geradores,
+ * ex-"Devs"). Toda
  * a geração acontece 100% no navegador do usuário — nenhum valor gerado é
  * enviado para servidor algum, armazenado ou registrado em log.
  *

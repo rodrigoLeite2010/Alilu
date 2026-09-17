@@ -682,6 +682,606 @@ export const toolContent: Record<
     ],
   },
 
+  "gerador-pis-pasep": {
+    contentSections: [
+      {
+        title: "Como funciona o Gerador de PIS/PASEP?",
+        body: "Os 10 primeiros dígitos são sorteados no seu navegador com crypto.getRandomValues, e o dígito verificador é calculado pelo mesmo algoritmo de módulo 11 usado pelo eSocial/CAGED para validar um NIT/PIS/PASEP — pesos [3,2,9,8,7,6,5,4,3,2] aplicados aos 10 dígitos-base.",
+      },
+      {
+        title: "Para que serve gerar um PIS/PASEP de teste?",
+        body: "Para testar máscaras de formulário, validações de cadastro de funcionários e integrações com sistemas de folha de pagamento em ambientes de desenvolvimento — sempre com números que não pertencem a nenhum trabalhador real.",
+      },
+      {
+        title: "O PIS/PASEP gerado é real?",
+        body: "Não. A ferramenta não consulta a Caixa Econômica Federal nem o eSocial — o número apenas passa na conta matemática do dígito verificador, o que não comprova que ele exista ou tenha sido emitido para alguém.",
+      },
+    ],
+    faq: [
+      {
+        question: "Os números gerados ficam armazenados?",
+        answer:
+          "Não. Toda a geração acontece no seu navegador; nenhum número é enviado, salvo ou registrado em log pela Alilu.",
+      },
+      {
+        question: "Posso gerar vários PIS/PASEP de uma vez?",
+        answer: "Sim, em lote de até 100 por vez, com a opção de copiar todos de uma vez ou individualmente.",
+      },
+      {
+        question: "O dígito verificador segue o mesmo cálculo do sistema real?",
+        answer:
+          "Sim, é o mesmo algoritmo público de módulo 11 usado para validar um PIS/PASEP — o que muda é que os 10 dígitos-base são sorteados, não vinculados a nenhum trabalhador.",
+      },
+    ],
+  },
+
+  "gerador-renavam": {
+    contentSections: [
+      {
+        title: "Como funciona o Gerador de RENAVAM?",
+        body: "Os 10 primeiros dígitos são sorteados no seu navegador com crypto.getRandomValues, e o dígito verificador é calculado pelo algoritmo documentado publicamente para o RENAVAM (pesos [2,3,4,5,6,7,8,9,2,3] aplicados aos dígitos invertidos).",
+      },
+      {
+        title: "Para que serve gerar um RENAVAM de teste?",
+        body: "Para testar máscaras de formulário e validações em sistemas de cadastro de veículos, seguros e financiamentos, em ambientes de desenvolvimento — sempre com números que não correspondem a nenhum veículo real.",
+      },
+      {
+        title: "O RENAVAM gerado é real?",
+        body: "Não. A ferramenta não consulta o DETRAN nem a Base Índice Nacional de Veículos — o número apenas passa na conta matemática do dígito verificador, o que não comprova a existência de um veículo real.",
+      },
+    ],
+    faq: [
+      {
+        question: "Os números gerados ficam armazenados?",
+        answer:
+          "Não. Toda a geração acontece no seu navegador; nenhum número é enviado, salvo ou registrado em log pela Alilu.",
+      },
+      {
+        question: "Posso gerar vários RENAVAM de uma vez?",
+        answer: "Sim, em lote de até 100 por vez, com a opção de copiar todos de uma vez ou individualmente.",
+      },
+    ],
+  },
+
+  "gerador-cnh": {
+    contentSections: [
+      {
+        title: "Como funciona o Gerador de CNH?",
+        body: "Os 9 primeiros dígitos são sorteados no seu navegador com crypto.getRandomValues, e os 2 dígitos verificadores são calculados pelo algoritmo do DENATRAN reproduzido por validadores públicos de terceiros.",
+      },
+      {
+        title: "Para que serve gerar uma CNH de teste?",
+        body: "Para testar máscaras de formulário e validações em cadastros que pedem número de CNH (locadoras, aplicativos de transporte, seguradoras), em ambientes de desenvolvimento — sempre com números que não correspondem a nenhuma habilitação real.",
+      },
+      {
+        title: "A CNH gerada é real?",
+        body: "Não. A ferramenta não consulta o DENATRAN nem o RENACH — o número apenas passa na conta matemática dos dois dígitos verificadores, o que não comprova a existência de uma habilitação real.",
+      },
+    ],
+    faq: [
+      {
+        question: "Os números gerados ficam armazenados?",
+        answer:
+          "Não. Toda a geração acontece no seu navegador; nenhum número é enviado, salvo ou registrado em log pela Alilu.",
+      },
+      {
+        question: "Posso gerar várias CNH de uma vez?",
+        answer: "Sim, em lote de até 100 por vez, com a opção de copiar todas de uma vez ou individualmente.",
+      },
+    ],
+  },
+
+  "gerador-titulo-eleitor": {
+    contentSections: [
+      {
+        title: "Como funciona o Gerador de Título de Eleitor?",
+        body: "Você escolhe o estado (ou deixa sortear), a ferramenta sorteia 8 dígitos de sequencial com crypto.getRandomValues e calcula os 2 dígitos verificadores pelo algoritmo público do TSE, a partir do sequencial e do código da UF escolhida.",
+      },
+      {
+        title: "O gerador reproduz exatamente o sistema do TSE?",
+        body: "Quase: São Paulo e Minas Gerais já usam, no mundo real, um sequencial de 9 dígitos (por terem emitido mais de 99.999.999 títulos ao longo da história) — este gerador usa sempre 8 dígitos para todos os estados, o que é suficiente para testar máscaras e validações de formulário, mas não é uma cópia bit-a-bit do sistema oficial.",
+      },
+      {
+        title: "O título gerado é real?",
+        body: "Não. A ferramenta não consulta o TSE nem o cadastro de eleitores — o número apenas passa na conta matemática dos dois dígitos verificadores, o que não comprova a existência de um título real.",
+      },
+    ],
+    faq: [
+      {
+        question: "Os números gerados ficam armazenados?",
+        answer:
+          "Não. Toda a geração acontece no seu navegador; nenhum número é enviado, salvo ou registrado em log pela Alilu.",
+      },
+      {
+        question: "Posso escolher o estado (UF) do título gerado?",
+        answer: "Sim, selecione o estado desejado ou deixe em \"Sortear estado\" para uma UF aleatória.",
+      },
+    ],
+  },
+
+  "gerador-placa-veiculo": {
+    contentSections: [
+      {
+        title: "Como funciona o Gerador de Placa de Veículo?",
+        body: "Escolha o padrão Mercosul (3 letras, 1 número, 1 letra, 2 números — em vigor desde 2018) ou o padrão antigo (3 letras, 4 números, com hífen). Todos os caracteres são sorteados no seu navegador com crypto.getRandomValues.",
+      },
+      {
+        title: "As placas geradas correspondem a veículos reais?",
+        body: "Não. São combinações aleatórias de letras e números dentro do formato oficial — a ferramenta não consulta o DETRAN nem qualquer cadastro de veículos, e não garante que a combinação não esteja em uso por outro veículo.",
+      },
+    ],
+    faq: [
+      {
+        question: "As placas geradas ficam armazenadas?",
+        answer:
+          "Não. Toda a geração acontece no seu navegador; nenhuma placa é enviada, salva ou registrada em log pela Alilu.",
+      },
+      {
+        question: "Qual a diferença entre o padrão Mercosul e o antigo?",
+        answer:
+          "O padrão Mercosul (LLL0L00, ex.: ABC1D23) está em vigor desde 2018 e não usa hífen. O padrão antigo (LLL-0000, ex.: ABC-1234) foi usado no Brasil até a transição para o Mercosul.",
+      },
+    ],
+  },
+
+  "gerador-senha": {
+    contentSections: [
+      {
+        title: "Como funciona o Gerador de Senha?",
+        body: "Escolha o tamanho e quais tipos de caractere incluir (maiúsculas, minúsculas, números e símbolos). A senha é montada no seu navegador com crypto.getRandomValues, garantindo pelo menos 1 caractere de cada tipo selecionado e embaralhando o resultado.",
+      },
+      {
+        title: "Como é calculada a força da senha?",
+        body: "Por uma estimativa de entropia (tamanho da senha × log2 do tamanho do alfabeto disponível). É um indicador rápido, não uma análise completa contra dicionários de senhas vazadas — para contas importantes, prefira sempre o tamanho máximo com todos os tipos de caractere habilitados.",
+      },
+    ],
+    faq: [
+      {
+        question: "As senhas geradas ficam armazenadas?",
+        answer:
+          "Não. Toda a geração acontece no seu navegador; nenhuma senha é enviada, salva ou registrada em log pela Alilu.",
+      },
+      {
+        question: "Qual tamanho de senha eu devo usar?",
+        answer:
+          "Quanto maior, melhor. Para a maioria dos serviços, recomenda-se pelo menos 12-16 caracteres com todos os tipos de caractere habilitados.",
+      },
+      {
+        question: "Posso usar a mesma senha em vários serviços?",
+        answer:
+          "Não é recomendado. Gere uma senha diferente para cada serviço e considere usar um gerenciador de senhas para guardá-las com segurança.",
+      },
+    ],
+  },
+
+  "gerador-numeros-aleatorios": {
+    contentSections: [
+      {
+        title: "Como funciona o Gerador de Números Aleatórios?",
+        body: "Informe o intervalo (mínimo e máximo) e a quantidade de números desejada. A geração usa crypto.getRandomValues no seu navegador, com a opção de permitir ou não números repetidos no resultado.",
+      },
+      {
+        title: "Qual a diferença para o Sorteador de Números?",
+        body: "Esta ferramenta é voltada para uso geral (testes, amostragens) e permite repetição por padrão. O Sorteador de Números é focado em sorteios/rifas e nunca repete um número no mesmo resultado, por padrão.",
+      },
+    ],
+    faq: [
+      {
+        question: "Os números gerados são realmente aleatórios?",
+        answer:
+          "Sim, usam a Web Crypto API (crypto.getRandomValues), uma fonte de aleatoriedade criptograficamente segura — não Math.random.",
+      },
+      {
+        question: "Os números gerados ficam armazenados?",
+        answer:
+          "Não. Toda a geração acontece no seu navegador; nenhum número é enviado, salvo ou registrado em log pela Alilu.",
+      },
+    ],
+  },
+
+  "sorteador-numeros": {
+    contentSections: [
+      {
+        title: "Como funciona o Sorteador de Números?",
+        body: "Informe o intervalo (mínimo e máximo) e quantos números sortear. Por padrão, cada número sorteado aparece uma única vez no resultado — ideal para rifas, bingos e sorteios entre grupos de pessoas. A geração usa crypto.getRandomValues no seu navegador.",
+      },
+      {
+        title: "Posso sortear com números repetidos?",
+        body: "Sim, marque a opção \"Permitir números repetidos no sorteio\" se o seu caso de uso precisar disso (por padrão, ela fica desmarcada, para o comportamento típico de um sorteio/rifa).",
+      },
+    ],
+    faq: [
+      {
+        question: "O sorteio é justo?",
+        answer:
+          "Sim. Cada número dentro do intervalo tem a mesma probabilidade de ser sorteado, usando a Web Crypto API (crypto.getRandomValues) com amostragem sem viés.",
+      },
+      {
+        question: "Os resultados do sorteio ficam armazenados?",
+        answer:
+          "Não. Todo o sorteio acontece no seu navegador; nenhum resultado é enviado, salvo ou registrado em log pela Alilu.",
+      },
+    ],
+  },
+
+  "gerador-nomes": {
+    contentSections: [
+      {
+        title: "Como funciona o Gerador de Nomes?",
+        body: "Escolha o tipo (nome completo ou só o primeiro nome), o gênero e, para nome completo, quantos sobrenomes incluir. O nome é montado no seu navegador combinando um primeiro nome e sobrenome(s) sorteados de listas comuns no Brasil.",
+      },
+      {
+        title: "Os nomes gerados pertencem a pessoas reais?",
+        body: "Não. São combinações aleatórias de primeiro nome + sobrenome(s) a partir de listas de nomes comuns — qualquer coincidência com uma pessoa real é possível (nomes comuns se repetem), mas não é intencional nem baseada em nenhum cadastro real.",
+      },
+    ],
+    faq: [
+      {
+        question: "Os nomes gerados ficam armazenados?",
+        answer:
+          "Não. Toda a geração acontece no seu navegador; nenhum nome é enviado, salvo ou registrado em log pela Alilu.",
+      },
+      {
+        question: "Posso gerar só o primeiro nome?",
+        answer: "Sim, selecione \"Somente primeiro nome\" no campo Tipo.",
+      },
+    ],
+  },
+
+  "gerador-cep": {
+    contentSections: [
+      {
+        title: "Como funciona o Gerador de CEP?",
+        body: "Os 8 dígitos são sorteados no seu navegador com crypto.getRandomValues, no formato de CEP (00000-000). Como um CEP não tem dígito verificador (é uma numeração administrativa dos Correios), não há uma conta de validade a aplicar — só o formato.",
+      },
+      {
+        title: "O CEP gerado corresponde a um endereço real?",
+        body: "Não é garantido. A ferramenta não consulta os Correios nem qualquer base de endereços — o número apenas segue o formato de CEP, útil para testar máscaras e validações de formulário.",
+      },
+    ],
+    faq: [
+      {
+        question: "Os CEPs gerados ficam armazenados?",
+        answer:
+          "Não. Toda a geração acontece no seu navegador; nenhum CEP é enviado, salvo ou registrado em log pela Alilu.",
+      },
+      {
+        question: "Posso gerar vários CEPs de uma vez?",
+        answer: "Sim, em lote de até 100 por vez, com a opção de copiar todos de uma vez ou individualmente.",
+      },
+    ],
+  },
+
+  "gerador-rg": {
+    contentSections: [
+      {
+        title: "Como funciona o Gerador de RG?",
+        body: "Os 8 dígitos-base são sorteados no seu navegador com crypto.getRandomValues, e o dígito verificador é calculado por um padrão ilustrativo de módulo 11 (o mesmo formato reproduzido por validadores públicos de terceiros para o padrão SSP-SP).",
+      },
+      {
+        title: "O RG segue o padrão oficial de todos os estados?",
+        body: "Não existe um padrão nacional único de RG: cada Secretaria de Segurança Pública estadual numera à sua própria maneira, sem um algoritmo unificado. Este gerador usa um formato ilustrativo apenas como estrutura plausível — não representa o padrão oficial de nenhum estado específico.",
+      },
+      {
+        title: "O RG gerado é real?",
+        body: "Não. A ferramenta não consulta nenhuma Secretaria de Segurança Pública — o número apenas segue o formato ilustrativo descrito acima.",
+      },
+    ],
+    faq: [
+      {
+        question: "Os RGs gerados ficam armazenados?",
+        answer:
+          "Não. Toda a geração acontece no seu navegador; nenhum número é enviado, salvo ou registrado em log pela Alilu.",
+      },
+      {
+        question: "Posso gerar vários RG de uma vez?",
+        answer: "Sim, em lote de até 100 por vez, com a opção de copiar todos de uma vez ou individualmente.",
+      },
+    ],
+  },
+
+  "gerador-conta-bancaria": {
+    contentSections: [
+      {
+        title: "Como funciona o Gerador de Conta Bancária?",
+        body: "Escolha o banco (ou deixe sortear) e o tipo de conta. Agência (4 dígitos), conta (7 dígitos) e dígito verificador são sorteados no seu navegador com crypto.getRandomValues.",
+      },
+      {
+        title: "O dígito verificador segue o algoritmo real do banco?",
+        body: "Não. Cada banco usa um algoritmo interno e não público para calcular o dígito da conta — por isso esta ferramenta não reproduz o padrão oficial de nenhum banco. Os nomes de banco servem apenas como rótulo de exemplo para testar um campo \"banco\" de formulário.",
+      },
+    ],
+    faq: [
+      {
+        question: "Os dados gerados ficam armazenados?",
+        answer:
+          "Não. Toda a geração acontece no seu navegador; nenhum dado é enviado, salvo ou registrado em log pela Alilu.",
+      },
+      {
+        question: "Posso escolher o banco?",
+        answer: "Sim, selecione um banco específico ou deixe em \"Sortear banco\".",
+      },
+    ],
+  },
+
+  "gerador-veiculo": {
+    contentSections: [
+      {
+        title: "Como funciona o Gerador de Veículos?",
+        body: "Marca e modelo são sorteados de uma lista de veículos populares no mercado brasileiro, junto com ano, cor, categoria (Hatch, Sedã, SUV, Picape) e tipo de combustível — tudo no seu navegador com crypto.getRandomValues.",
+      },
+      {
+        title: "Qual a diferença para o Gerador de Placa de Veículo?",
+        body: "Esta ferramenta gera dados gerais do veículo (marca, modelo, ano, cor). Para gerar uma placa fictícia no padrão Mercosul ou antigo, use o Gerador de Placa de Veículo.",
+      },
+      {
+        title: "Os dados gerados correspondem a um veículo real?",
+        body: "Não. São combinações fictícias — a ferramenta não consulta o DETRAN nem qualquer cadastro real de veículos.",
+      },
+    ],
+    faq: [
+      {
+        question: "Os veículos gerados ficam armazenados?",
+        answer:
+          "Não. Toda a geração acontece no seu navegador; nenhum dado é enviado, salvo ou registrado em log pela Alilu.",
+      },
+      {
+        question: "Posso gerar vários veículos de uma vez?",
+        answer: "Sim, em lote de até 100 por vez, com a opção de copiar todos de uma vez ou individualmente.",
+      },
+    ],
+  },
+
+  "gerador-inscricao-estadual": {
+    contentSections: [
+      {
+        title: "Como funciona o Gerador de Inscrição Estadual?",
+        body: "Escolha o estado (UF) ou deixe sortear. Os 9 dígitos são sorteados no seu navegador com crypto.getRandomValues, em um formato genérico — sem aplicar o algoritmo de dígito verificador oficial de nenhuma UF específica.",
+      },
+      {
+        title: "Por que o gerador não usa o algoritmo oficial de cada estado?",
+        body: "Cada um dos 26 estados + DF define seu próprio formato e algoritmo de dígito verificador de Inscrição Estadual, de forma independente — não existe uma Receita Estadual única como há para CPF/CNPJ na Receita Federal. Esta primeira versão entrega a estrutura escalável (seletor de UF + formato de 9 dígitos); o algoritmo oficial de uma UF específica pode ser adicionado depois.",
+      },
+    ],
+    faq: [
+      {
+        question: "Os números gerados ficam armazenados?",
+        answer:
+          "Não. Toda a geração acontece no seu navegador; nenhum número é enviado, salvo ou registrado em log pela Alilu.",
+      },
+      {
+        question: "O número gerado é válido para o estado escolhido?",
+        answer:
+          "Não segue o dígito verificador oficial de nenhum estado específico — é um formato genérico de 9 dígitos, útil para testar campos de formulário que aceitam o valor como texto livre.",
+      },
+    ],
+  },
+
+  "gerador-pessoas": {
+    contentSections: [
+      {
+        title: "Como funciona o Gerador de Pessoas?",
+        body: "Combina os geradores de nome, CPF, RG e CEP já existentes com data de nascimento, telefone e e-mail sintéticos, formando um perfil fictício completo — tudo sorteado no seu navegador com crypto.getRandomValues.",
+      },
+      {
+        title: "O perfil gerado é de uma pessoa real?",
+        body: "Não. É uma combinação de dados sintéticos — o CPF e o RG usam os mesmos geradores já documentados nesta plataforma, e o restante (nome, data de nascimento, telefone, e-mail) é apenas uma combinação plausível, sem consulta a nenhuma base de dados real.",
+      },
+    ],
+    faq: [
+      {
+        question: "Os dados gerados ficam armazenados?",
+        answer:
+          "Não. Toda a geração acontece no seu navegador; nenhum dado é enviado, salvo ou registrado em log pela Alilu.",
+      },
+      {
+        question: "Posso escolher o gênero da pessoa gerada?",
+        answer: "Sim, selecione \"Feminino\" ou \"Masculino\", ou deixe em \"Aleatório\".",
+      },
+    ],
+  },
+
+  "gerador-empresas": {
+    contentSections: [
+      {
+        title: "Como funciona o Gerador de Empresas?",
+        body: "Combina os geradores de CNPJ, Inscrição Estadual e CEP já existentes com nome fantasia, telefone e e-mail sintéticos, formando um perfil de empresa fictícia completo.",
+      },
+      {
+        title: "O perfil gerado é de uma empresa real?",
+        body: "Não. O CNPJ usa o mesmo gerador sintético já documentado nesta plataforma, e o nome fantasia é uma combinação aleatória de palavras genéricas — qualquer semelhança com uma empresa real é coincidência.",
+      },
+    ],
+    faq: [
+      {
+        question: "Os dados gerados ficam armazenados?",
+        answer:
+          "Não. Toda a geração acontece no seu navegador; nenhum dado é enviado, salvo ou registrado em log pela Alilu.",
+      },
+      {
+        question: "Posso gerar várias empresas de uma vez?",
+        answer: "Sim, em lote de até 50 por vez, com a opção de copiar todos de uma vez ou individualmente.",
+      },
+    ],
+  },
+
+  "gerador-nicks": {
+    contentSections: [
+      {
+        title: "Como funciona o Gerador de Nicks?",
+        body: "Combina uma palavra de uma lista de adjetivos com uma palavra de uma lista de substantivos (em inglês, estilo gamer), com número opcional no final — tudo sorteado no seu navegador.",
+      },
+      {
+        title: "O nick gerado está disponível na plataforma que eu quero usar?",
+        body: "Não é garantido. Esta ferramenta não consulta nenhuma base real de usuários — verifique a disponibilidade diretamente na plataforma desejada.",
+      },
+    ],
+    faq: [
+      {
+        question: "Os nicks gerados ficam armazenados?",
+        answer:
+          "Não. Toda a geração acontece no seu navegador; nenhum nick é enviado, salvo ou registrado em log pela Alilu.",
+      },
+      {
+        question: "Posso escolher o separador entre as palavras?",
+        answer: "Sim: nenhum, underline (_) ou ponto (.).",
+      },
+    ],
+  },
+
+  "gerador-letras-diferentes": {
+    contentSections: [
+      {
+        title: "Como funciona o Gerador de Letras Diferentes?",
+        body: "Digite um texto e veja, na hora, a versão dele em negrito, itálico, bolha, largura total, invertido, riscado e sublinhado — usando blocos especiais do Unicode. Nenhuma fonte nova é instalada: são caracteres Unicode que qualquer app ou site já exibe.",
+      },
+      {
+        title: "Por que algumas letras não mudam?",
+        body: "Alguns estilos (como itálico) não têm uma versão Unicode para números — nesse caso, os números aparecem no formato normal, misturados com as letras estilizadas.",
+      },
+      {
+        title: "O texto digitado fica salvo?",
+        body: "Não. Toda a conversão acontece no seu navegador; o texto que você digita nunca é enviado, salvo ou registrado em log pela Alilu.",
+      },
+    ],
+    faq: [
+      {
+        question: "Funciona em qualquer rede social?",
+        answer:
+          "Na maioria. Como são caracteres Unicode (não uma fonte especial), funcionam em bios, posts e comentários de praticamente qualquer app — mas a aparência pode variar um pouco entre dispositivos.",
+      },
+      {
+        question: "Posso copiar cada estilo separadamente?",
+        answer: "Sim, cada variação tem seu próprio botão \"Copiar\".",
+      },
+    ],
+  },
+
+  "simbolos-para-copiar": {
+    contentSections: [
+      {
+        title: "Como funciona o Símbolos para Copiar?",
+        body: "É um catálogo com símbolos comuns (setas, moedas, matemática, pontuação, formas e outros), organizados por categoria e pesquisáveis por nome. Clique em um símbolo para copiá-lo.",
+      },
+      {
+        title: "Os símbolos funcionam em qualquer lugar?",
+        body: "Na maioria dos apps e sites, sim — são caracteres Unicode padrão, não imagens. A aparência exata pode variar um pouco conforme a fonte do dispositivo.",
+      },
+    ],
+    faq: [
+      {
+        question: "Preciso estar online para usar depois de copiar?",
+        answer: "Não. Depois de copiado, o símbolo é só texto — pode ser colado em qualquer lugar, offline inclusive.",
+      },
+      {
+        question: "A busca funciona em português?",
+        answer: "Sim, cada símbolo tem um nome em português para facilitar a busca (ex.: \"seta para a direita\", \"coração\").",
+      },
+    ],
+  },
+
+  "gerador-lorem-ipsum": {
+    contentSections: [
+      {
+        title: "Como funciona o Gerador de Lorem Ipsum?",
+        body: "Escolha a unidade (palavras, frases ou parágrafos) e a quantidade. O texto é montado no seu navegador a partir do banco de palavras do Lorem Ipsum clássico, com crypto.getRandomValues.",
+      },
+      {
+        title: "O que é Lorem Ipsum?",
+        body: "É um texto de preenchimento (placeholder) usado há décadas em design e tipografia para simular o espaço que um texto real ocuparia, sem distrair com conteúdo legível.",
+      },
+    ],
+    faq: [
+      {
+        question: "O texto gerado tem algum significado?",
+        answer: "Não. É derivado do latim clássico e usado apenas para preencher espaço visualmente — não é um texto legível em nenhum idioma.",
+      },
+      {
+        question: "Posso gerar em parágrafos?",
+        answer: "Sim, escolha \"Parágrafos\" na unidade e a quantidade desejada.",
+      },
+    ],
+  },
+
+  "gerador-curriculo": {
+    contentSections: [
+      {
+        title: "Como funciona o Gerador de Currículo?",
+        body: "Preencha seus dados, experiências profissionais, formação e habilidades. Clique em \"Gerar currículo\" para ver a prévia pronta, e use \"Imprimir / Salvar PDF\" para imprimir ou salvar o arquivo em PDF pelo seu navegador.",
+      },
+      {
+        title: "Os meus dados ficam salvos?",
+        body: "Não. Assim como no Gerador de Recibo e no Gerador de Orçamento, todo o processamento acontece no seu navegador — nenhum dado do currículo é enviado ou armazenado pela Alilu.",
+      },
+    ],
+    faq: [
+      {
+        question: "Posso adicionar mais de uma experiência profissional?",
+        answer: "Sim, use o botão \"Adicionar experiência\" quantas vezes precisar (até o limite da ferramenta).",
+      },
+      {
+        question: "Posso baixar o currículo em PDF?",
+        answer:
+          "Sim. Use o botão \"Imprimir / Salvar PDF\" e escolha a opção de salvar em PDF na caixa de impressão do seu navegador.",
+      },
+      {
+        question: "Os meus dados ficam armazenados?",
+        answer: "Não. Todo o processamento acontece no seu navegador.",
+      },
+    ],
+  },
+
+  "gerador-certidao": {
+    contentSections: [
+      {
+        title: "Como funciona o Gerador de Certidões?",
+        body: "Escolha o tipo (nascimento, casamento ou óbito) e a quantidade. A ferramenta sorteia, no seu navegador, um número de 32 dígitos no comprimento total usado pela matrícula do registro civil brasileiro — nunca uma imagem ou documento.",
+      },
+      {
+        title: "O número gerado é válido?",
+        body: "Não é uma reprodução verificada da divisão oficial em blocos do CNJ (código do cartório, ano, tipo de livro etc.), nem inclui um dígito verificador oficial — é um número de 32 dígitos no comprimento certo, útil para testar campos de formulário que aceitam o valor como texto livre.",
+      },
+      {
+        title: "Esta ferramenta gera um documento de certidão?",
+        body: "Não, e nunca vai gerar. Só o número de matrícula em texto — nenhuma imagem, PDF ou layout que se pareça com uma certidão real é criado aqui.",
+      },
+    ],
+    faq: [
+      {
+        question: "Os números gerados ficam armazenados?",
+        answer:
+          "Não. Toda a geração acontece no seu navegador; nenhum número é enviado, salvo ou registrado em log pela Alilu.",
+      },
+      {
+        question: "Essa ferramenta consulta algum cartório?",
+        answer: "Não. Nenhuma consulta é feita à Central Nacional de Informações do Registro Civil nem a qualquer cartório.",
+      },
+    ],
+  },
+
+  "gerador-imagem": {
+    contentSections: [
+      {
+        title: "Como funciona o Gerador de Imagem?",
+        body: "Escolha a largura, a altura, a cor de fundo, a cor do texto e (opcionalmente) o texto a exibir. A imagem é desenhada no seu navegador usando a Canvas API — não é geração de imagem por inteligência artificial.",
+      },
+      {
+        title: "Para que serve uma imagem placeholder?",
+        body: "Para preencher o espaço de uma imagem em protótipos, layouts e páginas em desenvolvimento, antes de a imagem final estar pronta.",
+      },
+    ],
+    faq: [
+      {
+        question: "A imagem gerada fica salva em algum servidor?",
+        answer: "Não. A imagem é criada e baixada inteiramente no seu navegador.",
+      },
+      {
+        question: "Em que formato a imagem é baixada?",
+        answer: "Em PNG, pronta para usar em qualquer protótipo ou documento.",
+      },
+    ],
+  },
+
   "gerador-orcamento": {
     contentSections: [
       {

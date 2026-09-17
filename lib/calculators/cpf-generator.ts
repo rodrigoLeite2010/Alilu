@@ -1,6 +1,6 @@
 /**
  * Geração de CPFs SINTÉTICOS para testes de desenvolvimento e QA (ETAPA 3 da
- * categoria Devs). Mantido isolado da interface (PROMPT MESTRE, seção 14).
+ * categoria Geradores, ex-"Devs"). Mantido isolado da interface (PROMPT MESTRE, seção 14).
  *
  * IMPORTANTE: este arquivo NUNCA consulta a Receita Federal nem qualquer
  * base de dados de pessoas — os números gerados são aleatórios, calculados
@@ -10,8 +10,10 @@
  *
  * Os 9 primeiros dígitos são sorteados com `crypto.getRandomValues` (fonte
  * criptograficamente segura, disponível nativamente no navegador e no
- * runtime Node/Edge), nunca com `Math.random`.
+ * runtime Node/Edge), nunca com `Math.random` — ver lib/random/secure-random.ts.
  */
+
+import { secureRandomDigit } from "@/lib/random/secure-random";
 
 /** Quantidade máxima de CPFs que podem ser gerados em um único lote. */
 export const CPF_GENERATOR_MAX_BATCH = 100;
@@ -25,42 +27,6 @@ export interface CpfGeneratorInput {
 
 export interface CpfGeneratorFieldErrors {
   count?: string;
-}
-
-/**
- * Sorteia um índice inteiro em [0, maxExclusive) usando
- * `crypto.getRandomValues`, com rejection sampling para não introduzir viés
- * de módulo (evita, por exemplo, que valores 0-5 saiam com uma frequência
- * levemente maior que 6-9 quando maxExclusive não divide 2^32).
- */
-function secureRandomInt(maxExclusive: number): number {
-  if (!Number.isInteger(maxExclusive) || maxExclusive <= 0) {
-    throw new Error("maxExclusive deve ser um inteiro positivo.");
-  }
-
-  const cryptoObj = globalThis.crypto;
-  if (!cryptoObj || typeof cryptoObj.getRandomValues !== "function") {
-    throw new Error(
-      "API Web Crypto (crypto.getRandomValues) indisponível neste ambiente."
-    );
-  }
-
-  const maxUint32 = 0xffffffff;
-  const limit = maxUint32 - (maxUint32 % maxExclusive);
-  const array = new Uint32Array(1);
-
-  let value: number;
-  do {
-    cryptoObj.getRandomValues(array);
-    value = array[0];
-  } while (value > limit);
-
-  return value % maxExclusive;
-}
-
-/** Sorteia um único dígito (0-9) com fonte segura. */
-function secureRandomDigit(): number {
-  return secureRandomInt(10);
 }
 
 /** Retorna true quando todos os dígitos de um CPF completo são iguais. */

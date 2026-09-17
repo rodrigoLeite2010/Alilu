@@ -19,7 +19,7 @@ import {
 
 /**
  * Componente principal do Gerador de Cartão de Crédito de Teste (ETAPA 5 da
- * categoria Devs). Toda a geração acontece 100% no navegador — nenhum
+ * categoria Geradores, ex-"Devs"). Toda a geração acontece 100% no navegador — nenhum
  * número gerado é enviado, armazenado ou registrado em log.
  *
  * Esta ferramenta NUNCA gera validade (mês/ano) ou CVV — apenas o número
