@@ -565,6 +565,123 @@ export const toolContent: Record<
     ],
   },
 
+  "gerador-cpf": {
+    contentSections: [
+      {
+        title: "Como funciona o Gerador de CPF?",
+        body: "Os 9 primeiros dígitos são sorteados no seu navegador com crypto.getRandomValues (fonte criptograficamente segura, não Math.random) e os 2 dígitos verificadores são calculados pelo algoritmo oficial de módulo 11 — o mesmo usado para validar um CPF. Sequências totalmente repetidas, como 111.111.111-11, nunca são retornadas: se acontecer de sortear uma (extremamente raro), a ferramenta sorteia novamente.",
+      },
+      {
+        title: "Para que serve gerar um CPF de teste?",
+        body: "É útil para testar máscaras de formulário, mensagens de erro de validação, geração de massa de dados em ambientes de desenvolvimento/homologação e testes automatizados (QA) — sempre com números que não pertencem a nenhuma pessoa real.",
+      },
+      {
+        title: "O CPF gerado é real?",
+        body: "Não. A ferramenta não consulta a Receita Federal nem qualquer base de dados de pessoas — o número apenas passa na conta matemática do dígito verificador, o que não comprova que ele exista ou tenha sido emitido para alguém.",
+      },
+    ],
+    faq: [
+      {
+        question: "O CPF gerado pode coincidir com o de uma pessoa real?",
+        answer:
+          "Matematicamente é possível (existem só 11 dígitos), mas a ferramenta não usa, consulta nem tem acesso a nenhuma base de dados de pessoas — a geração é puramente aleatória e sem qualquer relação com CPFs reais emitidos.",
+      },
+      {
+        question: "Os CPFs gerados ficam armazenados?",
+        answer:
+          "Não. Toda a geração acontece no seu navegador; nenhum número gerado é enviado, salvo ou registrado em log pela Alilu.",
+      },
+      {
+        question: "Posso gerar vários CPFs de uma vez?",
+        answer:
+          "Sim, em lote de até 100 por vez, com a opção de copiar todos de uma vez ou individualmente.",
+      },
+      {
+        question: "Essa ferramenta serve para validar um CPF que eu já tenho?",
+        answer:
+          "Não, ela gera CPFs novos. Para validar um CPF existente, o campo de CPF/CNPJ usado em outras calculadoras do Alilu (como o Gerador de Recibo) já faz essa validação ao digitar.",
+      },
+    ],
+  },
+
+  "gerador-cnpj": {
+    contentSections: [
+      {
+        title: "Como funciona o Gerador de CNPJ?",
+        body: "Os 12 primeiros caracteres são sorteados no seu navegador com crypto.getRandomValues, e os 2 dígitos verificadores são calculados pelo algoritmo oficial de módulo 11 da Receita Federal — cada caractere entra na conta pelo seu valor numérico (dígitos 0-9 mantêm o próprio valor; letras A-Z valem de 17 a 42), o mesmo cálculo usado para validar um CNPJ.",
+      },
+      {
+        title: "O que é o CNPJ alfanumérico?",
+        body: "É o novo formato de CNPJ da Receita Federal (Instrução Normativa RFB nº 2.229/2024), que permite letras maiúsculas nos 12 primeiros caracteres além dos números — os 2 dígitos verificadores continuam sempre numéricos. CNPJs já existentes continuam válidos normalmente; o formato numérico tradicional não deixa de funcionar.",
+      },
+      {
+        title: "Para que serve gerar um CNPJ de teste?",
+        body: "Para testar máscaras de formulário preparadas para o novo formato alfanumérico, validações de cadastro de empresas, integrações e massa de dados em ambientes de desenvolvimento — sem usar o CNPJ de nenhuma empresa real.",
+      },
+    ],
+    faq: [
+      {
+        question: "O CNPJ alfanumérico já está em uso obrigatório?",
+        answer:
+          "A Receita Federal publicou o novo formato pela Instrução Normativa RFB nº 2.229/2024; consulte sempre a documentação oficial da Receita Federal para a data de vigência atualizada antes de decidir quando adaptar seus sistemas.",
+      },
+      {
+        question: "O CNPJ gerado corresponde a uma empresa real?",
+        answer:
+          "Não. Esta ferramenta não consulta cadastros empresariais — o número apenas passa na conta matemática do dígito verificador, o que não comprova cadastro ou existência de empresa alguma.",
+      },
+      {
+        question: "Os CNPJs gerados ficam armazenados?",
+        answer:
+          "Não. Toda a geração acontece no seu navegador; nenhum número gerado é enviado, salvo ou registrado em log pela Alilu.",
+      },
+      {
+        question: "Posso gerar CNPJ numérico e alfanumérico na mesma página?",
+        answer:
+          "Sim, escolha o tipo desejado no campo \"Tipo de CNPJ\" antes de gerar — os dois modos usam o mesmo gerador.",
+      },
+    ],
+  },
+
+  "gerador-cartao-credito": {
+    contentSections: [
+      {
+        title: "Como funciona o Gerador de Cartão de Crédito de Teste?",
+        body: "Escolha entre números de teste oficialmente documentados por processadores de pagamento (modo recomendado) ou números sintéticos gerados aleatoriamente no seu navegador, sempre validados pelo algoritmo de Luhn. Nenhuma validade (mês/ano) ou CVV é gerado — apenas o número do cartão.",
+      },
+      {
+        title: "Qual a diferença entre \"Teste oficial\" e \"Sintético\"?",
+        body: "\"Teste oficial\" retorna um dos números de teste publicamente documentados pelas bandeiras e processadores de pagamento (ex.: 4242 4242 4242 4242 para Visa), prontos para uso em ambientes de desenvolvimento que já reconhecem esses números. \"Sintético\" gera um número aleatório Luhn-válido, seguindo apenas o comprimento e o dígito de rede de cada bandeira — não corresponde a nenhuma faixa real de banco emissor e não é reconhecido por nenhum sandbox de pagamento.",
+      },
+      {
+        title: "O que é o algoritmo de Luhn?",
+        body: "É a fórmula matemática (soma ponderada com dígito verificador) usada pelas bandeiras de cartão para detectar erros de digitação. Um número Luhn-válido tem a estrutura correta de um número de cartão, mas isso não significa que ele tenha sido emitido por um banco, esteja ativo ou autorizado para qualquer transação.",
+      },
+    ],
+    faq: [
+      {
+        question: "Esses números funcionam em compras reais?",
+        answer:
+          "Não. São exclusivamente para testar máscaras de formulário e validações — não são cartões emitidos e não devem ser usados em transações reais.",
+      },
+      {
+        question: "A ferramenta gera validade e CVV também?",
+        answer:
+          "Não, nunca. Apenas o número do cartão é gerado, justamente para evitar montar uma combinação que pareça uma credencial completa de pagamento.",
+      },
+      {
+        question: "Os números sintéticos funcionam em sandboxes de pagamento?",
+        answer:
+          "Não é garantido. Só os números do modo \"Teste oficial\" são reconhecidos pelos processadores que os documentam publicamente. Para testar pagamentos de verdade, use sempre os cartões oficiais do ambiente sandbox do seu provedor.",
+      },
+      {
+        question: "Os números gerados ficam armazenados?",
+        answer:
+          "Não. Toda a geração acontece no seu navegador; nenhum número é enviado, salvo em analytics ou registrado em log pela Alilu.",
+      },
+    ],
+  },
+
   "gerador-orcamento": {
     contentSections: [
       {

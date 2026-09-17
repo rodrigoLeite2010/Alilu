@@ -27,6 +27,8 @@ import {
   X,
   ChevronRight,
   Wrench,
+  Terminal,
+  IdCard,
   type LucideIcon,
 } from "lucide-react";
 
@@ -64,6 +66,8 @@ const iconMap: Record<string, LucideIcon> = {
   close: X,
   "chevron-right": ChevronRight,
   wrench: Wrench,
+  terminal: Terminal,
+  "id-card": IdCard,
 };
 
 export interface IconProps {

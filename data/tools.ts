@@ -326,6 +326,69 @@ export const tools: Tool[] = [
     relatedTools: ["quanto-guardar-por-mes", "porcentagem"],
     status: "ativo",
   },
+
+  // DEVS
+  {
+    id: "gerador-cpf",
+    name: "Gerador de CPF para Testes",
+    shortName: "Gerador de CPF",
+    slug: "gerador-cpf",
+    category: "devs",
+    description:
+      "Gere números de CPF sintéticos, com dígitos verificadores matematicamente válidos, para testar formulários, máscaras e validações.",
+    keywords: [
+      "gerador de cpf",
+      "cpf para teste",
+      "cpf válido",
+      "cpf sintético",
+      "teste de formulário",
+      "qa",
+    ],
+    icon: "id-card",
+    relatedTools: ["gerador-cnpj", "gerador-cartao-credito"],
+    status: "ativo",
+  },
+  {
+    id: "gerador-cnpj",
+    name: "Gerador de CNPJ para Testes",
+    shortName: "Gerador de CNPJ",
+    slug: "gerador-cnpj",
+    category: "devs",
+    description:
+      "Gere números de CNPJ sintéticos, numérico ou alfanumérico, com dígitos verificadores corretos, para testar formulários e integrações.",
+    keywords: [
+      "gerador de cnpj",
+      "cnpj para teste",
+      "cnpj alfanumérico",
+      "cnpj válido",
+      "cnpj sintético",
+      "teste de formulário",
+      "qa",
+    ],
+    icon: "building",
+    relatedTools: ["gerador-cpf", "gerador-cartao-credito"],
+    status: "ativo",
+  },
+  {
+    id: "gerador-cartao-credito",
+    name: "Gerador de Cartão de Crédito de Teste",
+    shortName: "Cartão de Teste",
+    slug: "gerador-cartao-credito",
+    category: "devs",
+    description:
+      "Gere números de cartão sintéticos, válidos pelo algoritmo de Luhn, para testar máscaras e validações de formulário. Não são cartões reais.",
+    keywords: [
+      "gerador de cartão de crédito",
+      "cartão de teste",
+      "algoritmo de luhn",
+      "número de cartão para teste",
+      "teste de formulário",
+      "qa",
+    ],
+    icon: "credit-card",
+    relatedTools: ["gerador-cpf", "gerador-cnpj"],
+    status: "ativo",
+  },
 ];
 
 export function getToolBySlug(

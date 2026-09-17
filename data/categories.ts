@@ -5,7 +5,7 @@
  * e SEO devem sempre ler daqui — nunca duplicar esses dados em componentes.
  */
 
-export type CategoryId = "trabalho" | "financeiro" | "empresa" | "outros";
+export type CategoryId = "trabalho" | "financeiro" | "empresa" | "outros" | "devs";
 
 export interface Category {
   /** Identificador estável, também usado como slug de URL (/utilitarios/[slug]) */
@@ -46,6 +46,13 @@ export const categories: Category[] = [
     description:
       "Utilidades do dia a dia: dias úteis, porcentagem, QR Code, leitura de XML de NF-e e divisão de despesas.",
     icon: "sparkles",
+  },
+  {
+    id: "devs",
+    name: "Devs",
+    description:
+      "Ferramentas gratuitas para desenvolvedores e profissionais de QA. Gere dados sintéticos para testar formulários, máscaras e validações.",
+    icon: "terminal",
   },
 ];
 

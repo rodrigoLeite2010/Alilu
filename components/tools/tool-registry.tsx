@@ -19,6 +19,9 @@ import { SeveranceTool } from "@/components/tools/severance/SeveranceTool";
 import { QrCodeTool } from "@/components/tools/qr-code/QrCodeTool";
 import { NfeReaderTool } from "@/components/tools/nfe-reader/NfeReaderTool";
 import { QuoteTool } from "@/components/tools/quote/QuoteTool";
+import { CpfGeneratorTool } from "@/components/tools/cpf-generator/CpfGeneratorTool";
+import { CnpjGeneratorTool } from "@/components/tools/cnpj-generator/CnpjGeneratorTool";
+import { CreditCardGeneratorTool } from "@/components/tools/credit-card-generator/CreditCardGeneratorTool";
 
 /**
  * Registro central que liga o id de uma ferramenta (data/tools.ts) ao
@@ -58,4 +61,7 @@ export const toolComponents: Record<string, ComponentType> = {
   "qr-code": QrCodeTool,
   "leitor-xml-nfe": NfeReaderTool,
   "gerador-orcamento": QuoteTool,
+  "gerador-cpf": CpfGeneratorTool,
+  "gerador-cnpj": CnpjGeneratorTool,
+  "gerador-cartao-credito": CreditCardGeneratorTool,
 };
