@@ -1629,4 +1629,433 @@ export const toolContent: Record<
       },
     ],
   },
+
+  "numero-do-banco": {
+    contentSections: [
+      {
+        title: "Para que serve o código do banco?",
+        body: "O código de instituição (COMPE) identifica o banco em boletos, TEDs, DOCs e cadastros de conta. É um número curto (geralmente de 3 dígitos) diferente da agência e da conta — por exemplo, 341 é o Itaú e 260 é o Nubank.",
+      },
+      {
+        title: "Como usar a consulta?",
+        body: "Digite o nome do banco (ou parte dele) ou o próprio número na busca. A lista é filtrada instantaneamente, no seu navegador. Clique em \"Copiar\" ao lado do código para copiá-lo para a área de transferência.",
+      },
+      {
+        title: "O que esta ferramenta não faz",
+        body: "Esta é uma consulta de códigos de instituição — não é uma consulta de conta bancária, saldo ou dados de titular de ninguém. A lista reúne os bancos, fintechs e cooperativas mais conhecidos; para o cadastro completo e sempre atualizado, a fonte oficial é o Banco Central do Brasil (bcb.gov.br).",
+      },
+    ],
+    faq: [
+      {
+        question: "Essa lista tem todos os bancos do Brasil?",
+        answer:
+          "Não. Reunimos os bancos, fintechs e cooperativas mais conhecidos para consulta rápida. Para o cadastro completo e oficial de instituições, consulte o Banco Central do Brasil.",
+      },
+      {
+        question: "O código do banco é a mesma coisa que agência ou conta?",
+        answer:
+          "Não. O código do banco identifica a instituição financeira; agência e conta identificam o ponto de atendimento e a conta específica dentro daquele banco.",
+      },
+      {
+        question: "Esta ferramenta consulta dados da minha conta?",
+        answer: "Não. É apenas uma lista de códigos de instituição para consulta — nenhum dado de conta é consultado ou solicitado.",
+      },
+    ],
+  },
+
+  "corretor-ortografico": {
+    contentSections: [
+      {
+        title: "Como funciona o corretor ortográfico?",
+        body: "Esta ferramenta usa o corretor ortográfico nativo do seu próprio navegador (o mesmo que sublinha palavras em qualquer campo de texto do Chrome, Firefox, Edge ou Safari). Nenhum texto é enviado a um serviço externo de correção — a análise acontece inteiramente no seu dispositivo.",
+      },
+      {
+        title: "Como corrigir uma palavra sublinhada?",
+        body: "Clique com o botão direito (ou toque e segure, no celular) sobre a palavra sublinhada para ver as sugestões de correção do seu navegador. Esse menu de sugestões pertence ao navegador, não a esta página.",
+      },
+      {
+        title: "Por que não usamos um corretor por IA?",
+        body: "Não implementamos um mecanismo próprio de correção ortográfica nem uma IA de verdade rodando por trás desta ferramenta, para não simular uma funcionalidade que na prática não existiria. O recurso nativo do navegador é gratuito, não depende de rede e preserva totalmente a sua privacidade.",
+      },
+    ],
+    faq: [
+      {
+        question: "O texto que eu digito é enviado para algum servidor?",
+        answer: "Não. A correção é feita pelo dicionário do seu próprio navegador/sistema operacional — o texto nunca sai do seu dispositivo.",
+      },
+      {
+        question: "Por que nenhuma palavra aparece sublinhada?",
+        answer:
+          "Verifique se a correção ortográfica está habilitada nas configurações do seu navegador e se há um dicionário em português instalado. Alguns navegadores desabilitam a correção por padrão em certos campos.",
+      },
+      {
+        question: "Essa ferramenta corrige gramática, não só ortografia?",
+        answer: "Não. O corretor nativo do navegador verifica principalmente a grafia das palavras — regras de gramática e concordância não são verificadas.",
+      },
+    ],
+  },
+
+  "ordem-alfabetica": {
+    contentSections: [
+      {
+        title: "Como ordenar uma lista em ordem alfabética?",
+        body: "Cole cada item em uma linha diferente e o resultado ordenado aparece automaticamente ao lado. Escolha A → Z ou Z → A, e ative as opções de ignorar maiúsculas/minúsculas, remover linhas duplicadas ou ignorar linhas vazias, conforme sua necessidade.",
+      },
+      {
+        title: "Como a acentuação é tratada?",
+        body: "A ordenação usa o padrão de comparação de texto do português (Intl.Collator), que posiciona corretamente palavras acentuadas — por exemplo, \"é\" fica ordenado perto de \"e\", e não jogado para o fim da lista, como aconteceria em uma ordenação alfabética ingênua.",
+      },
+    ],
+    faq: [
+      {
+        question: "Consigo remover itens repetidos ao ordenar?",
+        answer: "Sim. Ative a opção \"Remover duplicados\" — a comparação respeita a opção de ignorar maiúsculas/minúsculas que você escolheu.",
+      },
+      {
+        question: "Linhas em branco atrapalham a ordenação?",
+        answer: "Por padrão, linhas vazias são ignoradas. Você pode desativar essa opção se quiser mantê-las no resultado.",
+      },
+      {
+        question: "Meus dados ficam armazenados?",
+        answer: "Não. A ordenação acontece inteiramente no seu navegador; nada é enviado ou salvo em nenhum servidor.",
+      },
+    ],
+  },
+
+  "contador-caracteres": {
+    contentSections: [
+      {
+        title: "Para que serve o contador de caracteres?",
+        body: "Ajuda a conferir se um texto respeita um limite de caracteres — por exemplo, de uma rede social, um formulário ou um campo de banco de dados — mostrando a contagem em tempo real enquanto você digita ou cola o texto.",
+      },
+      {
+        title: "O que é contado?",
+        body: "A ferramenta mostra caracteres com e sem espaços, quantidade de palavras, linhas, parágrafos e dígitos numéricos. Emojis e caracteres acentuados são contados corretamente, um por um.",
+      },
+    ],
+    faq: [
+      {
+        question: "A contagem é atualizada automaticamente?",
+        answer: "Sim, em tempo real, a cada tecla digitada ou texto colado — não é preciso clicar em nenhum botão.",
+      },
+      {
+        question: "Emojis contam como um caractere só?",
+        answer: "Sim. A contagem usa iteração por ponto de código Unicode, então um emoji conta como um caractere, mesmo quando ele ocupa mais de uma posição internamente.",
+      },
+      {
+        question: "Existe um limite de tamanho de texto?",
+        answer: "Sim, um limite de segurança bem generoso (200.000 caracteres), só para evitar travamentos com textos gigantes colados por engano.",
+      },
+    ],
+  },
+
+  "contador-ocorrencia-palavra": {
+    contentSections: [
+      {
+        title: "Como contar quantas vezes uma palavra aparece em um texto?",
+        body: "Cole o texto, digite a palavra ou expressão que deseja buscar, e o total de ocorrências aparece automaticamente, junto com a linha e a coluna de cada uma delas.",
+      },
+      {
+        title: "Opções de busca",
+        body: "Ative \"Diferenciar maiúsculas/minúsculas\" para uma busca sensível a caixa (ex.: \"Sol\" diferente de \"sol\"). Ative \"Apenas palavra inteira\" para não contar a palavra quando ela aparece dentro de outra (ex.: buscar \"sol\" sem contar \"solto\").",
+      },
+    ],
+    faq: [
+      {
+        question: "Posso buscar uma expressão com mais de uma palavra?",
+        answer: "Sim. A busca aceita qualquer trecho de texto, não apenas uma palavra isolada.",
+      },
+      {
+        question: "O que significa a posição \"linha, coluna\"?",
+        answer: "A linha é a posição do texto (contando a partir da primeira linha como 1) e a coluna é a posição do primeiro caractere da ocorrência dentro dessa linha.",
+      },
+      {
+        question: "O texto que eu colo fica salvo em algum lugar?",
+        answer: "Não. Toda a busca acontece localmente, no seu navegador.",
+      },
+    ],
+  },
+
+  "texto-para-html": {
+    contentSections: [
+      {
+        title: "Como converter um texto para HTML?",
+        body: "Cole o texto original, escolha se cada linha deve virar uma quebra (<br>) ou se cada parágrafo (separado por linha em branco) deve virar um bloco <p>, e o HTML correspondente aparece pronto para copiar.",
+      },
+      {
+        title: "Por que os caracteres especiais são escapados?",
+        body: "Antes de qualquer conversão, os cinco caracteres especiais do HTML (&, <, >, \", ') são escapados para suas entidades correspondentes (como &amp;, &lt;, &gt;). Isso evita que um texto com esses símbolos gere HTML quebrado ou, em um cenário de uso indevido, código executável — é a mesma proteção usada contra ataques de XSS.",
+      },
+      {
+        title: "O HTML gerado é executado nesta página?",
+        body: "Não. O resultado é mostrado sempre como texto simples, dentro de uma caixa de texto somente leitura, para você copiar e colar onde precisar — esta página nunca interpreta ou executa o HTML que ela mesma gera.",
+      },
+    ],
+    faq: [
+      {
+        question: "Essa ferramenta é segura contra XSS?",
+        answer:
+          "Sim. Todo o texto é escapado antes de virar HTML, e o resultado nunca é renderizado como HTML de verdade nesta página — só exibido como texto para você copiar.",
+      },
+      {
+        question: "O que é a opção \"Preservar espaços extras\"?",
+        answer:
+          "Ela converte sequências de espaços repetidos em &nbsp;, para que o espaçamento visual do texto original não se perca quando o HTML for exibido em uma página (navegadores colapsam espaços repetidos por padrão).",
+      },
+    ],
+  },
+
+  "cortar-textos": {
+    contentSections: [
+      {
+        title: "Como cortar um texto em um limite específico?",
+        body: "Cole o texto, escolha se o limite é em caracteres, palavras ou linhas, defina o número desejado e o resultado cortado aparece automaticamente.",
+      },
+      {
+        title: "Opções de corte",
+        body: "\"Adicionar '…' ao final\" acrescenta reticências quando o texto é efetivamente cortado. \"Evitar cortar palavra ao meio\" (disponível no corte por caracteres) recua o corte até o último espaço, para não interromper uma palavra na metade.",
+      },
+    ],
+    faq: [
+      {
+        question: "Se o texto já for menor que o limite, o que acontece?",
+        answer: "Nada é cortado — o texto original é mostrado como resultado, sem reticências.",
+      },
+      {
+        question: "Existe um limite máximo para o valor do corte?",
+        answer: "Sim, um limite de segurança de 100.000, para evitar valores absurdos que travariam o navegador sem necessidade.",
+      },
+    ],
+  },
+
+  "dividir-string": {
+    contentSections: [
+      {
+        title: "Como dividir um texto em uma lista de itens?",
+        body: "Cole o texto e escolha o delimitador: vírgula, ponto e vírgula, espaço, quebra de linha ou um delimitador personalizado (qualquer texto que você definir). Cada trecho separado pelo delimitador vira um item da lista.",
+      },
+      {
+        title: "Opções de limpeza",
+        body: "\"Remover espaços das pontas de cada item\" tira espaços em branco no início/fim de cada pedaço. \"Remover itens vazios\" descarta pedaços em branco resultantes de delimitadores repetidos (ex.: duas vírgulas seguidas).",
+      },
+    ],
+    faq: [
+      {
+        question: "Posso usar mais de um caractere como delimitador?",
+        answer: "Sim, no modo \"Delimitador personalizado\" você pode digitar qualquer texto, com um ou mais caracteres.",
+      },
+      {
+        question: "Consigo copiar todos os itens de uma vez?",
+        answer: "Sim. O botão \"Copiar lista\" copia todos os itens, um por linha, para a área de transferência.",
+      },
+    ],
+  },
+
+  "informacoes-caractere": {
+    contentSections: [
+      {
+        title: "O que esta ferramenta mostra sobre um caractere?",
+        body: "Ao digitar um caractere, você vê seu code point Unicode (em decimal e hexadecimal), a HTML Entity correspondente (em decimal e hexadecimal, quando aplicável) e a sequência de bytes em UTF-8 — tudo calculado a partir de funções padrão do próprio JavaScript.",
+      },
+      {
+        title: "Para que serve saber isso?",
+        body: "É útil para desenvolvedores depurando problemas de codificação de texto, para escrever uma entidade HTML específica, ou simplesmente para entender como um caractere (inclusive emojis) é representado internamente.",
+      },
+    ],
+    faq: [
+      {
+        question: "Funciona com emojis?",
+        answer: "Sim. Emojis e outros caracteres fora do conjunto básico do Unicode são tratados corretamente, um caractere completo por vez.",
+      },
+      {
+        question: "Se eu digitar várias letras, o que acontece?",
+        answer: "Apenas o primeiro caractere digitado é analisado — a ferramenta é pensada para um único caractere por vez.",
+      },
+    ],
+  },
+
+  "inverter-texto": {
+    contentSections: [
+      {
+        title: "Como inverter um texto?",
+        body: "Cole o texto e escolha o modo de inversão: por caracteres (o texto inteiro de trás para frente), pela ordem das palavras (mantendo cada palavra intacta) ou pela ordem das linhas (últimas linhas primeiro).",
+      },
+      {
+        title: "Funciona com acentos e emojis?",
+        body: "Sim. A inversão de caracteres usa iteração por ponto de código Unicode, então acentos, emojis e outros caracteres compostos são preservados corretamente, sem ficarem quebrados ou corrompidos.",
+      },
+    ],
+    faq: [
+      {
+        question: "Qual a diferença entre inverter por caracteres e por palavras?",
+        answer:
+          "Por caracteres, o texto inteiro é lido de trás para frente (ex.: \"Olá\" vira \"álO\"). Por palavras, a ordem das palavras é invertida, mas cada palavra continua escrita normalmente (ex.: \"bom dia\" vira \"dia bom\").",
+      },
+      {
+        question: "E a inversão por linhas?",
+        answer: "A última linha do texto passa a ser a primeira, e assim por diante — o conteúdo de cada linha não é alterado.",
+      },
+    ],
+  },
+
+  "maiusculas-minusculas": {
+    contentSections: [
+      {
+        title: "Quais conversões esta ferramenta faz?",
+        body: "Ao digitar um texto, você vê ao mesmo tempo as variações TUDO MAIÚSCULO, tudo minúsculo, Primeira letra maiúscula (só a primeira letra do texto todo), Primeira letra de cada frase (após ponto final, exclamação ou interrogação) e Title Case (Cada Palavra Iniciando Com Maiúscula).",
+      },
+      {
+        title: "A acentuação é preservada?",
+        body: "Sim. As conversões usam os métodos nativos do JavaScript para maiúsculas/minúsculas, que tratam corretamente letras acentuadas do português (á, é, ç, õ, e assim por diante).",
+      },
+    ],
+    faq: [
+      {
+        question: "Preciso escolher qual conversão usar antes de digitar?",
+        answer: "Não. Todas as variações são calculadas e exibidas ao mesmo tempo, assim que você digita algo — cada uma com seu próprio botão de copiar.",
+      },
+      {
+        question: "O que é Title Case?",
+        answer: "É o estilo em que a primeira letra de cada palavra fica maiúscula — comum em títulos de artigos e capas de livros em inglês, e também usado em português para nomes próprios e títulos.",
+      },
+    ],
+  },
+
+  "numero-por-extenso": {
+    contentSections: [
+      {
+        title: "Como converter um número para texto por extenso?",
+        body: "Escolha o modo \"Número\" para converter um valor inteiro (ex.: 123 → \"cento e vinte e três\") ou o modo \"Valor em reais\" para converter um valor monetário (ex.: 123,45 → \"cento e vinte e três reais e quarenta e cinco centavos\"), com reais e centavos tratados separadamente.",
+      },
+      {
+        title: "Existe um limite de valor?",
+        body: "Sim. Para garantir um resultado sempre correto (sem erros de arredondamento de ponto flutuante ou nomes de escala não definidos), o conversor aceita valores até 999.999.999.999.999 — um limite bem acima de qualquer uso prático.",
+      },
+    ],
+    faq: [
+      {
+        question: "Esta ferramenta é a mesma usada no Gerador de Recibo?",
+        answer: "Sim. O modo \"Valor em reais\" reaproveita exatamente o mesmo conversor por extenso já usado pelo Gerador de Recibo deste site.",
+      },
+      {
+        question: "No modo \"Número\", valores com casas decimais funcionam?",
+        answer: "A parte decimal é ignorada nesse modo — para converter centavos junto com reais, use o modo \"Valor em reais\".",
+      },
+    ],
+  },
+
+  "remover-acentos": {
+    contentSections: [
+      {
+        title: "Como remover acentos de um texto?",
+        body: "Cole o texto e o resultado sem acentuação aparece automaticamente — por exemplo, \"São José\" se torna \"Sao Jose\". A caixa original das letras (maiúscula/minúscula) é preservada.",
+      },
+      {
+        title: "Como funciona tecnicamente?",
+        body: "A remoção usa normalização Unicode (forma NFD), que separa cada letra acentuada em sua letra-base mais a marca de acento, e então remove apenas as marcas — sem afetar o restante do texto.",
+      },
+    ],
+    faq: [
+      {
+        question: "Isso funciona para todos os acentos do português?",
+        answer: "Sim, incluindo til (ã, õ), cedilha (ç), acento agudo, grave e circunflexo.",
+      },
+      {
+        question: "Pontuação e números são afetados?",
+        answer: "Não. Apenas as marcas diacríticas das letras são removidas — o resto do texto permanece exatamente como foi digitado.",
+      },
+    ],
+  },
+
+  "remover-quebras-linha": {
+    contentSections: [
+      {
+        title: "Como remover ou trocar quebras de linha?",
+        body: "Cole o texto e escolha o que colocar no lugar de cada quebra de linha: nada (remoção simples), um espaço, uma vírgula, ou um texto personalizado. A ferramenta reconhece os três formatos de quebra de linha existentes (\\n, \\r\\n e \\r).",
+      },
+      {
+        title: "Por que existe a opção \"Evitar espaços duplos\"?",
+        body: "Quando várias quebras de linha seguidas são substituídas por espaço ou vírgula, é comum sobrar espaço duplicado no resultado. Essa opção reduz espaços repetidos a um só, deixando o texto final mais limpo.",
+      },
+    ],
+    faq: [
+      {
+        question: "Funciona com texto colado do Windows, Mac ou Linux?",
+        answer: "Sim. Os três estilos de quebra de linha usados por esses sistemas (\\r\\n, \\n e \\r) são reconhecidos e tratados da mesma forma.",
+      },
+      {
+        question: "Posso usar um texto personalizado no lugar da quebra de linha?",
+        answer: "Sim, escolha \"Texto personalizado\" e digite o que quiser colocar no lugar de cada quebra (por exemplo, \" | \").",
+      },
+    ],
+  },
+
+  "meu-ip": {
+    contentSections: [
+      {
+        title: "O que é o meu IP?",
+        body: "É o endereço que identifica sua conexão na internet no momento desta consulta. Esta ferramenta detecta o IP a partir dos headers da própria requisição que seu navegador já envia ao acessar esta página — sem usar nenhum serviço externo de geolocalização ou de análise de tráfego.",
+      },
+      {
+        title: "IPv4 ou IPv6?",
+        body: "Quando possível, a ferramenta indica se o endereço detectado é IPv4 (o formato mais tradicional, como 200.10.20.30) ou IPv6 (um formato mais novo e mais longo). A versão exibida depende de como a sua conexão chega até o servidor.",
+      },
+    ],
+    faq: [
+      {
+        question: "Meu IP fica armazenado por esta ferramenta?",
+        answer: "Não. O endereço é calculado a cada consulta e exibido só para você, nesta página — nada é salvo em banco de dados, log ou serviço de analytics.",
+      },
+      {
+        question: "Por que às vezes o IP aparece como não identificado?",
+        answer: "Isso acontece quando a conexão não passa por um proxy/CDN que define o header de IP do cliente (é o caso, por exemplo, de alguns ambientes de desenvolvimento local) — em produção, a infraestrutura padrão da hospedagem normalmente informa esse header.",
+      },
+    ],
+  },
+
+  "meu-navegador": {
+    contentSections: [
+      {
+        title: "Como esta ferramenta identifica meu navegador?",
+        body: "A identificação usa o header User-Agent que o seu próprio navegador já envia a cada página que você visita, junto com o helper nativo de interpretação de User-Agent do Next.js — sem nenhuma técnica de fingerprinting invasivo (como leitura de canvas, fontes instaladas ou plugins).",
+      },
+      {
+        title: "A versão exibida é sempre exata?",
+        body: "Não necessariamente. Navegadores modernos (como o Chrome, por política de privacidade chamada User-Agent Reduction) podem reduzir ou \"congelar\" as informações de versão enviadas no User-Agent, então o número exibido pode ser aproximado.",
+      },
+    ],
+    faq: [
+      {
+        question: "Essa ferramenta rastreia meu comportamento de navegação?",
+        answer: "Não. Ela apenas interpreta o User-Agent da requisição atual, exibe o resultado para você e não armazena nem envia esses dados a nenhum serviço de terceiros.",
+      },
+      {
+        question: "Por que meus cookies aparecem como desabilitados mesmo estando ativados?",
+        answer: "Essa informação é lida diretamente do seu navegador (navigator.cookieEnabled) no momento em que a página carrega — configurações específicas de privacidade do navegador podem influenciar esse valor.",
+      },
+    ],
+  },
+
+  "meu-sistema-operacional": {
+    contentSections: [
+      {
+        title: "Como esta ferramenta identifica meu sistema operacional?",
+        body: "A identificação vem do mesmo header User-Agent enviado pelo seu navegador, interpretado pelo helper nativo do Next.js — reconhecendo famílias como Windows, macOS, Linux, Android e iOS. Nenhuma coleta adicional de hardware é feita.",
+      },
+      {
+        title: "Por que a versão às vezes não aparece?",
+        body: "Vários navegadores atuais, por padrão de privacidade, omitem ou simplificam a versão exata do sistema operacional no User-Agent. Quando isso acontece, a ferramenta mostra \"Não identificada\" em vez de arriscar um palpite incorreto.",
+      },
+    ],
+    faq: [
+      {
+        question: "Essa ferramenta coleta informações do meu hardware?",
+        answer: "Não. Apenas o que o próprio navegador já declara no header User-Agent é utilizado — nenhuma técnica adicional de fingerprinting é aplicada.",
+      },
+      {
+        question: "Funciona em celulares?",
+        answer: "Sim. A ferramenta reconhece sistemas móveis como Android e iOS, além do tipo de dispositivo (celular, tablet, etc.), quando essa informação está disponível no User-Agent.",
+      },
+    ],
+  },
 };

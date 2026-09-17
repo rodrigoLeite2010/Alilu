@@ -56,6 +56,23 @@ import { ValidadorRenavamTool } from "@/components/tools/validador-renavam/Valid
 import { ValidadorRgTool } from "@/components/tools/validador-rg/ValidadorRgTool";
 import { ValidadorTituloEleitorTool } from "@/components/tools/validador-titulo-eleitor/ValidadorTituloEleitorTool";
 import { ValidadorInscricaoEstadualTool } from "@/components/tools/validador-inscricao-estadual/ValidadorInscricaoEstadualTool";
+import { NumeroDoBancoTool } from "@/components/tools/numero-do-banco/NumeroDoBancoTool";
+import { CorretorOrtograficoTool } from "@/components/tools/corretor-ortografico/CorretorOrtograficoTool";
+import { OrdemAlfabeticaTool } from "@/components/tools/ordem-alfabetica/OrdemAlfabeticaTool";
+import { ContadorCaracteresTool } from "@/components/tools/contador-caracteres/ContadorCaracteresTool";
+import { ContadorOcorrenciaPalavraTool } from "@/components/tools/contador-ocorrencia-palavra/ContadorOcorrenciaPalavraTool";
+import { TextoParaHtmlTool } from "@/components/tools/texto-para-html/TextoParaHtmlTool";
+import { CortarTextosTool } from "@/components/tools/cortar-textos/CortarTextosTool";
+import { DividirStringTool } from "@/components/tools/dividir-string/DividirStringTool";
+import { InformacoesCaractereTool } from "@/components/tools/informacoes-caractere/InformacoesCaractereTool";
+import { InverterTextoTool } from "@/components/tools/inverter-texto/InverterTextoTool";
+import { MaiusculasMinusculasTool } from "@/components/tools/maiusculas-minusculas/MaiusculasMinusculasTool";
+import { NumeroPorExtensoTool } from "@/components/tools/numero-por-extenso/NumeroPorExtensoTool";
+import { RemoverAcentosTool } from "@/components/tools/remover-acentos/RemoverAcentosTool";
+import { RemoverQuebrasLinhaTool } from "@/components/tools/remover-quebras-linha/RemoverQuebrasLinhaTool";
+import { MeuIpTool } from "@/components/tools/meu-ip/MeuIpTool";
+import { MeuNavegadorTool } from "@/components/tools/meu-navegador/MeuNavegadorTool";
+import { MeuSistemaOperacionalTool } from "@/components/tools/meu-sistema-operacional/MeuSistemaOperacionalTool";
 
 /**
  * Registro central que liga o id de uma ferramenta (data/tools.ts) ao
@@ -137,4 +154,27 @@ export const toolComponents: Record<string, ComponentType> = {
   "validador-rg": ValidadorRgTool,
   "validador-titulo-eleitor": ValidadorTituloEleitorTool,
   "validador-inscricao-estadual": ValidadorInscricaoEstadualTool,
+
+  // UTILIDADES (novo, adicionado à categoria "outros" existente)
+  "numero-do-banco": NumeroDoBancoTool,
+
+  // FUNÇÕES STRING
+  "corretor-ortografico": CorretorOrtograficoTool,
+  "ordem-alfabetica": OrdemAlfabeticaTool,
+  "contador-caracteres": ContadorCaracteresTool,
+  "contador-ocorrencia-palavra": ContadorOcorrenciaPalavraTool,
+  "texto-para-html": TextoParaHtmlTool,
+  "cortar-textos": CortarTextosTool,
+  "dividir-string": DividirStringTool,
+  "informacoes-caractere": InformacoesCaractereTool,
+  "inverter-texto": InverterTextoTool,
+  "maiusculas-minusculas": MaiusculasMinusculasTool,
+  "numero-por-extenso": NumeroPorExtensoTool,
+  "remover-acentos": RemoverAcentosTool,
+  "remover-quebras-linha": RemoverQuebrasLinhaTool,
+
+  // REDE E INTERNET
+  "meu-ip": MeuIpTool,
+  "meu-navegador": MeuNavegadorTool,
+  "meu-sistema-operacional": MeuSistemaOperacionalTool,
 };

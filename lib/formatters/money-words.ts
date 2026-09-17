@@ -188,8 +188,14 @@ function buildSegments(value: number): Segment[] {
   return segments;
 }
 
-/** Converte um inteiro não negativo em texto por extenso (sem moeda). */
-function integerToWords(value: number): string {
+/**
+ * Converte um inteiro não negativo em texto por extenso (sem moeda) — ex.:
+ * 123 -> "cento e vinte e três". Exportado para reuso pela ferramenta
+ * Número por Extenso (categoria Funções String), que usa o modo não
+ * monetário deste mesmo conversor já usado internamente pelo Gerador de
+ * Recibo (moneyToWordsBRL, abaixo).
+ */
+export function integerToWords(value: number): string {
   if (value === 0) {
     return "zero";
   }

@@ -11,7 +11,9 @@ export type CategoryId =
   | "empresa"
   | "outros"
   | "geradores"
-  | "validadores";
+  | "validadores"
+  | "funcoes-string"
+  | "rede-internet";
 
 export interface Category {
   /** Identificador estável, também usado como slug de URL (/utilitarios/[slug]) */
@@ -75,6 +77,20 @@ export const categories: Category[] = [
     description:
       "Valide gratuitamente o formato e os dígitos verificadores de CPF, CNPJ, cartão de crédito e outros documentos brasileiros — 100% no seu navegador, sem consultar bases de dados.",
     icon: "shield-check",
+  },
+  {
+    id: "funcoes-string",
+    name: "Funções String",
+    description:
+      "Ferramentas gratuitas para manipular, formatar, analisar e transformar textos diretamente no navegador.",
+    icon: "align-left",
+  },
+  {
+    id: "rede-internet",
+    name: "Rede e Internet",
+    description:
+      "Ferramentas rápidas para identificar informações básicas da sua conexão, navegador e dispositivo.",
+    icon: "globe",
   },
 ];
 

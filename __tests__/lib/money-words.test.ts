@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { moneyToWordsBRL } from "@/lib/formatters/money-words";
+import { moneyToWordsBRL, integerToWords } from "@/lib/formatters/money-words";
 
 /**
  * Testes do conversor de valores monetários para texto por extenso
@@ -76,5 +76,29 @@ describe("moneyToWordsBRL", () => {
       expect(moneyToWordsBRL(1_000_000)).toBe("um milhão de reais");
       expect(moneyToWordsBRL(1_500_000)).toBe("um milhão e quinhentos mil reais");
     });
+  });
+});
+
+/**
+ * Testes de `integerToWords`, exportado para reuso pela ferramenta Número
+ * por Extenso (categoria Funções String).
+ */
+describe("integerToWords", () => {
+  it.each([
+    [0, "zero"],
+    [1, "um"],
+    [15, "quinze"],
+    [21, "vinte e um"],
+    [100, "cem"],
+    [101, "cento e um"],
+    [123, "cento e vinte e três"],
+    [250, "duzentos e cinquenta"],
+    [1000, "mil"],
+    [1001, "mil e um"],
+    [1250, "mil duzentos e cinquenta"],
+    [1_000_000, "um milhão"],
+    [2_000_000, "dois milhões"],
+  ])("converte %s para \"%s\"", (value, expected) => {
+    expect(integerToWords(value)).toBe(expected);
   });
 });
