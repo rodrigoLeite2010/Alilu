@@ -9,13 +9,11 @@ export function SectionHeading({
 }) {
   return (
     <div className="mb-4">
-      <Tag className="text-xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50 sm:text-2xl">
+      <Tag className="text-xl font-semibold tracking-tight text-zinc-900 sm:text-2xl">
         {title}
       </Tag>
       {description ? (
-        <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-          {description}
-        </p>
+        <p className="mt-1 text-sm text-zinc-600">{description}</p>
       ) : null}
     </div>
   );

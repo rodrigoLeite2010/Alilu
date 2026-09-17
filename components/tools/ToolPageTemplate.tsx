@@ -67,10 +67,10 @@ export function ToolPageTemplate({
           ]}
         />
 
-        <h1 className="text-2xl font-bold tracking-tight text-zinc-900 sm:text-3xl dark:text-zinc-50">
+        <h1 className="text-2xl font-bold tracking-tight text-zinc-900 sm:text-3xl">
           {tool.name}
         </h1>
-        <p className="mt-2 max-w-2xl text-base text-zinc-600 dark:text-zinc-400">
+        <p className="mt-2 max-w-2xl text-base text-zinc-600">
           {tool.description}
         </p>
       </div>
@@ -86,7 +86,7 @@ export function ToolPageTemplate({
           contentSections.map((section) => (
             <section key={section.title} className="mt-10">
               <SectionHeading title={section.title} />
-              <p className="text-sm leading-relaxed text-zinc-700 dark:text-zinc-300">
+              <p className="text-sm leading-relaxed text-zinc-700">
                 {section.body}
               </p>
             </section>
@@ -94,7 +94,7 @@ export function ToolPageTemplate({
         ) : (
           <section className="mt-10">
             <SectionHeading title="Como funciona" />
-            <p className="text-sm leading-relaxed text-zinc-700 dark:text-zinc-300">
+            <p className="text-sm leading-relaxed text-zinc-700">
               Assim que estiver disponível, a ferramenta {tool.shortName} vai
               pedir as informações necessárias em um formulário simples,
               calcular o resultado diretamente no seu navegador e mostrar o
@@ -127,12 +127,8 @@ export function ToolPageTemplate({
               ]
             ).map((item) => (
               <div key={item.question}>
-                <dt className="font-medium text-zinc-900 dark:text-zinc-50">
-                  {item.question}
-                </dt>
-                <dd className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-                  {item.answer}
-                </dd>
+                <dt className="font-medium text-zinc-900">{item.question}</dt>
+                <dd className="mt-1 text-sm text-zinc-600">{item.answer}</dd>
               </div>
             ))}
           </dl>

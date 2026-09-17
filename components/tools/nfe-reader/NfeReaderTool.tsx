@@ -86,15 +86,15 @@ export function NfeReaderTool() {
 
   return (
     <div>
-      <p className="mb-5 rounded-lg bg-zinc-50 p-3 text-sm text-zinc-600 dark:bg-zinc-900 dark:text-zinc-400">
-        <strong className="font-medium text-zinc-700 dark:text-zinc-300">Privacidade:</strong> o
+      <p className="mb-5 rounded-lg bg-zinc-50 p-3 text-sm text-zinc-600">
+        <strong className="font-medium text-zinc-700">Privacidade:</strong> o
         arquivo XML é lido inteiramente no seu navegador. Ele nunca é enviado, salvo ou
         compartilhado com a Alilu ou com qualquer servidor.
       </p>
 
-      <div className="rounded-xl border-2 border-dashed border-zinc-300 p-6 text-center dark:border-zinc-700">
+      <div className="rounded-xl border-2 border-dashed border-zinc-300 p-6 text-center">
         <label htmlFor="nfe-file-input" className="cursor-pointer">
-          <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+          <span className="text-sm font-medium text-zinc-700">
             Selecione o arquivo XML da NF-e
           </span>
           <input
@@ -103,11 +103,11 @@ export function NfeReaderTool() {
             type="file"
             accept=".xml,text/xml,application/xml"
             onChange={handleFileChange}
-            className="mt-3 block w-full cursor-pointer text-sm text-zinc-600 file:mr-3 file:rounded-lg file:border-0 file:bg-zinc-900 file:px-4 file:py-2 file:text-sm file:font-medium file:text-white hover:file:bg-zinc-700 dark:text-zinc-400 dark:file:bg-zinc-100 dark:file:text-zinc-900"
+            className="mt-3 block w-full cursor-pointer text-sm text-zinc-600 file:mr-3 file:rounded-lg file:border-0 file:bg-zinc-900 file:px-4 file:py-2 file:text-sm file:font-medium file:text-white hover:file:bg-zinc-700"
           />
         </label>
         {fileName ? (
-          <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">Arquivo: {fileName}</p>
+          <p className="mt-2 text-xs text-zinc-500">Arquivo: {fileName}</p>
         ) : null}
       </div>
 
@@ -115,7 +115,7 @@ export function NfeReaderTool() {
         <div className="mt-6 space-y-3">
           <p
             role="alert"
-            className="rounded-lg bg-red-50 p-3 text-sm text-red-800 dark:bg-red-950/40 dark:text-red-300"
+            className="rounded-lg bg-red-50 p-3 text-sm text-red-800"
           >
             {error}
           </p>
@@ -128,39 +128,39 @@ export function NfeReaderTool() {
       {data ? (
         <div className="mt-6 space-y-6">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <div className="rounded-lg border border-zinc-200 p-3 dark:border-zinc-800">
-              <p className="text-xs text-zinc-500 dark:text-zinc-400">Número / Série</p>
-              <p className="text-sm font-medium text-zinc-900 dark:text-zinc-50">
+            <div className="rounded-lg border border-zinc-200 p-3">
+              <p className="text-xs text-zinc-500">Número / Série</p>
+              <p className="text-sm font-medium text-zinc-900">
                 {data.number ?? "—"} {data.series ? `/ ${data.series}` : ""}
               </p>
             </div>
-            <div className="rounded-lg border border-zinc-200 p-3 dark:border-zinc-800">
-              <p className="text-xs text-zinc-500 dark:text-zinc-400">Data de emissão</p>
-              <p className="text-sm font-medium text-zinc-900 dark:text-zinc-50">
+            <div className="rounded-lg border border-zinc-200 p-3">
+              <p className="text-xs text-zinc-500">Data de emissão</p>
+              <p className="text-sm font-medium text-zinc-900">
                 {data.issueDate ?? "—"}
               </p>
             </div>
-            <div className="rounded-lg border border-zinc-200 p-3 dark:border-zinc-800 sm:col-span-2">
-              <p className="text-xs text-zinc-500 dark:text-zinc-400">Chave de acesso</p>
-              <p className="break-all text-sm font-medium text-zinc-900 dark:text-zinc-50">
+            <div className="rounded-lg border border-zinc-200 p-3 sm:col-span-2">
+              <p className="text-xs text-zinc-500">Chave de acesso</p>
+              <p className="break-all text-sm font-medium text-zinc-900">
                 {data.accessKey ?? "—"}
               </p>
             </div>
-            <div className="rounded-lg border border-zinc-200 p-3 dark:border-zinc-800">
-              <p className="text-xs text-zinc-500 dark:text-zinc-400">Emitente</p>
-              <p className="text-sm font-medium text-zinc-900 dark:text-zinc-50">
+            <div className="rounded-lg border border-zinc-200 p-3">
+              <p className="text-xs text-zinc-500">Emitente</p>
+              <p className="text-sm font-medium text-zinc-900">
                 {data.issuer.name ?? "—"}
               </p>
-              <p className="text-xs text-zinc-500 dark:text-zinc-400">
+              <p className="text-xs text-zinc-500">
                 {data.issuer.document ?? "—"}
               </p>
             </div>
-            <div className="rounded-lg border border-zinc-200 p-3 dark:border-zinc-800">
-              <p className="text-xs text-zinc-500 dark:text-zinc-400">Destinatário</p>
-              <p className="text-sm font-medium text-zinc-900 dark:text-zinc-50">
+            <div className="rounded-lg border border-zinc-200 p-3">
+              <p className="text-xs text-zinc-500">Destinatário</p>
+              <p className="text-sm font-medium text-zinc-900">
                 {data.recipient.name ?? "—"}
               </p>
-              <p className="text-xs text-zinc-500 dark:text-zinc-400">
+              <p className="text-xs text-zinc-500">
                 {data.recipient.document ?? "—"}
               </p>
             </div>
@@ -168,13 +168,13 @@ export function NfeReaderTool() {
 
           {data.products.length > 0 ? (
             <div>
-              <h3 className="mb-2 text-sm font-semibold text-zinc-900 dark:text-zinc-50">
+              <h3 className="mb-2 text-sm font-semibold text-zinc-900">
                 Produtos
               </h3>
-              <div className="overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-800">
+              <div className="overflow-x-auto rounded-lg border border-zinc-200">
                 <table className="w-full min-w-[480px] border-collapse text-sm">
                   <thead>
-                    <tr className="border-b border-zinc-200 bg-zinc-50 text-left text-xs uppercase tracking-wide text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
+                    <tr className="border-b border-zinc-200 bg-zinc-50 text-left text-xs uppercase tracking-wide text-zinc-500">
                       <th className="p-2">Código</th>
                       <th className="p-2">Descrição</th>
                       <th className="p-2 text-right">Qtd.</th>
@@ -185,23 +185,23 @@ export function NfeReaderTool() {
                   </thead>
                   <tbody>
                     {data.products.map((product, index) => (
-                      <tr key={index} className="border-b border-zinc-100 dark:border-zinc-900">
-                        <td className="p-2 text-zinc-700 dark:text-zinc-300">
+                      <tr key={index} className="border-b border-zinc-100">
+                        <td className="p-2 text-zinc-700">
                           {product.code ?? "—"}
                         </td>
-                        <td className="p-2 text-zinc-700 dark:text-zinc-300">
+                        <td className="p-2 text-zinc-700">
                           {product.description ?? "—"}
                         </td>
-                        <td className="p-2 text-right text-zinc-700 dark:text-zinc-300">
+                        <td className="p-2 text-right text-zinc-700">
                           {product.quantity ?? "—"}
                         </td>
-                        <td className="p-2 text-zinc-700 dark:text-zinc-300">
+                        <td className="p-2 text-zinc-700">
                           {product.unit ?? "—"}
                         </td>
-                        <td className="p-2 text-right text-zinc-700 dark:text-zinc-300">
+                        <td className="p-2 text-right text-zinc-700">
                           {product.unitValue !== null ? formatCurrencyBRL(product.unitValue) : "—"}
                         </td>
-                        <td className="p-2 text-right font-medium text-zinc-900 dark:text-zinc-50">
+                        <td className="p-2 text-right font-medium text-zinc-900">
                           {product.totalValue !== null ? formatCurrencyBRL(product.totalValue) : "—"}
                         </td>
                       </tr>
@@ -213,29 +213,29 @@ export function NfeReaderTool() {
           ) : null}
 
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-            <div className="rounded-lg border border-zinc-200 p-3 dark:border-zinc-800">
-              <p className="text-xs text-zinc-500 dark:text-zinc-400">Total dos produtos</p>
-              <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">
+            <div className="rounded-lg border border-zinc-200 p-3">
+              <p className="text-xs text-zinc-500">Total dos produtos</p>
+              <p className="text-sm font-semibold text-zinc-900">
                 {data.totals.productsValue !== null
                   ? formatCurrencyBRL(data.totals.productsValue)
                   : "—"}
               </p>
             </div>
-            <div className="rounded-lg border border-zinc-200 p-3 dark:border-zinc-800">
-              <p className="text-xs text-zinc-500 dark:text-zinc-400">ICMS</p>
-              <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">
+            <div className="rounded-lg border border-zinc-200 p-3">
+              <p className="text-xs text-zinc-500">ICMS</p>
+              <p className="text-sm font-semibold text-zinc-900">
                 {data.totals.icmsValue !== null ? formatCurrencyBRL(data.totals.icmsValue) : "—"}
               </p>
             </div>
-            <div className="rounded-lg border border-zinc-200 p-3 dark:border-zinc-800">
-              <p className="text-xs text-zinc-500 dark:text-zinc-400">IPI</p>
-              <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">
+            <div className="rounded-lg border border-zinc-200 p-3">
+              <p className="text-xs text-zinc-500">IPI</p>
+              <p className="text-sm font-semibold text-zinc-900">
                 {data.totals.ipiValue !== null ? formatCurrencyBRL(data.totals.ipiValue) : "—"}
               </p>
             </div>
-            <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 dark:border-emerald-900 dark:bg-emerald-950/40">
-              <p className="text-xs text-emerald-700 dark:text-emerald-400">Valor da NF-e</p>
-              <p className="text-sm font-semibold text-emerald-800 dark:text-emerald-300">
+            <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3">
+              <p className="text-xs text-emerald-700">Valor da NF-e</p>
+              <p className="text-sm font-semibold text-emerald-800">
                 {data.totals.invoiceValue !== null
                   ? formatCurrencyBRL(data.totals.invoiceValue)
                   : "—"}

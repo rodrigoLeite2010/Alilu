@@ -109,66 +109,66 @@ export function ThirteenthSalaryTool() {
           <ResultHighlight label="Valor líquido total" value={formatCurrencyBRL(result.headline)} />
 
           <div>
-            <h3 className="mb-2 text-sm font-semibold text-zinc-900 dark:text-zinc-50">
+            <h3 className="mb-2 text-sm font-semibold text-zinc-900">
               Memória de cálculo
             </h3>
-            <dl className="divide-y divide-zinc-200 rounded-lg border border-zinc-200 dark:divide-zinc-800 dark:border-zinc-800">
+            <dl className="divide-y divide-zinc-200 rounded-lg border border-zinc-200">
               <div className="flex items-center justify-between p-3">
-                <dt className="text-sm text-zinc-600 dark:text-zinc-400">13º bruto proporcional</dt>
-                <dd className="text-sm font-medium text-zinc-900 dark:text-zinc-50">
+                <dt className="text-sm text-zinc-600">13º bruto proporcional</dt>
+                <dd className="text-sm font-medium text-zinc-900">
                   {formatCurrencyBRL(result.grossTotal)}
                 </dd>
               </div>
               <div className="flex items-center justify-between p-3">
-                <dt className="text-sm text-zinc-600 dark:text-zinc-400">
+                <dt className="text-sm text-zinc-600">
                   1ª parcela (sem descontos)
                 </dt>
-                <dd className="text-sm font-medium text-zinc-900 dark:text-zinc-50">
+                <dd className="text-sm font-medium text-zinc-900">
                   {formatCurrencyBRL(result.firstInstallment)}
                 </dd>
               </div>
               <div className="flex items-center justify-between p-3">
-                <dt className="text-sm text-zinc-600 dark:text-zinc-400">2ª parcela (bruta)</dt>
-                <dd className="text-sm font-medium text-zinc-900 dark:text-zinc-50">
+                <dt className="text-sm text-zinc-600">2ª parcela (bruta)</dt>
+                <dd className="text-sm font-medium text-zinc-900">
                   {formatCurrencyBRL(result.secondInstallmentGross)}
                 </dd>
               </div>
               <div className="flex items-center justify-between p-3">
-                <dt className="text-sm text-zinc-600 dark:text-zinc-400">
+                <dt className="text-sm text-zinc-600">
                   (−) INSS (sobre o 13º total)
                 </dt>
-                <dd className="text-sm font-medium text-red-700 dark:text-red-400">
+                <dd className="text-sm font-medium text-red-700">
                   {formatCurrencyBRL(result.inss)}
                 </dd>
               </div>
               <div className="flex items-center justify-between p-3">
-                <dt className="text-sm text-zinc-600 dark:text-zinc-400">
+                <dt className="text-sm text-zinc-600">
                   (−) IRRF (sobre o 13º total)
                 </dt>
-                <dd className="text-sm font-medium text-red-700 dark:text-red-400">
+                <dd className="text-sm font-medium text-red-700">
                   {formatCurrencyBRL(result.irrf)}
                 </dd>
               </div>
               <div className="flex items-center justify-between p-3">
-                <dt className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">
+                <dt className="text-sm font-semibold text-zinc-900">
                   2ª parcela (líquida)
                 </dt>
-                <dd className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">
+                <dd className="text-sm font-semibold text-zinc-900">
                   {formatCurrencyBRL(result.secondInstallmentNet)}
                 </dd>
               </div>
-              <div className="flex items-center justify-between bg-emerald-50 p-3 dark:bg-emerald-950/40">
-                <dt className="text-sm font-semibold text-emerald-800 dark:text-emerald-300">
+              <div className="flex items-center justify-between bg-emerald-50 p-3">
+                <dt className="text-sm font-semibold text-emerald-800">
                   Valor líquido total (1ª + 2ª)
                 </dt>
-                <dd className="text-sm font-semibold text-emerald-800 dark:text-emerald-300">
+                <dd className="text-sm font-semibold text-emerald-800">
                   {formatCurrencyBRL(result.netTotal)}
                 </dd>
               </div>
             </dl>
           </div>
 
-          <p className="text-xs text-zinc-500 dark:text-zinc-400">
+          <p className="text-xs text-zinc-500">
             A 1ª parcela é paga sem descontos; o INSS e o IRRF do 13º inteiro são concentrados na
             2ª parcela, conforme a prática usual de folha de pagamento. Cálculo com base nas
             tabelas oficiais de INSS e IRRF vigentes em {PAYROLL_TABLE_REFERENCE_YEAR} — não

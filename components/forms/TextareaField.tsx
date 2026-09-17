@@ -30,7 +30,7 @@ export function TextareaField({
       {/* Ver comentário equivalente em components/forms/TextField.tsx */}
       <label
         htmlFor={id}
-        className="mb-1.5 block text-sm font-medium text-zinc-700 dark:text-zinc-300"
+        className="mb-1.5 block text-sm font-medium text-zinc-700"
       >
         {label}
       </label>
@@ -39,18 +39,15 @@ export function TextareaField({
         aria-invalid={error ? true : undefined}
         aria-describedby={describedBy}
         rows={3}
-        className={`w-full rounded-lg border bg-white py-3 px-4 text-base text-zinc-900 focus:outline-none focus:ring-2 dark:bg-zinc-900 dark:text-zinc-50 ${
+        className={`w-full rounded-lg border bg-white py-3 px-4 text-base text-zinc-900 focus:outline-none focus:ring-2 ${
           error
             ? "border-red-400 focus:border-red-500 focus:ring-red-500/30"
-            : "border-zinc-300 focus:border-blue-500 focus:ring-blue-500/30 dark:border-zinc-700"
+            : "border-zinc-300 focus:border-teal-700 focus:ring-teal-700/20"
         }`}
         {...rest}
       />
       {hint && !error ? (
-        <span
-          id={`${id}-hint`}
-          className="mt-1.5 block text-xs text-zinc-500 dark:text-zinc-500"
-        >
+        <span id={`${id}-hint`} className="mt-1.5 block text-xs text-zinc-500">
           {hint}
         </span>
       ) : null}
@@ -58,7 +55,7 @@ export function TextareaField({
         <span
           id={`${id}-error`}
           role="alert"
-          className="mt-1.5 block text-sm text-red-600 dark:text-red-400"
+          className="mt-1.5 block text-sm text-red-600"
         >
           {error}
         </span>

@@ -91,19 +91,19 @@ export function ProfitMarginTool() {
             value={formatPercentage(result.headline)}
           />
           <dl className="grid grid-cols-2 gap-4">
-            <div className="rounded-lg border border-zinc-200 p-3 dark:border-zinc-800">
-              <dt className="text-xs text-zinc-500 dark:text-zinc-400">Lucro em valor</dt>
+            <div className="rounded-lg border border-zinc-200 p-3">
+              <dt className="text-xs text-zinc-500">Lucro em valor</dt>
               <dd
                 className={`mt-1 text-sm font-semibold ${
-                  isLoss ? "text-red-700 dark:text-red-400" : "text-emerald-700 dark:text-emerald-400"
+                  isLoss ? "text-red-700" : "text-emerald-700"
                 }`}
               >
                 {formatCurrencyBRL(result.profitAmount)}
               </dd>
             </div>
-            <div className="rounded-lg border border-zinc-200 p-3 dark:border-zinc-800">
-              <dt className="text-xs text-zinc-500 dark:text-zinc-400">Markup equivalente</dt>
-              <dd className="mt-1 text-sm font-semibold text-zinc-900 dark:text-zinc-50">
+            <div className="rounded-lg border border-zinc-200 p-3">
+              <dt className="text-xs text-zinc-500">Markup equivalente</dt>
+              <dd className="mt-1 text-sm font-semibold text-zinc-900">
                 {formatPercentage(result.markupPercent)}
               </dd>
             </div>

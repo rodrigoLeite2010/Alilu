@@ -158,34 +158,34 @@ export function SavingsGoalTool() {
           />
 
           {result.goalAlreadyReachable ? (
-            <p className="rounded-lg bg-emerald-50 p-3 text-xs text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300">
+            <p className="rounded-lg bg-emerald-50 p-3 text-xs text-emerald-800">
               Com o valor já disponível e a rentabilidade informada, a meta já é
               alcançável dentro do prazo sem novos aportes.
             </p>
           ) : null}
 
           <dl className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-            <div className="rounded-lg border border-zinc-200 p-3 dark:border-zinc-800">
-              <dt className="text-xs text-zinc-500 dark:text-zinc-400">Total aportado</dt>
-              <dd className="mt-1 text-sm font-semibold text-zinc-900 dark:text-zinc-50">
+            <div className="rounded-lg border border-zinc-200 p-3">
+              <dt className="text-xs text-zinc-500">Total aportado</dt>
+              <dd className="mt-1 text-sm font-semibold text-zinc-900">
                 {formatCurrencyBRL(result.totalContributed)}
               </dd>
             </div>
-            <div className="rounded-lg border border-zinc-200 p-3 dark:border-zinc-800">
-              <dt className="text-xs text-zinc-500 dark:text-zinc-400">Rendimento estimado</dt>
-              <dd className="mt-1 text-sm font-semibold text-emerald-700 dark:text-emerald-400">
+            <div className="rounded-lg border border-zinc-200 p-3">
+              <dt className="text-xs text-zinc-500">Rendimento estimado</dt>
+              <dd className="mt-1 text-sm font-semibold text-emerald-700">
                 {formatCurrencyBRL(Math.max(result.estimatedYield, 0))}
               </dd>
             </div>
-            <div className="rounded-lg border border-zinc-200 p-3 dark:border-zinc-800">
-              <dt className="text-xs text-zinc-500 dark:text-zinc-400">Prazo total</dt>
-              <dd className="mt-1 text-sm font-semibold text-zinc-900 dark:text-zinc-50">
+            <div className="rounded-lg border border-zinc-200 p-3">
+              <dt className="text-xs text-zinc-500">Prazo total</dt>
+              <dd className="mt-1 text-sm font-semibold text-zinc-900">
                 {result.totalMonths} {result.totalMonths === 1 ? "mês" : "meses"}
               </dd>
             </div>
           </dl>
 
-          <p className="text-xs text-zinc-500 dark:text-zinc-400">
+          <p className="text-xs text-zinc-500">
             Simulação com base em rentabilidade constante e aportes mensais iguais.
             Investimentos reais têm rentabilidade variável, e o resultado real pode ser
             diferente do estimado aqui.

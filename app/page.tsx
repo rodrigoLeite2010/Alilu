@@ -21,18 +21,20 @@ const featuredTools = tools.slice(0, 6);
 export default function HomePage() {
   return (
     <>
-      <section className="border-b border-zinc-200 bg-gradient-to-b from-blue-50/60 to-white dark:border-zinc-800 dark:from-blue-950/20 dark:to-zinc-950">
-        <Container className="py-14 sm:py-20">
+      <section className="border-b border-zinc-200 bg-white">
+        <Container className="py-16 sm:py-24">
           <div className="max-w-2xl">
-            <h1 className="text-3xl font-bold tracking-tight text-zinc-900 sm:text-5xl dark:text-zinc-50">
+            <p className="text-sm font-semibold uppercase tracking-wider text-teal-800">
+              Grátis e em português
+            </p>
+            <h1 className="mt-3 text-3xl font-bold tracking-tight text-balance text-zinc-900 sm:text-5xl">
               Sua caixa de ferramentas online
             </h1>
-            <p className="mt-4 text-lg text-zinc-600 dark:text-zinc-400">
-              Calculadoras e utilitários gratuitos para trabalho, finanças e
-              empresa — rápidos, em português e prontos para usar direto do
-              seu celular.
+            <p className="mt-4 text-lg text-zinc-600">
+              Calculadoras e utilitários para trabalho, finanças e empresa —
+              rápidos, sem cadastro e prontos para usar direto do seu celular.
             </p>
-            <div className="mt-6 flex flex-wrap gap-3">
+            <div className="mt-8 flex flex-wrap gap-3">
               <LinkButton href="/utilitarios">
                 Ver todas as ferramentas
               </LinkButton>

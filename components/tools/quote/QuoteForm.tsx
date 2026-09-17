@@ -125,14 +125,14 @@ export function QuoteForm({ onGenerate }: { onGenerate: (input: QuoteInput) => v
 
   return (
     <form onSubmit={handleSubmit} noValidate className="space-y-8">
-      <p className="rounded-lg bg-zinc-50 p-3 text-sm text-zinc-600 dark:bg-zinc-900 dark:text-zinc-400">
-        <strong className="font-medium text-zinc-700 dark:text-zinc-300">Privacidade:</strong> os
+      <p className="rounded-lg bg-zinc-50 p-3 text-sm text-zinc-600">
+        <strong className="font-medium text-zinc-700">Privacidade:</strong> os
         dados deste orçamento são processados somente no seu dispositivo e não são armazenados
         pela Alilu.
       </p>
 
       <fieldset className="space-y-5">
-        <legend className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">
+        <legend className="text-sm font-semibold text-zinc-900">
           Quem emite
         </legend>
 
@@ -164,7 +164,7 @@ export function QuoteForm({ onGenerate }: { onGenerate: (input: QuoteInput) => v
       </fieldset>
 
       <fieldset className="space-y-5">
-        <legend className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">Cliente</legend>
+        <legend className="text-sm font-semibold text-zinc-900">Cliente</legend>
 
         <TextField
           id="quote-client-name"
@@ -186,7 +186,7 @@ export function QuoteForm({ onGenerate }: { onGenerate: (input: QuoteInput) => v
       </fieldset>
 
       <fieldset className="space-y-5">
-        <legend className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">
+        <legend className="text-sm font-semibold text-zinc-900">
           Data e validade
         </legend>
         <TextField
@@ -209,12 +209,12 @@ export function QuoteForm({ onGenerate }: { onGenerate: (input: QuoteInput) => v
       </fieldset>
 
       <fieldset className="space-y-4">
-        <legend className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">Itens</legend>
+        <legend className="text-sm font-semibold text-zinc-900">Itens</legend>
 
         {items.map((item, index) => (
           <div
             key={index}
-            className="grid grid-cols-1 gap-3 rounded-lg border border-zinc-200 p-3 sm:grid-cols-12 sm:items-end dark:border-zinc-800"
+            className="grid grid-cols-1 gap-3 rounded-lg border border-zinc-200 p-3 sm:grid-cols-12 sm:items-end"
           >
             <div className="sm:col-span-6">
               <TextField
@@ -263,7 +263,7 @@ export function QuoteForm({ onGenerate }: { onGenerate: (input: QuoteInput) => v
           </div>
         ))}
 
-        {errors.items ? <p className="text-sm text-red-600 dark:text-red-400">{errors.items}</p> : null}
+        {errors.items ? <p className="text-sm text-red-600">{errors.items}</p> : null}
 
         <Button type="button" variant="secondary" onClick={addItem}>
           Adicionar item

@@ -47,7 +47,7 @@ export function BusinessDaysTool() {
       <form onSubmit={handleSubmit} noValidate className="space-y-5">
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
           <div className="block">
-            <label htmlFor="business-days-start" className="mb-1.5 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
+            <label htmlFor="business-days-start" className="mb-1.5 block text-sm font-medium text-zinc-700">
               Data inicial
             </label>
             <input
@@ -56,21 +56,21 @@ export function BusinessDaysTool() {
               value={startDate}
               onChange={(event) => setStartDate(event.target.value)}
               aria-invalid={errors.startDate ? true : undefined}
-              className={`w-full rounded-lg border bg-white py-3 px-4 text-base text-zinc-900 focus:outline-none focus:ring-2 dark:bg-zinc-900 dark:text-zinc-50 ${
+              className={`w-full rounded-lg border bg-white py-3 px-4 text-base text-zinc-900 focus:outline-none focus:ring-2 ${
                 errors.startDate
                   ? "border-red-400 focus:border-red-500 focus:ring-red-500/30"
-                  : "border-zinc-300 focus:border-blue-500 focus:ring-blue-500/30 dark:border-zinc-700"
+                  : "border-zinc-300 focus:border-teal-700 focus:ring-teal-700/20"
               }`}
             />
             {errors.startDate ? (
-              <span role="alert" className="mt-1.5 block text-sm text-red-600 dark:text-red-400">
+              <span role="alert" className="mt-1.5 block text-sm text-red-600">
                 {errors.startDate}
               </span>
             ) : null}
           </div>
 
           <div className="block">
-            <label htmlFor="business-days-end" className="mb-1.5 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
+            <label htmlFor="business-days-end" className="mb-1.5 block text-sm font-medium text-zinc-700">
               Data final
             </label>
             <input
@@ -79,14 +79,14 @@ export function BusinessDaysTool() {
               value={endDate}
               onChange={(event) => setEndDate(event.target.value)}
               aria-invalid={errors.endDate ? true : undefined}
-              className={`w-full rounded-lg border bg-white py-3 px-4 text-base text-zinc-900 focus:outline-none focus:ring-2 dark:bg-zinc-900 dark:text-zinc-50 ${
+              className={`w-full rounded-lg border bg-white py-3 px-4 text-base text-zinc-900 focus:outline-none focus:ring-2 ${
                 errors.endDate
                   ? "border-red-400 focus:border-red-500 focus:ring-red-500/30"
-                  : "border-zinc-300 focus:border-blue-500 focus:ring-blue-500/30 dark:border-zinc-700"
+                  : "border-zinc-300 focus:border-teal-700 focus:ring-teal-700/20"
               }`}
             />
             {errors.endDate ? (
-              <span role="alert" className="mt-1.5 block text-sm text-red-600 dark:text-red-400">
+              <span role="alert" className="mt-1.5 block text-sm text-red-600">
                 {errors.endDate}
               </span>
             ) : null}
@@ -94,38 +94,38 @@ export function BusinessDaysTool() {
         </div>
 
         <div className="space-y-3">
-          <label className="flex items-center gap-2 text-sm text-zinc-700 dark:text-zinc-300">
+          <label className="flex items-center gap-2 text-sm text-zinc-700">
             <input
               type="checkbox"
               checked={includeStartDate}
               onChange={(event) => setIncludeStartDate(event.target.checked)}
-              className="h-5 w-5 rounded border-zinc-300 text-blue-600 focus:ring-blue-500/30 dark:border-zinc-700"
+              className="h-5 w-5 rounded border-zinc-300 text-teal-700 focus:ring-teal-700/20"
             />
             Incluir a data inicial na contagem
           </label>
-          <label className="flex items-center gap-2 text-sm text-zinc-700 dark:text-zinc-300">
+          <label className="flex items-center gap-2 text-sm text-zinc-700">
             <input
               type="checkbox"
               checked={considerHolidays}
               onChange={(event) => setConsiderHolidays(event.target.checked)}
-              className="h-5 w-5 rounded border-zinc-300 text-blue-600 focus:ring-blue-500/30 dark:border-zinc-700"
+              className="h-5 w-5 rounded border-zinc-300 text-teal-700 focus:ring-teal-700/20"
             />
             Descontar feriados nacionais
           </label>
           {considerHolidays ? (
-            <label className="ml-7 flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-400">
+            <label className="ml-7 flex items-center gap-2 text-sm text-zinc-600">
               <input
                 type="checkbox"
                 checked={considerCorpusChristi}
                 onChange={(event) => setConsiderCorpusChristi(event.target.checked)}
-                className="h-5 w-5 rounded border-zinc-300 text-blue-600 focus:ring-blue-500/30 dark:border-zinc-700"
+                className="h-5 w-5 rounded border-zinc-300 text-teal-700 focus:ring-teal-700/20"
               />
               Considerar também o Corpus Christi (uso consolidado no calendário oficial)
             </label>
           ) : null}
         </div>
 
-        <p className="rounded-lg bg-amber-50 p-3 text-xs text-amber-800 dark:bg-amber-950/40 dark:text-amber-300">
+        <p className="rounded-lg bg-amber-50 p-3 text-xs text-amber-800">
           Só são considerados feriados NACIONAIS (fixos e móveis, calculados a partir da
           Páscoa). Feriados estaduais, municipais e pontos facultativos não são considerados.
         </p>
@@ -139,25 +139,25 @@ export function BusinessDaysTool() {
         <div className="mt-8 space-y-4">
           <ResultHighlight label="Dias úteis" value={result.headline} />
           <dl className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-            <div className="rounded-lg border border-zinc-200 p-3 dark:border-zinc-800">
-              <dt className="text-xs text-zinc-500 dark:text-zinc-400">Dias corridos</dt>
-              <dd className="mt-1 text-sm font-semibold text-zinc-900 dark:text-zinc-50">{result.totalDays}</dd>
+            <div className="rounded-lg border border-zinc-200 p-3">
+              <dt className="text-xs text-zinc-500">Dias corridos</dt>
+              <dd className="mt-1 text-sm font-semibold text-zinc-900">{result.totalDays}</dd>
             </div>
-            <div className="rounded-lg border border-zinc-200 p-3 dark:border-zinc-800">
-              <dt className="text-xs text-zinc-500 dark:text-zinc-400">Sábados</dt>
-              <dd className="mt-1 text-sm font-semibold text-zinc-900 dark:text-zinc-50">{result.saturdays}</dd>
+            <div className="rounded-lg border border-zinc-200 p-3">
+              <dt className="text-xs text-zinc-500">Sábados</dt>
+              <dd className="mt-1 text-sm font-semibold text-zinc-900">{result.saturdays}</dd>
             </div>
-            <div className="rounded-lg border border-zinc-200 p-3 dark:border-zinc-800">
-              <dt className="text-xs text-zinc-500 dark:text-zinc-400">Domingos</dt>
-              <dd className="mt-1 text-sm font-semibold text-zinc-900 dark:text-zinc-50">{result.sundays}</dd>
+            <div className="rounded-lg border border-zinc-200 p-3">
+              <dt className="text-xs text-zinc-500">Domingos</dt>
+              <dd className="mt-1 text-sm font-semibold text-zinc-900">{result.sundays}</dd>
             </div>
-            <div className="rounded-lg border border-zinc-200 p-3 dark:border-zinc-800">
-              <dt className="text-xs text-zinc-500 dark:text-zinc-400">Feriados nacionais</dt>
-              <dd className="mt-1 text-sm font-semibold text-zinc-900 dark:text-zinc-50">{result.holidaysCount}</dd>
+            <div className="rounded-lg border border-zinc-200 p-3">
+              <dt className="text-xs text-zinc-500">Feriados nacionais</dt>
+              <dd className="mt-1 text-sm font-semibold text-zinc-900">{result.holidaysCount}</dd>
             </div>
           </dl>
           {result.holidayDates.length > 0 ? (
-            <p className="text-xs text-zinc-500 dark:text-zinc-400">
+            <p className="text-xs text-zinc-500">
               Feriados considerados: {result.holidayDates.join(", ")}
             </p>
           ) : null}

@@ -26,15 +26,15 @@ export function PercentageResultView({ result }: { result: PercentageResult }) {
       />
 
       {result.difference !== undefined ? (
-        <div className="rounded-lg border border-zinc-200 p-3 text-sm dark:border-zinc-800">
-          <span className="text-zinc-500 dark:text-zinc-400">
+        <div className="rounded-lg border border-zinc-200 p-3 text-sm">
+          <span className="text-zinc-500">
             {result.mode === "variation" ? "Diferença absoluta: " : "Diferença em relação ao valor original: "}
           </span>
           <span
             className={`font-semibold ${
               result.difference >= 0
-                ? "text-emerald-700 dark:text-emerald-400"
-                : "text-red-700 dark:text-red-400"
+                ? "text-emerald-700"
+                : "text-red-700"
             }`}
           >
             {formatCurrencyBRL(result.difference)}

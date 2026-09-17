@@ -16,40 +16,40 @@ function SystemSummaryCard({
   data: FinancingSystemResult;
 }) {
   return (
-    <div className="rounded-xl border border-zinc-200 p-4 dark:border-zinc-800">
-      <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">
+    <div className="rounded-xl border border-zinc-200 p-4">
+      <h3 className="text-sm font-semibold text-zinc-900">
         {title}
       </h3>
       <dl className="mt-3 grid grid-cols-2 gap-3">
         <div>
-          <dt className="text-xs text-zinc-500 dark:text-zinc-400">
+          <dt className="text-xs text-zinc-500">
             Primeira parcela
           </dt>
-          <dd className="mt-0.5 text-sm font-semibold text-zinc-900 dark:text-zinc-50">
+          <dd className="mt-0.5 text-sm font-semibold text-zinc-900">
             {formatCurrencyBRL(data.firstPayment)}
           </dd>
         </div>
         <div>
-          <dt className="text-xs text-zinc-500 dark:text-zinc-400">
+          <dt className="text-xs text-zinc-500">
             Última parcela
           </dt>
-          <dd className="mt-0.5 text-sm font-semibold text-zinc-900 dark:text-zinc-50">
+          <dd className="mt-0.5 text-sm font-semibold text-zinc-900">
             {formatCurrencyBRL(data.lastPayment)}
           </dd>
         </div>
         <div>
-          <dt className="text-xs text-zinc-500 dark:text-zinc-400">
+          <dt className="text-xs text-zinc-500">
             Total pago
           </dt>
-          <dd className="mt-0.5 text-sm font-semibold text-zinc-900 dark:text-zinc-50">
+          <dd className="mt-0.5 text-sm font-semibold text-zinc-900">
             {formatCurrencyBRL(data.totalPaid)}
           </dd>
         </div>
         <div>
-          <dt className="text-xs text-zinc-500 dark:text-zinc-400">
+          <dt className="text-xs text-zinc-500">
             Total de juros
           </dt>
-          <dd className="mt-0.5 text-sm font-semibold text-emerald-700 dark:text-emerald-400">
+          <dd className="mt-0.5 text-sm font-semibold text-emerald-700">
             {formatCurrencyBRL(data.totalInterest)}
           </dd>
         </div>
@@ -67,7 +67,7 @@ function AmortizationTable({
 }) {
   return (
     <div>
-      <h3 className="mb-2 text-sm font-semibold text-zinc-900 dark:text-zinc-50">
+      <h3 className="mb-2 text-sm font-semibold text-zinc-900">
         {title}
       </h3>
       {/*
@@ -75,9 +75,9 @@ function AmortizationTable({
         rola horizontalmente (overflow-x-auto) em vez de espremer o texto,
         seguindo o mesmo padrão já usado na Calculadora de Juros Compostos.
       */}
-      <div className="max-h-80 overflow-auto rounded-lg border border-zinc-200 dark:border-zinc-800">
+      <div className="max-h-80 overflow-auto rounded-lg border border-zinc-200">
         <table className="w-full min-w-[560px] text-left text-sm">
-          <thead className="sticky top-0 bg-zinc-50 text-xs text-zinc-500 dark:bg-zinc-900 dark:text-zinc-400">
+          <thead className="sticky top-0 bg-zinc-50 text-xs text-zinc-500">
             <tr>
               <th className="whitespace-nowrap px-3 py-2 font-medium">Parcela</th>
               <th className="whitespace-nowrap px-3 py-2 font-medium">Prestação</th>
@@ -90,21 +90,21 @@ function AmortizationTable({
             {rows.map((row) => (
               <tr
                 key={row.number}
-                className="border-t border-zinc-100 dark:border-zinc-800"
+                className="border-t border-zinc-100"
               >
-                <td className="whitespace-nowrap px-3 py-2 text-zinc-700 dark:text-zinc-300">
+                <td className="whitespace-nowrap px-3 py-2 text-zinc-700">
                   {row.number}
                 </td>
-                <td className="whitespace-nowrap px-3 py-2 text-zinc-700 dark:text-zinc-300">
+                <td className="whitespace-nowrap px-3 py-2 text-zinc-700">
                   {formatCurrencyBRL(row.payment)}
                 </td>
-                <td className="whitespace-nowrap px-3 py-2 text-zinc-700 dark:text-zinc-300">
+                <td className="whitespace-nowrap px-3 py-2 text-zinc-700">
                   {formatCurrencyBRL(row.interest)}
                 </td>
-                <td className="whitespace-nowrap px-3 py-2 text-zinc-700 dark:text-zinc-300">
+                <td className="whitespace-nowrap px-3 py-2 text-zinc-700">
                   {formatCurrencyBRL(row.amortization)}
                 </td>
-                <td className="whitespace-nowrap px-3 py-2 font-medium text-zinc-900 dark:text-zinc-50">
+                <td className="whitespace-nowrap px-3 py-2 font-medium text-zinc-900">
                   {formatCurrencyBRL(Math.max(row.balance, 0))}
                 </td>
               </tr>
@@ -134,7 +134,7 @@ export function FinancingResultView({ result }: { result: FinancingResult }) {
         value={formatCurrencyBRL(financedAmount)}
       />
 
-      <p className="rounded-lg bg-amber-50 p-3 text-xs text-amber-800 dark:bg-amber-950/40 dark:text-amber-300">
+      <p className="rounded-lg bg-amber-50 p-3 text-xs text-amber-800">
         Esta é uma simulação matemática dos sistemas SAC e Price. Nenhum
         sistema é sempre &quot;melhor&quot; — as diferenças matemáticas estão
         mostradas abaixo para você decidir. Financiamentos reais podem

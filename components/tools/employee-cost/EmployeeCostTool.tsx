@@ -125,7 +125,7 @@ export function EmployeeCostTool() {
         ) : null}
 
         {regime === "simples_anexo_iv" ? (
-          <p className="rounded-lg bg-blue-50 p-3 text-xs text-blue-800 dark:bg-blue-950/40 dark:text-blue-300">
+          <p className="rounded-lg bg-teal-50 p-3 text-xs text-teal-800">
             No Anexo IV do Simples Nacional, a CPP (INSS patronal) e o RAT NÃO estão embutidos na
             alíquota do DAS — a empresa recolhe os dois separadamente, como no regime geral. Já as
             contribuições a terceiros/&quot;Sistema S&quot; nunca são cobradas de nenhuma empresa
@@ -134,7 +134,7 @@ export function EmployeeCostTool() {
         ) : null}
 
         {regime === "simples_outros" ? (
-          <p className="rounded-lg bg-blue-50 p-3 text-xs text-blue-800 dark:bg-blue-950/40 dark:text-blue-300">
+          <p className="rounded-lg bg-teal-50 p-3 text-xs text-teal-800">
             Nos Anexos I, II, III e V do Simples Nacional, o INSS patronal, o RAT e as
             contribuições a terceiros já estão todos embutidos na alíquota unificada do DAS — por
             isso não são somados separadamente aqui, para não contar o mesmo encargo duas vezes.
@@ -168,90 +168,90 @@ export function EmployeeCostTool() {
           />
 
           <div>
-            <h3 className="mb-2 text-sm font-semibold text-zinc-900 dark:text-zinc-50">
+            <h3 className="mb-2 text-sm font-semibold text-zinc-900">
               Memória de cálculo
             </h3>
-            <dl className="divide-y divide-zinc-200 rounded-lg border border-zinc-200 dark:divide-zinc-800 dark:border-zinc-800">
+            <dl className="divide-y divide-zinc-200 rounded-lg border border-zinc-200">
               <div className="flex items-center justify-between p-3">
-                <dt className="text-sm text-zinc-600 dark:text-zinc-400">Salário bruto</dt>
-                <dd className="text-sm font-medium text-zinc-900 dark:text-zinc-50">
+                <dt className="text-sm text-zinc-600">Salário bruto</dt>
+                <dd className="text-sm font-medium text-zinc-900">
                   {formatCurrencyBRL(result.grossSalary)}
                 </dd>
               </div>
               {result.employerINSS > 0 ? (
                 <div className="flex items-center justify-between p-3">
-                  <dt className="text-sm text-zinc-600 dark:text-zinc-400">(+) INSS patronal</dt>
-                  <dd className="text-sm font-medium text-zinc-900 dark:text-zinc-50">
+                  <dt className="text-sm text-zinc-600">(+) INSS patronal</dt>
+                  <dd className="text-sm font-medium text-zinc-900">
                     {formatCurrencyBRL(result.employerINSS)}
                   </dd>
                 </div>
               ) : null}
               {result.rat > 0 ? (
                 <div className="flex items-center justify-between p-3">
-                  <dt className="text-sm text-zinc-600 dark:text-zinc-400">(+) RAT</dt>
-                  <dd className="text-sm font-medium text-zinc-900 dark:text-zinc-50">
+                  <dt className="text-sm text-zinc-600">(+) RAT</dt>
+                  <dd className="text-sm font-medium text-zinc-900">
                     {formatCurrencyBRL(result.rat)}
                   </dd>
                 </div>
               ) : null}
               {result.thirdParty > 0 ? (
                 <div className="flex items-center justify-between p-3">
-                  <dt className="text-sm text-zinc-600 dark:text-zinc-400">
+                  <dt className="text-sm text-zinc-600">
                     (+) Contribuições a terceiros
                   </dt>
-                  <dd className="text-sm font-medium text-zinc-900 dark:text-zinc-50">
+                  <dd className="text-sm font-medium text-zinc-900">
                     {formatCurrencyBRL(result.thirdParty)}
                   </dd>
                 </div>
               ) : null}
               <div className="flex items-center justify-between p-3">
-                <dt className="text-sm text-zinc-600 dark:text-zinc-400">(+) FGTS sobre o salário</dt>
-                <dd className="text-sm font-medium text-zinc-900 dark:text-zinc-50">
+                <dt className="text-sm text-zinc-600">(+) FGTS sobre o salário</dt>
+                <dd className="text-sm font-medium text-zinc-900">
                   {formatCurrencyBRL(result.fgtsOnSalary)}
                 </dd>
               </div>
               <div className="flex items-center justify-between p-3">
-                <dt className="text-sm text-zinc-600 dark:text-zinc-400">
+                <dt className="text-sm text-zinc-600">
                   (+) Provisão de férias (+ 1/3)
                 </dt>
-                <dd className="text-sm font-medium text-zinc-900 dark:text-zinc-50">
+                <dd className="text-sm font-medium text-zinc-900">
                   {formatCurrencyBRL(result.vacationProvision + result.vacationOneThirdProvision)}
                 </dd>
               </div>
               <div className="flex items-center justify-between p-3">
-                <dt className="text-sm text-zinc-600 dark:text-zinc-400">(+) Provisão de 13º</dt>
-                <dd className="text-sm font-medium text-zinc-900 dark:text-zinc-50">
+                <dt className="text-sm text-zinc-600">(+) Provisão de 13º</dt>
+                <dd className="text-sm font-medium text-zinc-900">
                   {formatCurrencyBRL(result.thirteenthProvision)}
                 </dd>
               </div>
               <div className="flex items-center justify-between p-3">
-                <dt className="text-sm text-zinc-600 dark:text-zinc-400">
+                <dt className="text-sm text-zinc-600">
                   (+) FGTS sobre as provisões
                 </dt>
-                <dd className="text-sm font-medium text-zinc-900 dark:text-zinc-50">
+                <dd className="text-sm font-medium text-zinc-900">
                   {formatCurrencyBRL(result.fgtsOnProvisions)}
                 </dd>
               </div>
               {result.monthlyBenefits > 0 ? (
                 <div className="flex items-center justify-between p-3">
-                  <dt className="text-sm text-zinc-600 dark:text-zinc-400">(+) Benefícios mensais</dt>
-                  <dd className="text-sm font-medium text-zinc-900 dark:text-zinc-50">
+                  <dt className="text-sm text-zinc-600">(+) Benefícios mensais</dt>
+                  <dd className="text-sm font-medium text-zinc-900">
                     {formatCurrencyBRL(result.monthlyBenefits)}
                   </dd>
                 </div>
               ) : null}
-              <div className="flex items-center justify-between bg-emerald-50 p-3 dark:bg-emerald-950/40">
-                <dt className="text-sm font-semibold text-emerald-800 dark:text-emerald-300">
+              <div className="flex items-center justify-between bg-emerald-50 p-3">
+                <dt className="text-sm font-semibold text-emerald-800">
                   Custo total estimado
                 </dt>
-                <dd className="text-sm font-semibold text-emerald-800 dark:text-emerald-300">
+                <dd className="text-sm font-semibold text-emerald-800">
                   {formatCurrencyBRL(result.headline)}
                 </dd>
               </div>
             </dl>
           </div>
 
-          <p className="text-xs text-zinc-500 dark:text-zinc-400">
+          <p className="text-xs text-zinc-500">
             As provisões de férias e 13º são estimativas contábeis do custo médio mensal desses
             direitos (1/12 do valor anual de cada um), não um desconto do salário do funcionário.
             Quando aplicável, o INSS patronal, o RAT e as contribuições a terceiros já consideram

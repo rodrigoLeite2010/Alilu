@@ -40,7 +40,7 @@ function buildLinePath(
           maxValue
         )}`
     )
-    .join(" ");
+    .join("");
 }
 
 /**
@@ -68,7 +68,7 @@ export function FinancingBalanceChart({
           key: "price",
           label: "Price",
           installments: price,
-          className: "stroke-blue-600 dark:stroke-blue-400",
+          className: "stroke-teal-700",
         }
       : null,
     sac
@@ -76,7 +76,7 @@ export function FinancingBalanceChart({
           key: "sac",
           label: "SAC",
           installments: sac,
-          className: "stroke-emerald-600 dark:stroke-emerald-400",
+          className: "stroke-emerald-600",
         }
       : null,
   ].filter((item): item is Series => item !== null);
@@ -93,7 +93,7 @@ export function FinancingBalanceChart({
         viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
         role="img"
         aria-hidden="true"
-        className="h-auto w-full rounded-lg border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950"
+        className="h-auto w-full rounded-lg border border-zinc-200 bg-white"
       >
         {series.map((s) => (
           <path
@@ -106,7 +106,7 @@ export function FinancingBalanceChart({
         ))}
       </svg>
       {series.length > 1 ? (
-        <ul className="mt-2 flex gap-4 text-xs text-zinc-600 dark:text-zinc-400" aria-hidden="true">
+        <ul className="mt-2 flex gap-4 text-xs text-zinc-600" aria-hidden="true">
           {series.map((s) => (
             <li key={s.key} className="flex items-center gap-1.5">
               <span

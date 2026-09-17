@@ -19,7 +19,7 @@ export default function AboutPage() {
           { name: "Sobre", path: "/sobre" },
         ]}
       />
-      <h1 className="text-2xl font-bold tracking-tight text-zinc-900 sm:text-3xl dark:text-zinc-50">
+      <h1 className="text-2xl font-bold tracking-tight text-zinc-900 sm:text-3xl">
         Sobre o {SITE_NAME}
       </h1>
 

@@ -19,7 +19,7 @@ export default function TermsOfUsePage() {
           { name: "Termos de Uso", path: "/termos-de-uso" },
         ]}
       />
-      <h1 className="text-2xl font-bold tracking-tight text-zinc-900 sm:text-3xl dark:text-zinc-50">
+      <h1 className="text-2xl font-bold tracking-tight text-zinc-900 sm:text-3xl">
         Termos de Uso
       </h1>
 

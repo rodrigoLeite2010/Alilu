@@ -109,15 +109,15 @@ export function QrCodeTool() {
 
       {content ? (
         <div className="mt-8 flex flex-col items-center gap-4">
-          <div className="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800">
+          <div className="rounded-xl border border-zinc-200 bg-white p-4">
             <canvas ref={canvasRef} />
           </div>
 
           {renderError ? (
-            <p className="text-sm text-red-600 dark:text-red-400">{renderError}</p>
+            <p className="text-sm text-red-600">{renderError}</p>
           ) : (
             <>
-              <p className="max-w-sm break-words text-center text-xs text-zinc-500 dark:text-zinc-400">
+              <p className="max-w-sm break-words text-center text-xs text-zinc-500">
                 Conteúdo codificado: {content}
               </p>
               <div className="flex flex-wrap justify-center gap-3 print:hidden">

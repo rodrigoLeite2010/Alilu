@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/Button";
 import { SITE_URL } from "@/lib/seo/site";
 
 const TOOL_PATH = "/utilitarios/empresa/gerador-recibo";
-const TOOL_URL = `${SITE_URL}${TOOL_PATH}`;
+const TOOL_URL =`${SITE_URL}${TOOL_PATH}`;
 
 type ShareState = "idle" | "copied" | "error";
 
@@ -55,12 +55,12 @@ export function ReceiptActions({ onReset }: { onReset: () => void }) {
         Compartilhar
       </Button>
       {shareState === "copied" ? (
-        <span role="status" className="text-sm text-emerald-600 dark:text-emerald-400">
+        <span role="status" className="text-sm text-emerald-600">
           Link da ferramenta copiado!
         </span>
       ) : null}
       {shareState === "error" ? (
-        <span role="status" className="text-sm text-zinc-600 dark:text-zinc-400">
+        <span role="status" className="text-sm text-zinc-600">
           Não foi possível copiar automaticamente. Link: {TOOL_URL}
         </span>
       ) : null}

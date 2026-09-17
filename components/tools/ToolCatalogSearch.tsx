@@ -39,7 +39,7 @@ export function ToolCatalogSearch({ tools }: { tools: Tool[] }) {
           onChange={(event) => setQuery(event.target.value)}
         />
       </div>
-      <p className="mb-4 text-sm text-zinc-500 dark:text-zinc-400" aria-live="polite">
+      <p className="mb-4 text-sm text-zinc-500" aria-live="polite">
         {filteredTools.length}{" "}
         {filteredTools.length === 1
           ? "ferramenta encontrada"

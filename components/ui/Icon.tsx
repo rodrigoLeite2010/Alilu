@@ -63,6 +63,7 @@ const iconMap: Record<string, LucideIcon> = {
   menu: Menu,
   close: X,
   "chevron-right": ChevronRight,
+  wrench: Wrench,
 };
 
 export interface IconProps {

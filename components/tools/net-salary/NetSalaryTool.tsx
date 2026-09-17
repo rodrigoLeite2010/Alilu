@@ -115,66 +115,66 @@ export function NetSalaryTool() {
           <ResultHighlight label="Salário líquido" value={formatCurrencyBRL(result.headline)} />
 
           <div>
-            <h3 className="mb-2 text-sm font-semibold text-zinc-900 dark:text-zinc-50">
+            <h3 className="mb-2 text-sm font-semibold text-zinc-900">
               Memória de cálculo
             </h3>
-            <dl className="divide-y divide-zinc-200 rounded-lg border border-zinc-200 dark:divide-zinc-800 dark:border-zinc-800">
+            <dl className="divide-y divide-zinc-200 rounded-lg border border-zinc-200">
               <div className="flex items-center justify-between p-3">
-                <dt className="text-sm text-zinc-600 dark:text-zinc-400">Salário bruto</dt>
-                <dd className="text-sm font-medium text-zinc-900 dark:text-zinc-50">
+                <dt className="text-sm text-zinc-600">Salário bruto</dt>
+                <dd className="text-sm font-medium text-zinc-900">
                   {formatCurrencyBRL(result.grossSalary)}
                 </dd>
               </div>
               <div className="flex items-center justify-between p-3">
-                <dt className="text-sm text-zinc-600 dark:text-zinc-400">(−) INSS</dt>
-                <dd className="text-sm font-medium text-red-700 dark:text-red-400">
+                <dt className="text-sm text-zinc-600">(−) INSS</dt>
+                <dd className="text-sm font-medium text-red-700">
                   {formatCurrencyBRL(result.inss)}
                 </dd>
               </div>
               {result.dependentsDeduction > 0 ? (
                 <div className="flex items-center justify-between p-3">
-                  <dt className="text-sm text-zinc-600 dark:text-zinc-400">
+                  <dt className="text-sm text-zinc-600">
                     (−) Dedução por dependentes (base do IRRF)
                   </dt>
-                  <dd className="text-sm font-medium text-zinc-900 dark:text-zinc-50">
+                  <dd className="text-sm font-medium text-zinc-900">
                     {formatCurrencyBRL(result.dependentsDeduction)}
                   </dd>
                 </div>
               ) : null}
               <div className="flex items-center justify-between p-3">
-                <dt className="text-sm text-zinc-600 dark:text-zinc-400">(−) IRRF</dt>
-                <dd className="text-sm font-medium text-red-700 dark:text-red-400">
+                <dt className="text-sm text-zinc-600">(−) IRRF</dt>
+                <dd className="text-sm font-medium text-red-700">
                   {formatCurrencyBRL(result.irrf)}
                 </dd>
               </div>
               {result.otherDeductions > 0 ? (
                 <div className="flex items-center justify-between p-3">
-                  <dt className="text-sm text-zinc-600 dark:text-zinc-400">(−) Outros descontos</dt>
-                  <dd className="text-sm font-medium text-red-700 dark:text-red-400">
+                  <dt className="text-sm text-zinc-600">(−) Outros descontos</dt>
+                  <dd className="text-sm font-medium text-red-700">
                     {formatCurrencyBRL(result.otherDeductions)}
                   </dd>
                 </div>
               ) : null}
               <div className="flex items-center justify-between p-3">
-                <dt className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">
+                <dt className="text-sm font-semibold text-zinc-900">
                   Total de descontos
                 </dt>
-                <dd className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">
+                <dd className="text-sm font-semibold text-zinc-900">
                   {formatCurrencyBRL(result.totalDeductions)}
                 </dd>
               </div>
-              <div className="flex items-center justify-between bg-emerald-50 p-3 dark:bg-emerald-950/40">
-                <dt className="text-sm font-semibold text-emerald-800 dark:text-emerald-300">
+              <div className="flex items-center justify-between bg-emerald-50 p-3">
+                <dt className="text-sm font-semibold text-emerald-800">
                   Salário líquido
                 </dt>
-                <dd className="text-sm font-semibold text-emerald-800 dark:text-emerald-300">
+                <dd className="text-sm font-semibold text-emerald-800">
                   {formatCurrencyBRL(result.headline)}
                 </dd>
               </div>
             </dl>
           </div>
 
-          <p className="text-xs text-zinc-500 dark:text-zinc-400">
+          <p className="text-xs text-zinc-500">
             Cálculo com base nas tabelas oficiais de INSS e IRRF vigentes em{" "}
             {PAYROLL_TABLE_REFERENCE_YEAR}. Considera apenas o desconto mensal padrão sobre o
             salário bruto informado — não substitui o holerite oficial, que pode incluir outras

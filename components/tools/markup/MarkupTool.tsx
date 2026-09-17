@@ -127,21 +127,21 @@ export function MarkupTool() {
         <div className="mt-8 space-y-4">
           <ResultHighlight label="Preço de venda sugerido" value={formatCurrencyBRL(result.headline)} />
           <dl className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-            <div className="rounded-lg border border-zinc-200 p-3 dark:border-zinc-800">
-              <dt className="text-xs text-zinc-500 dark:text-zinc-400">Markup multiplicador</dt>
-              <dd className="mt-1 text-sm font-semibold text-zinc-900 dark:text-zinc-50">
+            <div className="rounded-lg border border-zinc-200 p-3">
+              <dt className="text-xs text-zinc-500">Markup multiplicador</dt>
+              <dd className="mt-1 text-sm font-semibold text-zinc-900">
                 × {result.multiplier.toFixed(2).replace(".", ",")}
               </dd>
             </div>
-            <div className="rounded-lg border border-zinc-200 p-3 dark:border-zinc-800">
-              <dt className="text-xs text-zinc-500 dark:text-zinc-400">Lucro no preço de venda</dt>
-              <dd className="mt-1 text-sm font-semibold text-emerald-700 dark:text-emerald-400">
+            <div className="rounded-lg border border-zinc-200 p-3">
+              <dt className="text-xs text-zinc-500">Lucro no preço de venda</dt>
+              <dd className="mt-1 text-sm font-semibold text-emerald-700">
                 {formatCurrencyBRL(result.profitAmount)}
               </dd>
             </div>
-            <div className="rounded-lg border border-zinc-200 p-3 dark:border-zinc-800">
-              <dt className="text-xs text-zinc-500 dark:text-zinc-400">Total de percentuais</dt>
-              <dd className="mt-1 text-sm font-semibold text-zinc-900 dark:text-zinc-50">
+            <div className="rounded-lg border border-zinc-200 p-3">
+              <dt className="text-xs text-zinc-500">Total de percentuais</dt>
+              <dd className="mt-1 text-sm font-semibold text-zinc-900">
                 {formatPercentage(result.totalPercent)}
               </dd>
             </div>

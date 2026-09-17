@@ -118,7 +118,7 @@ export function BillSplitTool() {
               </div>
             ))}
             {errors.participants ? (
-              <p role="alert" className="text-sm text-red-600 dark:text-red-400">
+              <p role="alert" className="text-sm text-red-600">
                 {errors.participants}
               </p>
             ) : null}
@@ -180,9 +180,9 @@ export function BillSplitTool() {
           ) : null}
 
           {result.participants ? (
-            <div className="overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-800">
+            <div className="overflow-x-auto rounded-lg border border-zinc-200">
               <table className="w-full min-w-[420px] text-left text-sm">
-                <thead className="bg-zinc-50 text-xs text-zinc-500 dark:bg-zinc-900 dark:text-zinc-400">
+                <thead className="bg-zinc-50 text-xs text-zinc-500">
                   <tr>
                     <th className="px-3 py-2 font-medium">Participante</th>
                     <th className="px-3 py-2 font-medium">Consumiu</th>
@@ -191,12 +191,12 @@ export function BillSplitTool() {
                 </thead>
                 <tbody>
                   {result.participants.map((participant, index) => (
-                    <tr key={index} className="border-t border-zinc-100 dark:border-zinc-800">
-                      <td className="px-3 py-2 text-zinc-700 dark:text-zinc-300">{participant.name}</td>
-                      <td className="px-3 py-2 text-zinc-700 dark:text-zinc-300">
+                    <tr key={index} className="border-t border-zinc-100">
+                      <td className="px-3 py-2 text-zinc-700">{participant.name}</td>
+                      <td className="px-3 py-2 text-zinc-700">
                         {formatCurrencyBRL(participant.amount)}
                       </td>
-                      <td className="px-3 py-2 font-medium text-zinc-900 dark:text-zinc-50">
+                      <td className="px-3 py-2 font-medium text-zinc-900">
                         {formatCurrencyBRL(participant.amountToPay)}
                       </td>
                     </tr>

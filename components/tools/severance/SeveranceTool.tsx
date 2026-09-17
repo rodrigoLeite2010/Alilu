@@ -76,7 +76,7 @@ export function SeveranceTool() {
 
   return (
     <div>
-      <p className="mb-5 rounded-lg bg-amber-50 p-3 text-xs text-amber-800 dark:bg-amber-950/40 dark:text-amber-300">
+      <p className="mb-5 rounded-lg bg-amber-50 p-3 text-xs text-amber-800">
         Esta calculadora cobre apenas dois tipos de desligamento: dispensa sem justa causa e
         pedido de demissão. Ela NÃO cobre justa causa, acordo mútuo (distrato), término de
         contrato de experiência, aposentadoria ou falecimento. O resultado é uma estimativa e não
@@ -164,12 +164,12 @@ export function SeveranceTool() {
           />
         </div>
 
-        <label className="flex items-center gap-2 text-sm text-zinc-700 dark:text-zinc-300">
+        <label className="flex items-center gap-2 text-sm text-zinc-700">
           <input
             type="checkbox"
             checked={hasExpiredVacation}
             onChange={(event) => setHasExpiredVacation(event.target.checked)}
-            className="h-4 w-4 rounded border-zinc-300 dark:border-zinc-700"
+            className="h-4 w-4 rounded border-zinc-300"
           />
           Há férias vencidas (período aquisitivo completo ainda não gozado)
         </label>
@@ -216,86 +216,86 @@ export function SeveranceTool() {
           />
 
           <div>
-            <h3 className="mb-2 text-sm font-semibold text-zinc-900 dark:text-zinc-50">
+            <h3 className="mb-2 text-sm font-semibold text-zinc-900">
               Memória de cálculo das verbas
             </h3>
-            <dl className="divide-y divide-zinc-200 rounded-lg border border-zinc-200 dark:divide-zinc-800 dark:border-zinc-800">
+            <dl className="divide-y divide-zinc-200 rounded-lg border border-zinc-200">
               <div className="flex items-center justify-between p-3">
-                <dt className="text-sm text-zinc-600 dark:text-zinc-400">
+                <dt className="text-sm text-zinc-600">
                   Saldo de salário (líquido)
                 </dt>
-                <dd className="text-sm font-medium text-zinc-900 dark:text-zinc-50">
+                <dd className="text-sm font-medium text-zinc-900">
                   {formatCurrencyBRL(result.balanceSalaryNet)}
                 </dd>
               </div>
               {result.noticePeriodAmount > 0 ? (
                 <div className="flex items-center justify-between p-3">
-                  <dt className="text-sm text-zinc-600 dark:text-zinc-400">
+                  <dt className="text-sm text-zinc-600">
                     Aviso prévio indenizado ({result.noticePeriodDays} dias)
                   </dt>
-                  <dd className="text-sm font-medium text-zinc-900 dark:text-zinc-50">
+                  <dd className="text-sm font-medium text-zinc-900">
                     {formatCurrencyBRL(result.noticePeriodAmount)}
                   </dd>
                 </div>
               ) : null}
               {result.expiredVacationAmount > 0 ? (
                 <div className="flex items-center justify-between p-3">
-                  <dt className="text-sm text-zinc-600 dark:text-zinc-400">
+                  <dt className="text-sm text-zinc-600">
                     Férias vencidas (+ 1/3)
                   </dt>
-                  <dd className="text-sm font-medium text-zinc-900 dark:text-zinc-50">
+                  <dd className="text-sm font-medium text-zinc-900">
                     {formatCurrencyBRL(result.expiredVacationAmount)}
                   </dd>
                 </div>
               ) : null}
               {result.proportionalVacationAmount > 0 ? (
                 <div className="flex items-center justify-between p-3">
-                  <dt className="text-sm text-zinc-600 dark:text-zinc-400">
+                  <dt className="text-sm text-zinc-600">
                     Férias proporcionais (+ 1/3)
                   </dt>
-                  <dd className="text-sm font-medium text-zinc-900 dark:text-zinc-50">
+                  <dd className="text-sm font-medium text-zinc-900">
                     {formatCurrencyBRL(result.proportionalVacationAmount)}
                   </dd>
                 </div>
               ) : null}
               <div className="flex items-center justify-between p-3">
-                <dt className="text-sm text-zinc-600 dark:text-zinc-400">
+                <dt className="text-sm text-zinc-600">
                   13º proporcional (líquido)
                 </dt>
-                <dd className="text-sm font-medium text-zinc-900 dark:text-zinc-50">
+                <dd className="text-sm font-medium text-zinc-900">
                   {formatCurrencyBRL(result.thirteenthNet)}
                 </dd>
               </div>
               {result.fgtsFineAmount > 0 ? (
                 <div className="flex items-center justify-between p-3">
-                  <dt className="text-sm text-zinc-600 dark:text-zinc-400">
+                  <dt className="text-sm text-zinc-600">
                     Multa de 40% do FGTS
                   </dt>
-                  <dd className="text-sm font-medium text-zinc-900 dark:text-zinc-50">
+                  <dd className="text-sm font-medium text-zinc-900">
                     {formatCurrencyBRL(result.fgtsFineAmount)}
                   </dd>
                 </div>
               ) : null}
               <div className="flex items-center justify-between p-3">
-                <dt className="text-sm text-zinc-600 dark:text-zinc-400">
+                <dt className="text-sm text-zinc-600">
                   (−) INSS + IRRF (saldo de salário e 13º)
                 </dt>
-                <dd className="text-sm font-medium text-red-700 dark:text-red-400">
+                <dd className="text-sm font-medium text-red-700">
                   {formatCurrencyBRL(result.totalDeductions)}
                 </dd>
               </div>
-              <div className="flex items-center justify-between bg-emerald-50 p-3 dark:bg-emerald-950/40">
-                <dt className="text-sm font-semibold text-emerald-800 dark:text-emerald-300">
+              <div className="flex items-center justify-between bg-emerald-50 p-3">
+                <dt className="text-sm font-semibold text-emerald-800">
                   Total líquido estimado
                 </dt>
-                <dd className="text-sm font-semibold text-emerald-800 dark:text-emerald-300">
+                <dd className="text-sm font-semibold text-emerald-800">
                   {formatCurrencyBRL(result.totalNet)}
                 </dd>
               </div>
             </dl>
           </div>
 
-          <p className="text-xs text-zinc-500 dark:text-zinc-400">
+          <p className="text-xs text-zinc-500">
             {isWithoutCause
               ? "No pedido de demissão, não há aviso prévio indenizado a receber nem multa de 40% do FGTS."
               : "No pedido de demissão, o empregado não recebe aviso prévio nem a multa de 40% do FGTS; se não cumprir o aviso, o empregador pode descontar o período correspondente."}{" "}

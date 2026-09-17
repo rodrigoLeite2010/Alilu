@@ -143,8 +143,8 @@ export function ReceiptForm({
 
   return (
     <form onSubmit={handleSubmit} noValidate className="space-y-8">
-      <p className="rounded-lg bg-zinc-50 p-3 text-sm text-zinc-600 dark:bg-zinc-900 dark:text-zinc-400">
-        <strong className="font-medium text-zinc-700 dark:text-zinc-300">
+      <p className="rounded-lg bg-zinc-50 p-3 text-sm text-zinc-600">
+        <strong className="font-medium text-zinc-700">
           Privacidade:
         </strong>{" "}
         os dados deste recibo são processados somente no seu dispositivo e
@@ -152,7 +152,7 @@ export function ReceiptForm({
       </p>
 
       <fieldset className="space-y-5">
-        <legend className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">
+        <legend className="text-sm font-semibold text-zinc-900">
           Pagamento
         </legend>
 
@@ -251,7 +251,7 @@ export function ReceiptForm({
       </fieldset>
 
       <fieldset className="space-y-5">
-        <legend className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">
+        <legend className="text-sm font-semibold text-zinc-900">
           Quem recebe
         </legend>
 

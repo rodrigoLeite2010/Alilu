@@ -45,7 +45,7 @@ function buildAreaPath(
       (point) =>
         `${scaleX(point.month, maxMonth)},${scaleY(point[key], maxValue)}`
     )
-    .join(" L ");
+    .join(" L");
 
   const baseline = HEIGHT - PADDING;
   return `M ${scaleX(0, maxMonth)},${baseline} L ${top} L ${scaleX(
@@ -87,12 +87,12 @@ export function BalanceChart({
       viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
       role="img"
       aria-hidden="true"
-      className="h-auto w-full rounded-lg border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950"
+      className="h-auto w-full rounded-lg border border-zinc-200 bg-white"
     >
-      <path d={totalAreaPath} className="fill-blue-200 dark:fill-blue-900/60" />
+      <path d={totalAreaPath} className="fill-teal-100" />
       <path
         d={investedAreaPath}
-        className="fill-blue-600 dark:fill-blue-500"
+        className="fill-teal-700"
       />
     </svg>
   );

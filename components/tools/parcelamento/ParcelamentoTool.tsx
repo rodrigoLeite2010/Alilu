@@ -123,21 +123,21 @@ export function ParcelamentoTool() {
         <div className="mt-8 space-y-4">
           <ResultHighlight label="Valor da parcela" value={formatCurrencyBRL(price.firstPayment)} />
           <dl className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-            <div className="rounded-lg border border-zinc-200 p-3 dark:border-zinc-800">
-              <dt className="text-xs text-zinc-500 dark:text-zinc-400">Valor financiado</dt>
-              <dd className="mt-1 text-sm font-semibold text-zinc-900 dark:text-zinc-50">
+            <div className="rounded-lg border border-zinc-200 p-3">
+              <dt className="text-xs text-zinc-500">Valor financiado</dt>
+              <dd className="mt-1 text-sm font-semibold text-zinc-900">
                 {formatCurrencyBRL(price.financedAmount)}
               </dd>
             </div>
-            <div className="rounded-lg border border-zinc-200 p-3 dark:border-zinc-800">
-              <dt className="text-xs text-zinc-500 dark:text-zinc-400">Total pago</dt>
-              <dd className="mt-1 text-sm font-semibold text-zinc-900 dark:text-zinc-50">
+            <div className="rounded-lg border border-zinc-200 p-3">
+              <dt className="text-xs text-zinc-500">Total pago</dt>
+              <dd className="mt-1 text-sm font-semibold text-zinc-900">
                 {formatCurrencyBRL(price.totalPaid)}
               </dd>
             </div>
-            <div className="rounded-lg border border-zinc-200 p-3 dark:border-zinc-800">
-              <dt className="text-xs text-zinc-500 dark:text-zinc-400">Juros totais</dt>
-              <dd className="mt-1 text-sm font-semibold text-emerald-700 dark:text-emerald-400">
+            <div className="rounded-lg border border-zinc-200 p-3">
+              <dt className="text-xs text-zinc-500">Juros totais</dt>
+              <dd className="mt-1 text-sm font-semibold text-emerald-700">
                 {formatCurrencyBRL(price.totalInterest)}
               </dd>
             </div>

@@ -19,10 +19,10 @@ export default function PrivacyPolicyPage() {
           { name: "Política de Privacidade", path: "/privacidade" },
         ]}
       />
-      <h1 className="text-2xl font-bold tracking-tight text-zinc-900 sm:text-3xl dark:text-zinc-50">
+      <h1 className="text-2xl font-bold tracking-tight text-zinc-900 sm:text-3xl">
         Política de Privacidade
       </h1>
-      <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-500">
+      <p className="mt-2 text-sm text-zinc-500">
         Última atualização: esta é uma versão inicial, publicada junto com o
         lançamento da plataforma.
       </p>

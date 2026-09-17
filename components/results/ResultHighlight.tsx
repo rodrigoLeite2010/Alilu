@@ -17,20 +17,16 @@ export function ResultHighlight({
 }) {
   return (
     <div
-      className={`rounded-xl border p-6 text-center ${
+      className={`rounded-lg border p-6 text-center ${
         placeholder
-          ? "border-dashed border-zinc-300 bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900"
-          : "border-blue-200 bg-blue-50 dark:border-blue-900 dark:bg-blue-950/40"
+          ? "border-dashed border-zinc-300 bg-zinc-50"
+          : "border-teal-800/15 bg-teal-50"
       }`}
     >
-      <p className="text-sm font-medium text-zinc-600 dark:text-zinc-400">
-        {label}
-      </p>
+      <p className="text-sm font-medium text-zinc-600">{label}</p>
       <p
         className={`mt-2 text-3xl font-bold tracking-tight sm:text-4xl ${
-          placeholder
-            ? "text-zinc-400 dark:text-zinc-600"
-            : "text-blue-700 dark:text-blue-300"
+          placeholder ? "text-zinc-400" : "text-teal-900"
         }`}
       >
         {value}

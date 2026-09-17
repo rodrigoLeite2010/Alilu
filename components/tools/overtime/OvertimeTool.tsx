@@ -103,21 +103,21 @@ export function OvertimeTool() {
         <div className="mt-8 space-y-4">
           <ResultHighlight label="Valor total das horas extras" value={formatCurrencyBRL(result.headline)} />
           <dl className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-            <div className="rounded-lg border border-zinc-200 p-3 dark:border-zinc-800">
-              <dt className="text-xs text-zinc-500 dark:text-zinc-400">Divisor mensal</dt>
-              <dd className="mt-1 text-sm font-semibold text-zinc-900 dark:text-zinc-50">
+            <div className="rounded-lg border border-zinc-200 p-3">
+              <dt className="text-xs text-zinc-500">Divisor mensal</dt>
+              <dd className="mt-1 text-sm font-semibold text-zinc-900">
                 {result.monthlyHoursDivisor}
               </dd>
             </div>
-            <div className="rounded-lg border border-zinc-200 p-3 dark:border-zinc-800">
-              <dt className="text-xs text-zinc-500 dark:text-zinc-400">Valor da hora normal</dt>
-              <dd className="mt-1 text-sm font-semibold text-zinc-900 dark:text-zinc-50">
+            <div className="rounded-lg border border-zinc-200 p-3">
+              <dt className="text-xs text-zinc-500">Valor da hora normal</dt>
+              <dd className="mt-1 text-sm font-semibold text-zinc-900">
                 {formatCurrencyBRL(result.normalHourValue)}
               </dd>
             </div>
-            <div className="rounded-lg border border-zinc-200 p-3 dark:border-zinc-800">
-              <dt className="text-xs text-zinc-500 dark:text-zinc-400">Valor da hora extra</dt>
-              <dd className="mt-1 text-sm font-semibold text-zinc-900 dark:text-zinc-50">
+            <div className="rounded-lg border border-zinc-200 p-3">
+              <dt className="text-xs text-zinc-500">Valor da hora extra</dt>
+              <dd className="mt-1 text-sm font-semibold text-zinc-900">
                 {formatCurrencyBRL(result.overtimeHourValue)}
               </dd>
             </div>

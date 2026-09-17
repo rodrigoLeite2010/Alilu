@@ -10,7 +10,7 @@ export function ComingSoonNotice({ toolName }: { toolName: string }) {
   return (
     <div className="space-y-4">
       <ResultHighlight label="Pré-visualização do resultado" value="—" placeholder />
-      <p className="rounded-lg bg-zinc-50 p-4 text-sm text-zinc-600 dark:bg-zinc-900 dark:text-zinc-400">
+      <p className="rounded-lg bg-zinc-50 p-4 text-sm text-zinc-600">
         A calculadora <strong>{toolName}</strong> ainda está em desenvolvimento
         e em breve estará disponível gratuitamente aqui. Enquanto isso,
         explore as outras ferramentas já organizadas no catálogo.

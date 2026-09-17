@@ -125,76 +125,76 @@ export function VacationTool() {
           <ResultHighlight label="Valor líquido a receber" value={formatCurrencyBRL(result.headline)} />
 
           <div>
-            <h3 className="mb-2 text-sm font-semibold text-zinc-900 dark:text-zinc-50">
+            <h3 className="mb-2 text-sm font-semibold text-zinc-900">
               Memória de cálculo
             </h3>
-            <dl className="divide-y divide-zinc-200 rounded-lg border border-zinc-200 dark:divide-zinc-800 dark:border-zinc-800">
+            <dl className="divide-y divide-zinc-200 rounded-lg border border-zinc-200">
               <div className="flex items-center justify-between p-3">
-                <dt className="text-sm text-zinc-600 dark:text-zinc-400">Férias (dias gozados)</dt>
-                <dd className="text-sm font-medium text-zinc-900 dark:text-zinc-50">
+                <dt className="text-sm text-zinc-600">Férias (dias gozados)</dt>
+                <dd className="text-sm font-medium text-zinc-900">
                   {formatCurrencyBRL(result.vacationGrossValue)}
                 </dd>
               </div>
               <div className="flex items-center justify-between p-3">
-                <dt className="text-sm text-zinc-600 dark:text-zinc-400">
+                <dt className="text-sm text-zinc-600">
                   (+) Terço constitucional
                 </dt>
-                <dd className="text-sm font-medium text-zinc-900 dark:text-zinc-50">
+                <dd className="text-sm font-medium text-zinc-900">
                   {formatCurrencyBRL(result.oneThird)}
                 </dd>
               </div>
               {result.abonoValue > 0 ? (
                 <>
                   <div className="flex items-center justify-between p-3">
-                    <dt className="text-sm text-zinc-600 dark:text-zinc-400">
+                    <dt className="text-sm text-zinc-600">
                       (+) Abono pecuniário
                     </dt>
-                    <dd className="text-sm font-medium text-zinc-900 dark:text-zinc-50">
+                    <dd className="text-sm font-medium text-zinc-900">
                       {formatCurrencyBRL(result.abonoValue)}
                     </dd>
                   </div>
                   <div className="flex items-center justify-between p-3">
-                    <dt className="text-sm text-zinc-600 dark:text-zinc-400">
+                    <dt className="text-sm text-zinc-600">
                       (+) Terço sobre o abono
                     </dt>
-                    <dd className="text-sm font-medium text-zinc-900 dark:text-zinc-50">
+                    <dd className="text-sm font-medium text-zinc-900">
                       {formatCurrencyBRL(result.abonoOneThird)}
                     </dd>
                   </div>
                 </>
               ) : null}
               <div className="flex items-center justify-between p-3">
-                <dt className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">
+                <dt className="text-sm font-semibold text-zinc-900">
                   Total bruto
                 </dt>
-                <dd className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">
+                <dd className="text-sm font-semibold text-zinc-900">
                   {formatCurrencyBRL(result.grossTotal)}
                 </dd>
               </div>
               <div className="flex items-center justify-between p-3">
-                <dt className="text-sm text-zinc-600 dark:text-zinc-400">(−) INSS</dt>
-                <dd className="text-sm font-medium text-red-700 dark:text-red-400">
+                <dt className="text-sm text-zinc-600">(−) INSS</dt>
+                <dd className="text-sm font-medium text-red-700">
                   {formatCurrencyBRL(result.inss)}
                 </dd>
               </div>
               <div className="flex items-center justify-between p-3">
-                <dt className="text-sm text-zinc-600 dark:text-zinc-400">(−) IRRF</dt>
-                <dd className="text-sm font-medium text-red-700 dark:text-red-400">
+                <dt className="text-sm text-zinc-600">(−) IRRF</dt>
+                <dd className="text-sm font-medium text-red-700">
                   {formatCurrencyBRL(result.irrf)}
                 </dd>
               </div>
-              <div className="flex items-center justify-between bg-emerald-50 p-3 dark:bg-emerald-950/40">
-                <dt className="text-sm font-semibold text-emerald-800 dark:text-emerald-300">
+              <div className="flex items-center justify-between bg-emerald-50 p-3">
+                <dt className="text-sm font-semibold text-emerald-800">
                   Valor líquido a receber
                 </dt>
-                <dd className="text-sm font-semibold text-emerald-800 dark:text-emerald-300">
+                <dd className="text-sm font-semibold text-emerald-800">
                   {formatCurrencyBRL(result.netTotal)}
                 </dd>
               </div>
             </dl>
           </div>
 
-          <p className="text-xs text-zinc-500 dark:text-zinc-400">
+          <p className="text-xs text-zinc-500">
             O abono pecuniário (venda de férias) é isento de INSS e IRRF. Já o terço
             constitucional sobre o abono, embora também isento de INSS, é tributável para fins de
             IRRF. Cálculo com base nas tabelas oficiais de INSS e IRRF vigentes em{" "}
