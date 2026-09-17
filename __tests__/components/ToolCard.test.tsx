@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { ToolCard } from "@/components/tools/ToolCard";
-import { tools } from "@/data/tools";
+import { getFeaturedTools, tools } from "@/data/tools";
 
 describe("ToolCard", () => {
   const tool = tools[0];
@@ -23,6 +23,24 @@ describe("ToolCard", () => {
 
   it("mostra o selo \"Em breve\" para ferramentas ainda não disponíveis", () => {
     render(<ToolCard tool={comingSoonTool} />);
+    expect(screen.getByText("Em breve")).toBeInTheDocument();
+  });
+
+  it("identifica ferramentas destacadas no catálogo", () => {
+    render(<ToolCard tool={getFeaturedTools()[0]} />);
+
+    expect(screen.getByText("Em destaque")).toBeInTheDocument();
+  });
+
+  it("preserva o status de uma ferramenta destacada que ainda não está disponível", () => {
+    const featuredComingSoonTool = {
+      ...getFeaturedTools()[0],
+      status: "em-breve" as const,
+    };
+
+    render(<ToolCard tool={featuredComingSoonTool} />);
+
+    expect(screen.getByText("Em destaque")).toBeInTheDocument();
     expect(screen.getByText("Em breve")).toBeInTheDocument();
   });
 });

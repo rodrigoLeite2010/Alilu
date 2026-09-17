@@ -42,6 +42,11 @@ export interface Tool {
   keywords: string[];
   /** Nome de ícone (chave usada por components/ui/Icon.tsx) */
   icon: string;
+  /**
+   * Prioridade editorial para áreas de destaque. Valores menores aparecem
+   * antes; a propriedade não representa métricas de audiência.
+   */
+  featureRank?: number;
   /** IDs de outras ferramentas relacionadas, para a seção "Ferramentas relacionadas" */
   relatedTools: string[];
   /** Estado de desenvolvimento da ferramenta */
@@ -358,6 +363,7 @@ export const tools: Tool[] = [
       "qa",
     ],
     icon: "id-card",
+    featureRank: 1,
     relatedTools: ["gerador-cnpj", "gerador-cartao-credito"],
     status: "ativo",
   },
@@ -379,6 +385,7 @@ export const tools: Tool[] = [
       "qa",
     ],
     icon: "building",
+    featureRank: 2,
     relatedTools: ["gerador-cpf", "gerador-cartao-credito"],
     status: "ativo",
   },
@@ -1266,7 +1273,22 @@ export function getToolBySlug(
 }
 
 export function getToolsByCategory(category: string): Tool[] {
-  return tools.filter((tool) => tool.category === category);
+  return tools
+    .filter((tool) => tool.category === category)
+    .sort(compareToolsByFeatureRank);
+}
+
+export function getFeaturedTools(): Tool[] {
+  return tools
+    .filter((tool) => tool.featureRank !== undefined && tool.status === "ativo")
+    .sort(compareToolsByFeatureRank);
+}
+
+function compareToolsByFeatureRank(left: Tool, right: Tool) {
+  return (
+    (left.featureRank ?? Number.MAX_SAFE_INTEGER) -
+    (right.featureRank ?? Number.MAX_SAFE_INTEGER)
+  );
 }
 
 export function getRelatedTools(tool: Tool, limit = 3): Tool[] {

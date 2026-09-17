@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { categories } from "@/data/categories";
-import { tools } from "@/data/tools";
+import { getFeaturedTools, getToolsByCategory, tools } from "@/data/tools";
 
 /**
  * Testes de integridade do catálogo central. Protegem contra regressões ao
@@ -48,5 +48,19 @@ describe("catálogo de categorias e ferramentas", () => {
     for (const tool of tools) {
       expect(tool.relatedTools).not.toContain(tool.id);
     }
+  });
+
+  it("mantém os destaques editoriais na ordem definida", () => {
+    expect(getFeaturedTools().map((tool) => tool.id)).toEqual([
+      "gerador-cpf",
+      "gerador-cnpj",
+    ]);
+  });
+
+  it("mantém CPF e CNPJ no início da categoria de geradores", () => {
+    expect(getToolsByCategory("geradores").slice(0, 2).map((tool) => tool.id)).toEqual([
+      "gerador-cpf",
+      "gerador-cnpj",
+    ]);
   });
 });

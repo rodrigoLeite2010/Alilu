@@ -6,7 +6,7 @@ import { AdSlot } from "@/components/ui/AdSlot";
 import { CategoryCard } from "@/components/tools/CategoryCard";
 import { ToolGrid } from "@/components/tools/ToolGrid";
 import { categories } from "@/data/categories";
-import { tools } from "@/data/tools";
+import { getFeaturedTools } from "@/data/tools";
 import { buildPageMetadata } from "@/lib/seo/metadata";
 
 export const metadata: Metadata = buildPageMetadata({
@@ -16,7 +16,7 @@ export const metadata: Metadata = buildPageMetadata({
   path: "/",
 });
 
-const featuredTools = tools.slice(0, 6);
+const featuredTools = getFeaturedTools();
 
 export default function HomePage() {
   return (
@@ -46,6 +46,18 @@ export default function HomePage() {
         </Container>
       </section>
 
+      {featuredTools.length > 0 ? (
+        <section className="border-b border-zinc-200 bg-zinc-50/70">
+          <Container className="py-10 sm:py-12">
+            <SectionHeading
+              title="Em destaque"
+              description="Atalhos para ferramentas selecionadas do catálogo."
+            />
+            <ToolGrid tools={featuredTools} />
+          </Container>
+        </section>
+      ) : null}
+
       <Container className="py-12 sm:py-16" id="categorias">
         <SectionHeading
           title="Categorias"
@@ -60,14 +72,6 @@ export default function HomePage() {
 
       <Container className="pb-12">
         <AdSlot />
-      </Container>
-
-      <Container className="pb-16">
-        <SectionHeading
-          title="Ferramentas em destaque"
-          description="Um recorte do catálogo. Novas calculadoras são adicionadas por etapas."
-        />
-        <ToolGrid tools={featuredTools} />
       </Container>
     </>
   );
