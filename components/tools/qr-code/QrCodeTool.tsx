@@ -110,7 +110,11 @@ export function QrCodeTool() {
       {content ? (
         <div className="mt-8 flex flex-col items-center gap-4">
           <div className="rounded-xl border border-zinc-200 bg-white p-4">
-            <canvas ref={canvasRef} />
+            <canvas
+              ref={canvasRef}
+              role="img"
+              aria-label={`QR Code gerado para: ${content}`}
+            />
           </div>
 
           {renderError ? (

@@ -103,6 +103,8 @@ export function QuoteForm({ onGenerate }: { onGenerate: (input: QuoteInput) => v
       parsedItems.some((item) => !Number.isFinite(item.quantity) || item.quantity <= 0)
     ) {
       nextErrors.items = "Adicione ao menos um item com descrição e quantidade válida (maior que zero).";
+    } else if (parsedItems.some((item) => !Number.isFinite(item.unitValue) || item.unitValue <= 0)) {
+      nextErrors.items = "Informe um valor unitário maior que zero para cada item adicionado.";
     }
 
     setErrors(nextErrors);

@@ -35,6 +35,15 @@ export function ParcelamentoTool() {
   const [errors, setErrors] = useState<FinancingFieldErrors>({});
   const [result, setResult] = useState<FinancingResult | null>(null);
 
+  function clearError(field: keyof FinancingFieldErrors) {
+    setErrors((current) => {
+      if (!current[field]) return current;
+      const next = { ...current };
+      delete next[field];
+      return next;
+    });
+  }
+
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
@@ -68,7 +77,10 @@ export function ParcelamentoTool() {
           inputMode="decimal"
           placeholder="R$ 0,00"
           value={priceDigits ? formatCurrencyBRL(centsDigitsToAmount(priceDigits)) : ""}
-          onChange={(event) => setPriceDigits(event.target.value.replace(/\D/g, "").slice(0, 12))}
+          onChange={(event) => {
+            setPriceDigits(event.target.value.replace(/\D/g, "").slice(0, 12));
+            clearError("assetValue");
+          }}
           error={errors.assetValue}
         />
 
@@ -79,7 +91,10 @@ export function ParcelamentoTool() {
           placeholder="R$ 0,00"
           hint="Opcional"
           value={downPaymentDigits ? formatCurrencyBRL(centsDigitsToAmount(downPaymentDigits)) : ""}
-          onChange={(event) => setDownPaymentDigits(event.target.value.replace(/\D/g, "").slice(0, 12))}
+          onChange={(event) => {
+            setDownPaymentDigits(event.target.value.replace(/\D/g, "").slice(0, 12));
+            clearError("downPayment");
+          }}
           error={errors.downPayment}
         />
 
@@ -91,7 +106,10 @@ export function ParcelamentoTool() {
             hint="Deixe 0 para parcelamento sem juros"
             placeholder="0,00"
             value={rateText}
-            onChange={(event) => setRateText(event.target.value)}
+            onChange={(event) => {
+              setRateText(event.target.value);
+              clearError("rate");
+            }}
             error={errors.rate}
           />
           <SelectField
@@ -110,7 +128,10 @@ export function ParcelamentoTool() {
           label="Número de parcelas"
           placeholder="0"
           value={installmentsText}
-          onChange={(event) => setInstallmentsText(event.target.value)}
+          onChange={(event) => {
+            setInstallmentsText(event.target.value);
+            clearError("installments");
+          }}
           error={errors.installments}
         />
 

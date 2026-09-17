@@ -11,6 +11,7 @@ import { parseLocaleNumberBRL } from "@/lib/validators/number";
 import {
   calculateBillSplit,
   validateBillSplitInput,
+  BILL_SPLIT_MAX_PEOPLE,
   type BillSplitFieldErrors,
   type BillSplitInput,
   type BillSplitParticipant,
@@ -87,8 +88,12 @@ export function BillSplitTool() {
               id="bill-split-people"
               label="Número de pessoas"
               placeholder="0"
+              hint={`Máximo de ${BILL_SPLIT_MAX_PEOPLE} pessoas.`}
+              maxLength={String(BILL_SPLIT_MAX_PEOPLE).length}
               value={peopleCountText}
-              onChange={(event) => setPeopleCountText(event.target.value)}
+              onChange={(event) =>
+                setPeopleCountText(event.target.value.replace(/\D/g, "").slice(0, String(BILL_SPLIT_MAX_PEOPLE).length))
+              }
               error={errors.peopleCount}
             />
           </div>
@@ -177,6 +182,26 @@ export function BillSplitTool() {
 
           {result.amountPerPerson !== undefined ? (
             <ResultHighlight label="Valor por pessoa" value={formatCurrencyBRL(result.amountPerPerson)} />
+          ) : null}
+
+          {result.equalShares && result.equalShares.length > 1 ? (
+            <div className="rounded-lg border border-zinc-200 p-3">
+              <p className="text-sm font-medium text-zinc-900">
+                O total não divide em um valor exatamente igual para todos —
+                para a soma bater certinho com o total da conta:
+              </p>
+              <ul className="mt-2 space-y-1 text-sm text-zinc-700">
+                {result.equalShares.map((share, index) => (
+                  <li key={index}>
+                    {share.peopleCount}{" "}
+                    {share.peopleCount === 1 ? "pessoa paga" : "pessoas pagam"}{" "}
+                    <span className="font-medium text-zinc-900">
+                      {formatCurrencyBRL(share.amount)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
           ) : null}
 
           {result.participants ? (

@@ -1,0 +1,188 @@
+Rodrigo, agora que o ALILU Utilitários está no domínio alilu.com.br, o objetivo é fazer o Google encontrar suas ferramentas e, principalmente, fazer as pessoas escolherem seu site quando pesquisarem por uma solução.
+
+Você já tem uma vantagem: um portal com 20 ferramentas permite atrair visitantes por diversas pesquisas diferentes. Mas publicar 20 páginas não significa receber tráfego automaticamente.
+
+Minha proposta é um plano de crescimento de 90 dias, começando com ações gratuitas.
+
+# Plano para fazer o ALILU crescer no Google
+
+# Estratégia em 4 etapas
+
+Prioridade: indexação → conteúdo útil → divulgação → otimização.
+
+1. Dias 1–7: colocar o site no radar do Google
+
+   Cadastre o domínio no Google Search Console .
+
+   * Verifique a propriedade `alilu.com.br`.
+
+   * Envie `https://alilu.com.br/sitemap.xml`.
+
+   * Inspecione as URLs das principais ferramentas.
+
+   * Confira se as páginas estão indexáveis e se o Google consegue acessá-las.
+
+   O sitemap ajuda na descoberta, mas não garante indexação.
+
+   ![](https://www.google.com/s2/favicons?domain=https://www.salario.com.br\&sz=32)
+
+   Portal Salario+1
+
+2. Dias 8–30: trabalhar as pesquisas certas
+
+   Em vez de tentar aparecer para “calculadora”, trabalhe buscas específicas, como:
+
+   * Calculadora de salário líquido 2026.
+
+   * Calculadora de férias com venda de 10 dias.
+
+   * Simulador de financiamento SAC e Price.
+
+   * Calculadora de margem de lucro.
+
+   * Gerador de recibo para imprimir.
+
+   Cada ferramenta deve responder bem à intenção da pesquisa, com título claro, resultado funcional, explicação e exemplos.
+
+   Publique as calculadoras trabalhistas como indexáveis somente depois de validar suas regras e cálculos.
+
+3. Dias 31–60: criar conteúdo que atraia visitantes
+
+   Publique conteúdos complementares às ferramentas, por exemplo:
+
+   * “Como calcular margem de lucro de um produto?”
+
+   * “Qual a diferença entre SAC e Price?”
+
+   * “Como preencher um recibo corretamente?”
+
+   * “Como calcular juros compostos com aportes mensais?”
+
+   Dentro de cada artigo, coloque um botão levando à ferramenta correspondente.
+
+   O artigo explica; a ferramenta resolve o problema.
+
+4. Dias 61–90: melhorar o que já está funcionando
+
+   No Search Console, identifique páginas com impressões, mas poucos cliques.
+
+   Melhore seus títulos, descrições e conteúdos conforme as buscas reais que aparecem nos relatórios. Corrija páginas com problemas de indexação e melhore a experiência mobile.
+
+   Acompanhe também desempenho e experiência de página.
+
+   ![](https://www.google.com/s2/favicons?domain=https://contacertabrasil.com.br\&sz=32)
+
+   ContaCerta Brasil+1
+
+## 1. Quais ferramentas eu divulgaria primeiro?
+
+Eu começaria com um grupo pequeno para concentrar os esforços. Estas são hipóteses de páginas com públicos e intenções de busca distintos, não um ranking de volume de pesquisas.
+
+![Receipt Template Blog | Tips, Templates & How-To Guides](https://images.openai.com/static-rsc-4/B4ECknYSeb-ckRpxYa6VTULUMgHRv2NvyeEMcpgI48z2L84xG2McGCfh3V1JNdR5j8Jrd1JI0I8rBc7YccA2SU6zrXS5Tf8XcwrjVWqnjl5-4JAv2F0qkqZkf24e0fsr71kUo1lLOe4TscLDorj7eXpJT13n35nOsWrhftkmBCg?purpose=inline)
+
+Gerador de recibo
+
+Público: autônomos e pequenos prestadores de serviços.
+
+Divulgação para profissionais
+
+![Begini Contoh Neraca Keuangan, Komponen, Hingga Jenisnya](https://images.openai.com/static-rsc-4/XbR3ZWcT056W9k1fIMz_jooiYXT4uPiulbLP4lKKR1rXtf_kgk9s5Rx0FfBKWVvjMS5tjlWohjLpMnbYddlMuk2Nd4UHWbKrPJoyOcFcbS9JLAlck8eBJ8BJOCAgbTI2yjT9JgLUc19kiwNRrxd1QzrR9mWEl1ncleTZ64E7ZDM?purpose=inline)
+
+Juros compostos
+
+Público: pessoas planejando investimentos e metas.
+
+Conteúdo educativo
+
+![Profit Margin Calculator
+– Lagniappe Digital](https://images.openai.com/static-rsc-4/tBbJzHnCS0e4B3K6F0hlTVtoDL13E5nBHAdhcBH10MVKPzF33qt8b-G-20QNxWyrlo672jXitjTSsiZT8827TXE5pUF9a19Flg5UuLzuQF9-DFO5TD6w8eWO7gPiBjiJbI_lzjRP6_j96gAZZH1s_dFIxNuK6VzX28t2DIqLUrE?purpose=inline)
+
+Margem de lucro e markup
+
+Público: comerciantes e empreendedores.
+
+Comunidades de negócios
+
+![Used Kia Niro EV Financing Rates in 2026: Complete Guide | Recharged](https://images.openai.com/static-rsc-4/JaxnoFprzq0Ndieoz56Pt3gYuTTAEuMmGZ2rURbs4FZCgetheil2F7E6S6xPS8OI7faiBmBLTDvA0IRFIWBTvCLZynplSpOnpEoUqyYEIzKJwo_wHSBfrEV5GKi0wJ6HdCH6QGBJ0siDhNnfOziwH_Itz_odmYgRciDHAxmD5zg?purpose=inline)
+
+Financiamento de veículo
+
+Público: pessoas comparando parcelas antes de comprar um carro.
+
+Pesquisa com intenção específica
+
+A ideia é validar quais atraem mais buscas e depois ampliar o investimento de tempo.
+
+## 2. Como divulgar sem gastar dinheiro?
+
+Use conteúdos que mostrem uma ferramenta resolvendo um problema real.
+
+## Exemplo: divulgação do gerador de recibo
+
+Orgânico
+
+![Recibo de Pagamento PDF - APK Download for Android | Aptoide](https://images.openai.com/static-rsc-4/C1F3H3fA6jCWIlDUwFNgG0tdn4ssZopm2yBJHJp8Tvv5k-pfktkTLy3OktYPbWqmzP0kk5mnP0VGAog_U128OOioID_CsHweW3uWBYQzMlyGTK2HYeK902y41Dx1WoHg_8cpV6xRx_aziiVKF1V1wlk7_cYh9yb-CdYXS6doN2w?purpose=inline)
+
+Ideia para um vídeo curto:
+
+“Precisa emitir um recibo e não sabe como fazer? Preencha os dados, gere o documento e salve em PDF gratuitamente.”
+
+Grave a tela utilizando a ferramenta e mostre o resultado.
+
+Divulgue em Instagram, YouTube Shorts e grupos profissionais onde esse tipo de conteúdo seja permitido.
+
+Copiar divulgação Abrir ALILU
+
+Também vale procurar parcerias com pequenos blogs, professores de finanças e criadores de conteúdo que realmente possam aproveitar as ferramentas. Evite comprar backlinks, publicar mensagens repetidas em grupos ou criar dezenas de artigos quase idênticos.
+
+## 3. Como saber se o site está crescendo?
+
+Comece com o Search Console. Ele mostra como seu site aparece na pesquisa do Google.
+
+## Seu painel de crescimento
+
+Metas de acompanhamento, não previsões de tráfego.
+
+# Impressões
+
+Quantas vezes suas páginas apareceram nas buscas.
+
+# Cliques
+
+Quantas visitas vieram dos resultados de pesquisa.
+
+# Consultas
+
+O que as pessoas pesquisaram para encontrar o ALILU.
+
+# Indexação
+
+Quais páginas estão disponíveis no índice do Google.
+
+Rotina: verifique esses indicadores semanalmente. Compare períodos de 28 dias, em vez de tirar conclusões com apenas um ou dois dias de dados.
+
+# Vamos começar agora: primeiro passo prático
+
+Antes de produzir artigos ou gastar com anúncios, configure o Search Console. É o ponto de partida para descobrir se o Google está encontrando suas ferramentas.
+
+## Checklist inicial do ALILU
+
+3 de 6 concluídos
+
+50%
+
+Cadastrar alilu.com.br no Search Console
+
+Verificar a propriedade do domínio
+
+Enviar o sitemap.xml
+
+Inspecionar a página inicial
+
+Inspecionar três ferramentas já validadas
+
+Conferir se há erros de indexação
+
+Abrir Google Search Console
+
+Minha sugestão: faça primeiro esse checklist. Depois, podemos montar um plano específico para cada uma das 20 ferramentas, com palavras-chave, títulos de SEO, artigos relacionados e estratégias de divulgação.

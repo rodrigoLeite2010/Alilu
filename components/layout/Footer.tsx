@@ -5,6 +5,7 @@ import { SITE_NAME } from "@/lib/seo/site";
 
 const legalLinks = [
   { href: "/sobre", label: "Sobre" },
+  { href: "/contato", label: "Contato" },
   { href: "/privacidade", label: "Política de Privacidade" },
   { href: "/termos-de-uso", label: "Termos de Uso" },
 ];

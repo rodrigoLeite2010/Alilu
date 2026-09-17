@@ -48,6 +48,21 @@ export default function TermsOfUsePage() {
           decisões com base neles.
         </p>
 
+        <h2>Uso adequado</h2>
+        <p>
+          As ferramentas devem ser utilizadas de forma lícita e de boa-fé.
+          Não é permitido tentar sobrecarregar, explorar falhas ou utilizar o{" "}
+          {SITE_NAME} para fins ilegais ou fraudulentos.
+        </p>
+
+        <h2>Dados e privacidade</h2>
+        <p>
+          O tratamento dos dados informados nas calculadoras segue a nossa{" "}
+          <a href="/privacidade">Política de Privacidade</a>. Sempre que
+          possível, os cálculos são feitos localmente no seu navegador, sem
+          envio dos valores digitados para os nossos servidores.
+        </p>
+
         <h2>Alterações</h2>
         <p>
           Estes termos podem ser atualizados conforme novas ferramentas forem

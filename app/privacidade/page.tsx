@@ -23,8 +23,7 @@ export default function PrivacyPolicyPage() {
         Política de Privacidade
       </h1>
       <p className="mt-2 text-sm text-zinc-500">
-        Última atualização: esta é uma versão inicial, publicada junto com o
-        lançamento da plataforma.
+        Última atualização: 17 de setembro de 2026.
       </p>
 
       <div className="legal-content mt-6">
@@ -35,28 +34,49 @@ export default function PrivacyPolicyPage() {
           não são enviados nem armazenados em nossos servidores.
         </p>
 
-        <h2>Dados de navegação</h2>
+        <h2>Cookies</h2>
         <p>
-          Como a maioria dos sites, podemos coletar dados básicos de acesso
-          (como páginas visitadas e tipo de dispositivo) para entender o uso
-          da plataforma e melhorar as ferramentas oferecidas. Nenhum
-          identificador de análise ou publicidade está ativo nesta fase do
-          projeto.
+          O {SITE_NAME} não utiliza cookies próprios de rastreamento nem
+          armazena dados em cookies, localStorage ou sessionStorage do seu
+          navegador. Os valores digitados nas calculadoras ficam apenas na
+          memória da página enquanto você a utiliza e são descartados ao
+          fechá-la ou atualizá-la.
+        </p>
+
+        <h2>Dados técnicos de hospedagem</h2>
+        <p>
+          Como qualquer site na internet, a infraestrutura que hospeda o{" "}
+          {SITE_NAME} pode registrar dados técnicos básicos de acesso (como
+          endereço IP, data/hora da visita e páginas acessadas) para fins de
+          segurança e funcionamento do serviço. O {SITE_NAME} não utiliza,
+          nesta fase, nenhuma ferramenta própria de análise de audiência
+          (como Google Analytics) nem identificador de publicidade ativo.
         </p>
 
         <h2>Publicidade</h2>
         <p>
           O {SITE_NAME} pode, no futuro, exibir anúncios (por exemplo, via
-          Google AdSense) para manter as ferramentas gratuitas. Quando isso
-          acontecer, esta política será atualizada com as informações
-          específicas sobre os parceiros de publicidade utilizados.
+          Google AdSense) para manter as ferramentas gratuitas. Nenhum
+          anúncio real está ativo no momento. Quando isso acontecer, esta
+          política será atualizada com as informações específicas sobre os
+          parceiros de publicidade utilizados e os cookies que passarem a ser
+          usados por eles.
         </p>
 
-        <h2>Seus direitos</h2>
+        <h2>Seus direitos e contato</h2>
         <p>
-          Você pode entrar em contato pelo e-mail{" "}
-          <a href="mailto:contato@alilu.com.br">contato@alilu.com.br</a> para
-          esclarecer dúvidas sobre o tratamento de dados nesta plataforma.
+          Dúvidas sobre o tratamento de dados nesta plataforma podem ser
+          enviadas para o e-mail{" "}
+          <a href="mailto:contato@alilu.com.br">contato@alilu.com.br</a>,
+          nosso único canal de contato oficial.
+        </p>
+
+        <h2>Atualizações desta política</h2>
+        <p>
+          Esta política pode ser atualizada conforme a plataforma evolui —
+          por exemplo, quando novos recursos de publicidade ou análise forem
+          efetivamente ativados. A versão mais recente estará sempre
+          disponível nesta página.
         </p>
       </div>
     </Container>

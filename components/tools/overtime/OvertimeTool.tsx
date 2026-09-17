@@ -83,16 +83,23 @@ export function OvertimeTool() {
           />
         </div>
 
-        <SelectField
+        <NumberField
           id="overtime-percent"
           label="Adicional de hora extra"
-          hint="50% é o mínimo constitucional (art. 7º, XVI, CF)"
+          suffix="%"
+          hint="Mínimo constitucional: 50% (art. 7º, XVI, CF). Convenções coletivas podem prever mais — ex.: 100% em domingos/feriados."
           value={overtimePercent}
-          onChange={(event) => setOvertimePercent(event.target.value)}
-        >
-          <option value="50">50%</option>
-          <option value="100">100% (comum em domingos/feriados)</option>
-        </SelectField>
+          onChange={(event) => {
+            setOvertimePercent(event.target.value);
+            setErrors((current) => {
+              if (!current.overtimePercent) return current;
+              const next = { ...current };
+              delete next.overtimePercent;
+              return next;
+            });
+          }}
+          error={errors.overtimePercent}
+        />
 
         <Button type="submit" className="w-full sm:w-auto">
           Calcular

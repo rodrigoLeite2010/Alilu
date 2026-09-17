@@ -36,6 +36,15 @@ export function FinanciamentoVeiculoTool() {
   const [errors, setErrors] = useState<FinancingFieldErrors>({});
   const [result, setResult] = useState<FinancingResult | null>(null);
 
+  function clearError(field: keyof FinancingFieldErrors) {
+    setErrors((current) => {
+      if (!current[field]) return current;
+      const next = { ...current };
+      delete next[field];
+      return next;
+    });
+  }
+
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
@@ -69,7 +78,10 @@ export function FinanciamentoVeiculoTool() {
           inputMode="decimal"
           placeholder="R$ 0,00"
           value={vehicleValueDigits ? formatCurrencyBRL(centsDigitsToAmount(vehicleValueDigits)) : ""}
-          onChange={(event) => setVehicleValueDigits(event.target.value.replace(/\D/g, "").slice(0, 12))}
+          onChange={(event) => {
+            setVehicleValueDigits(event.target.value.replace(/\D/g, "").slice(0, 12));
+            clearError("assetValue");
+          }}
           error={errors.assetValue}
         />
 
@@ -80,7 +92,10 @@ export function FinanciamentoVeiculoTool() {
           placeholder="R$ 0,00"
           hint="Opcional"
           value={downPaymentDigits ? formatCurrencyBRL(centsDigitsToAmount(downPaymentDigits)) : ""}
-          onChange={(event) => setDownPaymentDigits(event.target.value.replace(/\D/g, "").slice(0, 12))}
+          onChange={(event) => {
+            setDownPaymentDigits(event.target.value.replace(/\D/g, "").slice(0, 12));
+            clearError("downPayment");
+          }}
           error={errors.downPayment}
         />
 
@@ -91,7 +106,10 @@ export function FinanciamentoVeiculoTool() {
             suffix="%"
             placeholder="0,00"
             value={rateText}
-            onChange={(event) => setRateText(event.target.value)}
+            onChange={(event) => {
+              setRateText(event.target.value);
+              clearError("rate");
+            }}
             error={errors.rate}
           />
           <SelectField
@@ -110,7 +128,10 @@ export function FinanciamentoVeiculoTool() {
           label="Número de parcelas"
           placeholder="0"
           value={installmentsText}
-          onChange={(event) => setInstallmentsText(event.target.value)}
+          onChange={(event) => {
+            setInstallmentsText(event.target.value);
+            clearError("installments");
+          }}
           error={errors.installments}
         />
 
