@@ -296,3 +296,29 @@ describe("cálculo não arredonda valores intermediários", () => {
     expect(payment).not.toBe(Math.round(payment * 100) / 100);
   });
 });
+
+describe("saldo devedor final é exatamente zero (sem resíduo de ponto flutuante)", () => {
+  it("Price: último saldo é 0 (===), não só aproximadamente 0", () => {
+    const result = calculateFinancing(
+      baseInput({ assetValue: 15731.47, rate: 1.37, installments: 37, system: "price" })
+    );
+    const lastRow = result.price!.installments[result.price!.installments.length - 1];
+    expect(lastRow.balance).toBe(0);
+  });
+
+  it("SAC: último saldo é 0 (===), não só aproximadamente 0", () => {
+    const result = calculateFinancing(
+      baseInput({ assetValue: 15731.47, rate: 1.37, installments: 37, system: "sac" })
+    );
+    const lastRow = result.sac!.installments[result.sac!.installments.length - 1];
+    expect(lastRow.balance).toBe(0);
+  });
+
+  it("taxa zero: saldo permanece exatamente 0 na última parcela em ambos os sistemas", () => {
+    const result = calculateFinancing(
+      baseInput({ assetValue: 10000, rate: 0, installments: 11, system: "comparar" })
+    );
+    expect(result.price!.installments.at(-1)!.balance).toBe(0);
+    expect(result.sac!.installments.at(-1)!.balance).toBe(0);
+  });
+});

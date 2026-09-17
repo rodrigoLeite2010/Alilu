@@ -8,6 +8,7 @@ import { getToolBySlug, getToolsByCategory, tools, type Tool } from "@/data/tool
 import { SITE_URL } from "@/lib/seo/site";
 import { toolComponents } from "@/components/tools/tool-registry";
 import { toolContent } from "@/components/tools/tool-content";
+import nextConfig from "@/next.config";
 
 /**
  * Testes de comportamento da regra central de SEO "em-breve" x "ativo"
@@ -157,17 +158,17 @@ describe("G) Gerador de Recibo (ETAPA 2) — primeira ferramenta ativa", () => {
     expect(entries.some((entry) => entry.url === url)).toBe(true);
   });
 
-  it("uma ferramenta em-breve do catálogo continua com noindex e fora do sitemap", () => {
-    const stillComingSoon = tools.find((tool) => tool.status === "em-breve");
-    expect(stillComingSoon).toBeDefined();
-    expect(getToolRobotsMeta(stillComingSoon!)).toEqual({
+  it("a regra geral de noindex/sitemap para em-breve continua valendo (ver blocos A e C)", () => {
+    // Após a EXECUÇÃO GERAL ALILU, todas as ferramentas do catálogo estão
+    // "ativo" — não há mais nenhuma "em-breve" real para reaproveitar aqui.
+    // A regra em si (em-breve => noindex e fora do sitemap) já é coberta de
+    // forma catalog-independente pelos blocos A) e C) acima, com fixtures
+    // sintéticas — este teste evita duplicar aquela cobertura com um dado
+    // que deixou de existir no catálogo.
+    expect(getToolRobotsMeta({ status: "em-breve" })).toEqual({
       index: false,
       follow: true,
     });
-
-    const entries = sitemap();
-    const url = `${SITE_URL}/utilitarios/${stillComingSoon!.category}/${stillComingSoon!.slug}`;
-    expect(entries.some((entry) => entry.url === url)).toBe(false);
   });
 });
 
@@ -214,11 +215,11 @@ describe("I) Simulador de Financiamento SAC x Price (ETAPA 4) — terceira ferra
     expect(entries.some((entry) => entry.url === url)).toBe(true);
   });
 
-  it("o financiamento de veículo continua em-breve (não foi implementado nesta etapa)", () => {
+  it("o financiamento de veículo foi implementado e está ativo (execução geral)", () => {
     const financiamentoVeiculo = getToolBySlug("financeiro", "financiamento-veiculo");
-    expect(financiamentoVeiculo?.status).toBe("em-breve");
+    expect(financiamentoVeiculo?.status).toBe("ativo");
     expect(getToolRobotsMeta(financiamentoVeiculo!)).toEqual({
-      index: false,
+      index: true,
       follow: true,
     });
   });
@@ -240,6 +241,36 @@ describe("I) Simulador de Financiamento SAC x Price (ETAPA 4) — terceira ferra
     expect(financing).toBeDefined();
     expect(toolComponents[financing!.id]).toBeDefined();
     expect(toolContent[financing!.id]).toBeDefined();
+  });
+});
+
+describe("K) URL antiga /sac-x-price: redirect permanente para a URL canônica (não pode virar 404)", () => {
+  it("getToolBySlug NÃO resolve o slug antigo (comprova que, sem o redirect, a rota 404aria)", () => {
+    expect(getToolBySlug("financeiro", "sac-x-price")).toBeUndefined();
+  });
+
+  it("next.config.ts declara um redirect permanente de /sac-x-price para /financiamento-sac-price", async () => {
+    expect(nextConfig.redirects).toBeDefined();
+    const redirects = await nextConfig.redirects!();
+
+    const saxXPriceRedirect = redirects.find(
+      (redirect) => redirect.source === "/utilitarios/financeiro/sac-x-price"
+    );
+
+    expect(saxXPriceRedirect).toBeDefined();
+    expect(saxXPriceRedirect?.destination).toBe(
+      "/utilitarios/financeiro/financiamento-sac-price"
+    );
+    expect(saxXPriceRedirect?.permanent).toBe(true);
+  });
+
+  it("a URL nova continua sendo a única canonical/indexável (sem conteúdo duplicado)", () => {
+    const entries = sitemap();
+    const newUrl = `${SITE_URL}/utilitarios/financeiro/financiamento-sac-price`;
+    const oldUrl = `${SITE_URL}/utilitarios/financeiro/sac-x-price`;
+
+    expect(entries.filter((entry) => entry.url === newUrl)).toHaveLength(1);
+    expect(entries.some((entry) => entry.url === oldUrl)).toBe(false);
   });
 });
 

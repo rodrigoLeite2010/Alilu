@@ -188,7 +188,13 @@ function buildPriceInstallments(
     const interest = balance * monthlyRate;
     const amortization = payment - interest;
     balance -= amortization;
-    rows.push({ number, payment, interest, amortization, balance });
+    // Normaliza o resíduo de ponto flutuante da última parcela: depois de N
+    // subtrações sucessivas, o saldo teoricamente zerado pode terminar como
+    // um valor ínfimo (ex.: -1,8e-12) em vez de exatamente 0. Isso não é só
+    // um problema de exibição — deixaria o saldo "quitado" tecnicamente
+    // diferente de zero.
+    const normalizedBalance = number === installmentsCount ? 0 : balance;
+    rows.push({ number, payment, interest, amortization, balance: normalizedBalance });
   }
 
   return rows;
@@ -212,7 +218,10 @@ function buildSacInstallments(
     const interest = balance * monthlyRate;
     const payment = amortization + interest;
     balance -= amortization;
-    rows.push({ number, payment, interest, amortization, balance });
+    // Mesma normalização do resíduo de ponto flutuante aplicada em
+    // buildPriceInstallments — ver comentário lá.
+    const normalizedBalance = number === installmentsCount ? 0 : balance;
+    rows.push({ number, payment, interest, amortization, balance: normalizedBalance });
   }
 
   return rows;

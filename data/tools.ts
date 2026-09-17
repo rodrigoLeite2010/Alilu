@@ -8,11 +8,14 @@ import type { CategoryId } from "./categories";
  * palavras-chave de uma ferramenta — tudo deve ser lido a partir deste
  * arquivo.
  *
- * A maior parte das ferramentas ainda está com status "em-breve": a
- * arquitetura e o catálogo já existem, mas a lógica de cálculo será
- * implementada em etapas futuras. Cada ferramenta muda para "ativo" (e só
- * então ganha uma interface real) na etapa em que é implementada — ver
- * components/tools/tool-registry.tsx para o componente real de cada uma.
+ * Toda ferramenta nasce com status "em-breve": a arquitetura e o catálogo
+ * (nome, slug, descrição, categoria) já existem desde o início, mas a
+ * lógica de cálculo e a interface real são implementadas depois. Cada
+ * ferramenta só muda para "ativo" quando sua implementação foi corrigida,
+ * testada e validada — ver components/tools/tool-registry.tsx para o
+ * componente real de cada uma. NÃO documente aqui quantas ferramentas estão
+ * em cada status — essa contagem muda a cada etapa e fica desatualizada
+ * rápido; para saber o número atual, filtre este arquivo por `status`.
  *
  * O status também controla a indexação da ferramenta pelos buscadores — ver
  * lib/seo/publish.ts para a regra central. Resumo:
@@ -58,7 +61,7 @@ export const tools: Tool[] = [
     keywords: ["rescisão", "verbas rescisórias", "demissão", "aviso prévio", "trabalhista"],
     icon: "file-text",
     relatedTools: ["salario-liquido", "calculadora-ferias", "decimo-terceiro"],
-    status: "em-breve",
+    status: "ativo",
   },
   {
     id: "salario-liquido",
@@ -71,7 +74,7 @@ export const tools: Tool[] = [
     keywords: ["salário líquido", "salário bruto", "inss", "irrf", "holerite"],
     icon: "wallet",
     relatedTools: ["calculadora-rescisao", "hora-extra", "decimo-terceiro"],
-    status: "em-breve",
+    status: "ativo",
   },
   {
     id: "calculadora-ferias",
@@ -84,7 +87,7 @@ export const tools: Tool[] = [
     keywords: ["férias", "terço constitucional", "abono pecuniário", "trabalhista"],
     icon: "sun",
     relatedTools: ["calculadora-rescisao", "salario-liquido", "decimo-terceiro"],
-    status: "em-breve",
+    status: "ativo",
   },
   {
     id: "decimo-terceiro",
@@ -97,7 +100,7 @@ export const tools: Tool[] = [
     keywords: ["décimo terceiro", "13º salário", "gratificação natalina"],
     icon: "gift",
     relatedTools: ["salario-liquido", "calculadora-ferias", "calculadora-rescisao"],
-    status: "em-breve",
+    status: "ativo",
   },
   {
     id: "hora-extra",
@@ -110,7 +113,7 @@ export const tools: Tool[] = [
     keywords: ["hora extra", "adicional noturno", "banco de horas", "trabalhista"],
     icon: "clock",
     relatedTools: ["salario-liquido", "dias-uteis"],
-    status: "em-breve",
+    status: "ativo",
   },
 
   // FINANCEIRO
@@ -138,7 +141,7 @@ export const tools: Tool[] = [
     keywords: ["financiamento", "financiamento de veículo", "parcelas", "simulador"],
     icon: "car",
     relatedTools: ["sac-x-price", "juros-compostos", "parcelamento"],
-    status: "em-breve",
+    status: "ativo",
   },
   {
     // Nota (ETAPA 4): este era o item "Comparador SAC x Price" do catálogo
@@ -174,7 +177,7 @@ export const tools: Tool[] = [
     keywords: ["parcelamento", "parcelas", "juros", "compras"],
     icon: "credit-card",
     relatedTools: ["juros-compostos", "financiamento-veiculo"],
-    status: "em-breve",
+    status: "ativo",
   },
   {
     id: "quanto-guardar-por-mes",
@@ -187,7 +190,7 @@ export const tools: Tool[] = [
     keywords: ["meta financeira", "poupança", "planejamento financeiro"],
     icon: "piggy-bank",
     relatedTools: ["juros-compostos", "divisao-de-despesas"],
-    status: "em-breve",
+    status: "ativo",
   },
 
   // EMPRESA
@@ -215,7 +218,7 @@ export const tools: Tool[] = [
     keywords: ["orçamento", "gerador de orçamento", "proposta comercial"],
     icon: "clipboard-list",
     relatedTools: ["gerador-recibo", "markup", "margem-de-lucro"],
-    status: "em-breve",
+    status: "ativo",
   },
   {
     id: "markup",
@@ -228,7 +231,7 @@ export const tools: Tool[] = [
     keywords: ["markup", "precificação", "formação de preço"],
     icon: "tag",
     relatedTools: ["margem-de-lucro", "gerador-orcamento"],
-    status: "em-breve",
+    status: "ativo",
   },
   {
     id: "margem-de-lucro",
@@ -241,7 +244,7 @@ export const tools: Tool[] = [
     keywords: ["margem de lucro", "lucratividade", "precificação"],
     icon: "percent",
     relatedTools: ["markup", "custo-funcionario"],
-    status: "em-breve",
+    status: "ativo",
   },
   {
     id: "custo-funcionario",
@@ -254,7 +257,7 @@ export const tools: Tool[] = [
     keywords: ["custo de funcionário", "encargos trabalhistas", "folha de pagamento"],
     icon: "users",
     relatedTools: ["gerador-recibo", "margem-de-lucro"],
-    status: "em-breve",
+    status: "ativo",
   },
 
   // UTILIDADES (slug de categoria: "outros")
@@ -269,7 +272,7 @@ export const tools: Tool[] = [
     keywords: ["dias úteis", "contagem de dias", "calendário"],
     icon: "calendar",
     relatedTools: ["hora-extra", "porcentagem"],
-    status: "em-breve",
+    status: "ativo",
   },
   {
     id: "porcentagem",
@@ -282,7 +285,7 @@ export const tools: Tool[] = [
     keywords: ["porcentagem", "percentual", "desconto", "aumento"],
     icon: "percent",
     relatedTools: ["margem-de-lucro", "divisao-de-despesas"],
-    status: "em-breve",
+    status: "ativo",
   },
   {
     id: "qr-code",
@@ -295,7 +298,7 @@ export const tools: Tool[] = [
     keywords: ["qr code", "gerador de qr code", "código qr"],
     icon: "qr-code",
     relatedTools: ["gerador-recibo"],
-    status: "em-breve",
+    status: "ativo",
   },
   {
     id: "leitor-xml-nfe",
@@ -308,7 +311,7 @@ export const tools: Tool[] = [
     keywords: ["nf-e", "nota fiscal eletrônica", "xml", "leitor de xml"],
     icon: "file-code",
     relatedTools: ["gerador-recibo", "gerador-orcamento"],
-    status: "em-breve",
+    status: "ativo",
   },
   {
     id: "divisao-de-despesas",
@@ -321,7 +324,7 @@ export const tools: Tool[] = [
     keywords: ["divisão de despesas", "rachar conta", "despesas em grupo"],
     icon: "users-round",
     relatedTools: ["quanto-guardar-por-mes", "porcentagem"],
-    status: "em-breve",
+    status: "ativo",
   },
 ];
 
