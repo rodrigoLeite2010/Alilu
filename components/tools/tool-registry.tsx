@@ -45,6 +45,17 @@ import { LoremIpsumGeneratorTool } from "@/components/tools/lorem-ipsum-generato
 import { ResumeBuilderTool } from "@/components/tools/resume-builder/ResumeBuilderTool";
 import { CertificateRegistryGeneratorTool } from "@/components/tools/certificate-registry-generator/CertificateRegistryGeneratorTool";
 import { PlaceholderImageGeneratorTool } from "@/components/tools/placeholder-image-generator/PlaceholderImageGeneratorTool";
+import { ValidadorCpfTool } from "@/components/tools/validador-cpf/ValidadorCpfTool";
+import { ValidadorCnpjTool } from "@/components/tools/validador-cnpj/ValidadorCnpjTool";
+import { ValidadorCartaoCreditoTool } from "@/components/tools/validador-cartao-credito/ValidadorCartaoCreditoTool";
+import { ValidadorContaBancariaTool } from "@/components/tools/validador-conta-bancaria/ValidadorContaBancariaTool";
+import { ValidadorCertidoesTool } from "@/components/tools/validador-certidoes/ValidadorCertidoesTool";
+import { ValidadorCnhTool } from "@/components/tools/validador-cnh/ValidadorCnhTool";
+import { ValidadorPisPasepTool } from "@/components/tools/validador-pis-pasep/ValidadorPisPasepTool";
+import { ValidadorRenavamTool } from "@/components/tools/validador-renavam/ValidadorRenavamTool";
+import { ValidadorRgTool } from "@/components/tools/validador-rg/ValidadorRgTool";
+import { ValidadorTituloEleitorTool } from "@/components/tools/validador-titulo-eleitor/ValidadorTituloEleitorTool";
+import { ValidadorInscricaoEstadualTool } from "@/components/tools/validador-inscricao-estadual/ValidadorInscricaoEstadualTool";
 
 /**
  * Registro central que liga o id de uma ferramenta (data/tools.ts) ao
@@ -113,4 +124,17 @@ export const toolComponents: Record<string, ComponentType> = {
   "gerador-curriculo": ResumeBuilderTool,
   "gerador-certidao": CertificateRegistryGeneratorTool,
   "gerador-imagem": PlaceholderImageGeneratorTool,
+
+  // VALIDADORES
+  "validador-cpf": ValidadorCpfTool,
+  "validador-cnpj": ValidadorCnpjTool,
+  "validador-cartao-credito": ValidadorCartaoCreditoTool,
+  "validador-conta-bancaria": ValidadorContaBancariaTool,
+  "validador-certidoes": ValidadorCertidoesTool,
+  "validador-cnh": ValidadorCnhTool,
+  "validador-pis-pasep": ValidadorPisPasepTool,
+  "validador-renavam": ValidadorRenavamTool,
+  "validador-rg": ValidadorRgTool,
+  "validador-titulo-eleitor": ValidadorTituloEleitorTool,
+  "validador-inscricao-estadual": ValidadorInscricaoEstadualTool,
 };

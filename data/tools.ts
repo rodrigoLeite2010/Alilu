@@ -822,6 +822,206 @@ export const tools: Tool[] = [
     relatedTools: ["gerador-lorem-ipsum"],
     status: "ativo",
   },
+
+  // VALIDADORES
+  // Categoria nova: valida o FORMATO e os dígitos verificadores de
+  // documentos e números brasileiros — nunca consulta Receita Federal,
+  // DETRAN, bancos ou qualquer base de dados de pessoas, e não confirma
+  // que o documento pertence a alguém. Ver components/tools/tool-registry.tsx
+  // para o componente de cada uma e lib/validators/ para a lógica pura.
+  {
+    id: "validador-cpf",
+    name: "Validador de CPF",
+    shortName: "Validador de CPF",
+    slug: "validador-cpf",
+    category: "validadores",
+    description:
+      "Valide gratuitamente se um CPF possui formato e dígitos verificadores corretos. Ferramenta rápida, online e sem armazenar os dados informados.",
+    keywords: [
+      "validador de cpf",
+      "cpf válido",
+      "verificar cpf",
+      "dígito verificador cpf",
+    ],
+    icon: "id-card",
+    relatedTools: ["validador-cnpj", "gerador-cpf"],
+    status: "ativo",
+  },
+  {
+    id: "validador-cnpj",
+    name: "Validador de CNPJ",
+    shortName: "Validador de CNPJ",
+    slug: "validador-cnpj",
+    category: "validadores",
+    description:
+      "Valide gratuitamente se um CNPJ possui formato e dígitos verificadores corretos. Ferramenta rápida, online e sem armazenar os dados informados.",
+    keywords: [
+      "validador de cnpj",
+      "cnpj válido",
+      "verificar cnpj",
+      "dígito verificador cnpj",
+    ],
+    icon: "building",
+    relatedTools: ["validador-cpf", "gerador-cnpj"],
+    status: "ativo",
+  },
+  {
+    id: "validador-cartao-credito",
+    name: "Validador de Cartão de Crédito",
+    shortName: "Validador de Cartão",
+    slug: "validador-cartao-credito",
+    category: "validadores",
+    description:
+      "Valide gratuitamente se um número de cartão passa no algoritmo de Luhn, 100% no seu navegador — nunca pedimos validade, CVV ou nome do titular.",
+    keywords: [
+      "validador de cartão de crédito",
+      "algoritmo de luhn",
+      "verificar número de cartão",
+      "cartão válido",
+    ],
+    icon: "credit-card",
+    relatedTools: ["validador-conta-bancaria", "gerador-cartao-credito"],
+    status: "ativo",
+  },
+  {
+    id: "validador-conta-bancaria",
+    name: "Validador de Conta Bancária",
+    shortName: "Validador de Conta Bancária",
+    slug: "validador-conta-bancaria",
+    category: "validadores",
+    description:
+      "Valide gratuitamente o formato de banco, agência, conta e dígito. O dígito verificador varia por instituição financeira e não é conferido.",
+    keywords: [
+      "validador de conta bancária",
+      "verificar agência e conta",
+      "conta bancária válida",
+    ],
+    icon: "landmark",
+    relatedTools: ["validador-cartao-credito", "gerador-conta-bancaria"],
+    status: "ativo",
+  },
+  {
+    id: "validador-certidoes",
+    name: "Validador de Certidões",
+    shortName: "Validador de Certidões",
+    slug: "validador-certidoes",
+    category: "validadores",
+    description:
+      "Valide gratuitamente se um número de matrícula de certidão (nascimento, casamento ou óbito) tem o formato de 32 dígitos do registro civil brasileiro.",
+    keywords: [
+      "validador de certidão",
+      "matrícula de certidão",
+      "verificar certidão",
+    ],
+    icon: "stamp",
+    relatedTools: ["validador-rg", "gerador-certidao"],
+    status: "ativo",
+  },
+  {
+    id: "validador-cnh",
+    name: "Validador de CNH",
+    shortName: "Validador de CNH",
+    slug: "validador-cnh",
+    category: "validadores",
+    description:
+      "Valide gratuitamente se uma CNH possui formato e dígitos verificadores corretos. Não consulta a situação da CNH junto ao DETRAN.",
+    keywords: [
+      "validador de cnh",
+      "cnh válida",
+      "verificar cnh",
+      "dígito verificador cnh",
+    ],
+    icon: "id-card",
+    relatedTools: ["validador-renavam", "gerador-cnh"],
+    status: "ativo",
+  },
+  {
+    id: "validador-pis-pasep",
+    name: "Validador de PIS/PASEP",
+    shortName: "Validador de PIS/PASEP",
+    slug: "validador-pis-pasep",
+    category: "validadores",
+    description:
+      "Valide gratuitamente se um PIS/PASEP possui formato e dígito verificador corretos. Ferramenta rápida, online e sem armazenar os dados informados.",
+    keywords: [
+      "validador de pis",
+      "validador de pasep",
+      "pis pasep válido",
+      "verificar pis",
+    ],
+    icon: "fingerprint",
+    relatedTools: ["validador-cnh", "gerador-pis-pasep"],
+    status: "ativo",
+  },
+  {
+    id: "validador-renavam",
+    name: "Validador de RENAVAM",
+    shortName: "Validador de RENAVAM",
+    slug: "validador-renavam",
+    category: "validadores",
+    description:
+      "Valide gratuitamente se um RENAVAM possui formato e dígito verificador corretos. Não consulta o DETRAN nem a Base Índice Nacional de Veículos.",
+    keywords: [
+      "validador de renavam",
+      "renavam válido",
+      "verificar renavam",
+    ],
+    icon: "file-text",
+    relatedTools: ["validador-cnh", "gerador-renavam"],
+    status: "ativo",
+  },
+  {
+    id: "validador-rg",
+    name: "Validador de RG",
+    shortName: "Validador de RG",
+    slug: "validador-rg",
+    category: "validadores",
+    description:
+      "Valide gratuitamente o formato de um RG por estado. Para São Paulo, confere o dígito verificador; para as demais UFs, confere apenas o formato.",
+    keywords: [
+      "validador de rg",
+      "rg válido",
+      "verificar rg",
+      "dígito verificador rg",
+    ],
+    icon: "id-card",
+    relatedTools: ["validador-cpf", "gerador-rg"],
+    status: "ativo",
+  },
+  {
+    id: "validador-titulo-eleitor",
+    name: "Validador de Título de Eleitor",
+    shortName: "Validador de Título de Eleitor",
+    slug: "validador-titulo-eleitor",
+    category: "validadores",
+    description:
+      "Valide gratuitamente se um Título de Eleitor possui formato e dígitos verificadores corretos. Não consulta o TSE nem o cadastro de eleitores.",
+    keywords: [
+      "validador de título de eleitor",
+      "título de eleitor válido",
+      "verificar título de eleitor",
+    ],
+    icon: "vote",
+    relatedTools: ["validador-cpf", "gerador-titulo-eleitor"],
+    status: "ativo",
+  },
+  {
+    id: "validador-inscricao-estadual",
+    name: "Validador de Inscrição Estadual",
+    shortName: "Validador de Inscrição Estadual",
+    slug: "validador-inscricao-estadual",
+    category: "validadores",
+    description:
+      "Valide gratuitamente o formato de uma Inscrição Estadual por UF. O dígito verificador varia por estado e ainda não é conferido nesta ferramenta.",
+    keywords: [
+      "validador de inscrição estadual",
+      "inscrição estadual válida",
+      "verificar inscrição estadual",
+    ],
+    icon: "stamp",
+    relatedTools: ["validador-cnpj", "gerador-inscricao-estadual"],
+    status: "ativo",
+  },
 ];
 
 export function getToolBySlug(

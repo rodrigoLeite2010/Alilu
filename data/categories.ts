@@ -10,7 +10,8 @@ export type CategoryId =
   | "financeiro"
   | "empresa"
   | "outros"
-  | "geradores";
+  | "geradores"
+  | "validadores";
 
 export interface Category {
   /** Identificador estável, também usado como slug de URL (/utilitarios/[slug]) */
@@ -63,6 +64,17 @@ export const categories: Category[] = [
     description:
       "Ferramentas gratuitas para gerar dados sintéticos, textos, números, símbolos e informações úteis para testes, produtividade e uso no dia a dia.",
     icon: "dices",
+  },
+  {
+    // Categoria nova: valida o FORMATO e os dígitos verificadores de
+    // documentos e números brasileiros (CPF, CNPJ, cartão de crédito etc.)
+    // — nunca consulta Receita Federal, DETRAN, bancos ou qualquer base de
+    // dados de pessoas, e não confirma que o documento pertence a alguém.
+    id: "validadores",
+    name: "Validadores",
+    description:
+      "Valide gratuitamente o formato e os dígitos verificadores de CPF, CNPJ, cartão de crédito e outros documentos brasileiros — 100% no seu navegador, sem consultar bases de dados.",
+    icon: "shield-check",
   },
 ];
 

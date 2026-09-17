@@ -1304,4 +1304,329 @@ export const toolContent: Record<
       },
     ],
   },
+
+  // VALIDADORES
+  "validador-cpf": {
+    contentSections: [
+      {
+        title: "O que é o CPF?",
+        body: "O Cadastro de Pessoas Físicas (CPF) é o documento de identificação fiscal usado pela Receita Federal para identificar contribuintes. Ele tem 11 dígitos: 9 dígitos-base e 2 dígitos verificadores, calculados por um algoritmo público de módulo 11.",
+      },
+      {
+        title: "Como funciona a validação?",
+        body: "Esta ferramenta recalcula os dois dígitos verificadores a partir dos 9 primeiros dígitos digitados (aceitando com ou sem pontuação) e compara com os dígitos informados — o mesmo cálculo usado para gerar um CPF sintético no Gerador de CPF. Sequências com todos os dígitos iguais (como 111.111.111-11) são sempre rejeitadas.",
+      },
+      {
+        title: "O que significa um CPF válido aqui?",
+        body: "CPF válido = dígitos verificadores matematicamente corretos. Isso não significa que o CPF existe, está ativo ou pertence a uma pessoa específica — esta ferramenta não consulta a Receita Federal nem qualquer base de dados de pessoas.",
+      },
+    ],
+    faq: [
+      {
+        question: "Esta ferramenta consulta a Receita Federal?",
+        answer:
+          "Não. A validação verifica apenas o formato e os dígitos verificadores — não há consulta a nenhuma base de dados oficial nem confirmação de que o CPF pertence a alguém.",
+      },
+      {
+        question: "O CPF que eu digitei fica armazenado?",
+        answer:
+          "Não. Toda a validação acontece no seu navegador; o valor digitado não é enviado, salvo ou registrado em log pela Alilu.",
+      },
+      {
+        question: "Posso digitar o CPF com ou sem pontuação?",
+        answer: "Sim. A máscara 000.000.000-00 é aplicada automaticamente enquanto você digita.",
+      },
+      {
+        question: "Essa ferramenta serve para gerar um CPF novo?",
+        answer:
+          "Não, ela valida um CPF que você já tem. Para gerar CPFs sintéticos para teste, use o Gerador de CPF.",
+      },
+    ],
+  },
+
+  "validador-cnpj": {
+    contentSections: [
+      {
+        title: "O que é o CNPJ?",
+        body: "O Cadastro Nacional da Pessoa Jurídica (CNPJ) identifica empresas perante a Receita Federal. Tem 14 dígitos: 12 dígitos-base e 2 dígitos verificadores, calculados por um algoritmo público de módulo 11.",
+      },
+      {
+        title: "Como funciona a validação?",
+        body: "Esta ferramenta recalcula os dois dígitos verificadores a partir dos 12 primeiros dígitos digitados (aceitando com ou sem pontuação, como 12.345.678/0001-95) e compara com os dígitos informados — o mesmo cálculo usado pelo Gerador de CNPJ.",
+      },
+      {
+        title: "O que significa um CNPJ válido aqui?",
+        body: "CNPJ válido = dígitos verificadores matematicamente corretos. Isso não significa que a empresa existe, está ativa ou que o CNPJ está registrado na Receita Federal — esta ferramenta não consulta nenhuma base de dados oficial.",
+      },
+    ],
+    faq: [
+      {
+        question: "Esta ferramenta consulta a situação cadastral da empresa?",
+        answer:
+          "Não. A validação verifica apenas o formato e os dígitos verificadores — não há consulta à Receita Federal nem confirmação de que a empresa existe ou está ativa.",
+      },
+      {
+        question: "O CNPJ que eu digitei fica armazenado?",
+        answer:
+          "Não. Toda a validação acontece no seu navegador; o valor digitado não é enviado, salvo ou registrado em log pela Alilu.",
+      },
+      {
+        question: "Posso digitar o CNPJ com ou sem pontuação?",
+        answer: "Sim. A máscara 00.000.000/0000-00 é aplicada automaticamente enquanto você digita.",
+      },
+    ],
+  },
+
+  "validador-cartao-credito": {
+    contentSections: [
+      {
+        title: "Como funciona a validação de cartão?",
+        body: "Esta ferramenta aplica o algoritmo de Luhn — um cálculo público usado pela indústria de pagamentos para conferir a consistência matemática de um número de cartão — inteiramente no seu navegador. Opcionalmente, identifica a bandeira provável (Visa, Mastercard, American Express, Elo ou Hipercard) pelo padrão numérico do início do número.",
+      },
+      {
+        title: "O que significa um número 'válido' aqui?",
+        body: "Válido pelo algoritmo de Luhn significa apenas que a sequência de dígitos é matematicamente consistente — não que o cartão existe, está ativo, tem limite disponível ou foi de fato emitido por um banco. A identificação da bandeira é baseada apenas no padrão numérico e não confirma que o cartão exista.",
+      },
+      {
+        title: "Segurança e privacidade",
+        body: "Esta ferramenta pede apenas o número do cartão — nunca validade, CVV, nome do titular ou data de nascimento. Nada digitado é armazenado, transmitido para uma API, salvo em banco de dados ou registrado em log: a validação é 100% local.",
+      },
+    ],
+    faq: [
+      {
+        question: "Esta ferramenta consulta o banco emissor ou um gateway de pagamento?",
+        answer:
+          "Não. A validação é local e verifica apenas a consistência matemática do número (Luhn) — não há consulta a bancos, bandeiras ou processadoras de pagamento.",
+      },
+      {
+        question: "Por que a ferramenta não pede validade ou CVV?",
+        answer:
+          "Porque isso não é necessário para validar o formato do número, e pedir esses dados criaria um risco de segurança desnecessário. Esta ferramenta nunca solicita dados sensíveis de pagamento.",
+      },
+      {
+        question: "O número do cartão fica salvo em algum lugar?",
+        answer:
+          "Não. Nada digitado é armazenado, enviado para servidor, registrado em log/console ou salvo no navegador (localStorage/sessionStorage).",
+      },
+    ],
+  },
+
+  "validador-conta-bancaria": {
+    contentSections: [
+      {
+        title: "Como funciona a validação de conta bancária?",
+        body: "Cada banco brasileiro usa um algoritmo próprio, não público, para calcular o dígito verificador da conta — não existe uma fórmula única confiável para todos os bancos. Por isso, esta ferramenta confere apenas se banco, agência, conta e dígito foram preenchidos em um formato compatível (campos obrigatórios e caracteres permitidos).",
+      },
+      {
+        title: "O que essa validação não faz",
+        body: "A validação completa do dígito da conta pode variar conforme a instituição financeira. Esta ferramenta não confirma que a conta existe, está ativa ou pertence a alguém — e não consulta nenhum banco ou sistema bancário.",
+      },
+    ],
+    faq: [
+      {
+        question: "Por que não há verificação do dígito da conta?",
+        answer:
+          "Porque cada banco calcula esse dígito com uma regra própria e não publicada — implementar um cálculo sem confirmação oficial poderia dar um resultado incorreto. Por isso a ferramenta valida apenas o formato dos campos.",
+      },
+      {
+        question: "Meus dados bancários ficam armazenados?",
+        answer:
+          "Não. Toda a validação acontece no seu navegador; nenhum dado é enviado, salvo ou registrado em log pela Alilu.",
+      },
+    ],
+  },
+
+  "validador-certidoes": {
+    contentSections: [
+      {
+        title: "O que é a matrícula de uma certidão?",
+        body: "Desde 2010, as certidões de nascimento, casamento e óbito emitidas no Brasil usam um número de matrícula de 32 dígitos, controlado pelo CNJ (Conselho Nacional de Justiça).",
+      },
+      {
+        title: "O que esta ferramenta verifica",
+        body: "Este projeto não tem acesso à especificação oficial exata da divisão em blocos (código do cartório, ano, tipo de livro/acervo, número do livro, folha e termo) nem ao cálculo do dígito verificador oficial. Por isso, a validação verifica apenas se o número tem exatamente 32 dígitos — nunca o dígito verificador ou a estrutura interna dos blocos.",
+      },
+      {
+        title: "Esta ferramenta consulta algum cadastro oficial?",
+        body: "Não. Ela nunca consulta a Central Nacional de Informações do Registro Civil (CRC Nacional) nem qualquer cartório. Um número com 32 dígitos matematicamente 'no formato certo' não significa necessariamente que a certidão esteja registrada ou seja autêntica.",
+      },
+    ],
+    faq: [
+      {
+        question: "Esta ferramenta confirma que a certidão é autêntica?",
+        answer:
+          "Não. Ela verifica apenas se o número tem o comprimento de 32 dígitos usado pelo registro civil brasileiro — não confere o dígito verificador nem consulta nenhum cartório ou o CRC Nacional.",
+      },
+      {
+        question: "Por que não há verificação completa da matrícula?",
+        answer:
+          "Porque a divisão oficial em blocos e o cálculo do dígito verificador do CNJ não são reproduzidos aqui sem uma fonte oficial confirmada — evitamos apresentar um algoritmo que poderia estar incorreto.",
+      },
+    ],
+  },
+
+  "validador-cnh": {
+    contentSections: [
+      {
+        title: "O que é a CNH?",
+        body: "A Carteira Nacional de Habilitação (CNH) tem um número de 11 dígitos: 9 dígitos-base e 2 dígitos verificadores, calculados por um algoritmo do DENATRAN reproduzido publicamente por validadores de terceiros.",
+      },
+      {
+        title: "Como funciona a validação?",
+        body: "Esta ferramenta recalcula os dois dígitos verificadores a partir dos 9 primeiros dígitos e compara com os dígitos informados — o mesmo cálculo usado pelo Gerador de CNH.",
+      },
+      {
+        title: "O que essa validação não faz",
+        body: "Esta ferramenta verifica apenas a estrutura do número informado e não consulta a situação da CNH junto ao DETRAN — ou seja, não indica se a habilitação está ativa, suspensa ou cassada.",
+      },
+    ],
+    faq: [
+      {
+        question: "Esta ferramenta consulta o DETRAN?",
+        answer:
+          "Não. A validação verifica apenas os dígitos verificadores do número — não há consulta ao DETRAN nem ao RENACH (cadastro de condutores).",
+      },
+      {
+        question: "O número da CNH fica armazenado?",
+        answer: "Não. Toda a validação acontece no seu navegador; nada é enviado, salvo ou registrado em log.",
+      },
+    ],
+  },
+
+  "validador-pis-pasep": {
+    contentSections: [
+      {
+        title: "O que é o PIS/PASEP?",
+        body: "O PIS/PASEP (também chamado de NIT) tem 11 dígitos: 10 dígitos-base e 1 dígito verificador, calculado pelo mesmo algoritmo de módulo 11 usado pelo eSocial/CAGED.",
+      },
+      {
+        title: "Como funciona a validação?",
+        body: "Esta ferramenta recalcula o dígito verificador a partir dos 10 primeiros dígitos digitados (com ou sem pontuação) e compara com o dígito informado — o mesmo cálculo usado pelo Gerador de PIS/PASEP.",
+      },
+      {
+        title: "O que significa um número válido aqui?",
+        body: "Válido = dígito verificador matematicamente correto. Isso não confirma que o número existe ou pertence a um trabalhador real — esta ferramenta não consulta a Caixa Econômica Federal nem o eSocial.",
+      },
+    ],
+    faq: [
+      {
+        question: "Esta ferramenta consulta a Caixa ou o eSocial?",
+        answer: "Não. A validação é local e verifica apenas o dígito verificador — não há consulta a nenhuma base de dados de trabalhadores.",
+      },
+      {
+        question: "O número digitado fica armazenado?",
+        answer: "Não. Toda a validação acontece no seu navegador; nada é enviado, salvo ou registrado em log.",
+      },
+    ],
+  },
+
+  "validador-renavam": {
+    contentSections: [
+      {
+        title: "O que é o RENAVAM?",
+        body: "O Registro Nacional de Veículos Automotores (RENAVAM) tem 11 dígitos: 10 dígitos-base e 1 dígito verificador, calculado por um algoritmo documentado publicamente e usado por validadores de terceiros.",
+      },
+      {
+        title: "Como funciona a validação?",
+        body: "Esta ferramenta recalcula o dígito verificador a partir dos 10 primeiros dígitos e compara com o dígito informado — o mesmo cálculo usado pelo Gerador de RENAVAM.",
+      },
+      {
+        title: "O que essa validação não faz",
+        body: "Um RENAVAM matematicamente válido não significa que o veículo existe, está licenciado ou regularizado — esta ferramenta não consulta o DETRAN nem a Base Índice Nacional de Veículos (BIN).",
+      },
+    ],
+    faq: [
+      {
+        question: "Esta ferramenta consulta o DETRAN ou a BIN?",
+        answer: "Não. A validação verifica apenas o dígito verificador do número — não há consulta a nenhum cadastro de veículos.",
+      },
+      {
+        question: "O RENAVAM digitado fica armazenado?",
+        answer: "Não. Toda a validação acontece no seu navegador; nada é enviado, salvo ou registrado em log.",
+      },
+    ],
+  },
+
+  "validador-rg": {
+    contentSections: [
+      {
+        title: "O que é o RG?",
+        body: "O Registro Geral (RG) é o documento de identidade emitido por cada Secretaria de Segurança Pública (SSP) estadual. Diferente de CPF ou CNPJ, não existe um cadastro ou algoritmo federal único — cada estado define seu próprio formato.",
+      },
+      {
+        title: "Como funciona a validação?",
+        body: "Para São Paulo, esta ferramenta aplica o padrão de cálculo do dígito verificador (8 dígitos-base + 1 dígito verificador por módulo 11) mais comumente usado por validadores públicos de terceiros — o mesmo já usado pelo Gerador de RG deste site. Para as demais UFs, como não existe um algoritmo público e unificado, é conferido apenas o formato geral do número.",
+      },
+      {
+        title: "O que essa validação não faz",
+        body: "Um RG com formato ou dígito verificador válido não significa que o documento existe ou foi emitido — esta ferramenta nunca consulta nenhuma Secretaria de Segurança Pública ou cadastro de pessoas.",
+      },
+    ],
+    faq: [
+      {
+        question: "Por que só São Paulo tem verificação de dígito?",
+        answer:
+          "Porque o RG não tem um algoritmo nacional único — cada SSP estadual define o seu. São Paulo é a UF cujo padrão de cálculo é mais amplamente reproduzido por validadores públicos; para as demais, validamos apenas o formato, para não inventar um algoritmo incorreto.",
+      },
+      {
+        question: "O número do RG fica armazenado?",
+        answer: "Não. Toda a validação acontece no seu navegador; nada é enviado, salvo ou registrado em log.",
+      },
+    ],
+  },
+
+  "validador-titulo-eleitor": {
+    contentSections: [
+      {
+        title: "O que é o Título de Eleitor?",
+        body: "O Título de Eleitor tem 12 dígitos: 8 dígitos de sequencial, 2 dígitos do código da UF de emissão e 2 dígitos verificadores, calculados por um algoritmo documentado publicamente.",
+      },
+      {
+        title: "Como funciona a validação?",
+        body: "Esta ferramenta recalcula os dois dígitos verificadores a partir do sequencial e do código de UF já contidos nos 12 dígitos digitados — o mesmo cálculo usado pelo Gerador de Título de Eleitor. Não é preciso selecionar o estado à parte: o código já faz parte do número.",
+      },
+      {
+        title: "O que essa validação não faz",
+        body: "Um título matematicamente válido não significa que ele existe ou está ativo — esta ferramenta nunca consulta o TSE nem o cadastro de eleitores.",
+      },
+    ],
+    faq: [
+      {
+        question: "Esta ferramenta consulta o TSE?",
+        answer: "Não. A validação verifica apenas os dígitos verificadores do número — não há consulta ao TSE nem ao cadastro de eleitores.",
+      },
+      {
+        question: "O número digitado fica armazenado?",
+        answer: "Não. Toda a validação acontece no seu navegador; nada é enviado, salvo ou registrado em log.",
+      },
+    ],
+  },
+
+  "validador-inscricao-estadual": {
+    contentSections: [
+      {
+        title: "O que é a Inscrição Estadual?",
+        body: "A Inscrição Estadual (IE) identifica um contribuinte perante a Secretaria da Fazenda de um estado. Cada uma das 27 unidades federativas define seu próprio formato e algoritmo de dígito verificador, de forma independente — não existe uma Receita Estadual única, como há para CPF/CNPJ na Receita Federal.",
+      },
+      {
+        title: "Como funciona a validação?",
+        body: "Esta ferramenta confere apenas se a quantidade de dígitos informada é compatível com a UF selecionada — implementar corretamente o algoritmo de dígito verificador de cada uma das 27 UFs está fora do escopo desta primeira versão, e um algoritmo incorreto seria pior do que nenhum algoritmo.",
+      },
+      {
+        title: "O que essa validação não faz",
+        body: "Um formato compatível não significa que a inscrição existe, está ativa ou pertence a uma empresa — esta ferramenta nunca consulta nenhuma Secretaria da Fazenda estadual.",
+      },
+    ],
+    faq: [
+      {
+        question: "Por que o dígito verificador não é conferido?",
+        answer:
+          "Porque cada estado tem seu próprio algoritmo, não há uma fórmula única para todos — implementar isso incorretamente seria pior do que não implementar. Por enquanto, a ferramenta confere apenas o formato geral por UF.",
+      },
+      {
+        question: "A Inscrição Estadual digitada fica armazenada?",
+        answer: "Não. Toda a validação acontece no seu navegador; nada é enviado, salvo ou registrado em log.",
+      },
+    ],
+  },
 };

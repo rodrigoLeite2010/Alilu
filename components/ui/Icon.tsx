@@ -43,6 +43,7 @@ import {
   Hash,
   AlignLeft,
   Image as ImageIcon,
+  ShieldCheck,
   type LucideIcon,
 } from "lucide-react";
 
@@ -96,6 +97,7 @@ const iconMap: Record<string, LucideIcon> = {
   hash: Hash,
   "align-left": AlignLeft,
   image: ImageIcon,
+  "shield-check": ShieldCheck,
 };
 
 export interface IconProps {
