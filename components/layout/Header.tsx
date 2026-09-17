@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { Container } from "@/components/ui/Container";
-import { Icon } from "@/components/ui/Icon";
 import { SiteNav } from "@/components/navigation/SiteNav";
 import { SITE_NAME } from "@/lib/seo/site";
 
@@ -12,9 +11,18 @@ export function Header() {
           href="/"
           className="flex items-center gap-2.5 rounded-md text-base font-semibold tracking-tight text-zinc-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
         >
-          <span className="flex h-8 w-8 items-center justify-center rounded-md bg-zinc-900 text-white">
-            <Icon name="wrench" className="h-4 w-4" />
-          </span>
+          {/* eslint-disable-next-line @next/next/no-img-element -- ícone
+              pequeno e fixo (32x32); o projeto não usa next/image em
+              nenhum outro lugar (só ícones Lucide como componente), então
+              uma <img> simples evita introduzir a config de otimização de
+              imagens só para este caso. */}
+          <img
+            src="/logo-icon.png"
+            alt=""
+            width={32}
+            height={32}
+            className="h-8 w-8 rounded-md"
+          />
           {SITE_NAME}
         </Link>
         <SiteNav />
