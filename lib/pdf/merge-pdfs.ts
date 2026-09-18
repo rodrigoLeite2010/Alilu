@@ -83,7 +83,11 @@ export function getPdfReadErrorType(error: unknown): PdfFileError {
   return "corrupted";
 }
 
-async function loadPdfFile(file: File) {
+export async function loadPdfDocument(file: File) {
+  if (file.size > MAX_PDF_FILE_SIZE_BYTES) {
+    throw new PdfMergeError("too-large");
+  }
+
   if (file.size === 0) {
     throw new PdfMergeError("not-pdf");
   }
@@ -132,7 +136,7 @@ export async function inspectPdfFile(file: File): Promise<PdfFileValidation> {
   }
 
   try {
-    const document = await loadPdfFile(file);
+    const document = await loadPdfDocument(file);
     const pageCount = document.getPageCount();
 
     if (pageCount === 0) {
@@ -172,7 +176,7 @@ export async function mergePdfFiles(files: File[]): Promise<Uint8Array> {
     const mergedDocument = await PDFDocument.create({ updateMetadata: false });
 
     for (const file of files) {
-      const sourceDocument = await loadPdfFile(file);
+      const sourceDocument = await loadPdfDocument(file);
       const sourcePages = await mergedDocument.copyPages(
         sourceDocument,
         sourceDocument.getPageIndices()

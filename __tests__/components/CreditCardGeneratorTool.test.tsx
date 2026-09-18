@@ -24,11 +24,12 @@ describe("CreditCardGeneratorTool", () => {
     render(<CreditCardGeneratorTool />);
     fireEvent.click(screen.getByRole("button", { name: /gerar cartão/i }));
 
-    const knownNumbers = OFFICIAL_TEST_CARDS.map((card) =>
-      card.number.match(/.{1,4}/g)?.join(" ") ?? card.number
-    );
+    // A apresentação varia por bandeira (por exemplo, American Express usa
+    // agrupamento 4-6-5). Compare os dígitos para não transformar a formatação
+    // correta do componente em uma falha aleatória do teste.
+    const knownNumbers = OFFICIAL_TEST_CARDS.map((card) => card.number.replace(/\D/g, ""));
     const highlight = screen.getByText((_, el) =>
-      knownNumbers.includes(el?.textContent?.replace(/\s+/g, " ").trim() ?? "")
+      knownNumbers.includes(el?.textContent?.replace(/\D/g, "") ?? "")
     );
     expect(highlight).toBeInTheDocument();
   });

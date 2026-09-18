@@ -19,6 +19,7 @@ import {
   Upload,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import { downloadPdf } from "@/lib/pdf/browser-download";
 import {
   formatPdfFileSize,
   inspectPdfFile,
@@ -72,12 +73,6 @@ function getMergeErrorMessage(error: unknown): string {
   }
 
   return "Não foi possível unir os PDFs. Tente novamente.";
-}
-
-function copyBytesToArrayBuffer(bytes: Uint8Array): ArrayBuffer {
-  const copy = new Uint8Array(bytes.byteLength);
-  copy.set(bytes);
-  return copy.buffer;
 }
 
 export function MergePdfsTool() {
@@ -240,16 +235,7 @@ export function MergePdfsTool() {
       return;
     }
 
-    const url = URL.createObjectURL(
-      new Blob([copyBytesToArrayBuffer(mergedPdf)], { type: "application/pdf" })
-    );
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = "alilu-pdf-unido.pdf";
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    window.setTimeout(() => URL.revokeObjectURL(url), 0);
+    downloadPdf(mergedPdf, "alilu-pdf-unido.pdf");
   }
 
   function handleClearList() {

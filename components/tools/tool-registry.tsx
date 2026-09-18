@@ -74,6 +74,11 @@ import { MeuIpTool } from "@/components/tools/meu-ip/MeuIpTool";
 import { MeuNavegadorTool } from "@/components/tools/meu-navegador/MeuNavegadorTool";
 import { MeuSistemaOperacionalTool } from "@/components/tools/meu-sistema-operacional/MeuSistemaOperacionalTool";
 import { MergePdfsTool } from "@/components/tools/pdf-merge/MergePdfsTool";
+import { SplitPdfTool } from "@/components/tools/pdf-split/SplitPdfTool";
+import { RotatePdfTool } from "@/components/tools/pdf-rotate/RotatePdfTool";
+import { JpgToPdfTool } from "@/components/tools/jpg-to-pdf/JpgToPdfTool";
+import { PdfToJpgTool } from "@/components/tools/pdf-to-jpg/PdfToJpgTool";
+import { WatermarkPdfTool } from "@/components/tools/pdf-watermark/WatermarkPdfTool";
 
 /**
  * Registro central que liga o id de uma ferramenta (data/tools.ts) ao
@@ -161,6 +166,11 @@ export const toolComponents: Record<string, ComponentType> = {
 
   // PDF
   "unir-pdf": MergePdfsTool,
+  "dividir-pdf": SplitPdfTool,
+  "girar-pdf": RotatePdfTool,
+  "jpg-para-pdf": JpgToPdfTool,
+  "pdf-para-jpg": PdfToJpgTool,
+  "marca-dagua": WatermarkPdfTool,
 
   // FUNÇÕES STRING
   "corretor-ortografico": CorretorOrtograficoTool,

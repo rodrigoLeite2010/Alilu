@@ -612,6 +612,181 @@ export const toolContent: Record<
     ],
   },
 
+  "dividir-pdf": {
+    contentSections: [
+      {
+        title: "Como dividir um PDF?",
+        body: "Selecione um arquivo PDF, informe páginas isoladas ou intervalos, como 1-3, 5 e 8-10, e escolha se quer reuni-las em um novo documento ou receber um PDF separado para cada página. Quando houver vários arquivos separados, o download é organizado em um ZIP.",
+      },
+      {
+        title: "A ordem das páginas é preservada?",
+        body: "Sim. A ferramenta usa exatamente a ordem escrita no campo de páginas. Para evitar duplicações acidentais, uma mesma página não pode aparecer duas vezes na seleção.",
+      },
+      {
+        title: "Privacidade ao dividir PDFs",
+        body: "A leitura, a cópia das páginas e a criação do arquivo final acontecem apenas no seu navegador. O ALILU não envia, armazena ou registra seu documento em servidores.",
+      },
+    ],
+    faq: [
+      {
+        question: "Posso extrair uma única página?",
+        answer: "Sim. Informe somente o número dessa página e baixe o PDF resultante.",
+      },
+      {
+        question: "Como selecionar um intervalo?",
+        answer: "Use um hífen entre a primeira e a última página, por exemplo, 3-7. Você pode combinar intervalos e páginas individuais separando-os por vírgulas.",
+      },
+      {
+        question: "O arquivo é enviado para algum servidor?",
+        answer: "Não. Todo o processamento é local no navegador e o resultado é baixado diretamente no seu dispositivo.",
+      },
+      {
+        question: "Posso dividir um PDF protegido por senha?",
+        answer: "Não nesta versão. Por segurança, desbloqueie o arquivo com a senha autorizada antes de selecioná-lo.",
+      },
+    ],
+  },
+
+  "girar-pdf": {
+    contentSections: [
+      {
+        title: "Como girar páginas de PDF?",
+        body: "Selecione o PDF, escolha 90, 180 ou 270 graus no sentido horário e indique se a alteração vale para todas as páginas ou apenas para uma seleção. O arquivo resultante é criado no próprio navegador.",
+      },
+      {
+        title: "Posso ajustar somente uma página?",
+        body: "Sim. Escolha a opção de páginas selecionadas e informe os números ou intervalos desejados. As demais páginas permanecem com a rotação original.",
+      },
+      {
+        title: "Privacidade",
+        body: "O documento não é enviado ao ALILU nem a serviços externos. A mudança de orientação e o download ocorrem localmente no seu dispositivo.",
+      },
+    ],
+    faq: [
+      {
+        question: "A rotação altera o texto do PDF?",
+        answer: "Não. Ela ajusta a orientação da página; o conteúdo do documento não é reescrito como texto editável.",
+      },
+      {
+        question: "O que significa girar 270 graus?",
+        answer: "É equivalente a girar 90 graus no sentido anti-horário.",
+      },
+      {
+        question: "Posso usar pelo celular?",
+        answer: "Sim. Os controles e botões foram organizados para telas pequenas e o arquivo é escolhido pelo seletor nativo do aparelho.",
+      },
+      {
+        question: "Assinaturas digitais são preservadas?",
+        answer: "Não é garantido. Qualquer alteração no arquivo pode invalidar assinaturas digitais e outros recursos interativos existentes.",
+      },
+    ],
+  },
+
+  "jpg-para-pdf": {
+    contentSections: [
+      {
+        title: "Como converter JPG para PDF?",
+        body: "Selecione uma ou mais imagens JPG/JPEG, reorganize a lista quando necessário e escolha página A4 ou tamanho original. A ferramenta cria uma página por imagem e preserva a proporção, sem recortar automaticamente a foto.",
+      },
+      {
+        title: "Tamanho, orientação e margens",
+        body: "Com A4, você pode escolher retrato ou paisagem e definir uma margem de 0 a 50 mm. No tamanho original, cada página segue as dimensões da própria imagem e não usa a orientação A4.",
+      },
+      {
+        title: "Privacidade das imagens",
+        body: "As imagens selecionadas são processadas apenas no navegador. Nenhum arquivo, nome de arquivo ou conteúdo é enviado para o servidor do ALILU.",
+      },
+    ],
+    faq: [
+      {
+        question: "Posso converter várias imagens de uma vez?",
+        answer: "Sim. Cada imagem vira uma página do PDF, seguindo a ordem apresentada na lista.",
+      },
+      {
+        question: "PNG também funciona?",
+        answer: "Ainda não. Esta versão aceita somente imagens JPG/JPEG reais, para manter o resultado e os limites técnicos previsíveis.",
+      },
+      {
+        question: "A imagem perde qualidade?",
+        answer: "A ferramenta incorpora o JPG original no PDF; ela não aumenta qualidade, nem faz edição automática da imagem.",
+      },
+      {
+        question: "O PDF é criado no meu aparelho?",
+        answer: "Sim. A criação e o download acontecem localmente no navegador, sem cadastro ou envio de arquivos.",
+      },
+    ],
+  },
+
+  "pdf-para-jpg": {
+    contentSections: [
+      {
+        title: "Como converter PDF para JPG?",
+        body: "Selecione um PDF, informe quais páginas deseja transformar e escolha a qualidade JPG. A ferramenta renderiza a aparência de cada página localmente e oferece uma imagem individual ou um ZIP quando há mais de uma página.",
+      },
+      {
+        title: "Qualidade e tamanho do arquivo",
+        body: "A qualidade maior preserva mais detalhes visuais, mas pode aumentar o tamanho das imagens. Para evitar uso excessivo de memória, a resolução por página tem um limite técnico automático no navegador.",
+      },
+      {
+        title: "Privacidade",
+        body: "O PDF nunca é enviado para o ALILU ou para uma API externa. As páginas são renderizadas somente no navegador e os JPGs são baixados no seu dispositivo.",
+      },
+    ],
+    faq: [
+      {
+        question: "A ferramenta extrai as imagens internas do PDF?",
+        answer: "Não. Ela cria um JPG a partir da aparência completa da página, incluindo texto, gráficos e imagens no layout original.",
+      },
+      {
+        question: "Por que várias páginas viram um ZIP?",
+        answer: "O ZIP evita vários downloads separados e mantém cada página em seu próprio arquivo JPG.",
+      },
+      {
+        question: "Posso converter apenas páginas específicas?",
+        answer: "Sim. Use números e intervalos separados por vírgula, como 1-3, 5 e 8-10.",
+      },
+      {
+        question: "PDFs protegidos por senha funcionam?",
+        answer: "Não nesta versão. Desbloqueie o arquivo com a senha autorizada antes de usar a ferramenta.",
+      },
+    ],
+  },
+
+  "marca-dagua": {
+    contentSections: [
+      {
+        title: "Como adicionar marca d'água a um PDF?",
+        body: "Selecione o PDF e escolha uma marca de texto ou uma imagem JPG/JPEG/PNG. Você pode configurar posição, transparência, rotação e tamanho, além de aplicar a alteração a todas as páginas ou somente a uma seleção.",
+      },
+      {
+        title: "Marca visual não é assinatura digital",
+        body: "Esta ferramenta sobrepõe texto ou imagem de forma visual. Ela não certifica autoria, não protege o documento contra cópia e não substitui uma assinatura digital baseada em certificado.",
+      },
+      {
+        title: "Privacidade do documento",
+        body: "O PDF e a imagem opcional ficam no seu navegador durante a operação. O ALILU não os envia, salva, registra ou compartilha com terceiros.",
+      },
+    ],
+    faq: [
+      {
+        question: "Posso usar uma logo como marca d'água?",
+        answer: "Sim. Escolha imagem e selecione uma logo em JPG/JPEG ou PNG, dentro do limite de 50 MB.",
+      },
+      {
+        question: "Posso colocar a marca somente em algumas páginas?",
+        answer: "Sim. Troque para páginas selecionadas e informe os números ou intervalos desejados.",
+      },
+      {
+        question: "O texto pode ter cor e transparência?",
+        answer: "Sim. A ferramenta permite escolher uma cor para texto e ajustar a transparência de texto ou imagem.",
+      },
+      {
+        question: "A marca d'água torna o PDF protegido?",
+        answer: "Não. Ela é uma alteração visual e não aplica senha, criptografia ou bloqueio de cópia.",
+      },
+    ],
+  },
+
   "gerador-cpf": {
     contentSections: [
       {
