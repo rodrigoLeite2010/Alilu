@@ -5,6 +5,7 @@ export type PdfToJpgFile = {
   blob: Blob;
 };
 
+export const MAX_PDF_TO_JPG_PAGES = 50;
 const MAX_RENDERED_PIXELS_PER_PAGE = 16_000_000;
 const DEFAULT_RENDER_SCALE = 2;
 
@@ -19,6 +20,12 @@ function getSafeQuality(quality: number): number {
 function validatePages(pages: number[], pageCount: number): void {
   if (pages.length === 0) {
     throw new PdfMergeError("generation-failed", "Selecione ao menos uma página.");
+  }
+  if (pages.length > MAX_PDF_TO_JPG_PAGES) {
+    throw new PdfMergeError(
+      "generation-failed",
+      `Selecione no máximo ${MAX_PDF_TO_JPG_PAGES} páginas por conversão para preservar o desempenho do navegador.`
+    );
   }
 
   const seen = new Set<number>();
@@ -91,7 +98,10 @@ export async function renderPdfToJpegs(
       const availableScale = Math.sqrt(
         MAX_RENDERED_PIXELS_PER_PAGE / (baseViewport.width * baseViewport.height)
       );
-      const scale = Math.max(0.25, Math.min(DEFAULT_RENDER_SCALE, availableScale));
+      const scale = Math.min(DEFAULT_RENDER_SCALE, availableScale);
+      if (!Number.isFinite(scale) || scale <= 0) {
+        throw new PdfMergeError("generation-failed", "O tamanho de uma página deste PDF não é compatível.");
+      }
       const viewport = page.getViewport({ scale });
       const canvas = window.document.createElement("canvas");
       canvas.width = Math.max(1, Math.ceil(viewport.width));
@@ -127,7 +137,11 @@ export async function renderPdfToJpegs(
       loadedDocument.cleanup();
     }
     if (loadingTask) {
-      await loadingTask.destroy();
+      try {
+        await loadingTask.destroy();
+      } catch {
+        // A tarefa pode já ter sido encerrada pelo PDF.js após uma falha.
+      }
     }
   }
 }

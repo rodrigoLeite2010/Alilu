@@ -97,6 +97,9 @@ export async function addWatermark(file: File, input: WatermarkInput): Promise<U
   if (input.type === "text" && !input.text.trim()) {
     throw new PdfMergeError("generation-failed", "Digite o texto da marca d'água.");
   }
+  if (input.type === "text" && input.text.trim().length > 200) {
+    throw new PdfMergeError("generation-failed", "A marca d'água de texto aceita até 200 caracteres.");
+  }
 
   if (input.type === "image" && !input.image) {
     throw new PdfMergeError("generation-failed", "Selecione uma imagem para a marca d'água.");

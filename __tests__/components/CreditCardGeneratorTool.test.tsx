@@ -29,7 +29,8 @@ describe("CreditCardGeneratorTool", () => {
     // correta do componente em uma falha aleatória do teste.
     const knownNumbers = OFFICIAL_TEST_CARDS.map((card) => card.number.replace(/\D/g, ""));
     const highlight = screen.getByText((_, el) =>
-      knownNumbers.includes(el?.textContent?.replace(/\D/g, "") ?? "")
+      el?.tagName === "P" &&
+      knownNumbers.includes(el.textContent?.replace(/\D/g, "") ?? "")
     );
     expect(highlight).toBeInTheDocument();
   });

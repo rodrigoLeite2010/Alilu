@@ -14,7 +14,7 @@ import {
   PdfMergeError,
   type PdfFileError,
 } from "@/lib/pdf/merge-pdfs";
-import { getAllPageNumbers, parsePageSelection } from "@/lib/pdf/page-selection";
+import { parsePageSelection } from "@/lib/pdf/page-selection";
 import { splitPdf, type SplitPdfMode } from "@/lib/pdf/split-pdf";
 
 type SelectedPdf = { file: File; pageCount: number };

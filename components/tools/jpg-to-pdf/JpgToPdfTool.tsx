@@ -6,7 +6,7 @@ import {
   ArrowUp,
   CheckCircle2,
   Download,
-  Image,
+  Image as ImageIcon,
   LoaderCircle,
   ShieldCheck,
   Trash2,
@@ -229,7 +229,7 @@ export function JpgToPdfTool() {
 
           <div className="flex flex-wrap gap-3">
             <Button type="button" className="w-full sm:w-auto" onClick={() => void handleGenerate()} disabled={isBusy}>
-              {isProcessing ? <LoaderCircle className="size-4 animate-spin" aria-hidden /> : <Image className="size-4" aria-hidden />}
+              {isProcessing ? <LoaderCircle className="size-4 animate-spin" aria-hidden /> : <ImageIcon className="size-4" aria-hidden />}
               {isProcessing ? "Gerando PDF..." : "Criar PDF"}
             </Button>
             <Button type="button" variant="secondary" onClick={reset} disabled={isBusy}>Limpar lista</Button>

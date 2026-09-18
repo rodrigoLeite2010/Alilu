@@ -725,7 +725,7 @@ export const toolContent: Record<
       },
       {
         title: "Qualidade e tamanho do arquivo",
-        body: "A qualidade maior preserva mais detalhes visuais, mas pode aumentar o tamanho das imagens. Para evitar uso excessivo de memória, a resolução por página tem um limite técnico automático no navegador.",
+        body: "A qualidade maior preserva mais detalhes visuais, mas pode aumentar o tamanho das imagens. Para evitar uso excessivo de memória, a resolução por página tem um limite técnico automático e cada conversão aceita até 50 páginas.",
       },
       {
         title: "Privacidade",

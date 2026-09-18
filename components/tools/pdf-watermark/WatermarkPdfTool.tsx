@@ -173,7 +173,7 @@ export function WatermarkPdfTool() {
     <div className="space-y-6">
       <p className="flex items-start gap-2 rounded-lg bg-teal-50 p-3 text-sm leading-relaxed text-teal-950">
         <ShieldCheck className="mt-0.5 size-5 shrink-0 text-teal-700" aria-hidden />
-        O PDF e a imagem da marca d'água são processados somente no navegador, sem envio a servidores.
+        O PDF e a imagem da marca d&apos;água são processados somente no navegador, sem envio a servidores.
       </p>
 
       {!selectedPdf ? (
@@ -196,10 +196,10 @@ export function WatermarkPdfTool() {
 
       {selectedPdf ? (
         <section aria-labelledby="watermark-options-heading" className="space-y-5">
-          <h2 id="watermark-options-heading" className="text-base font-semibold text-zinc-900">Configurar marca d'água</h2>
+          <h2 id="watermark-options-heading" className="text-base font-semibold text-zinc-900">Configurar marca d&apos;água</h2>
 
           <fieldset className="space-y-3">
-            <legend className="text-sm font-medium text-zinc-700">Tipo de marca d'água</legend>
+            <legend className="text-sm font-medium text-zinc-700">Tipo de marca d&apos;água</legend>
             <label className="flex min-h-11 items-center gap-3 text-sm text-zinc-700">
               <input type="radio" name="watermark-type" value="text" checked={watermarkType === "text"} onChange={() => { setWatermarkType("text"); clearResult(); }} disabled={isBusy} />
               Texto
@@ -300,7 +300,7 @@ export function WatermarkPdfTool() {
         <section aria-live="polite" className="rounded-lg border border-emerald-200 bg-emerald-50 p-4">
           <div className="flex items-start gap-3">
             <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-emerald-700" aria-hidden />
-            <div><h2 className="font-semibold text-emerald-950">Marca d'água adicionada com sucesso!</h2><p className="mt-1 text-sm text-emerald-900">O novo arquivo contém somente as alterações configuradas acima.</p></div>
+            <div><h2 className="font-semibold text-emerald-950">Marca d&apos;água adicionada com sucesso!</h2><p className="mt-1 text-sm text-emerald-900">O novo arquivo contém somente as alterações configuradas acima.</p></div>
           </div>
           <div className="mt-4 flex flex-wrap gap-3">
             <Button type="button" onClick={() => downloadPdf(result, `${selectedPdf.file.name.replace(/\.pdf$/i, "") || "documento"}-marca-dagua.pdf`)}><Download className="size-4" aria-hidden />Baixar PDF</Button>
@@ -309,7 +309,7 @@ export function WatermarkPdfTool() {
         </section>
       ) : null}
 
-      <p className="text-xs leading-relaxed text-zinc-500">Limitação técnica: uma marca d'água visual não equivale a assinatura digital, certificação ou proteção contra cópia do documento.</p>
+      <p className="text-xs leading-relaxed text-zinc-500">Limitação técnica: uma marca d&apos;água visual não equivale a assinatura digital, certificação ou proteção contra cópia do documento.</p>
     </div>
   );
 }

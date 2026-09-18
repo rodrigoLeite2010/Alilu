@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { CheckCircle2, Download, Image, LoaderCircle, ShieldCheck } from "lucide-react";
+import { CheckCircle2, Download, Image as ImageIcon, LoaderCircle, ShieldCheck } from "lucide-react";
 import { SelectField } from "@/components/forms/SelectField";
 import { Button } from "@/components/ui/Button";
 import { FileUploadDropzone } from "@/components/tools/pdf-shared/FileUploadDropzone";
@@ -136,7 +136,7 @@ export function PdfToJpgTool() {
           inputId="pdf-to-jpg-input"
           title="Arraste um PDF aqui"
           description="Ou selecione um documento para renderizar páginas como imagens JPG."
-          limitDescription="Limite técnico: até 50 MB por PDF. Imagens com muitas páginas podem exigir mais memória do aparelho."
+          limitDescription="Limite técnico: até 50 MB por PDF e 50 páginas por conversão. Imagens com muitas páginas podem exigir mais memória do aparelho."
           accept="application/pdf,.pdf"
           buttonLabel="Selecionar PDF"
           disabled={isBusy}
@@ -186,7 +186,7 @@ export function PdfToJpgTool() {
             <option value="0.95">Máxima</option>
           </SelectField>
           <Button type="button" className="w-full sm:w-auto" onClick={() => void handleConvert()} disabled={isBusy}>
-            {isProcessing ? <LoaderCircle className="size-4 animate-spin" aria-hidden /> : <Image className="size-4" aria-hidden />}
+            {isProcessing ? <LoaderCircle className="size-4 animate-spin" aria-hidden /> : <ImageIcon className="size-4" aria-hidden />}
             {isProcessing ? "Convertendo PDF..." : "Converter para JPG"}
           </Button>
         </section>

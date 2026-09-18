@@ -79,4 +79,19 @@ describe("catálogo de categorias e ferramentas", () => {
         "Una dois ou mais arquivos PDF online e grátis. Organize seus documentos na ordem desejada e baixe um único PDF, sem instalar programas.",
     });
   });
+
+  it("mantém todas as 18 ferramentas PDF no catálogo e só publica as implementadas", () => {
+    const pdfTools = getToolsByCategory("pdf");
+
+    expect(pdfTools).toHaveLength(18);
+    expect(pdfTools.filter((tool) => tool.status === "ativo").map((tool) => tool.id).sort()).toEqual([
+      "dividir-pdf",
+      "girar-pdf",
+      "jpg-para-pdf",
+      "marca-dagua",
+      "pdf-para-jpg",
+      "unir-pdf",
+    ]);
+    expect(pdfTools.filter((tool) => tool.status === "em-breve")).toHaveLength(12);
+  });
 });

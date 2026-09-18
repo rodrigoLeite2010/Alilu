@@ -76,4 +76,20 @@ describe("addWatermark", () => {
       })
     ).rejects.toMatchObject({ type: "generation-failed" });
   });
+
+  it("mantém o limite de texto mesmo quando chamado fora da interface", async () => {
+    await expect(
+      addWatermark(await createPdfFile(), {
+        type: "text",
+        text: "a".repeat(201),
+        pages: [1],
+        position: "center",
+        opacity: 0.5,
+        rotation: 0,
+        fontSize: 42,
+        imageWidthPercent: 30,
+        color: "#000000",
+      })
+    ).rejects.toMatchObject({ type: "generation-failed" });
+  });
 });
