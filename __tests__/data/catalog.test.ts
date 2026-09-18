@@ -80,18 +80,11 @@ describe("catálogo de categorias e ferramentas", () => {
     });
   });
 
-  it("mantém todas as 18 ferramentas PDF no catálogo e só publica as implementadas", () => {
+  it("mantém as 18 ferramentas PDF publicadas depois da implementação completa", () => {
     const pdfTools = getToolsByCategory("pdf");
 
     expect(pdfTools).toHaveLength(18);
-    expect(pdfTools.filter((tool) => tool.status === "ativo").map((tool) => tool.id).sort()).toEqual([
-      "dividir-pdf",
-      "girar-pdf",
-      "jpg-para-pdf",
-      "marca-dagua",
-      "pdf-para-jpg",
-      "unir-pdf",
-    ]);
-    expect(pdfTools.filter((tool) => tool.status === "em-breve")).toHaveLength(12);
+    expect(pdfTools.every((tool) => tool.status === "ativo")).toBe(true);
+    expect(pdfTools.filter((tool) => tool.status === "em-breve")).toHaveLength(0);
   });
 });

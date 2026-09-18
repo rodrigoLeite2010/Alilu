@@ -2,6 +2,9 @@
   "name": "alilu",
   "version": "0.1.0",
   "private": true,
+  "overrides": {
+    "image-size": "2.0.4"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -11,11 +14,18 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@pdfsmaller/pdf-decrypt": "1.0.1",
+    "@pdfsmaller/pdf-encrypt": "1.2.0",
+    "docx": "9.7.1",
+    "dompurify": "3.4.15",
+    "html2canvas": "1.4.1",
     "jszip": "^3.10.2",
     "lucide-react": "^1.46.0",
+    "mammoth": "1.12.3",
     "next": "16.3.5",
     "pdf-lib": "^1.17.1",
     "pdfjs-dist": "^6.3.289",
+    "pptxgenjs": "4.0.1",
     "qrcode": "^1.5.4",
     "react": "19.2.8",
     "react-dom": "19.2.8"

@@ -73,6 +73,39 @@ async function hasPdfHeader(file: File): Promise<boolean> {
   return isPdfHeader(new Uint8Array(header));
 }
 
+/**
+ * Lê um PDF local depois de aplicar as verificações de tamanho e cabeçalho
+ * usadas por todas as ferramentas. Não interpreta o conteúdo do arquivo;
+ * fluxos como desbloqueio precisam dos bytes mesmo quando o PDF tem senha.
+ */
+export async function readPdfFileBytes(file: File): Promise<Uint8Array> {
+  if (file.size > MAX_PDF_FILE_SIZE_BYTES) {
+    throw new PdfMergeError("too-large");
+  }
+
+  if (file.size === 0) {
+    throw new PdfMergeError("not-pdf");
+  }
+
+  try {
+    if (!(await hasPdfHeader(file))) {
+      throw new PdfMergeError("not-pdf");
+    }
+  } catch (error) {
+    if (error instanceof PdfMergeError) {
+      throw error;
+    }
+
+    throw new PdfMergeError("read-failed");
+  }
+
+  try {
+    return new Uint8Array(await file.arrayBuffer());
+  } catch {
+    throw new PdfMergeError("read-failed");
+  }
+}
+
 export function getPdfReadErrorType(error: unknown): PdfFileError {
   const message = error instanceof Error ? error.message.toLowerCase() : "";
 
@@ -84,31 +117,7 @@ export function getPdfReadErrorType(error: unknown): PdfFileError {
 }
 
 export async function loadPdfDocument(file: File) {
-  if (file.size > MAX_PDF_FILE_SIZE_BYTES) {
-    throw new PdfMergeError("too-large");
-  }
-
-  if (file.size === 0) {
-    throw new PdfMergeError("not-pdf");
-  }
-
-  let hasHeader: boolean;
-  try {
-    hasHeader = await hasPdfHeader(file);
-  } catch {
-    throw new PdfMergeError("read-failed");
-  }
-
-  if (!hasHeader) {
-    throw new PdfMergeError("not-pdf");
-  }
-
-  let bytes: ArrayBuffer;
-  try {
-    bytes = await file.arrayBuffer();
-  } catch {
-    throw new PdfMergeError("read-failed");
-  }
+  const bytes = await readPdfFileBytes(file);
 
   try {
     const { PDFDocument } = await import("pdf-lib");

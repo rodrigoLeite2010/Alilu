@@ -3,6 +3,11 @@ import { PdfMergeError, loadPdfDocument } from "@/lib/pdf/merge-pdfs";
 export type PdfToJpgFile = {
   fileName: string;
   blob: Blob;
+  pageSize: [number, number];
+};
+
+export type PdfRenderOptions = {
+  scale?: number;
 };
 
 export const MAX_PDF_TO_JPG_PAGES = 50;
@@ -61,7 +66,8 @@ function canvasToJpegBlob(canvas: HTMLCanvasElement, quality: number): Promise<B
 export async function renderPdfToJpegs(
   file: File,
   pages: number[],
-  quality: number
+  quality: number,
+  options: PdfRenderOptions = {}
 ): Promise<PdfToJpgFile[]> {
   const validatedDocument = await loadPdfDocument(file);
   validatePages(pages, validatedDocument.getPageCount());
@@ -98,7 +104,11 @@ export async function renderPdfToJpegs(
       const availableScale = Math.sqrt(
         MAX_RENDERED_PIXELS_PER_PAGE / (baseViewport.width * baseViewport.height)
       );
-      const scale = Math.min(DEFAULT_RENDER_SCALE, availableScale);
+      const requestedScale = Math.max(
+        0.5,
+        Math.min(DEFAULT_RENDER_SCALE, options.scale ?? DEFAULT_RENDER_SCALE)
+      );
+      const scale = Math.min(requestedScale, availableScale);
       if (!Number.isFinite(scale) || scale <= 0) {
         throw new PdfMergeError("generation-failed", "O tamanho de uma página deste PDF não é compatível.");
       }
@@ -122,6 +132,7 @@ export async function renderPdfToJpegs(
       output.push({
         fileName: `${baseName}-pagina-${pageNumber}.jpg`,
         blob,
+        pageSize: [baseViewport.width, baseViewport.height],
       });
     }
 

@@ -79,6 +79,12 @@ import { RotatePdfTool } from "@/components/tools/pdf-rotate/RotatePdfTool";
 import { JpgToPdfTool } from "@/components/tools/jpg-to-pdf/JpgToPdfTool";
 import { PdfToJpgTool } from "@/components/tools/pdf-to-jpg/PdfToJpgTool";
 import { WatermarkPdfTool } from "@/components/tools/pdf-watermark/WatermarkPdfTool";
+import { PdfDocumentConverterTool } from "@/components/tools/pdf-document-converter/PdfDocumentConverterTool";
+import { OfficeToPdfTool } from "@/components/tools/office-to-pdf/OfficeToPdfTool";
+import { PdfEditorTool } from "@/components/tools/pdf-editor/PdfEditorTool";
+import { PdfSignTool } from "@/components/tools/pdf-sign/PdfSignTool";
+import { HtmlToPdfTool } from "@/components/tools/html-to-pdf/HtmlToPdfTool";
+import { PdfSecurityTool } from "@/components/tools/pdf-security/PdfSecurityTool";
 
 /**
  * Registro central que liga o id de uma ferramenta (data/tools.ts) ao
@@ -171,6 +177,18 @@ export const toolComponents: Record<string, ComponentType> = {
   "jpg-para-pdf": JpgToPdfTool,
   "pdf-para-jpg": PdfToJpgTool,
   "marca-dagua": WatermarkPdfTool,
+  "comprimir-pdf": () => <PdfDocumentConverterTool mode="compress" />,
+  "pdf-para-word": () => <PdfDocumentConverterTool mode="word" />,
+  "pdf-para-powerpoint": () => <PdfDocumentConverterTool mode="powerpoint" />,
+  "pdf-para-excel": () => <PdfDocumentConverterTool mode="excel" />,
+  "word-para-pdf": () => <OfficeToPdfTool mode="word" />,
+  "powerpoint-para-pdf": () => <OfficeToPdfTool mode="powerpoint" />,
+  "excel-para-pdf": () => <OfficeToPdfTool mode="excel" />,
+  "editar-pdf": PdfEditorTool,
+  "assinar-pdf": PdfSignTool,
+  "html-para-pdf": HtmlToPdfTool,
+  "desbloquear-pdf": () => <PdfSecurityTool mode="unlock" />,
+  "proteger-pdf": () => <PdfSecurityTool mode="protect" />,
 
   // FUNÇÕES STRING
   "corretor-ortografico": CorretorOrtograficoTool,

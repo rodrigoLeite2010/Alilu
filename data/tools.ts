@@ -398,10 +398,14 @@ export const tools: Tool[] = [
     category: "pdf",
     description:
       "Reduza o tamanho de documentos PDF com opções de qualidade e comparação real do resultado.",
+    pageDescription:
+      "Recrie um PDF com compactação visual local, compare o tamanho original e baixe o novo arquivo sem enviar documentos a servidores.",
+    metaDescription:
+      "Comprima PDF online e grátis no navegador. Compare o tamanho antes e depois e baixe o resultado sem enviar seu arquivo.",
     keywords: ["comprimir pdf", "reduzir tamanho pdf", "otimizar pdf"],
     icon: "file-text",
     relatedTools: ["unir-pdf", "pdf-para-jpg"],
-    status: "em-breve",
+    status: "ativo",
   },
   {
     id: "pdf-para-word",
@@ -411,10 +415,14 @@ export const tools: Tool[] = [
     category: "pdf",
     description:
       "Converta conteúdo de PDF em documento Word editável quando a estrutura do arquivo permitir.",
+    pageDescription:
+      "Extraia texto selecionável de um PDF para um arquivo DOCX editável diretamente no navegador, com limites claros para documentos digitalizados.",
+    metaDescription:
+      "Converta PDF para Word online e grátis. Extraia texto selecionável para DOCX no navegador, sem enviar seu documento.",
     keywords: ["pdf para word", "converter pdf word", "pdf para docx"],
     icon: "file-text",
     relatedTools: ["word-para-pdf", "pdf-para-excel"],
-    status: "em-breve",
+    status: "ativo",
   },
   {
     id: "pdf-para-powerpoint",
@@ -424,10 +432,14 @@ export const tools: Tool[] = [
     category: "pdf",
     description:
       "Converta páginas de PDF em uma apresentação PowerPoint com as limitações explicadas.",
+    pageDescription:
+      "Transforme cada página de PDF em um slide visual de uma apresentação PPTX gerada no seu navegador.",
+    metaDescription:
+      "Converta PDF para PowerPoint online e grátis. Gere um PPTX com um slide visual por página, sem enviar arquivos.",
     keywords: ["pdf para powerpoint", "converter pdf pptx", "pdf para ppt"],
     icon: "monitor",
     relatedTools: ["powerpoint-para-pdf", "pdf-para-jpg"],
-    status: "em-breve",
+    status: "ativo",
   },
   {
     id: "pdf-para-excel",
@@ -437,10 +449,14 @@ export const tools: Tool[] = [
     category: "pdf",
     description:
       "Extraia tabelas de um PDF para planilhas Excel quando a estrutura do documento permitir.",
+    pageDescription:
+      "Extraia texto e colunas inferidas de um PDF para abas de uma planilha XLSX criada localmente no navegador.",
+    metaDescription:
+      "Converta PDF para Excel online e grátis. Extraia texto em abas XLSX no navegador, sem enviar seu arquivo.",
     keywords: ["pdf para excel", "converter pdf xlsx", "extrair tabela pdf"],
     icon: "columns",
     relatedTools: ["excel-para-pdf", "pdf-para-word"],
-    status: "em-breve",
+    status: "ativo",
   },
   {
     id: "word-para-pdf",
@@ -449,11 +465,15 @@ export const tools: Tool[] = [
     slug: "word-para-pdf",
     category: "pdf",
     description:
-      "Converta documentos Word para PDF preservando a formatação quando suportada pelo conversor.",
+      "Converta documentos DOCX em PDF com texto e tabelas renderizados localmente no navegador.",
+    pageDescription:
+      "Transforme um arquivo Word DOCX em PDF no navegador, escolhendo orientação e margens antes de baixar o resultado.",
+    metaDescription:
+      "Converta Word DOCX para PDF online e grátis. Escolha orientação e margens, sem enviar o documento a servidores.",
     keywords: ["word para pdf", "docx para pdf", "converter word pdf"],
     icon: "file-text",
     relatedTools: ["pdf-para-word", "html-para-pdf"],
-    status: "em-breve",
+    status: "ativo",
   },
   {
     id: "powerpoint-para-pdf",
@@ -462,11 +482,15 @@ export const tools: Tool[] = [
     slug: "powerpoint-para-pdf",
     category: "pdf",
     description:
-      "Transforme apresentações PowerPoint em PDF com uma página por slide.",
+      "Transforme apresentações PPTX em PDF com texto e imagens compatíveis extraídos de cada slide.",
+    pageDescription:
+      "Converta apresentações PowerPoint PPTX em páginas de PDF localmente, com uma leitura visual por slide.",
+    metaDescription:
+      "Converta PowerPoint PPTX para PDF online e grátis no navegador, sem enviar sua apresentação a servidores.",
     keywords: ["powerpoint para pdf", "pptx para pdf", "converter powerpoint pdf"],
     icon: "monitor",
     relatedTools: ["pdf-para-powerpoint", "pdf-para-jpg"],
-    status: "em-breve",
+    status: "ativo",
   },
   {
     id: "excel-para-pdf",
@@ -475,11 +499,15 @@ export const tools: Tool[] = [
     slug: "excel-para-pdf",
     category: "pdf",
     description:
-      "Converta planilhas Excel para PDF escolhendo planilhas, orientação, escala e margens.",
+      "Converta planilhas XLSX em PDF com as células preenchidas organizadas em tabelas de leitura.",
+    pageDescription:
+      "Transforme abas e células preenchidas de uma planilha XLSX em tabelas de PDF geradas localmente no navegador.",
+    metaDescription:
+      "Converta Excel XLSX para PDF online e grátis. Gere tabelas de leitura no navegador, sem enviar sua planilha.",
     keywords: ["excel para pdf", "xlsx para pdf", "converter planilha pdf"],
     icon: "columns",
     relatedTools: ["pdf-para-excel", "html-para-pdf"],
-    status: "em-breve",
+    status: "ativo",
   },
   {
     id: "editar-pdf",
@@ -488,11 +516,15 @@ export const tools: Tool[] = [
     slug: "editar-pdf",
     category: "pdf",
     description:
-      "Adicione textos, imagens e anotações a um PDF com pré-visualização das alterações.",
+      "Adicione textos e coberturas visuais a um PDF com prévia local antes de baixar o arquivo.",
+    pageDescription:
+      "Inclua textos ou retângulos visuais em páginas de um PDF e confira o resultado antes do download.",
+    metaDescription:
+      "Edite PDF online e grátis. Adicione texto ou cobertura visual e confira a prévia no navegador, sem enviar arquivos.",
     keywords: ["editar pdf", "anotar pdf", "adicionar texto pdf"],
     icon: "file-text",
     relatedTools: ["assinar-pdf", "marca-dagua"],
-    status: "em-breve",
+    status: "ativo",
   },
   {
     id: "pdf-para-jpg",
@@ -536,10 +568,14 @@ export const tools: Tool[] = [
     category: "pdf",
     description:
       "Adicione uma assinatura visual desenhada, digitada ou em imagem a um documento PDF.",
+    pageDescription:
+      "Inclua uma assinatura visual digitada, desenhada ou em imagem em um PDF e confira a prévia local do resultado.",
+    metaDescription:
+      "Assine PDF online e grátis com assinatura visual digitada, desenhada ou em imagem, sem enviar seu documento.",
     keywords: ["assinar pdf", "assinatura visual pdf", "rubrica pdf"],
     icon: "stamp",
     relatedTools: ["editar-pdf", "marca-dagua"],
-    status: "em-breve",
+    status: "ativo",
   },
   {
     id: "marca-dagua",
@@ -583,10 +619,14 @@ export const tools: Tool[] = [
     category: "pdf",
     description:
       "Converta HTML em PDF com controle de página, orientação e margens.",
+    pageDescription:
+      "Cole HTML local e gere um PDF com orientação e margens escolhidas, sem acesso a URLs externas ou envio de conteúdo.",
+    metaDescription:
+      "Converta HTML para PDF online e grátis. Cole seu código, escolha a página e gere o arquivo localmente no navegador.",
     keywords: ["html para pdf", "converter html pdf", "gerar pdf html"],
     icon: "code",
     relatedTools: ["word-para-pdf", "excel-para-pdf"],
-    status: "em-breve",
+    status: "ativo",
   },
   {
     id: "desbloquear-pdf",
@@ -596,10 +636,14 @@ export const tools: Tool[] = [
     category: "pdf",
     description:
       "Remova a proteção de um PDF autorizado usando a senha fornecida pelo proprietário.",
+    pageDescription:
+      "Remova localmente uma senha de PDF para a qual você possui autorização, usando somente a senha fornecida pelo proprietário.",
+    metaDescription:
+      "Desbloqueie PDF com uma senha autorizada no navegador. O arquivo e a senha não são enviados a servidores.",
     keywords: ["desbloquear pdf", "remover senha pdf", "pdf protegido"],
     icon: "lock",
     relatedTools: ["proteger-pdf", "unir-pdf"],
-    status: "em-breve",
+    status: "ativo",
   },
   {
     id: "proteger-pdf",
@@ -609,10 +653,14 @@ export const tools: Tool[] = [
     category: "pdf",
     description:
       "Proteja um PDF com senha usando criptografia compatível com leitores de PDF.",
+    pageDescription:
+      "Crie uma proteção AES-256 para abrir um PDF com senha e, opcionalmente, configure permissões de cópia e impressão.",
+    metaDescription:
+      "Proteja PDF com senha AES-256 no navegador. Crie um PDF protegido sem enviar seu documento a servidores.",
     keywords: ["proteger pdf", "senha pdf", "criptografar pdf"],
     icon: "lock",
     relatedTools: ["desbloquear-pdf", "assinar-pdf"],
-    status: "em-breve",
+    status: "ativo",
   },
 
   // GERADORES

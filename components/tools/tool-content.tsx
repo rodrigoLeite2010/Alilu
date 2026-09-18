@@ -2280,4 +2280,208 @@ export const toolContent: Record<
       },
     ],
   },
+
+  "comprimir-pdf": {
+    contentSections: [
+      {
+        title: "Como a compactação funciona?",
+        body: "A ferramenta renderiza as páginas e cria um novo PDF com imagens JPG ajustadas ao nível escolhido. Ao terminar, ela mostra o tamanho original e o tamanho obtido para que você decida qual arquivo manter.",
+      },
+      {
+        title: "O que muda no arquivo?",
+        body: "Como o PDF é recriado visualmente, ele pode ficar menor principalmente quando veio de scanner. Texto pesquisável, campos preenchíveis e assinaturas digitais não são preservados, por isso vale guardar o original quando esses recursos forem importantes.",
+      },
+    ],
+    faq: [
+      { question: "Todo PDF fica menor?", answer: "Não. PDFs que já foram otimizados podem ficar do mesmo tamanho ou maiores. A comparação exibida após a conversão mostra o resultado real." },
+      { question: "Meu arquivo é enviado para algum servidor?", answer: "Não. A renderização e a criação do novo PDF acontecem no navegador do seu dispositivo." },
+    ],
+  },
+
+  "pdf-para-word": {
+    contentSections: [
+      {
+        title: "Como o PDF vira Word?",
+        body: "O conversor lê a camada de texto selecionável do PDF e cria um arquivo DOCX com parágrafos editáveis. Cada página do PDF é separada no documento gerado para facilitar a revisão.",
+      },
+      {
+        title: "Quando revisar o documento gerado?",
+        body: "A conversão de PDFs com múltiplas colunas, tabelas sem bordas ou tipografia complexa pode exigir ajuste no Word. Arquivos digitalizados como imagem não contêm texto selecionável e precisam de OCR, que esta ferramenta não executa.",
+      },
+    ],
+    faq: [
+      { question: "O Word fica editável?", answer: "Sim, o texto extraído é colocado em parágrafos editáveis no arquivo DOCX." },
+      { question: "As imagens do PDF são transferidas?", answer: "O foco desta conversão é a camada de texto. Imagens e diagramação devem ser revisadas ou inseridas novamente quando necessário." },
+    ],
+  },
+
+  "pdf-para-powerpoint": {
+    contentSections: [
+      {
+        title: "Um slide para cada página",
+        body: "A ferramenta renderiza cada página do PDF como JPG e monta uma apresentação PPTX com um slide visual por página. Assim, a aparência do documento é mantida para apresentação.",
+      },
+      {
+        title: "Conteúdo visual, não elementos editáveis",
+        body: "O texto, gráficos e imagens de uma página permanecem juntos na imagem do slide. Para editar itens individualmente, recrie-os no PowerPoint depois de baixar o arquivo.",
+      },
+    ],
+    faq: [
+      { question: "O arquivo abre no PowerPoint?", answer: "Sim. O download é uma apresentação PPTX compatível com aplicativos que aceitam esse formato." },
+      { question: "Posso converter PDF digitalizado?", answer: "Sim. Como a conversão é visual, páginas digitalizadas também podem virar slides." },
+    ],
+  },
+
+  "pdf-para-excel": {
+    contentSections: [
+      {
+        title: "Como são detectadas as colunas?",
+        body: "O conversor usa a posição do texto selecionável em cada linha do PDF para inferir células e criar uma aba XLSX por página. Isso funciona melhor em tabelas e relatórios estruturados.",
+      },
+      {
+        title: "Revise a planilha antes de usar",
+        body: "PDF não guarda uma tabela da mesma forma que o Excel. Colunas próximas, células mescladas, textos em duas colunas e tabelas sem borda podem precisar de revisão manual depois da conversão.",
+      },
+    ],
+    faq: [
+      { question: "O XLSX possui uma aba por página?", answer: "Sim. Cada página processada do PDF gera uma aba na planilha baixada." },
+      { question: "Funciona com documentos escaneados?", answer: "Não para extrair células. PDF digitalizado sem texto selecionável precisa de OCR, que não é aplicado por esta ferramenta." },
+    ],
+  },
+
+  "word-para-pdf": {
+    contentSections: [
+      {
+        title: "Converter DOCX localmente",
+        body: "O arquivo Word DOCX é lido no navegador, convertido em HTML sem conteúdo externo e renderizado como PDF. Você pode escolher orientação e margens antes de gerar o download.",
+      },
+      {
+        title: "Limites de fidelidade",
+        body: "A ferramenta preserva a estrutura de textos e tabelas que consegue interpretar, mas não executa o Microsoft Word. Cabeçalhos, fontes instaladas, caixas de texto, comentários e paginação sofisticada podem mudar no resultado.",
+      },
+    ],
+    faq: [
+      { question: "Aceita arquivos DOC antigos?", answer: "Não. Esta versão aceita DOCX, o formato moderno baseado em XML." },
+      { question: "Meu DOCX sai do dispositivo?", answer: "Não. A leitura e a criação do PDF são feitas localmente no navegador." },
+    ],
+  },
+
+  "powerpoint-para-pdf": {
+    contentSections: [
+      {
+        title: "Converter slides para PDF",
+        body: "O conversor lê o texto e as imagens PNG ou JPG compatíveis dentro do arquivo PPTX e monta páginas de PDF para cada slide. Arquivos menores e apresentações com estrutura simples costumam ter resultado mais previsível.",
+      },
+      {
+        title: "O que não é reproduzido",
+        body: "Animações, transições, vídeos, gráficos avançados, fontes particulares e o posicionamento exato dos objetos dependem do aplicativo PowerPoint e não são executados no navegador.",
+      },
+    ],
+    faq: [
+      { question: "Existe uma página por slide?", answer: "Sim. Slides com muito texto podem continuar em páginas adicionais para evitar corte de conteúdo." },
+      { question: "Aceita PPT antigo?", answer: "Não. A ferramenta aceita PPTX, o formato moderno de apresentações." },
+    ],
+  },
+
+  "excel-para-pdf": {
+    contentSections: [
+      {
+        title: "Como a planilha aparece no PDF?",
+        body: "As células preenchidas de cada aba XLSX são organizadas em tabelas de leitura horizontal. Quando há muitas colunas, elas são distribuídas em grupos para evitar texto pequeno demais.",
+      },
+      {
+        title: "Fórmulas e recursos do Excel",
+        body: "A conversão usa o valor salvo na planilha para cada fórmula; ela não recalcula fórmulas, macros, filtros ou gráficos. Revise o arquivo no Excel antes de converter quando os valores dependerem de atualização.",
+      },
+    ],
+    faq: [
+      { question: "Todas as abas são incluídas?", answer: "Sim. A ferramenta lê as abas disponíveis no arquivo XLSX e cria as tabelas correspondentes no PDF." },
+      { question: "Estilos do Excel são mantidos?", answer: "O PDF prioriza a legibilidade dos valores. Cores, gráficos, macros e configurações de impressão não são reproduzidos integralmente." },
+    ],
+  },
+
+  "editar-pdf": {
+    contentSections: [
+      {
+        title: "Adicionar texto ou cobertura visual",
+        body: "Escolha a página e as posições em porcentagem para adicionar textos ou retângulos coloridos. A lista de alterações permite remover itens antes de gerar o PDF e mostrar uma prévia local.",
+      },
+      {
+        title: "Cobertura não é redação permanente",
+        body: "Um retângulo apenas cobre visualmente o conteúdo quando o PDF é aberto. Ele não remove o texto original do arquivo, portanto não deve ser usado como método de anonimização ou ocultação irreversível de dados sensíveis.",
+      },
+    ],
+    faq: [
+      { question: "Posso editar o texto original do PDF?", answer: "Esta ferramenta adiciona conteúdo por cima do PDF. Ela não reescreve diretamente os elementos originais." },
+      { question: "Há uma prévia antes do download?", answer: "Sim. Depois de gerar o PDF editado, a página mostra uma prévia do resultado no próprio navegador." },
+    ],
+  },
+
+  "assinar-pdf": {
+    contentSections: [
+      {
+        title: "Três formas de criar a assinatura visual",
+        body: "Digite o nome, desenhe com mouse, caneta ou dedo, ou use uma imagem PNG ou JPG. Em seguida, escolha página, posição e largura antes de gerar a prévia do PDF.",
+      },
+      {
+        title: "Assinatura visual e assinatura digital",
+        body: "A assinatura inserida é uma marca visual no arquivo. Ela não contém certificado, carimbo de tempo, validação de identidade ou valor jurídico automático de uma assinatura digital certificada.",
+      },
+    ],
+    faq: [
+      { question: "Posso assinar com o celular?", answer: "Sim. A área de desenho aceita toque e caneta em dispositivos compatíveis, além do mouse no computador." },
+      { question: "Minha assinatura é enviada para algum lugar?", answer: "Não. O desenho, a imagem e o PDF ficam no navegador durante o processamento local." },
+    ],
+  },
+
+  "html-para-pdf": {
+    contentSections: [
+      {
+        title: "Cole HTML local para gerar o PDF",
+        body: "Digite ou cole o código HTML, escolha orientação e margens e gere uma prévia visual antes de baixar. A ferramenta não recebe URL e não tenta abrir páginas da internet.",
+      },
+      {
+        title: "Conteúdo seguro para renderizar",
+        body: "Scripts, formulários, links, estilos externos e imagens remotas são removidos antes da renderização. Títulos, parágrafos, listas, tabelas e imagens locais em data URL podem compor o PDF.",
+      },
+    ],
+    faq: [
+      { question: "Posso converter uma URL?", answer: "Não. Para proteger a privacidade e evitar acesso indevido a endereços internos, esta ferramenta aceita somente HTML colado localmente." },
+      { question: "O JavaScript do HTML é executado?", answer: "Não. Scripts são removidos antes da renderização do PDF." },
+    ],
+  },
+
+  "desbloquear-pdf": {
+    contentSections: [
+      {
+        title: "Desbloqueie somente arquivos autorizados",
+        body: "Selecione o PDF, informe a senha que você recebeu do proprietário e baixe uma cópia sem a proteção compatível. A ferramenta não faz força bruta, tentativa em massa ou recuperação de senha.",
+      },
+      {
+        title: "Compatibilidade de criptografia",
+        body: "A remoção local aceita proteções AES-256 e RC4 compatíveis. PDFs com outros mecanismos, como certas variantes AES-128, permanecem protegidos e exibem uma mensagem clara de incompatibilidade.",
+      },
+    ],
+    faq: [
+      { question: "A ferramenta descobre a senha?", answer: "Não. Você precisa informar a senha autorizada para desbloquear o arquivo." },
+      { question: "A senha fica salva?", answer: "Não. A senha é usada somente durante a operação local no navegador." },
+    ],
+  },
+
+  "proteger-pdf": {
+    contentSections: [
+      {
+        title: "Proteção AES-256 no navegador",
+        body: "Informe uma senha de abertura e a ferramenta gera uma nova cópia do PDF com criptografia AES-256. O arquivo resultante solicita essa senha em leitores de PDF modernos.",
+      },
+      {
+        title: "Permissões de cópia e impressão",
+        body: "Você pode informar uma senha de proprietário diferente para configurar permissões de impressão e cópia. Essas permissões dependem de o leitor de PDF respeitar as regras do arquivo e não substituem controle de acesso a documentos sensíveis.",
+      },
+    ],
+    faq: [
+      { question: "O PDF fica inacessível sem senha?", answer: "Sim, quando a senha de abertura é definida, leitores compatíveis pedem essa senha para abrir o novo arquivo." },
+      { question: "O site guarda a senha?", answer: "Não. A criptografia acontece localmente no navegador e nenhuma senha é enviada ou armazenada pelo Alilu Utilitários." },
+    ],
+  },
 };
