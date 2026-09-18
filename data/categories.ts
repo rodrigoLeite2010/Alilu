@@ -10,6 +10,7 @@ export type CategoryId =
   | "financeiro"
   | "empresa"
   | "outros"
+  | "pdf"
   | "geradores"
   | "validadores"
   | "funcoes-string"
@@ -54,6 +55,13 @@ export const categories: Category[] = [
     description:
       "Utilidades do dia a dia: dias úteis, porcentagem, QR Code, leitura de XML de NF-e e divisão de despesas.",
     icon: "sparkles",
+  },
+  {
+    id: "pdf",
+    name: "PDF",
+    description:
+      "Ferramentas para organizar e trabalhar com documentos PDF diretamente no navegador.",
+    icon: "file-pdf",
   },
   {
     // Antiga categoria "Devs" (id "devs"): renomeada para "Geradores" para

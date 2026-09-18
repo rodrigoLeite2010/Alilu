@@ -63,4 +63,20 @@ describe("catálogo de categorias e ferramentas", () => {
       "gerador-cnpj",
     ]);
   });
+
+  it("inclui a categoria PDF com a ferramenta Unir PDFs publicada", () => {
+    const pdfCategory = categories.find((category) => category.id === "pdf");
+    const mergeTool = tools.find((tool) => tool.id === "unir-pdf");
+
+    expect(pdfCategory).toMatchObject({ name: "PDF", icon: "file-pdf" });
+    expect(mergeTool).toMatchObject({
+      category: "pdf",
+      slug: "unir-pdf",
+      status: "ativo",
+      pageDescription:
+        "Combine dois ou mais arquivos PDF em um único documento. Organize a ordem das páginas e baixe seu arquivo gratuitamente.",
+      metaDescription:
+        "Una dois ou mais arquivos PDF online e grátis. Organize seus documentos na ordem desejada e baixe um único PDF, sem instalar programas.",
+    });
+  });
 });

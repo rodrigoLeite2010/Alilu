@@ -71,7 +71,7 @@ export function ToolPageTemplate({
           {tool.name}
         </h1>
         <p className="mt-2 max-w-2xl text-base text-zinc-600">
-          {tool.description}
+          {tool.pageDescription ?? tool.description}
         </p>
       </div>
 

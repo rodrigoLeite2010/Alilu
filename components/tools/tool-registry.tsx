@@ -73,6 +73,7 @@ import { RemoverQuebrasLinhaTool } from "@/components/tools/remover-quebras-linh
 import { MeuIpTool } from "@/components/tools/meu-ip/MeuIpTool";
 import { MeuNavegadorTool } from "@/components/tools/meu-navegador/MeuNavegadorTool";
 import { MeuSistemaOperacionalTool } from "@/components/tools/meu-sistema-operacional/MeuSistemaOperacionalTool";
+import { MergePdfsTool } from "@/components/tools/pdf-merge/MergePdfsTool";
 
 /**
  * Registro central que liga o id de uma ferramenta (data/tools.ts) ao
@@ -157,6 +158,9 @@ export const toolComponents: Record<string, ComponentType> = {
 
   // UTILIDADES (novo, adicionado à categoria "outros" existente)
   "numero-do-banco": NumeroDoBancoTool,
+
+  // PDF
+  "unir-pdf": MergePdfsTool,
 
   // FUNÇÕES STRING
   "corretor-ortografico": CorretorOrtograficoTool,

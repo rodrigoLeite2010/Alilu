@@ -32,7 +32,7 @@ export async function generateMetadata({
 
   return buildPageMetadata({
     title: tool.name,
-    description: tool.description,
+    description: tool.metaDescription ?? tool.description,
     path: `/utilitarios/${tool.category}/${tool.slug}`,
     keywords: tool.keywords,
     robots: getToolRobotsMeta(tool),

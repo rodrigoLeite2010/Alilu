@@ -36,8 +36,12 @@ export interface Tool {
   slug: string;
   /** Categoria à qual a ferramenta pertence */
   category: CategoryId;
-  /** Descrição curta usada em cards, meta description e listagens */
+  /** Descrição curta usada em cards, listagens e como fallback da metadata */
   description: string;
+  /** Texto de apoio exibido abaixo do H1 quando difere da descrição do card */
+  pageDescription?: string;
+  /** Descrição específica para metadata quando precisa diferir do texto do card */
+  metaDescription?: string;
   /** Palavras-chave para busca interna e SEO */
   keywords: string[];
   /** Nome de ícone (chave usada por components/ui/Icon.tsx) */
@@ -342,6 +346,31 @@ export const tools: Tool[] = [
     keywords: ["número do banco", "código do banco", "bancos do brasil", "código compe"],
     icon: "landmark",
     relatedTools: ["gerador-conta-bancaria", "validador-conta-bancaria", "divisao-de-despesas"],
+    status: "ativo",
+  },
+
+  // PDF
+  {
+    id: "unir-pdf",
+    name: "Unir PDF Online Grátis",
+    shortName: "Unir PDFs",
+    slug: "unir-pdf",
+    category: "pdf",
+    description:
+      "Junte vários arquivos PDF em um único documento, gratuitamente e sem instalar programas.",
+    pageDescription:
+      "Combine dois ou mais arquivos PDF em um único documento. Organize a ordem das páginas e baixe seu arquivo gratuitamente.",
+    metaDescription:
+      "Una dois ou mais arquivos PDF online e grátis. Organize seus documentos na ordem desejada e baixe um único PDF, sem instalar programas.",
+    keywords: [
+      "unir pdf",
+      "juntar pdf",
+      "combinar pdf",
+      "mesclar pdf",
+      "unir arquivos pdf online",
+    ],
+    icon: "file-pdf",
+    relatedTools: [],
     status: "ativo",
   },
 

@@ -565,6 +565,53 @@ export const toolContent: Record<
     ],
   },
 
+  "unir-pdf": {
+    contentSections: [
+      {
+        title: "Como unir arquivos PDF?",
+        body: "Selecione pelo menos dois arquivos PDF, confira a ordem em que eles aparecem na lista, reorganize quando necessário e clique em \"Unir PDFs\". Ao terminar, baixe o novo documento em um único arquivo.",
+      },
+      {
+        title: "Por que utilizar o ALILU para juntar PDFs?",
+        body: "A união acontece diretamente no navegador, sem cadastro nem instalação de programas. Seus arquivos permanecem no seu dispositivo durante o processo e o PDF final só é criado quando você escolhe unir a lista.",
+      },
+      {
+        title: "Posso unir PDFs pelo celular?",
+        body: "Sim. Abra esta página no navegador do celular, escolha os documentos do aparelho e use os botões de mover para cima ou para baixo para ajustar a sequência antes de gerar o arquivo final.",
+      },
+      {
+        title: "Meus documentos ficam armazenados?",
+        body: "Não. Os documentos são lidos temporariamente pelo navegador para montar o PDF final. Esta ferramenta não envia, salva ou registra os arquivos nos servidores da ALILU.",
+      },
+    ],
+    faq: [
+      {
+        question: "Como juntar dois arquivos PDF?",
+        answer: "Adicione os dois arquivos à lista, deixe-os na ordem desejada e clique em \"Unir PDFs\". Quando a operação terminar, use o botão para baixar o documento resultante.",
+      },
+      {
+        question: "Posso juntar mais de dois PDFs?",
+        answer: "Sim. Você pode adicionar quantos arquivos forem necessários dentro do limite técnico mostrado na ferramenta: até 50 MB por arquivo e 150 MB no total.",
+      },
+      {
+        question: "É possível alterar a ordem dos arquivos?",
+        answer: "Sim. Em computadores, arraste os itens da lista. Em qualquer dispositivo, use os botões de mover para cima e para baixo ao lado de cada arquivo.",
+      },
+      {
+        question: "Preciso instalar algum programa?",
+        answer: "Não. A ferramenta funciona diretamente no navegador, sem instalar programas ou extensões.",
+      },
+      {
+        question: "O serviço é gratuito?",
+        answer: "Sim. A união de PDFs no ALILU é gratuita e não exige cadastro.",
+      },
+      {
+        question: "Posso juntar PDFs protegidos por senha?",
+        answer: "Não. Por segurança, PDFs protegidos por senha precisam ser desbloqueados por você antes de serem adicionados à lista. Assinaturas digitais válidas também não são preservadas ao gerar um novo documento.",
+      },
+    ],
+  },
+
   "gerador-cpf": {
     contentSections: [
       {
