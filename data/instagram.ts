@@ -91,6 +91,28 @@ export const instagramTools: InstagramTool[] = [
     icon: "columns",
     status: "ativo",
   },
+  {
+    id: "gerador-legendas-instagram",
+    name: "Gerador de Legendas para Instagram Grátis",
+    shortName: "Gerador de Legendas",
+    path: "/instagram/legendas",
+    description:
+      "Monte legendas para Instagram a partir de modelos prontos: escolha o tipo de conteúdo, o estilo e o tamanho, e copie o texto pronto para editar.",
+    pageDescription:
+      "Escolha modelos, personalize o estilo e copie textos prontos para editar — grátis, sem cadastro e sem nenhuma promessa de geração por inteligência artificial.",
+    metaTitle: "Gerador de Legendas para Instagram Grátis | ALILU",
+    metaDescription:
+      "Crie legendas para Instagram gratuitamente. Escolha modelos, personalize o estilo e copie textos prontos para editar.",
+    keywords: [
+      "gerador de legendas para instagram",
+      "legenda para instagram grátis",
+      "criar legenda instagram",
+      "frases para instagram",
+      "hashtags para instagram",
+    ],
+    icon: "type",
+    status: "ativo",
+  },
 ];
 
 /**
@@ -106,12 +128,6 @@ export interface PlannedInstagramTool {
 }
 
 export const plannedInstagramTools: PlannedInstagramTool[] = [
-  {
-    name: "Gerador de Legendas",
-    description:
-      "Sugestões de legendas e hashtags para acompanhar os posts e carrosséis criados aqui.",
-    icon: "type",
-  },
   {
     name: "Criador de Capas para Reels",
     description: "Capas verticais chamativas para vídeos e Reels.",

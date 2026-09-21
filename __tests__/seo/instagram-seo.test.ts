@@ -5,14 +5,16 @@ import { INSTAGRAM_CATEGORY, instagramTools } from "@/data/instagram";
 import { metadata as categoryMetadata } from "@/app/instagram/page";
 import { metadata as postToolMetadata } from "@/app/instagram/criar-post/page";
 import { metadata as carouselToolMetadata } from "@/app/instagram/carrossel/page";
+import { metadata as captionToolMetadata } from "@/app/instagram/legendas/page";
 
 describe("SEO da categoria Instagram", () => {
-  it("o sitemap inclui a página da categoria, o Criador de Posts e o Criador de Carrosséis", () => {
+  it("o sitemap inclui a página da categoria, o Criador de Posts, o Criador de Carrosséis e o Gerador de Legendas", () => {
     const urls = sitemap().map((entry) => entry.url);
 
     expect(urls).toContain(`${SITE_URL}${INSTAGRAM_CATEGORY.path}`);
     expect(urls).toContain(`${SITE_URL}/instagram/criar-post`);
     expect(urls).toContain(`${SITE_URL}/instagram/carrossel`);
+    expect(urls).toContain(`${SITE_URL}/instagram/legendas`);
   });
 
   it("nenhuma URL do sitemap se repete depois de somar as rotas do Instagram", () => {
@@ -51,5 +53,13 @@ describe("SEO da categoria Instagram", () => {
       "Crie carrosséis para Instagram gratuitamente. Edite slides, organize a sequência e baixe todas as imagens em ZIP."
     );
     expect(carouselToolMetadata.alternates?.canonical).toBe(`${SITE_URL}/instagram/carrossel`);
+  });
+
+  it("a página do Gerador de Legendas usa o title e a description definidos no PROMPT (Fase 2, ETAPA 13)", () => {
+    expect(captionToolMetadata.title).toBe("Gerador de Legendas para Instagram Grátis | ALILU");
+    expect(captionToolMetadata.description).toBe(
+      "Crie legendas para Instagram gratuitamente. Escolha modelos, personalize o estilo e copie textos prontos para editar."
+    );
+    expect(captionToolMetadata.alternates?.canonical).toBe(`${SITE_URL}/instagram/legendas`);
   });
 });

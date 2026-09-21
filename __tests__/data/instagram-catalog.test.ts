@@ -50,8 +50,16 @@ describe("catálogo da categoria Instagram", () => {
     }
   });
 
-  it("o Criador de Carrosséis não aparece mais no roadmap, já que foi publicado", () => {
+  it("inclui o Gerador de Legendas, publicado (status ativo) — Fase 2", () => {
+    const tool = getInstagramToolByPath("/instagram/legendas");
+    expect(tool).toBeDefined();
+    expect(tool?.status).toBe("ativo");
+    expect(tool?.id).toBe("gerador-legendas-instagram");
+  });
+
+  it("Criador de Carrosséis e Gerador de Legendas não aparecem mais no roadmap, já que foram publicados", () => {
     const plannedNames = plannedInstagramTools.map((tool) => tool.name);
     expect(plannedNames).not.toContain("Criador de Carrosséis");
+    expect(plannedNames).not.toContain("Gerador de Legendas");
   });
 });
