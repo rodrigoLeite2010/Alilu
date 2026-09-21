@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Container } from "@/components/ui/Container";
 import { categories } from "@/data/categories";
+import { INSTAGRAM_CATEGORY } from "@/data/instagram";
 import { SITE_NAME } from "@/lib/seo/site";
 
 const legalLinks = [
@@ -36,6 +37,14 @@ export function Footer() {
                 </Link>
               </li>
             ))}
+            <li>
+              <Link
+                href={INSTAGRAM_CATEGORY.path}
+                className="text-sm text-zinc-600 hover:text-zinc-900 hover:underline"
+              >
+                {INSTAGRAM_CATEGORY.name}
+              </Link>
+            </li>
           </ul>
         </div>
 

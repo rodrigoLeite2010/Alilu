@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Icon } from "@/components/ui/Icon";
 import { categories } from "@/data/categories";
+import { INSTAGRAM_CATEGORY } from "@/data/instagram";
 
 type NavigationLink = {
   href: string;
@@ -22,6 +23,15 @@ const categoryLinks: NavigationLink[] = categories.map((category) => ({
   label: category.name,
   icon: category.icon,
 }));
+
+// Categoria "Instagram e Redes Sociais": vive em /instagram (fora de
+// /utilitarios/[categoria], ver data/instagram.ts) mas aparece no menu
+// exatamente como as demais categorias.
+const instagramCategoryLink: NavigationLink = {
+  href: INSTAGRAM_CATEGORY.path,
+  label: INSTAGRAM_CATEGORY.shortName,
+  icon: INSTAGRAM_CATEGORY.icon,
+};
 
 function isActiveLink(pathname: string, href: string) {
   if (href === "/" || href === "/utilitarios") {
@@ -101,6 +111,7 @@ function NavigationList({
             onNavigate={onNavigate}
           />
         ))}
+        <NavigationItem link={instagramCategoryLink} pathname={pathname} onNavigate={onNavigate} />
       </ul>
     </>
   );

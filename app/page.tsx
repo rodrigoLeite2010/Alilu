@@ -3,10 +3,13 @@ import { Container } from "@/components/ui/Container";
 import { LinkButton } from "@/components/ui/Button";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import { AdSlot } from "@/components/ui/AdSlot";
+import Link from "next/link";
+import { Icon } from "@/components/ui/Icon";
 import { CategoryCard } from "@/components/tools/CategoryCard";
 import { ToolGrid } from "@/components/tools/ToolGrid";
 import { categories } from "@/data/categories";
 import { getFeaturedTools } from "@/data/tools";
+import { INSTAGRAM_CATEGORY, instagramTools } from "@/data/instagram";
 import { buildPageMetadata } from "@/lib/seo/metadata";
 
 export const metadata: Metadata = buildPageMetadata({
@@ -67,6 +70,26 @@ export default function HomePage() {
           {categories.map((category) => (
             <CategoryCard key={category.id} category={category} />
           ))}
+          {/* Categoria "Instagram e Redes Sociais": vive em /instagram (fora
+              de /utilitarios/[categoria], ver data/instagram.ts), então usa
+              o mesmo visual do CategoryCard só que montado aqui à mão. */}
+          <Link
+            href={INSTAGRAM_CATEGORY.path}
+            className="group flex h-full flex-col gap-3 rounded-lg border border-zinc-200 bg-white p-5 transition-colors hover:border-teal-700/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
+          >
+            <span className="flex h-11 w-11 items-center justify-center rounded-md bg-zinc-100 text-zinc-700 transition-colors group-hover:bg-teal-50 group-hover:text-teal-800">
+              <Icon name={INSTAGRAM_CATEGORY.icon} className="h-5 w-5" />
+            </span>
+            <div>
+              <p className="text-lg font-semibold text-zinc-900 group-hover:text-teal-800">
+                {INSTAGRAM_CATEGORY.name}
+              </p>
+              <p className="mt-1 text-sm text-zinc-600">{INSTAGRAM_CATEGORY.description}</p>
+            </div>
+            <p className="mt-auto text-xs font-medium text-zinc-500">
+              {instagramTools.length} {instagramTools.length === 1 ? "ferramenta" : "ferramentas"}
+            </p>
+          </Link>
         </div>
       </Container>
 

@@ -59,6 +59,7 @@ import {
   WrapText,
   Wifi,
   House,
+  Camera,
   type LucideIcon,
 } from "lucide-react";
 
@@ -128,6 +129,10 @@ const iconMap: Record<string, LucideIcon> = {
   "wrap-text": WrapText,
   wifi: Wifi,
   home: House,
+  // Categoria "Instagram e Redes Sociais": usamos um ícone de câmera
+  // genérico (não o logotipo do Instagram, que é uma marca registrada) —
+  // representa bem o tema sem reproduzir a marca.
+  instagram: Camera,
 };
 
 export interface IconProps {
