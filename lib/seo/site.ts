@@ -5,26 +5,39 @@
 
 export const SITE_NAME = "ALILU Utilitários";
 
+export const DEFAULT_SITE_URL = "https://alilu.com.br";
+
 /**
- * Lê `NEXT_PUBLIC_SITE_URL` do ambiente, tratando como "não definida" tanto
- * a ausência da variável quanto uma string vazia ou só com espaços.
- *
- * Correção de um bug real de deploy: o build da Vercel falhava com
- * `TypeError: Invalid URL` em `new URL(SITE_URL)` (app/layout.tsx) porque o
- * projeto tinha `NEXT_PUBLIC_SITE_URL` configurada na Vercel como string
- * vazia (""). Como `??` (nullish coalescing) só cai no valor padrão para
- * `null`/`undefined` — nunca para uma string vazia, que é um valor válido,
- * só "falsy" — o resultado era `SITE_URL === ""`, e `new URL("")` lança
- * exceção. Esta função trata explicitamente string vazia/só espaços como
- * equivalente a "não definida", para que o fallback funcione nos dois
- * casos.
+ * Normaliza a origem pública usada em sitemap, canonical e Open Graph.
+ * Entradas vazias, inválidas ou com esquema não HTTP(S) voltam ao domínio
+ * canônico; `http` e `www` nunca chegam aos metadados publicados.
  */
 function readSiteUrlFromEnv(): string | null {
   const raw = process.env.NEXT_PUBLIC_SITE_URL?.trim();
-  return raw ? raw.replace(/\/$/, "") : null;
+  if (!raw) {
+    return null;
+  }
+
+  try {
+    const url = new URL(raw);
+    if (
+      (url.protocol !== "http:" && url.protocol !== "https:") ||
+      url.username ||
+      url.password
+    ) {
+      return null;
+    }
+
+    url.protocol = "https:";
+    url.hostname = url.hostname.replace(/^www\./i, "");
+    url.port = "";
+    return url.origin;
+  } catch {
+    return null;
+  }
 }
 
-export const SITE_URL = readSiteUrlFromEnv() ?? "https://alilu.com.br";
+export const SITE_URL = readSiteUrlFromEnv() ?? DEFAULT_SITE_URL;
 
 export const SITE_DESCRIPTION =
   "Caixa de ferramentas online gratuita com calculadoras e utilitários para o seu dia a dia: trabalho, financeiro, empresa e muito mais.";

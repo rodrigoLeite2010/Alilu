@@ -61,4 +61,16 @@ describe("SITE_URL", () => {
     const { SITE_URL } = await importSiteModule();
     expect(SITE_URL).toBe("https://exemplo.com.br");
   });
+
+  it("normaliza HTTP, www e caminhos para uma única origem HTTPS", async () => {
+    process.env[ENV_KEY] = "http://www.exemplo.com.br/catalogo?origem=teste";
+    const { SITE_URL } = await importSiteModule();
+    expect(SITE_URL).toBe("https://exemplo.com.br");
+  });
+
+  it("usa o valor padrão para uma URL inválida ou com esquema inseguro", async () => {
+    process.env[ENV_KEY] = "ftp://alilu.com.br";
+    const { SITE_URL } = await importSiteModule();
+    expect(SITE_URL).toBe("https://alilu.com.br");
+  });
 });

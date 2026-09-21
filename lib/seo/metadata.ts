@@ -28,14 +28,14 @@ export function buildPageMetadata({
   keywords,
   robots,
 }: BuildPageMetadataInput): Metadata {
-  const url = `${SITE_URL}${path}`;
+  const url = path === "/" ? SITE_URL : `${SITE_URL}${path}`;
 
   return {
     title,
     description,
     keywords,
     alternates: {
-      canonical: path,
+      canonical: url,
     },
     openGraph: {
       title,

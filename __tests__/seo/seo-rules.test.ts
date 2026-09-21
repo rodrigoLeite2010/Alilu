@@ -95,7 +95,7 @@ describe("D) metadata de ferramenta ativo permite indexação", () => {
     expect(metadata.robots).toEqual({ index: true, follow: true });
   });
 
-  it("canonical e Open Graph continuam presentes independente do status", () => {
+  it("canonical absoluto e Open Graph continuam presentes independente do status", () => {
     const metadata = buildPageMetadata({
       title: "Ferramenta em teste",
       description: "Descrição de teste",
@@ -103,8 +103,20 @@ describe("D) metadata de ferramenta ativo permite indexação", () => {
       robots: getToolRobotsMeta(ativoTool),
     });
 
-    expect(metadata.alternates?.canonical).toBe("/utilitarios/outros/ferramenta-teste");
+    expect(metadata.alternates?.canonical).toBe(
+      `${SITE_URL}/utilitarios/outros/ferramenta-teste`
+    );
     expect(metadata.openGraph).toBeDefined();
+  });
+
+  it("a canonical da raiz usa a mesma URL absoluta do sitemap", () => {
+    const metadata = buildPageMetadata({
+      title: "Início",
+      description: "Página inicial",
+      path: "/",
+    });
+
+    expect(metadata.alternates?.canonical).toBe(SITE_URL);
   });
 });
 
@@ -113,6 +125,32 @@ describe("E) robots.txt continua correto", () => {
     const result = robots();
     expect(result.rules).toEqual({ userAgent: "*", allow: "/" });
     expect(result.sitemap).toBe(`${SITE_URL}/sitemap.xml`);
+  });
+});
+
+describe("E.1) URLs publicadas são únicas, absolutas e coerentes", () => {
+  it("toda URL do sitemap usa a origem canônica e não se repete", () => {
+    const urls = sitemap().map((entry) => entry.url);
+
+    expect(new Set(urls).size).toBe(urls.length);
+    for (const url of urls) {
+      expect(new URL(url).origin).toBe(SITE_URL);
+    }
+  });
+
+  it("cada ferramenta ativa usa a própria URL absoluta como canonical", () => {
+    for (const tool of tools.filter(isToolPublished)) {
+      const url = `${SITE_URL}/utilitarios/${tool.category}/${tool.slug}`;
+      const metadata = buildPageMetadata({
+        title: tool.name,
+        description: tool.metaDescription ?? tool.description,
+        path: `/utilitarios/${tool.category}/${tool.slug}`,
+        robots: getToolRobotsMeta(tool),
+      });
+
+      expect(metadata.alternates?.canonical).toBe(url);
+      expect(metadata.robots).toEqual({ index: true, follow: true });
+    }
   });
 });
 
