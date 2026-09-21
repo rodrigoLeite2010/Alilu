@@ -44,7 +44,7 @@ export default function InstagramCategoryPage() {
           O ALILU Utilitários está criando uma caixa de ferramentas gratuita para quem
           produz conteúdo no Instagram: nada de cadastro, mensalidade ou marca d&apos;água
           obrigatória. Tudo roda direto no seu navegador, então suas imagens e textos não
-          precisam ser enviados a nenhum servidor para você montar um post.
+          precisam ser enviados a nenhum servidor para você montar um post ou carrossel.
         </p>
       </section>
 
@@ -83,10 +83,10 @@ export default function InstagramCategoryPage() {
       <section className="mt-10">
         <SectionHeading title="Como usar" as="h2" />
         <ol className="list-decimal space-y-2 pl-5 text-sm leading-relaxed text-zinc-700">
-          <li>Escolha a ferramenta desejada — por enquanto, o Criador de Posts.</li>
-          <li>Selecione o formato (post quadrado, vertical ou Stories/Reels) e um dos templates prontos.</li>
+          <li>Escolha a ferramenta desejada: Criador de Posts para uma imagem única, ou Criador de Carrosséis para uma sequência de slides.</li>
+          <li>Selecione o formato (quadrado, vertical ou, no post, também Stories/Reels) e um dos templates prontos.</li>
           <li>Personalize os textos, as cores e, se quiser, envie uma foto sua.</li>
-          <li>Baixe a arte em PNG ou JPG e publique direto no Instagram.</li>
+          <li>Baixe a arte pronta para publicar — em PNG ou JPG no post, ou em um ZIP com todos os slides no carrossel.</li>
         </ol>
       </section>
 

@@ -6,6 +6,12 @@
  * exatamente à prévia, na resolução escolhida, independente da tela do
  * usuário (requisitos 1 e 2). Tudo acontece no navegador: nenhuma imagem é
  * enviada a um servidor.
+ *
+ * `canvasToBlob`, `waitForFonts` e `downloadBlob` são exportadas (Fase 2,
+ * ETAPA 6: "Reutilizar a função existente de exportação do Criador de
+ * Posts") para serem reaproveitadas pela exportação em ZIP do Criador de
+ * Carrosséis (lib/instagram/carousel/carousel-export.ts), sem duplicar
+ * nenhuma dessas três funções.
  */
 
 import { buildPostFileName } from "./layout-math";
@@ -14,7 +20,7 @@ export type ExportFormat = "png" | "jpg";
 
 export class PostExportError extends Error {}
 
-function canvasToBlob(canvas: HTMLCanvasElement, mimeType: string, quality?: number): Promise<Blob> {
+export function canvasToBlob(canvas: HTMLCanvasElement, mimeType: string, quality?: number): Promise<Blob> {
   return new Promise((resolve, reject) => {
     canvas.toBlob(
       (blob) => {
@@ -34,7 +40,7 @@ function canvasToBlob(canvas: HTMLCanvasElement, mimeType: string, quality?: num
  * normalmente resolve de imediato — mas continuamos aguardando por
  * segurança e por compatibilidade com navegadores mais lentos.
  */
-async function waitForFonts(): Promise<void> {
+export async function waitForFonts(): Promise<void> {
   const fontSet = typeof document !== "undefined" ? document.fonts : undefined;
   if (!fontSet?.ready) return;
 
@@ -49,7 +55,7 @@ async function waitForFonts(): Promise<void> {
   }
 }
 
-function downloadBlob(blob: Blob, fileName: string): void {
+export function downloadBlob(blob: Blob, fileName: string): void {
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;

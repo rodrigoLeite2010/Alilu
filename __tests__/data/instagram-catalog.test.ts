@@ -23,6 +23,13 @@ describe("catálogo da categoria Instagram", () => {
     expect(tool?.status).toBe("ativo");
   });
 
+  it("inclui o Criador de Carrosséis, publicado (status ativo) — Fase 2", () => {
+    const tool = getInstagramToolByPath("/instagram/carrossel");
+    expect(tool).toBeDefined();
+    expect(tool?.status).toBe("ativo");
+    expect(tool?.id).toBe("criador-carrossel-instagram");
+  });
+
   it("getInstagramToolByPath retorna undefined para um caminho inexistente", () => {
     expect(getInstagramToolByPath("/instagram/nao-existe")).toBeUndefined();
   });
@@ -41,5 +48,10 @@ describe("catálogo da categoria Instagram", () => {
     for (const planned of plannedInstagramTools) {
       expect(publishedNames.has(planned.name)).toBe(false);
     }
+  });
+
+  it("o Criador de Carrosséis não aparece mais no roadmap, já que foi publicado", () => {
+    const plannedNames = plannedInstagramTools.map((tool) => tool.name);
+    expect(plannedNames).not.toContain("Criador de Carrosséis");
   });
 });

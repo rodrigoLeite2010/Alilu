@@ -3,14 +3,16 @@ import sitemap from "@/app/sitemap";
 import { SITE_URL } from "@/lib/seo/site";
 import { INSTAGRAM_CATEGORY, instagramTools } from "@/data/instagram";
 import { metadata as categoryMetadata } from "@/app/instagram/page";
-import { metadata as toolMetadata } from "@/app/instagram/criar-post/page";
+import { metadata as postToolMetadata } from "@/app/instagram/criar-post/page";
+import { metadata as carouselToolMetadata } from "@/app/instagram/carrossel/page";
 
 describe("SEO da categoria Instagram", () => {
-  it("o sitemap inclui a página da categoria e a do Criador de Posts", () => {
+  it("o sitemap inclui a página da categoria, o Criador de Posts e o Criador de Carrosséis", () => {
     const urls = sitemap().map((entry) => entry.url);
 
     expect(urls).toContain(`${SITE_URL}${INSTAGRAM_CATEGORY.path}`);
     expect(urls).toContain(`${SITE_URL}/instagram/criar-post`);
+    expect(urls).toContain(`${SITE_URL}/instagram/carrossel`);
   });
 
   it("nenhuma URL do sitemap se repete depois de somar as rotas do Instagram", () => {
@@ -29,19 +31,25 @@ describe("SEO da categoria Instagram", () => {
     }
   });
 
-  it("a página da categoria usa o title e a description definidos no PROMPT (ETAPA 8)", () => {
+  it("a página da categoria usa o title definido no PROMPT e menciona as ferramentas disponíveis na description", () => {
     expect(categoryMetadata.title).toBe("Ferramentas para Instagram Grátis | ALILU");
-    expect(categoryMetadata.description).toBe(
-      "Crie posts e imagens para Instagram gratuitamente. Personalize modelos, edite textos e prepare conteúdos para suas redes sociais."
-    );
+    expect(categoryMetadata.description).toContain("carrosséis");
     expect(categoryMetadata.alternates?.canonical).toBe(`${SITE_URL}/instagram`);
   });
 
-  it("a página do Criador de Posts usa o title e a description definidos no PROMPT (ETAPA 8)", () => {
-    expect(toolMetadata.title).toBe("Criar Post para Instagram Grátis Online | ALILU");
-    expect(toolMetadata.description).toBe(
+  it("a página do Criador de Posts usa o title e a description definidos no PROMPT (Fase 1)", () => {
+    expect(postToolMetadata.title).toBe("Criar Post para Instagram Grátis Online | ALILU");
+    expect(postToolMetadata.description).toBe(
       "Crie posts para Instagram gratuitamente. Escolha modelos, personalize textos, cores e fotos e baixe suas imagens em PNG ou JPG."
     );
-    expect(toolMetadata.alternates?.canonical).toBe(`${SITE_URL}/instagram/criar-post`);
+    expect(postToolMetadata.alternates?.canonical).toBe(`${SITE_URL}/instagram/criar-post`);
+  });
+
+  it("a página do Criador de Carrosséis usa o title e a description definidos no PROMPT (Fase 2, ETAPA 13)", () => {
+    expect(carouselToolMetadata.title).toBe("Criar Carrossel para Instagram Grátis Online | ALILU");
+    expect(carouselToolMetadata.description).toBe(
+      "Crie carrosséis para Instagram gratuitamente. Edite slides, organize a sequência e baixe todas as imagens em ZIP."
+    );
+    expect(carouselToolMetadata.alternates?.canonical).toBe(`${SITE_URL}/instagram/carrossel`);
   });
 });

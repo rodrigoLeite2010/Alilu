@@ -12,7 +12,7 @@ const HISTORY_DEBOUNCE_MS = 700;
  * então esta é a "implementação incremental" prevista na própria
  * especificação para este caso.
  *
- * Duas formas de atualizar o estado:
+ * Três formas de atualizar o estado:
  *   - `commit`: grava um checkpoint de desfazer IMEDIATAMENTE (usado por
  *     ações discretas: trocar template/formato/cor, marcar negrito, enviar
  *     imagem etc.).
@@ -21,6 +21,10 @@ const HISTORY_DEBOUNCE_MS = 700;
  *     de uma pausa (ou quando `flushPending` é chamado, ex.: ao soltar o
  *     mouse depois de arrastar um texto) — evita lotar o histórico com um
  *     checkpoint por tecla digitada.
+ *   - `setStateWithoutHistory`: atualiza o estado sem nenhum efeito no
+ *     desfazer/refazer (Fase 2, Criador de Carrosséis: selecionar qual
+ *     slide está sendo editado não é uma "edição" que faça sentido
+ *     desfazer — é só navegação entre slides já existentes).
  */
 export function useEditorHistory<T>(initialState: T) {
   const [state, setState] = useState<T>(initialState);
@@ -83,6 +87,10 @@ export function useEditorHistory<T>(initialState: T) {
     [clearTimer, flushPending]
   );
 
+  const setStateWithoutHistory = useCallback((updater: (prev: T) => T) => {
+    setState(updater);
+  }, []);
+
   const undo = useCallback(() => {
     flushPending();
     if (past.current.length === 0) return;
@@ -120,6 +128,7 @@ export function useEditorHistory<T>(initialState: T) {
     state,
     commit,
     commitDebounced,
+    setStateWithoutHistory,
     flushPending,
     undo,
     redo,

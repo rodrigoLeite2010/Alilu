@@ -18,12 +18,12 @@ export const INSTAGRAM_CATEGORY = {
   path: "/instagram",
   title: "Ferramentas gratuitas para Instagram",
   subtitle:
-    "Crie posts, personalize imagens e prepare conteúdos para suas redes sociais gratuitamente.",
+    "Crie posts, carrosséis, legendas e prepare conteúdos para suas redes sociais gratuitamente.",
   description:
-    "Crie posts, imagens e conteúdos para Instagram gratuitamente. Edite modelos, personalize textos e baixe suas artes prontas para publicar.",
+    "Crie posts, carrosséis, legendas e conteúdos para Instagram gratuitamente. Edite modelos, personalize textos e baixe suas artes prontas para publicar.",
   metaTitle: "Ferramentas para Instagram Grátis | ALILU",
   metaDescription:
-    "Crie posts e imagens para Instagram gratuitamente. Personalize modelos, edite textos e prepare conteúdos para suas redes sociais.",
+    "Crie posts, carrosséis e legendas para Instagram gratuitamente. Personalize modelos, edite textos e prepare conteúdos para suas redes sociais.",
   icon: "instagram",
 } as const;
 
@@ -69,6 +69,28 @@ export const instagramTools: InstagramTool[] = [
     icon: "image",
     status: "ativo",
   },
+  {
+    id: "criador-carrossel-instagram",
+    name: "Criador de Carrossel para Instagram Grátis",
+    shortName: "Criador de Carrosséis",
+    path: "/instagram/carrossel",
+    description:
+      "Monte carrosséis para Instagram com vários slides: edite cada um no mesmo editor do Criador de Posts, reordene e baixe tudo em um ZIP.",
+    pageDescription:
+      "Crie sequências de slides para carrossel, edite cada um separadamente, reordene por arraste e baixe todas as imagens em um único arquivo ZIP — grátis, sem cadastro e sem enviar suas imagens para nenhum servidor.",
+    metaTitle: "Criar Carrossel para Instagram Grátis Online | ALILU",
+    metaDescription:
+      "Crie carrosséis para Instagram gratuitamente. Edite slides, organize a sequência e baixe todas as imagens em ZIP.",
+    keywords: [
+      "criador de carrossel para instagram",
+      "criar carrossel instagram grátis",
+      "gerador de carrossel instagram",
+      "template carrossel instagram",
+      "carrossel instagram online",
+    ],
+    icon: "columns",
+    status: "ativo",
+  },
 ];
 
 /**
@@ -85,15 +107,9 @@ export interface PlannedInstagramTool {
 
 export const plannedInstagramTools: PlannedInstagramTool[] = [
   {
-    name: "Criador de Carrosséis",
-    description:
-      "Monte sequências de slides para carrosséis do Instagram reaproveitando o mesmo editor de posts.",
-    icon: "columns",
-  },
-  {
     name: "Gerador de Legendas",
     description:
-      "Sugestões de legendas e hashtags para acompanhar os posts criados aqui.",
+      "Sugestões de legendas e hashtags para acompanhar os posts e carrosséis criados aqui.",
     icon: "type",
   },
   {
