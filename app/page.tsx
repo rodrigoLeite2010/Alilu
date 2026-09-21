@@ -67,12 +67,10 @@ export default function HomePage() {
           description="Escolha uma área e encontre a ferramenta certa para o seu problema."
         />
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {categories.map((category) => (
-            <CategoryCard key={category.id} category={category} />
-          ))}
           {/* Categoria "Instagram e Redes Sociais": vive em /instagram (fora
               de /utilitarios/[categoria], ver data/instagram.ts), então usa
-              o mesmo visual do CategoryCard só que montado aqui à mão. */}
+              o mesmo visual do CategoryCard só que montado aqui à mão.
+              Aparece primeiro na lista de categorias. */}
           <Link
             href={INSTAGRAM_CATEGORY.path}
             className="group flex h-full flex-col gap-3 rounded-lg border border-zinc-200 bg-white p-5 transition-colors hover:border-teal-700/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
@@ -90,6 +88,9 @@ export default function HomePage() {
               {instagramTools.length} {instagramTools.length === 1 ? "ferramenta" : "ferramentas"}
             </p>
           </Link>
+          {categories.map((category) => (
+            <CategoryCard key={category.id} category={category} />
+          ))}
         </div>
       </Container>
 

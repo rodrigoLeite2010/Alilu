@@ -27,6 +27,14 @@ export function Footer() {
         <div>
           <p className="text-sm font-semibold text-zinc-900">Categorias</p>
           <ul className="mt-3 space-y-2">
+            <li>
+              <Link
+                href={INSTAGRAM_CATEGORY.path}
+                className="text-sm text-zinc-600 hover:text-zinc-900 hover:underline"
+              >
+                {INSTAGRAM_CATEGORY.name}
+              </Link>
+            </li>
             {categories.map((category) => (
               <li key={category.id}>
                 <Link
@@ -37,14 +45,6 @@ export function Footer() {
                 </Link>
               </li>
             ))}
-            <li>
-              <Link
-                href={INSTAGRAM_CATEGORY.path}
-                className="text-sm text-zinc-600 hover:text-zinc-900 hover:underline"
-              >
-                {INSTAGRAM_CATEGORY.name}
-              </Link>
-            </li>
           </ul>
         </div>
 

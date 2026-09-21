@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Icon } from "@/components/ui/Icon";
@@ -103,6 +104,7 @@ function NavigationList({
         Categorias
       </p>
       <ul className="mt-2 space-y-1">
+        <NavigationItem link={instagramCategoryLink} pathname={pathname} onNavigate={onNavigate} />
         {categoryLinks.map((link) => (
           <NavigationItem
             key={link.href}
@@ -111,7 +113,6 @@ function NavigationList({
             onNavigate={onNavigate}
           />
         ))}
-        <NavigationItem link={instagramCategoryLink} pathname={pathname} onNavigate={onNavigate} />
       </ul>
     </>
   );
@@ -209,41 +210,44 @@ export function MobileNavigation() {
         <Icon name="menu" className="h-5 w-5" />
       </button>
 
-      {open ? (
-        <div className="fixed inset-0 z-50 flex">
-          <button
-            type="button"
-            aria-label="Fechar menu de navegação"
-            className="absolute inset-0 bg-zinc-950/35"
-            onClick={closeNavigation}
-          />
-          <nav
-            ref={panelRef}
-            id="menu-mobile"
-            aria-label="Navegação principal"
-            aria-modal="true"
-            role="dialog"
-            tabIndex={-1}
-            className="relative flex h-full w-[min(20rem,calc(100vw-2rem))] flex-col overflow-y-auto bg-white px-4 py-5 shadow-2xl outline-none"
-          >
-            <div className="flex items-center justify-between px-2">
-              <p className="text-sm font-semibold text-zinc-950">Menu</p>
+      {open
+        ? createPortal(
+            <div className="fixed inset-0 z-50 flex">
               <button
-                ref={closeButtonRef}
                 type="button"
-                onClick={closeNavigation}
                 aria-label="Fechar menu de navegação"
-                className="flex h-11 w-11 items-center justify-center rounded-md text-zinc-700 transition-colors hover:bg-zinc-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
+                className="absolute inset-0 bg-zinc-950/35"
+                onClick={closeNavigation}
+              />
+              <nav
+                ref={panelRef}
+                id="menu-mobile"
+                aria-label="Navegação principal"
+                aria-modal="true"
+                role="dialog"
+                tabIndex={-1}
+                className="relative flex h-full w-[min(20rem,calc(100vw-2rem))] flex-col overflow-y-auto bg-white px-4 py-5 shadow-2xl outline-none"
               >
-                <Icon name="close" className="h-5 w-5" />
-              </button>
-            </div>
-            <div className="mt-5">
-              <NavigationList pathname={pathname} onNavigate={closeNavigation} />
-            </div>
-          </nav>
-        </div>
-      ) : null}
+                <div className="flex items-center justify-between px-2">
+                  <p className="text-sm font-semibold text-zinc-950">Menu</p>
+                  <button
+                    ref={closeButtonRef}
+                    type="button"
+                    onClick={closeNavigation}
+                    aria-label="Fechar menu de navegação"
+                    className="flex h-11 w-11 items-center justify-center rounded-md text-zinc-700 transition-colors hover:bg-zinc-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
+                  >
+                    <Icon name="close" className="h-5 w-5" />
+                  </button>
+                </div>
+                <div className="mt-5">
+                  <NavigationList pathname={pathname} onNavigate={closeNavigation} />
+                </div>
+              </nav>
+            </div>,
+            document.body,
+          )
+        : null}
     </div>
   );
 }
