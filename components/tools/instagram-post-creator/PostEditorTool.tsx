@@ -213,7 +213,7 @@ export function PostEditorTool() {
           </div>
         </details>
 
-        <details className="group rounded-lg border border-zinc-200 lg:border-0">
+        <details className="group rounded-lg border border-zinc-200 lg:border-0" open>
           <summary className="flex cursor-pointer list-none items-center justify-between rounded-lg bg-zinc-50 px-4 py-3 text-sm font-semibold text-zinc-900 lg:bg-transparent lg:px-0 lg:py-0 lg:text-base">
             Cores e imagem
             <ChevronDown className="h-4 w-4 text-zinc-500 transition-transform group-open:rotate-180 lg:hidden" aria-hidden />
