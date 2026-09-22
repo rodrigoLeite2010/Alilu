@@ -54,6 +54,25 @@ function sanitizeErrorForStorage(error: unknown): string {
   return "Erro desconhecido ao publicar no Instagram.";
 }
 
+/**
+ * Loga o erro ORIGINAL (nunca o `InstagramPublishError` genérico que
+ * devolvemos pro chamador) — inclui `.details` quando é um
+ * `InstagramGraphApiError`, que carrega o corpo da resposta de erro da
+ * própria Meta (código, mensagem, fbtrace_id). Nunca inclui o
+ * `access_token` (não faz parte de `.details`, que é só o corpo JSON da
+ * resposta de erro da Meta). Só em `console.error` (logs do servidor) —
+ * o chamador desta função sempre recebe uma mensagem genérica em
+ * português, nunca este detalhe. Mesmo padrão já usado em
+ * instagram-oauth-service.ts.
+ */
+function logPublishError(context: string, error: unknown): void {
+  if (error instanceof InstagramGraphApiError) {
+    console.error(`[instagram-publish-service] ${context}`, error.message, error.details);
+    return;
+  }
+  console.error(`[instagram-publish-service] ${context}`, error);
+}
+
 export type PublishImagePostResult = "PUBLISHED" | "PROCESSING";
 
 export async function publishImagePost(postId: string, userId: string): Promise<PublishImagePostResult> {
@@ -88,6 +107,7 @@ export async function publishImagePost(postId: string, userId: string): Promise<
         caption: post.caption,
       });
     } catch (error) {
+      logPublishError("falha ao criar o container de mídia", error);
       const message = sanitizeErrorForStorage(error);
       await markPostFailed(postId, message);
       await recordPublishAttempt({ postId, outcome: "failure", errorSanitized: message });
@@ -101,6 +121,7 @@ export async function publishImagePost(postId: string, userId: string): Promise<
     try {
       status = await getMediaContainerStatus({ containerId, accessToken });
     } catch (error) {
+      logPublishError("falha ao consultar o status do processamento", error);
       const message = sanitizeErrorForStorage(error);
       await recordPublishAttempt({ postId, outcome: "failure", errorSanitized: message, containerId });
       throw new InstagramPublishError("Falha ao consultar o status do processamento no Instagram.");
@@ -113,6 +134,7 @@ export async function publishImagePost(postId: string, userId: string): Promise<
         await recordPublishAttempt({ postId, outcome: "success", containerId, mediaId });
         return "PUBLISHED";
       } catch (error) {
+        logPublishError("falha ao publicar o container de mídia", error);
         const message = sanitizeErrorForStorage(error);
         await markPostFailed(postId, message);
         await recordPublishAttempt({ postId, outcome: "failure", errorSanitized: message, containerId });
