@@ -91,6 +91,29 @@ describe("exchangeCodeForShortLivedToken", () => {
     expect(result.permissions).toEqual(["a", "b"]);
   });
 
+  it("aceita a resposta achatada, sem o envelope { data: [...] } (formato visto em produção)", async () => {
+    fetchMock.mockResolvedValue(
+      jsonResponse(200, {
+        access_token: "short-token",
+        user_id: 28636009026025692,
+        permissions: ["instagram_business_basic", "instagram_business_content_publish"],
+      }),
+    );
+
+    const result = await exchangeCodeForShortLivedToken({
+      appId: "app-1",
+      appSecret: "secret-1",
+      redirectUri: "https://alilu.com.br/cb",
+      code: "code-1",
+    });
+
+    expect(result).toEqual({
+      accessToken: "short-token",
+      igUserId: "28636009026025692",
+      permissions: ["instagram_business_basic", "instagram_business_content_publish"],
+    });
+  });
+
   it("lança InstagramGraphApiError quando a resposta HTTP não é ok", async () => {
     fetchMock.mockResolvedValue(jsonResponse(400, { error: "invalid_code" }));
 

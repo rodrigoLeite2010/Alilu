@@ -116,8 +116,12 @@ export interface ShortLivedTokenResult {
 
 /**
  * Troca o código de autorização (válido por 1 hora, uso único) por um
- * token de curta duração. Resposta confirmada na documentação como
- * `{ data: [ { access_token, user_id, permissions } ] }`.
+ * token de curta duração. A documentação descreve a resposta como
+ * `{ data: [ { access_token, user_id, permissions } ] }`, mas na prática
+ * (confirmado em produção, 22/09/2026) a Meta pode devolver a resposta
+ * "achatada" (`{ access_token, user_id, permissions }` direto, sem o
+ * envelope `data`) — mesma ambiguidade de formato já vista em
+ * fetchInstagramProfile. Tratamos os dois formatos defensivamente.
  */
 export async function exchangeCodeForShortLivedToken(
   input: ExchangeCodeInput,
@@ -140,7 +144,7 @@ export async function exchangeCodeForShortLivedToken(
     );
   }
 
-  const entry = extractFirstDataEntry(payload);
+  const entry = extractFirstDataEntry(payload) ?? (isRecord(payload) ? payload : null);
   const accessToken = entry?.access_token;
   const userId = entry?.user_id;
   if (typeof accessToken !== "string" || (typeof userId !== "string" && typeof userId !== "number")) {
