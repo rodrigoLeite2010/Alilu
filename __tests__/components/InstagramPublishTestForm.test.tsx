@@ -1,9 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 
-const uploadMock = vi.fn();
+const uploadPresignedMock = vi.fn();
 vi.mock("@vercel/blob/client", () => ({
-  upload: (...args: unknown[]) => uploadMock(...args),
+  uploadPresigned: (...args: unknown[]) => uploadPresignedMock(...args),
 }));
 
 const { InstagramPublishTestForm } = await import("@/components/instagram/PublishTestForm");
@@ -23,7 +23,7 @@ describe("InstagramPublishTestForm", () => {
   beforeEach(() => {
     global.fetch = fetchMock as unknown as typeof fetch;
     fetchMock.mockReset();
-    uploadMock.mockReset();
+    uploadPresignedMock.mockReset();
   });
 
   afterEach(() => {
@@ -47,7 +47,7 @@ describe("InstagramPublishTestForm", () => {
     selectFile(screen.getByLabelText("Imagem"), file);
     fireEvent.change(screen.getByLabelText("Legenda"), { target: { value: "Minha legenda" } });
 
-    uploadMock.mockResolvedValue({ url: "https://blob.example.com/foto-123.jpg" });
+    uploadPresignedMock.mockResolvedValue({ url: "https://blob.example.com/foto-123.jpg" });
     fetchMock
       .mockResolvedValueOnce(jsonResponse(201, { postId: "post-1" }))
       .mockResolvedValueOnce(jsonResponse(200, { status: "PUBLISHED" }));
@@ -56,7 +56,7 @@ describe("InstagramPublishTestForm", () => {
 
     await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent("Publicado com sucesso"));
 
-    expect(uploadMock).toHaveBeenCalledWith(
+    expect(uploadPresignedMock).toHaveBeenCalledWith(
       "foto.jpg",
       file,
       expect.objectContaining({ access: "public", handleUploadUrl: "/api/instagram/media/upload" }),
@@ -78,7 +78,7 @@ describe("InstagramPublishTestForm", () => {
     const file = new File(["conteudo"], "foto.jpg", { type: "image/jpeg" });
     selectFile(screen.getByLabelText("Imagem"), file);
 
-    uploadMock.mockResolvedValue({ url: "https://blob.example.com/foto-123.jpg" });
+    uploadPresignedMock.mockResolvedValue({ url: "https://blob.example.com/foto-123.jpg" });
     fetchMock
       .mockResolvedValueOnce(jsonResponse(201, { postId: "post-1" }))
       .mockResolvedValueOnce(jsonResponse(200, { status: "PROCESSING" }));
@@ -94,7 +94,7 @@ describe("InstagramPublishTestForm", () => {
     const file = new File(["conteudo"], "foto.jpg", { type: "image/jpeg" });
     selectFile(screen.getByLabelText("Imagem"), file);
 
-    uploadMock.mockResolvedValue({ url: "https://blob.example.com/foto-123.jpg" });
+    uploadPresignedMock.mockResolvedValue({ url: "https://blob.example.com/foto-123.jpg" });
     fetchMock.mockResolvedValueOnce(jsonResponse(400, { error: "Mídia não encontrada." }));
 
     fireEvent.click(screen.getByRole("button", { name: "Publicar agora" }));
@@ -109,7 +109,7 @@ describe("InstagramPublishTestForm", () => {
     const file = new File(["conteudo"], "foto.jpg", { type: "image/jpeg" });
     selectFile(screen.getByLabelText("Imagem"), file);
 
-    uploadMock.mockRejectedValue(new Error("Falha no upload do Blob."));
+    uploadPresignedMock.mockRejectedValue(new Error("Falha no upload do Blob."));
 
     fireEvent.click(screen.getByRole("button", { name: "Publicar agora" }));
 

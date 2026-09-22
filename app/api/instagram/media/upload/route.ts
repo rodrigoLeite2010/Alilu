@@ -1,4 +1,5 @@
-import { handleUpload, type HandleUploadBody } from "@vercel/blob/client";
+import { issueSignedToken } from "@vercel/blob";
+import { handleUploadPresigned, type HandleUploadPresignedBody } from "@vercel/blob/client";
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import {
@@ -10,37 +11,56 @@ import {
 } from "@/lib/instagram/backend/media-service";
 import { insertInstagramMedia } from "@/lib/instagram/backend/media-repository";
 
+/** Tempo de vida do token assinado de upload — só precisa durar o tempo do navegador completar o PUT. */
+const SIGNED_TOKEN_VALID_MS = 5 * 60 * 1000;
+
 /**
  * Endpoint de "client upload" do Vercel Blob (Fase 3, ETAPA de
  * armazenamento persistente). O arquivo em si NUNCA passa pelo corpo desta
  * função — vai direto do navegador para o Blob, contornando o limite de
- * 4.5 MB de payload das Vercel Functions. Esta rota participa só de duas
- * conversas curtas em JSON, ambas via `handleUpload`:
+ * 4.5 MB de payload das Vercel Functions.
  *
- * 1. onBeforeGenerateToken — chamada síncrona dentro da MESMA requisição
- *    do navegador logado: aqui (e só aqui) checamos a sessão via `auth()`,
- *    porque é a única chamada que carrega os cookies do usuário.
+ * Usa o fluxo de URLs assinadas (`handleUploadPresigned` + `issueSignedToken`,
+ * ambos de `@vercel/blob`), não o `handleUpload` clássico: nosso projeto
+ * está conectado ao Blob store via OIDC (`BLOB_STORE_ID` +
+ * `VERCEL_OIDC_TOKEN`, injetados automaticamente pela Vercel), sem um
+ * `BLOB_READ_WRITE_TOKEN` estático — e `handleUpload` exige esse token
+ * estático especificamente para assinar tokens de upload do navegador
+ * (OIDC não é aceito por ele). `handleUploadPresigned` é a contraparte
+ * pensada exatamente para isso: funciona com OIDC ou com token estático,
+ * então não precisamos criar/gerenciar nenhum segredo novo. Verificado
+ * contra a documentação atual da Vercel e contra o código-fonte instalado
+ * de @vercel/blob@2.8.0 (22/09/2026) antes de trocar.
+ *
+ * Esta rota participa de duas conversas curtas em JSON:
+ *
+ * 1. getSignedToken — chamada síncrona dentro da MESMA requisição do
+ *    navegador logado: aqui (e só aqui) checamos a sessão via `auth()`,
+ *    porque é a única chamada que carrega os cookies do usuário. Emitimos
+ *    um token assinado com escopo de escrita (`operations: ['put']`)
+ *    restrito ao pathname do próprio usuário.
  * 2. onUploadCompleted — um webhook do próprio Vercel Blob para esta
  *    mesma URL, DEPOIS que o arquivo já foi recebido; não tem cookies de
  *    sessão nenhuma (por isso nunca chamamos `auth()` aqui), só o
- *    `tokenPayload` que nós mesmos assinamos no passo 1.
+ *    `tokenPayload` que nós mesmos assinamos no passo 1. A assinatura do
+ *    webhook é verificada com `BLOB_WEBHOOK_PUBLIC_KEY`.
  *
  * Nunca aceitamos vídeo aqui ainda — Reels/vídeo é uma etapa futura, com
  * suas próprias regras (não declarar publicado enquanto a Meta processa).
  */
 export async function POST(request: Request): Promise<NextResponse> {
-  let body: HandleUploadBody;
+  let body: HandleUploadPresignedBody;
   try {
-    body = (await request.json()) as HandleUploadBody;
+    body = (await request.json()) as HandleUploadPresignedBody;
   } catch {
     return NextResponse.json({ error: "Corpo da requisição inválido." }, { status: 400 });
   }
 
   try {
-    const jsonResponse = await handleUpload({
+    const jsonResponse = await handleUploadPresigned({
       body,
       request,
-      onBeforeGenerateToken: async (pathname, clientPayload) => {
+      getSignedToken: async (pathname, clientPayload) => {
         const session = await auth();
         const userId = session?.user?.id;
         if (!userId) {
@@ -50,11 +70,22 @@ export async function POST(request: Request): Promise<NextResponse> {
           throw new Error("Caminho de upload inválido.");
         }
 
-        return {
+        const token = await issueSignedToken({
+          pathname,
+          operations: ["put"],
           allowedContentTypes: ALLOWED_MEDIA_CONTENT_TYPES,
           maximumSizeInBytes: MAX_MEDIA_UPLOAD_BYTES,
-          addRandomSuffix: true,
-          tokenPayload: buildMediaTokenPayload(userId, clientPayload),
+          validUntil: Date.now() + SIGNED_TOKEN_VALID_MS,
+        });
+
+        return {
+          token,
+          urlOptions: {
+            allowedContentTypes: ALLOWED_MEDIA_CONTENT_TYPES,
+            maximumSizeInBytes: MAX_MEDIA_UPLOAD_BYTES,
+            addRandomSuffix: true,
+            tokenPayload: buildMediaTokenPayload(userId, clientPayload),
+          },
         };
       },
       onUploadCompleted: async ({ blob, tokenPayload }) => {

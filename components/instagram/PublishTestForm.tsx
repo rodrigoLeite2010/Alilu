@@ -1,7 +1,7 @@
 "use client";
 
 import { useId, useState, type FormEvent } from "react";
-import { upload } from "@vercel/blob/client";
+import { uploadPresigned } from "@vercel/blob/client";
 
 type Stage = "idle" | "uploading" | "criando-post" | "publicando" | "sucesso" | "erro";
 
@@ -55,7 +55,7 @@ export function InstagramPublishTestForm() {
 
     try {
       setStage("uploading");
-      const blob = await upload(file.name, file, {
+      const blob = await uploadPresigned(file.name, file, {
         access: "public", // precisa ser pública — a Meta busca a imagem pela URL (image_url), não recebe o arquivo
         handleUploadUrl: "/api/instagram/media/upload",
         clientPayload: JSON.stringify({ originalFilename: file.name, fileSizeBytes: file.size }),
