@@ -3,6 +3,7 @@ import { getInstagramAccountForUser } from "@/lib/instagram/backend/instagram-ac
 import { getInstagramMediaById, getInstagramMediaByStorageUrl } from "@/lib/instagram/backend/media-repository";
 import {
   cancelPost as cancelPostInDb,
+  createDraftCarouselPost,
   createDraftImagePost,
   listPostsForUser as listPostsForUserInDb,
   reschedulePost as reschedulePostInDb,
@@ -23,6 +24,10 @@ export class InstagramPostValidationError extends Error {
     this.name = "InstagramPostValidationError";
   }
 }
+
+/** Limites de itens de um carrossel — os mesmos da própria Meta (confirmados na documentação oficial, consultada em 22/09/2026: "Carousels are limited to 10 images, videos, or a mix of the two"). O mínimo de 2 é uma decisão do ALILU: um "carrossel" de 1 item só confundiria o usuário — para isso já existe o post de imagem única. */
+export const MIN_CAROUSEL_ITEMS = 2;
+export const MAX_CAROUSEL_ITEMS = 10;
 
 /**
  * Valida e converte a data agendada (string ISO vinda do formulário) para
@@ -58,7 +63,7 @@ export interface CreateImagePostInput {
  * Cria um post de imagem única (DRAFT ou SCHEDULED, conforme
  * `scheduledAt`). Confere que o usuário tem uma conta do Instagram
  * conectada e que a mídia informada é dele e é uma imagem
- * (carrossel/vídeo vêm em etapas futuras).
+ * (vídeo/Reels vem em etapa futura).
  */
 export async function createImagePost(input: CreateImagePostInput): Promise<string> {
   const scheduledAtUtc = parseScheduledAt(input.scheduledAt);
@@ -94,6 +99,27 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+/**
+ * Resolve a URL de um blob recém-enviado para o id de mídia
+ * correspondente, com um poll curto (a gravação de `instagram_media`
+ * acontece no webhook `onUploadCompleted` do Vercel Blob, quase
+ * simultânea ao fim do upload, mas não instantânea — ver
+ * media/upload/route.ts). Compartilhado por createImagePostFromUpload e
+ * createCarouselPostFromUpload.
+ */
+async function resolveUploadedMediaId(mediaUrl: string, userId: string): Promise<string> {
+  for (let attempt = 0; attempt < MEDIA_RESOLVE_MAX_POLL_ATTEMPTS; attempt++) {
+    const media = await getInstagramMediaByStorageUrl(mediaUrl, userId);
+    if (media) return media.id;
+    if (attempt < MEDIA_RESOLVE_MAX_POLL_ATTEMPTS - 1) {
+      await sleep(MEDIA_RESOLVE_POLL_INTERVAL_MS);
+    }
+  }
+  throw new InstagramPostValidationError(
+    "O upload ainda não terminou de ser registrado. Aguarde alguns segundos e tente de novo.",
+  );
+}
+
 export interface CreateImagePostFromUploadInput {
   userId: string;
   mediaUrl: string;
@@ -105,36 +131,96 @@ export interface CreateImagePostFromUploadInput {
 /**
  * Cria um post de imagem única a partir da URL de um blob que acabou de
  * ser enviado pelo navegador (fluxo de publicação real — ver painel e o
- * calendário editorial).
- *
- * O upload client-side do Vercel Blob (`uploadPresigned()` do
- * `@vercel/blob/client`) só devolve a URL do blob para o navegador quando
- * o arquivo termina de subir; a gravação da linha em `instagram_media`
- * (com o id que createImagePost precisa) acontece separadamente, via o
- * webhook `onUploadCompleted` da própria rota de upload — quase imediata,
- * mas não simultânea. Por isso, em vez de exigir que o chamador já tenha
- * o id, fazemos um poll curto por essa mídia pela URL exata antes de criar
- * o post; se não aparecer a tempo, falha de forma clara (nunca cria um
- * post "solto", sem mídia).
+ * calendário editorial). Ver resolveUploadedMediaId para o porquê do
+ * poll.
  */
 export async function createImagePostFromUpload(input: CreateImagePostFromUploadInput): Promise<string> {
-  let media = null;
-  for (let attempt = 0; attempt < MEDIA_RESOLVE_MAX_POLL_ATTEMPTS; attempt++) {
-    media = await getInstagramMediaByStorageUrl(input.mediaUrl, input.userId);
-    if (media) break;
-    if (attempt < MEDIA_RESOLVE_MAX_POLL_ATTEMPTS - 1) {
-      await sleep(MEDIA_RESOLVE_POLL_INTERVAL_MS);
-    }
-  }
-  if (!media) {
-    throw new InstagramPostValidationError(
-      "O upload ainda não terminou de ser registrado. Aguarde alguns segundos e tente de novo.",
-    );
-  }
+  const mediaId = await resolveUploadedMediaId(input.mediaUrl, input.userId);
 
   return createImagePost({
     userId: input.userId,
-    mediaId: media.id,
+    mediaId,
+    caption: input.caption,
+    scheduledAt: input.scheduledAt,
+  });
+}
+
+export interface CreateCarouselPostInput {
+  userId: string;
+  /** De 2 a 10 ids de mídia, na ordem de exibição do carrossel. */
+  mediaIds: string[];
+  caption: string;
+  /** ISO 8601. Omitido/vazio = sem agendamento (post nasce DRAFT). */
+  scheduledAt?: string | null;
+}
+
+/**
+ * Cria um post de carrossel (2 a 10 imagens, na ordem informada).
+ * Confere a conta conectada e que CADA mídia é do usuário e é imagem —
+ * carrossel com vídeo (a Meta permite misturar) fica para quando o
+ * projeto suportar upload de vídeo do zero, junto com Reels.
+ */
+export async function createCarouselPost(input: CreateCarouselPostInput): Promise<string> {
+  const scheduledAtUtc = parseScheduledAt(input.scheduledAt);
+
+  if (input.mediaIds.length < MIN_CAROUSEL_ITEMS || input.mediaIds.length > MAX_CAROUSEL_ITEMS) {
+    throw new InstagramPostValidationError(
+      `Um carrossel precisa ter entre ${MIN_CAROUSEL_ITEMS} e ${MAX_CAROUSEL_ITEMS} imagens (este tem ${input.mediaIds.length}).`,
+    );
+  }
+
+  const account = await getInstagramAccountForUser(input.userId);
+  if (!account) {
+    throw new InstagramPostValidationError(
+      "Nenhuma conta do Instagram conectada. Conecte uma conta antes de criar um post.",
+    );
+  }
+
+  const resolvedMediaIds: string[] = [];
+  for (const mediaId of input.mediaIds) {
+    const media = await getInstagramMediaById(mediaId, input.userId);
+    if (!media) {
+      throw new InstagramPostValidationError("Uma das imagens do carrossel não foi encontrada.");
+    }
+    if (media.mediaType !== "image") {
+      throw new InstagramPostValidationError("Esta etapa só cria carrosséis de imagem.");
+    }
+    resolvedMediaIds.push(media.id);
+  }
+
+  return createDraftCarouselPost({
+    userId: input.userId,
+    instagramAccountId: account.id,
+    mediaIds: resolvedMediaIds,
+    caption: input.caption,
+    scheduledAtUtc,
+  });
+}
+
+export interface CreateCarouselPostFromUploadInput {
+  userId: string;
+  /** De 2 a 10 URLs de blobs recém-enviados, na mesma ordem dos slides exibidos no carrossel. */
+  mediaUrls: string[];
+  caption: string;
+  /** ISO 8601. Omitido/vazio = sem agendamento (post nasce DRAFT). */
+  scheduledAt?: string | null;
+}
+
+/**
+ * Igual a createImagePostFromUpload, mas para os N slides de um
+ * carrossel — resolve cada URL de blob para o id de mídia correspondente
+ * (um poll por slide, preservando a ordem recebida) antes de criar o
+ * post. A validação de quantidade (2 a 10) acontece em createCarouselPost.
+ */
+export async function createCarouselPostFromUpload(input: CreateCarouselPostFromUploadInput): Promise<string> {
+  const mediaIds: string[] = [];
+  for (const mediaUrl of input.mediaUrls) {
+    mediaIds.push(await resolveUploadedMediaId(mediaUrl, input.userId));
+  }
+
+  return createCarouselPost({
+    userId: input.userId,
+    mediaIds,
     caption: input.caption,
     scheduledAt: input.scheduledAt,
   });

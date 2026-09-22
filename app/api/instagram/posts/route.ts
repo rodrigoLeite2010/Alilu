@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import {
   InstagramPostValidationError,
+  createCarouselPostFromUpload,
   createImagePostFromUpload,
   listPostsForUser,
 } from "@/lib/instagram/backend/instagram-post-service";
@@ -10,10 +11,12 @@ const MAX_CAPTION_LENGTH = 2200; // limite real do Instagram para legendas
 
 /**
  * GET: lista os posts do usuário autenticado, para o calendário editorial
- * (ver app/instagram/painel/calendario). POST: cria um post de imagem
- * única a partir de uma mídia já enviada ao Vercel Blob (ver
- * app/api/instagram/media/upload) — DRAFT, ou SCHEDULED se `scheduledAt`
- * for informado.
+ * (ver app/instagram/painel/calendario). POST: cria um post a partir de
+ * mídia já enviada ao Vercel Blob (ver app/api/instagram/media/upload) —
+ * DRAFT, ou SCHEDULED se `scheduledAt` for informado. Aceita `mediaUrl`
+ * (post de imagem única) OU `mediaUrls` (carrossel, 2 a 10 imagens na
+ * ordem de exibição) — nunca os dois ao mesmo tempo. A validação de
+ * quantidade do carrossel acontece no serviço (instagram-post-service.ts).
  */
 export async function GET(): Promise<NextResponse> {
   const session = await auth();
@@ -48,13 +51,26 @@ export async function POST(request: Request): Promise<NextResponse> {
   if (typeof body !== "object" || body === null) {
     return NextResponse.json({ error: "Corpo da requisição inválido." }, { status: 400 });
   }
-  const { mediaUrl, caption, scheduledAt } = body as {
+  const { mediaUrl, mediaUrls, caption, scheduledAt } = body as {
     mediaUrl?: unknown;
+    mediaUrls?: unknown;
     caption?: unknown;
     scheduledAt?: unknown;
   };
 
-  if (typeof mediaUrl !== "string" || !mediaUrl) {
+  if (mediaUrl !== undefined && mediaUrls !== undefined) {
+    return NextResponse.json(
+      { error: "Informe mediaUrl (post único) ou mediaUrls (carrossel), nunca os dois." },
+      { status: 400 },
+    );
+  }
+  if (mediaUrl === undefined && mediaUrls === undefined) {
+    return NextResponse.json({ error: "mediaUrl ou mediaUrls é obrigatório." }, { status: 400 });
+  }
+  if (mediaUrls !== undefined && (!Array.isArray(mediaUrls) || mediaUrls.some((url) => typeof url !== "string" || !url))) {
+    return NextResponse.json({ error: "mediaUrls precisa ser uma lista de URLs em texto." }, { status: 400 });
+  }
+  if (mediaUrl !== undefined && (typeof mediaUrl !== "string" || !mediaUrl)) {
     return NextResponse.json({ error: "mediaUrl é obrigatório." }, { status: 400 });
   }
   if (typeof caption !== "string") {
@@ -71,12 +87,19 @@ export async function POST(request: Request): Promise<NextResponse> {
   }
 
   try {
-    const postId = await createImagePostFromUpload({
-      userId,
-      mediaUrl,
-      caption,
-      scheduledAt: (scheduledAt as string | null | undefined) ?? null,
-    });
+    const postId = mediaUrls
+      ? await createCarouselPostFromUpload({
+          userId,
+          mediaUrls: mediaUrls as string[],
+          caption,
+          scheduledAt: (scheduledAt as string | null | undefined) ?? null,
+        })
+      : await createImagePostFromUpload({
+          userId,
+          mediaUrl: mediaUrl as string,
+          caption,
+          scheduledAt: (scheduledAt as string | null | undefined) ?? null,
+        });
     return NextResponse.json({ postId }, { status: 201 });
   } catch (error) {
     console.error("[instagram/posts] falha ao criar o post", error);

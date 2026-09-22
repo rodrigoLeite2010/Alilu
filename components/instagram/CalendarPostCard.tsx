@@ -2,10 +2,11 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/Button";
-import type { InstagramPostStatus } from "@/lib/instagram/backend/instagram-post-repository";
+import type { InstagramPostStatus, InstagramPostType } from "@/lib/instagram/backend/instagram-post-repository";
 
 export interface CalendarPostCardData {
   id: string;
+  postType: InstagramPostType;
   status: InstagramPostStatus;
   caption: string;
   scheduledAtUtc: string | null;
@@ -14,6 +15,7 @@ export interface CalendarPostCardData {
   lastErrorSanitized: string | null;
   igUsername: string | null;
   mediaStorageUrl: string | null;
+  itemCount: number;
 }
 
 const STATUS_LABEL: Record<InstagramPostStatus, string> = {
@@ -140,6 +142,11 @@ export function CalendarPostCard({ post }: { post: CalendarPostCardData }) {
           <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_BADGE_CLASS[localStatus]}`}>
             {STATUS_LABEL[localStatus]}
           </span>
+          {post.postType === "carousel" ? (
+            <span className="rounded-full bg-violet-50 px-2 py-0.5 text-xs font-medium text-violet-700">
+              Carrossel · {post.itemCount} fotos
+            </span>
+          ) : null}
           {scheduledLabel ? (
             <span className="text-xs text-zinc-500">Agendado para {scheduledLabel}</span>
           ) : null}

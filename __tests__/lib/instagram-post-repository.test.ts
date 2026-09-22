@@ -10,6 +10,7 @@ vi.mock("@/lib/db/client", () => ({
 }));
 
 const {
+  createDraftCarouselPost,
   createDraftImagePost,
   getPostForPublish,
   markPostProcessing,
@@ -59,14 +60,69 @@ describe("createDraftImagePost", () => {
   });
 });
 
+describe("createDraftCarouselPost", () => {
+  it("insere o post (post_type carousel) e um item por mídia, na ordem recebida, retornando o id do post", async () => {
+    dbMock
+      .mockResolvedValueOnce([{ id: "post-1" }]) // insert instagram_posts
+      .mockResolvedValueOnce([]) // insert item posição 0
+      .mockResolvedValueOnce([]) // insert item posição 1
+      .mockResolvedValueOnce([]); // insert item posição 2
+
+    const id = await createDraftCarouselPost({
+      userId: "user-1",
+      instagramAccountId: "acc-1",
+      mediaIds: ["media-1", "media-2", "media-3"],
+      caption: "Legenda do carrossel",
+    });
+
+    expect(id).toBe("post-1");
+    expect(dbMock).toHaveBeenCalledTimes(4); // 1 insert de post + 3 inserts de item
+
+    // 'carousel' vai como texto literal na query (igual a 'image' em
+    // createDraftImagePost), não como valor interpolado — só os valores de
+    // fato variáveis (userId, instagramAccountId, caption, status,
+    // scheduledAtIso) aparecem como argumentos posicionais.
+    const [postQueryStrings] = dbMock.mock.calls[0];
+    expect((postQueryStrings as string[]).join("")).toContain("'carousel'");
+    const postInsertArgs = dbMock.mock.calls[0].slice(1);
+    expect(postInsertArgs).toContain("DRAFT");
+
+    // O primeiro item (posição 0) é a capa (is_cover=true); os demais não.
+    const firstItemArgs = dbMock.mock.calls[1].slice(1);
+    expect(firstItemArgs).toContain("media-1");
+    expect(firstItemArgs).toContain(0);
+    expect(firstItemArgs).toContain(true);
+
+    const secondItemArgs = dbMock.mock.calls[2].slice(1);
+    expect(secondItemArgs).toContain("media-2");
+    expect(secondItemArgs).toContain(1);
+    expect(secondItemArgs).toContain(false);
+  });
+
+  it("nasce SCHEDULED quando scheduledAtUtc é informado", async () => {
+    dbMock.mockResolvedValueOnce([{ id: "post-1" }]).mockResolvedValueOnce([]).mockResolvedValueOnce([]);
+
+    await createDraftCarouselPost({
+      userId: "user-1",
+      instagramAccountId: "acc-1",
+      mediaIds: ["media-1", "media-2"],
+      caption: "Legenda",
+      scheduledAtUtc: new Date("2026-12-01T10:00:00.000Z"),
+    });
+
+    const postInsertArgs = dbMock.mock.calls[0].slice(1);
+    expect(postInsertArgs).toContain("SCHEDULED");
+  });
+});
+
 describe("getPostForPublish", () => {
-  it("retorna null quando não encontra o post do usuário", async () => {
+  it("retorna null quando não encontra nenhuma linha (post ou itens) do usuário", async () => {
     dbMock.mockResolvedValueOnce([]);
     const result = await getPostForPublish("post-1", "user-1");
     expect(result).toBeNull();
   });
 
-  it("mapeia a linha retornada (snake_case do banco) para o formato camelCase esperado", async () => {
+  it("mapeia UM item (imagem única) para o formato camelCase esperado, com items de tamanho 1", async () => {
     dbMock.mockResolvedValueOnce([
       {
         id: "post-1",
@@ -76,6 +132,8 @@ describe("getPostForPublish", () => {
         meta_container_id: null,
         ig_user_id: "ig-1",
         access_token_encrypted: "enc-token",
+        media_id: "media-1",
+        position: 0,
         media_storage_url: "https://blob.example.com/img.jpg",
         media_type: "image",
       },
@@ -91,9 +149,49 @@ describe("getPostForPublish", () => {
       metaContainerId: null,
       igUserId: "ig-1",
       accessTokenEncrypted: "enc-token",
-      mediaStorageUrl: "https://blob.example.com/img.jpg",
-      mediaType: "image",
+      items: [
+        { mediaId: "media-1", storageUrl: "https://blob.example.com/img.jpg", mediaType: "image", position: 0 },
+      ],
     });
+  });
+
+  it("mapeia VÁRIOS itens (carrossel) na ordem retornada pela consulta (já ordenada por posição)", async () => {
+    dbMock.mockResolvedValueOnce([
+      {
+        id: "post-1",
+        post_type: "carousel",
+        status: "DRAFT",
+        caption: "Legenda",
+        meta_container_id: null,
+        ig_user_id: "ig-1",
+        access_token_encrypted: "enc-token",
+        media_id: "media-1",
+        position: 0,
+        media_storage_url: "https://blob.example.com/slide-01.jpg",
+        media_type: "image",
+      },
+      {
+        id: "post-1",
+        post_type: "carousel",
+        status: "DRAFT",
+        caption: "Legenda",
+        meta_container_id: null,
+        ig_user_id: "ig-1",
+        access_token_encrypted: "enc-token",
+        media_id: "media-2",
+        position: 1,
+        media_storage_url: "https://blob.example.com/slide-02.jpg",
+        media_type: "image",
+      },
+    ]);
+
+    const result = await getPostForPublish("post-1", "user-1");
+
+    expect(result?.postType).toBe("carousel");
+    expect(result?.items).toEqual([
+      { mediaId: "media-1", storageUrl: "https://blob.example.com/slide-01.jpg", mediaType: "image", position: 0 },
+      { mediaId: "media-2", storageUrl: "https://blob.example.com/slide-02.jpg", mediaType: "image", position: 1 },
+    ]);
   });
 });
 
@@ -131,10 +229,11 @@ describe("recordPublishAttempt", () => {
 });
 
 describe("listPostsForUser", () => {
-  it("mapeia as linhas (snake_case) para o formato camelCase esperado pela tela", async () => {
+  it("mapeia as linhas (snake_case) para o formato camelCase esperado pela tela, incluindo postType e itemCount", async () => {
     dbMock.mockResolvedValueOnce([
       {
         id: "post-1",
+        post_type: "carousel",
         status: "SCHEDULED",
         caption: "Legenda",
         scheduled_at_utc: "2026-12-01T10:00:00.000Z",
@@ -142,7 +241,8 @@ describe("listPostsForUser", () => {
         created_at: "2026-09-20T10:00:00.000Z",
         last_error_sanitized: null,
         ig_username: "alilu.tec",
-        media_storage_url: "https://blob.example.com/img.jpg",
+        media_storage_url: "https://blob.example.com/slide-01.jpg",
+        item_count: 4,
       },
     ]);
 
@@ -151,6 +251,7 @@ describe("listPostsForUser", () => {
     expect(result).toEqual([
       {
         id: "post-1",
+        postType: "carousel",
         status: "SCHEDULED",
         caption: "Legenda",
         scheduledAtUtc: "2026-12-01T10:00:00.000Z",
@@ -158,7 +259,8 @@ describe("listPostsForUser", () => {
         createdAt: "2026-09-20T10:00:00.000Z",
         lastErrorSanitized: null,
         igUsername: "alilu.tec",
-        mediaStorageUrl: "https://blob.example.com/img.jpg",
+        mediaStorageUrl: "https://blob.example.com/slide-01.jpg",
+        itemCount: 4,
       },
     ]);
   });

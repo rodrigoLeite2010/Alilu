@@ -8,10 +8,9 @@ import { getDb } from "@/lib/db/client";
  * instagram-publish-service.ts; a validação de posse (conta/mídia
  * pertencem ao usuário) fica em instagram-post-service.ts.
  *
- * Nesta etapa só o fluxo de post de IMAGEM ÚNICA é suportado
- * (createDraftImagePost / getPostForPublish assumem um único item por
- * post); carrossel e Reels são etapas futuras e vão precisar de consultas
- * próprias para múltiplos itens.
+ * Imagem única e carrossel (2 a 10 imagens) são suportados nesta etapa —
+ * ambos usam a mesma tabela instagram_post_items (um item por posição);
+ * Reels é uma etapa futura, e vai precisar das próprias regras de vídeo.
  */
 
 export type InstagramPostType = "image" | "carousel" | "reels";
@@ -69,6 +68,55 @@ export async function createDraftImagePost(input: CreateDraftImagePostInput): Pr
   return postId;
 }
 
+export interface CreateDraftCarouselPostInput {
+  userId: string;
+  instagramAccountId: string;
+  /** De 2 a 10 mídias, JÁ na ordem de exibição — a quantidade já foi validada em instagram-post-service.ts (limite da própria Meta para carrossel). */
+  mediaIds: string[];
+  caption: string;
+  /** Mesma semântica de CreateDraftImagePostInput.scheduledAtUtc. */
+  scheduledAtUtc?: Date | null;
+}
+
+/**
+ * Cria um post de carrossel — mesma ideia de createDraftImagePost, mas
+ * com um item por mídia informada, na ordem recebida (position 0..n-1;
+ * capa = position 0). Inserções sequenciais, uma por item, pelo mesmo
+ * motivo (sem transação multi-statement no driver HTTP): no pior caso de
+ * falha no meio, o post fica com menos itens do que deveria, e a
+ * publicação falha de forma segura na validação de "2 a 10 itens" em
+ * publishCarouselPost (instagram-publish-service.ts) — nunca publica um
+ * carrossel incompleto.
+ */
+export async function createDraftCarouselPost(input: CreateDraftCarouselPostInput): Promise<string> {
+  const db = getDb();
+  const status = input.scheduledAtUtc ? "SCHEDULED" : "DRAFT";
+  const scheduledAtIso = input.scheduledAtUtc ? input.scheduledAtUtc.toISOString() : null;
+
+  const postRows = await db`
+    insert into instagram_posts (user_id, instagram_account_id, post_type, caption, status, scheduled_at_utc)
+    values (${input.userId}, ${input.instagramAccountId}, 'carousel', ${input.caption}, ${status}, ${scheduledAtIso})
+    returning id
+  `;
+  const postId = postRows[0].id as string;
+
+  for (let position = 0; position < input.mediaIds.length; position += 1) {
+    await db`
+      insert into instagram_post_items (post_id, media_id, position, is_cover)
+      values (${postId}, ${input.mediaIds[position]}, ${position}, ${position === 0})
+    `;
+  }
+
+  return postId;
+}
+
+export interface PostForPublishItem {
+  mediaId: string;
+  storageUrl: string;
+  mediaType: "image" | "video";
+  position: number;
+}
+
 export interface PostForPublish {
   id: string;
   postType: InstagramPostType;
@@ -77,16 +125,17 @@ export interface PostForPublish {
   metaContainerId: string | null;
   igUserId: string;
   accessTokenEncrypted: string;
-  mediaStorageUrl: string;
-  mediaType: "image" | "video";
+  /** Todos os itens do post, ordenados por posição (1 para imagem única; 2 a 10 para carrossel). */
+  items: PostForPublishItem[];
 }
 
 /**
  * Carrega tudo que a publicação precisa numa consulta só: o post, a conta
- * do Instagram associada (token cifrado) e a mídia do item de posição mais
- * baixa — suficiente para imagem única; carrossel vai precisar buscar
- * todos os itens, não só o primeiro. Sempre restrito ao dono (`userId`) —
- * nunca deixa um usuário publicar/consultar o post de outro.
+ * do Instagram associada (token cifrado) e TODOS os itens de mídia, na
+ * ordem de exibição — usado tanto por publishImagePost (usa só
+ * `items[0]`) quanto por publishCarouselPost (usa a lista inteira).
+ * Sempre restrito ao dono (`userId`) — nunca deixa um usuário
+ * publicar/consultar o post de outro.
  */
 export async function getPostForPublish(postId: string, userId: string): Promise<PostForPublish | null> {
   const db = getDb();
@@ -94,31 +143,35 @@ export async function getPostForPublish(postId: string, userId: string): Promise
     select
       p.id, p.post_type, p.status, p.caption, p.meta_container_id,
       a.ig_user_id, a.access_token_encrypted,
-      m.storage_url as media_storage_url, m.media_type
+      pi.media_id, pi.position, m.storage_url as media_storage_url, m.media_type
     from instagram_posts p
     join instagram_accounts a on a.id = p.instagram_account_id
     join instagram_post_items pi on pi.post_id = p.id
     join instagram_media m on m.id = pi.media_id
     where p.id = ${postId} and p.user_id = ${userId}
     order by pi.position asc
-    limit 1
   `;
-  const row = rows[0];
-  if (!row) return null;
+  if (rows.length === 0) return null;
+
+  const first = rows[0];
   return {
-    id: row.id as string,
-    postType: row.post_type as InstagramPostType,
-    status: row.status as InstagramPostStatus,
-    caption: (row.caption as string) ?? "",
-    metaContainerId: (row.meta_container_id as string | null) ?? null,
-    igUserId: row.ig_user_id as string,
-    accessTokenEncrypted: row.access_token_encrypted as string,
-    mediaStorageUrl: row.media_storage_url as string,
-    mediaType: row.media_type as "image" | "video",
+    id: first.id as string,
+    postType: first.post_type as InstagramPostType,
+    status: first.status as InstagramPostStatus,
+    caption: (first.caption as string) ?? "",
+    metaContainerId: (first.meta_container_id as string | null) ?? null,
+    igUserId: first.ig_user_id as string,
+    accessTokenEncrypted: first.access_token_encrypted as string,
+    items: rows.map((row) => ({
+      mediaId: row.media_id as string,
+      storageUrl: row.media_storage_url as string,
+      mediaType: row.media_type as "image" | "video",
+      position: row.position as number,
+    })),
   };
 }
 
-/** Registra que o post entrou em processamento na Meta, com o id do container criado. */
+/** Registra que o post entrou em processamento na Meta, com o id do container criado (imagem: o único container; carrossel: o container PAI). */
 export async function markPostProcessing(postId: string, containerId: string): Promise<void> {
   const db = getDb();
   await db`
@@ -170,6 +223,7 @@ export async function recordPublishAttempt(input: RecordPublishAttemptInput): Pr
 
 export interface PostSummary {
   id: string;
+  postType: InstagramPostType;
   status: InstagramPostStatus;
   caption: string;
   scheduledAtUtc: string | null;
@@ -178,6 +232,8 @@ export interface PostSummary {
   lastErrorSanitized: string | null;
   igUsername: string | null;
   mediaStorageUrl: string | null;
+  /** Quantidade de itens do post (1 para imagem única; 2 a 10 para carrossel) — usado pela tela do calendário para indicar "Carrossel • N fotos". */
+  itemCount: number;
 }
 
 /**
@@ -192,9 +248,10 @@ export async function listPostsForUser(userId: string): Promise<PostSummary[]> {
   const db = getDb();
   const rows = await db`
     select
-      p.id, p.status, p.caption, p.scheduled_at_utc, p.published_at, p.created_at, p.last_error_sanitized,
+      p.id, p.post_type, p.status, p.caption, p.scheduled_at_utc, p.published_at, p.created_at, p.last_error_sanitized,
       a.ig_username,
-      m.storage_url as media_storage_url
+      m.storage_url as media_storage_url,
+      (select count(*) from instagram_post_items pi2 where pi2.post_id = p.id) as item_count
     from instagram_posts p
     join instagram_accounts a on a.id = p.instagram_account_id
     left join instagram_post_items pi on pi.post_id = p.id and pi.position = 0
@@ -205,6 +262,7 @@ export async function listPostsForUser(userId: string): Promise<PostSummary[]> {
   `;
   return rows.map((row) => ({
     id: row.id as string,
+    postType: row.post_type as InstagramPostType,
     status: row.status as InstagramPostStatus,
     caption: (row.caption as string) ?? "",
     scheduledAtUtc: row.scheduled_at_utc ? new Date(row.scheduled_at_utc as string).toISOString() : null,
@@ -213,6 +271,7 @@ export async function listPostsForUser(userId: string): Promise<PostSummary[]> {
     lastErrorSanitized: (row.last_error_sanitized as string | null) ?? null,
     igUsername: (row.ig_username as string | null) ?? null,
     mediaStorageUrl: (row.media_storage_url as string | null) ?? null,
+    itemCount: Number(row.item_count ?? 1),
   }));
 }
 

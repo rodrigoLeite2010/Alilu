@@ -13,6 +13,8 @@ import {
   LONG_LIVED_EXCHANGE_URL,
   REFRESH_URL,
   buildInstagramAuthorizeUrl,
+  createCarouselContainer,
+  createCarouselItemContainer,
   createImageMediaContainer,
   exchangeCodeForShortLivedToken,
   exchangeForLongLivedToken,
@@ -398,6 +400,121 @@ describe("publishMediaContainer", () => {
 
     await expect(
       publishMediaContainer({ igUserId: "ig-1", accessToken: "t", containerId: "c" }),
+    ).rejects.toThrow(InstagramGraphApiError);
+  });
+});
+
+describe("createCarouselItemContainer", () => {
+  const originalFetch = global.fetch;
+  const fetchMock = vi.fn();
+
+  beforeEach(() => {
+    global.fetch = fetchMock as unknown as typeof fetch;
+    fetchMock.mockReset();
+  });
+
+  afterEach(() => {
+    global.fetch = originalFetch;
+  });
+
+  it("faz POST para <ig-user-id>/media com image_url, is_carousel_item=true e SEM caption", async () => {
+    fetchMock.mockResolvedValue(jsonResponse(200, { id: "item-container-1" }));
+
+    const id = await createCarouselItemContainer({
+      igUserId: "ig-1",
+      accessToken: "token-1",
+      imageUrl: "https://blob.example.com/slide-01.jpg",
+    });
+
+    expect(id).toBe("item-container-1");
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe(`https://graph.instagram.com/${GRAPH_API_VERSION}/ig-1/media`);
+    expect(init.method).toBe("POST");
+    const body = init.body as URLSearchParams;
+    expect(body.get("image_url")).toBe("https://blob.example.com/slide-01.jpg");
+    expect(body.get("is_carousel_item")).toBe("true");
+    expect(body.has("caption")).toBe(false);
+    expect(body.get("access_token")).toBe("token-1");
+  });
+
+  it("lança InstagramGraphApiError numa resposta de erro HTTP", async () => {
+    fetchMock.mockResolvedValue(jsonResponse(400, { error: { message: "Invalid image_url" } }));
+
+    await expect(
+      createCarouselItemContainer({ igUserId: "ig-1", accessToken: "t", imageUrl: "x" }),
+    ).rejects.toThrow(InstagramGraphApiError);
+  });
+
+  it("lança InstagramGraphApiError quando a resposta não tem id", async () => {
+    fetchMock.mockResolvedValue(jsonResponse(200, { algumaCoisa: true }));
+
+    await expect(
+      createCarouselItemContainer({ igUserId: "ig-1", accessToken: "t", imageUrl: "x" }),
+    ).rejects.toThrow(InstagramGraphApiError);
+  });
+});
+
+describe("createCarouselContainer", () => {
+  const originalFetch = global.fetch;
+  const fetchMock = vi.fn();
+
+  beforeEach(() => {
+    global.fetch = fetchMock as unknown as typeof fetch;
+    fetchMock.mockReset();
+  });
+
+  afterEach(() => {
+    global.fetch = originalFetch;
+  });
+
+  it("faz POST para <ig-user-id>/media com media_type=CAROUSEL, children e caption, retornando o id do container", async () => {
+    fetchMock.mockResolvedValue(jsonResponse(200, { id: "carousel-container-1" }));
+
+    const id = await createCarouselContainer({
+      igUserId: "ig-1",
+      accessToken: "token-1",
+      childrenContainerIds: ["item-1", "item-2", "item-3"],
+      caption: "Legenda do carrossel",
+    });
+
+    expect(id).toBe("carousel-container-1");
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe(`https://graph.instagram.com/${GRAPH_API_VERSION}/ig-1/media`);
+    expect(init.method).toBe("POST");
+    const body = init.body as URLSearchParams;
+    expect(body.get("media_type")).toBe("CAROUSEL");
+    expect(body.get("children")).toBe("item-1,item-2,item-3");
+    expect(body.get("caption")).toBe("Legenda do carrossel");
+    expect(body.get("access_token")).toBe("token-1");
+  });
+
+  it("omite caption quando vazia", async () => {
+    fetchMock.mockResolvedValue(jsonResponse(200, { id: "carousel-container-1" }));
+
+    await createCarouselContainer({
+      igUserId: "ig-1",
+      accessToken: "token-1",
+      childrenContainerIds: ["item-1", "item-2"],
+      caption: "",
+    });
+
+    const body = fetchMock.mock.calls[0][1].body as URLSearchParams;
+    expect(body.has("caption")).toBe(false);
+  });
+
+  it("lança InstagramGraphApiError numa resposta de erro HTTP", async () => {
+    fetchMock.mockResolvedValue(jsonResponse(400, { error: { message: "Invalid children" } }));
+
+    await expect(
+      createCarouselContainer({ igUserId: "ig-1", accessToken: "t", childrenContainerIds: ["a", "b"], caption: "" }),
+    ).rejects.toThrow(InstagramGraphApiError);
+  });
+
+  it("lança InstagramGraphApiError quando a resposta não tem id", async () => {
+    fetchMock.mockResolvedValue(jsonResponse(200, { algumaCoisa: true }));
+
+    await expect(
+      createCarouselContainer({ igUserId: "ig-1", accessToken: "t", childrenContainerIds: ["a", "b"], caption: "" }),
     ).rejects.toThrow(InstagramGraphApiError);
   });
 });

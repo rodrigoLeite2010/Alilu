@@ -44,7 +44,12 @@ export default async function CalendarioPage() {
             Seus posts criados no ALILU, com o status de cada um.
           </p>
         </div>
-        <LinkButton href="/instagram/painel/calendario/novo">Novo post</LinkButton>
+        <div className="flex flex-wrap gap-2">
+          <LinkButton href="/instagram/painel/calendario/novo">Novo post</LinkButton>
+          <LinkButton href="/instagram/painel/calendario/novo-carrossel" variant="secondary">
+            Novo carrossel
+          </LinkButton>
+        </div>
       </div>
 
       {posts.length === 0 ? (

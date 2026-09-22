@@ -387,3 +387,96 @@ export async function publishMediaContainer(
   }
   return payload.id;
 }
+
+export interface CreateCarouselItemContainerInput {
+  igUserId: string;
+  accessToken: string;
+  imageUrl: string;
+}
+
+/**
+ * Cria o container de UM item de carrossel — mesmo endpoint de
+ * createImageMediaContainer, mas com `is_carousel_item=true` e SEM
+ * `caption` (a legenda só é aceita no container PAI do carrossel —
+ * confirmado na documentação oficial da Meta,
+ * developers.facebook.com/docs/instagram-platform/content-publishing e
+ * .../instagram-graph-api/reference/ig-user/media, consultadas em
+ * 22/09/2026, antes de escrever esta função). Assim como o container de
+ * imagem única, processa de forma assíncrona — mas a documentação não
+ * exige (nem recomenda) consultar o status de cada item antes de criar o
+ * container pai; só o container pai (CAROUSEL) precisa chegar a FINISHED
+ * antes do media_publish — ver createCarouselContainer.
+ */
+export async function createCarouselItemContainer(
+  input: CreateCarouselItemContainerInput,
+): Promise<string> {
+  const url = new URL(`https://graph.instagram.com/${GRAPH_API_VERSION}/${input.igUserId}/media`);
+  const body = new URLSearchParams();
+  body.set("image_url", input.imageUrl);
+  body.set("is_carousel_item", "true");
+  body.set("access_token", input.accessToken);
+
+  const response = await fetch(url.toString(), { method: "POST", body });
+  const text = await response.text();
+  const payload = safeParseJson(text);
+
+  if (!response.ok) {
+    throw new InstagramGraphApiError(
+      "Falha ao criar o container de um item do carrossel.",
+      payload ?? text,
+    );
+  }
+  if (!isRecord(payload) || typeof payload.id !== "string") {
+    throw new InstagramGraphApiError(
+      "Resposta inesperada da Meta ao criar o container de um item do carrossel.",
+      payload,
+    );
+  }
+  return payload.id;
+}
+
+export interface CreateCarouselContainerInput {
+  igUserId: string;
+  accessToken: string;
+  /** IDs dos containers de item já criados (createCarouselItemContainer), na ordem de exibição — de 2 a 10 (limite da própria Meta para carrossel). */
+  childrenContainerIds: string[];
+  caption: string;
+}
+
+/**
+ * Cria o container PAI do carrossel — segundo passo da Content Publishing
+ * API para carrossel (confirmado na documentação oficial): `media_type`
+ * CAROUSEL + `children` (lista dos IDs dos containers de item, separada
+ * por vírgula, na ordem desejada) + a legenda (que só existe aqui, nunca
+ * nos itens — ver createCarouselItemContainer). Assim como o container de
+ * imagem única, PRECISA ser consultado (status_code) até FINISHED antes
+ * de publicar — ver getMediaContainerStatus.
+ */
+export async function createCarouselContainer(
+  input: CreateCarouselContainerInput,
+): Promise<string> {
+  const url = new URL(`https://graph.instagram.com/${GRAPH_API_VERSION}/${input.igUserId}/media`);
+  const body = new URLSearchParams();
+  body.set("media_type", "CAROUSEL");
+  body.set("children", input.childrenContainerIds.join(","));
+  if (input.caption) body.set("caption", input.caption);
+  body.set("access_token", input.accessToken);
+
+  const response = await fetch(url.toString(), { method: "POST", body });
+  const text = await response.text();
+  const payload = safeParseJson(text);
+
+  if (!response.ok) {
+    throw new InstagramGraphApiError(
+      "Falha ao criar o container do carrossel.",
+      payload ?? text,
+    );
+  }
+  if (!isRecord(payload) || typeof payload.id !== "string") {
+    throw new InstagramGraphApiError(
+      "Resposta inesperada da Meta ao criar o container do carrossel.",
+      payload,
+    );
+  }
+  return payload.id;
+}

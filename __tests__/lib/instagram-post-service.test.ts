@@ -17,11 +17,13 @@ vi.mock("@/lib/instagram/backend/media-repository", () => ({
 }));
 
 const createDraftImagePostMock = vi.fn();
+const createDraftCarouselPostMock = vi.fn();
 const listPostsForUserInDbMock = vi.fn();
 const cancelPostInDbMock = vi.fn();
 const reschedulePostInDbMock = vi.fn();
 vi.mock("@/lib/instagram/backend/instagram-post-repository", () => ({
   createDraftImagePost: (...args: unknown[]) => createDraftImagePostMock(...args),
+  createDraftCarouselPost: (...args: unknown[]) => createDraftCarouselPostMock(...args),
   listPostsForUser: (...args: unknown[]) => listPostsForUserInDbMock(...args),
   cancelPost: (...args: unknown[]) => cancelPostInDbMock(...args),
   reschedulePost: (...args: unknown[]) => reschedulePostInDbMock(...args),
@@ -31,6 +33,8 @@ const {
   InstagramPostValidationError,
   createImagePost,
   createImagePostFromUpload,
+  createCarouselPost,
+  createCarouselPostFromUpload,
   listPostsForUser,
   cancelPost,
   reschedulePost,
@@ -42,6 +46,10 @@ afterEach(() => {
 
 const account = { id: "acc-1", userId: "user-1", igUserId: "ig-1", igUsername: "alilu.tec" };
 const imageMedia = { id: "media-1", userId: "user-1", storageUrl: "https://blob/img.jpg", mediaType: "image" };
+
+function media(id: string, storageUrl: string, mediaType: "image" | "video" = "image") {
+  return { id, userId: "user-1", storageUrl, mediaType };
+}
 
 describe("createImagePost", () => {
   it("lança InstagramPostValidationError se o usuário não tem conta conectada", async () => {
@@ -174,6 +182,138 @@ describe("createImagePost — validação de agendamento", () => {
       expect.objectContaining({ scheduledAtUtc: new Date(futureIso) }),
     );
   });
+});
+
+describe("createCarouselPost", () => {
+  it("lança InstagramPostValidationError com menos de 2 imagens", async () => {
+    await expect(
+      createCarouselPost({ userId: "user-1", mediaIds: ["media-1"], caption: "Legenda" }),
+    ).rejects.toThrow(InstagramPostValidationError);
+    expect(getInstagramAccountForUserMock).not.toHaveBeenCalled();
+    expect(createDraftCarouselPostMock).not.toHaveBeenCalled();
+  });
+
+  it("lança InstagramPostValidationError com mais de 10 imagens", async () => {
+    const mediaIds = Array.from({ length: 11 }, (_, i) => `media-${i + 1}`);
+    await expect(
+      createCarouselPost({ userId: "user-1", mediaIds, caption: "Legenda" }),
+    ).rejects.toThrow(InstagramPostValidationError);
+    expect(createDraftCarouselPostMock).not.toHaveBeenCalled();
+  });
+
+  it("lança InstagramPostValidationError se o usuário não tem conta conectada", async () => {
+    getInstagramAccountForUserMock.mockResolvedValue(null);
+
+    await expect(
+      createCarouselPost({ userId: "user-1", mediaIds: ["media-1", "media-2"], caption: "Legenda" }),
+    ).rejects.toThrow(InstagramPostValidationError);
+    expect(createDraftCarouselPostMock).not.toHaveBeenCalled();
+  });
+
+  it("lança InstagramPostValidationError se uma das mídias não existe (ou não é do usuário)", async () => {
+    getInstagramAccountForUserMock.mockResolvedValue(account);
+    getInstagramMediaByIdMock.mockResolvedValueOnce(media("media-1", "https://blob/1.jpg")).mockResolvedValueOnce(null);
+
+    await expect(
+      createCarouselPost({ userId: "user-1", mediaIds: ["media-1", "media-2"], caption: "Legenda" }),
+    ).rejects.toThrow(InstagramPostValidationError);
+    expect(createDraftCarouselPostMock).not.toHaveBeenCalled();
+  });
+
+  it("lança InstagramPostValidationError se uma das mídias não é imagem", async () => {
+    getInstagramAccountForUserMock.mockResolvedValue(account);
+    getInstagramMediaByIdMock
+      .mockResolvedValueOnce(media("media-1", "https://blob/1.jpg"))
+      .mockResolvedValueOnce(media("media-2", "https://blob/2.mp4", "video"));
+
+    await expect(
+      createCarouselPost({ userId: "user-1", mediaIds: ["media-1", "media-2"], caption: "Legenda" }),
+    ).rejects.toThrow(InstagramPostValidationError);
+    expect(createDraftCarouselPostMock).not.toHaveBeenCalled();
+  });
+
+  it("cria o post quando conta e todas as mídias são válidas, na ordem recebida", async () => {
+    getInstagramAccountForUserMock.mockResolvedValue(account);
+    getInstagramMediaByIdMock
+      .mockResolvedValueOnce(media("media-1", "https://blob/1.jpg"))
+      .mockResolvedValueOnce(media("media-2", "https://blob/2.jpg"))
+      .mockResolvedValueOnce(media("media-3", "https://blob/3.jpg"));
+    createDraftCarouselPostMock.mockResolvedValue("post-1");
+
+    const id = await createCarouselPost({
+      userId: "user-1",
+      mediaIds: ["media-1", "media-2", "media-3"],
+      caption: "Legenda do carrossel",
+    });
+
+    expect(id).toBe("post-1");
+    expect(createDraftCarouselPostMock).toHaveBeenCalledWith({
+      userId: "user-1",
+      instagramAccountId: "acc-1",
+      mediaIds: ["media-1", "media-2", "media-3"],
+      caption: "Legenda do carrossel",
+      scheduledAtUtc: null,
+    });
+  });
+
+  it("cria o post com scheduledAtUtc quando a data é válida e futura", async () => {
+    getInstagramAccountForUserMock.mockResolvedValue(account);
+    getInstagramMediaByIdMock
+      .mockResolvedValueOnce(media("media-1", "https://blob/1.jpg"))
+      .mockResolvedValueOnce(media("media-2", "https://blob/2.jpg"));
+    createDraftCarouselPostMock.mockResolvedValue("post-1");
+
+    const futureIso = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+    await createCarouselPost({
+      userId: "user-1",
+      mediaIds: ["media-1", "media-2"],
+      caption: "Legenda",
+      scheduledAt: futureIso,
+    });
+
+    expect(createDraftCarouselPostMock).toHaveBeenCalledWith(
+      expect.objectContaining({ scheduledAtUtc: new Date(futureIso) }),
+    );
+  });
+});
+
+describe("createCarouselPostFromUpload", () => {
+  it("resolve cada URL de blob, na ordem recebida, e cria o post", async () => {
+    getInstagramMediaByStorageUrlMock
+      .mockResolvedValueOnce(media("media-1", "https://blob/1.jpg"))
+      .mockResolvedValueOnce(media("media-2", "https://blob/2.jpg"));
+    getInstagramAccountForUserMock.mockResolvedValue(account);
+    getInstagramMediaByIdMock
+      .mockResolvedValueOnce(media("media-1", "https://blob/1.jpg"))
+      .mockResolvedValueOnce(media("media-2", "https://blob/2.jpg"));
+    createDraftCarouselPostMock.mockResolvedValue("post-1");
+
+    const id = await createCarouselPostFromUpload({
+      userId: "user-1",
+      mediaUrls: ["https://blob/1.jpg", "https://blob/2.jpg"],
+      caption: "Legenda",
+    });
+
+    expect(id).toBe("post-1");
+    expect(getInstagramMediaByStorageUrlMock).toHaveBeenNthCalledWith(1, "https://blob/1.jpg", "user-1");
+    expect(getInstagramMediaByStorageUrlMock).toHaveBeenNthCalledWith(2, "https://blob/2.jpg", "user-1");
+    expect(createDraftCarouselPostMock).toHaveBeenCalledWith(
+      expect.objectContaining({ mediaIds: ["media-1", "media-2"] }),
+    );
+  });
+
+  it("lança InstagramPostValidationError se uma das mídias nunca aparecer dentro da janela de poll", async () => {
+    getInstagramMediaByStorageUrlMock.mockResolvedValue(null);
+
+    await expect(
+      createCarouselPostFromUpload({
+        userId: "user-1",
+        mediaUrls: ["https://blob/1.jpg", "https://blob/2.jpg"],
+        caption: "Legenda",
+      }),
+    ).rejects.toThrow(InstagramPostValidationError);
+    expect(createDraftCarouselPostMock).not.toHaveBeenCalled();
+  }, 10000);
 });
 
 describe("listPostsForUser", () => {

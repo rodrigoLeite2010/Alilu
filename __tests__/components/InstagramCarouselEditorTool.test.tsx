@@ -142,6 +142,33 @@ describe("CarouselEditorTool — modelos prontos de carrossel (ETAPA 7)", () => 
   });
 });
 
+describe("CarouselEditorTool — slot opcional de publicação real (calendário editorial)", () => {
+  it("sem publishPanel (uso público, sem login) não renderiza nenhum conteúdo extra de publicação", () => {
+    render(<CarouselEditorTool />);
+    expect(screen.queryByTestId("carousel-publish-panel-slot")).not.toBeInTheDocument();
+  });
+
+  it("com publishPanel, renderiza o componente recebendo os slides e o formato atuais", () => {
+    function TestPublishPanel({
+      slides,
+      formatId,
+    }: {
+      slides: { id: string }[];
+      formatId: string;
+    }) {
+      return (
+        <div data-testid="carousel-publish-panel-slot">
+          {formatId} — slides: {slides.length}
+        </div>
+      );
+    }
+
+    render(<CarouselEditorTool publishPanel={TestPublishPanel} />);
+
+    expect(screen.getByTestId("carousel-publish-panel-slot")).toHaveTextContent("quadrado — slides: 5");
+  });
+});
+
 describe("CarouselEditorTool — integração com o Gerador de Legendas (ETAPA 12)", () => {
   it("o link para criar legenda leva o assunto do primeiro slide preenchido pelo usuário", () => {
     render(<CarouselEditorTool />);

@@ -112,3 +112,16 @@ export function hexToRgba(hex: string, alpha: number): string {
 export function buildPostFileName(extension: "png" | "jpg"): string {
   return `alilu-instagram-post.${extension}`;
 }
+
+/**
+ * Nome de arquivo sugerido para UM slide de carrossel ao publicar de
+ * verdade (calendário editorial) — numerado (01, 02...) para ficar
+ * identificável no Vercel Blob mesmo com o sufixo aleatório que o upload
+ * sempre adiciona (addRandomSuffix, ver media/upload/route.ts). Mesma
+ * ideia de buildPostFileName, mas com um índice por slide (o carrossel
+ * sobe várias imagens de uma vez, então um nome fixo colidiria em
+ * legibilidade, ainda que não em armazenamento).
+ */
+export function buildCarouselSlideFileName(index: number, extension: "png" | "jpg"): string {
+  return `alilu-instagram-carrossel-slide-${String(index + 1).padStart(2, "0")}.${extension}`;
+}

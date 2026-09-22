@@ -6,6 +6,7 @@ import { CalendarPostCard, type CalendarPostCardData } from "@/components/instag
 function post(overrides: Partial<CalendarPostCardData> = {}): CalendarPostCardData {
   return {
     id: "post-1",
+    postType: "image",
     status: "DRAFT",
     caption: "Legenda de teste",
     scheduledAtUtc: null,
@@ -14,6 +15,7 @@ function post(overrides: Partial<CalendarPostCardData> = {}): CalendarPostCardDa
     lastErrorSanitized: null,
     igUsername: "alilu.tec",
     mediaStorageUrl: null,
+    itemCount: 1,
     ...overrides,
   };
 }
@@ -31,6 +33,16 @@ describe("CalendarPostCard", () => {
     expect(screen.getByText("Legenda de teste")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Publicar agora" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Cancelar" })).toBeInTheDocument();
+  });
+
+  it("post de carrossel mostra o indicativo \"Carrossel · N fotos\"; imagem única não mostra nada disso", () => {
+    render(<CalendarPostCard post={post({ postType: "carousel", itemCount: 4 })} />);
+    expect(screen.getByText("Carrossel · 4 fotos")).toBeInTheDocument();
+  });
+
+  it("post de imagem única não mostra o indicativo de carrossel", () => {
+    render(<CalendarPostCard post={post({ postType: "image" })} />);
+    expect(screen.queryByText(/carrossel/i)).not.toBeInTheDocument();
   });
 
   it("um post PUBLISHED não mostra nem publicar nem cancelar", () => {

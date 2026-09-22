@@ -36,7 +36,23 @@ function yieldToBrowser(): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, 0));
 }
 
-async function renderSlideToBlob(slide: CarouselSlide, format: PostFormat): Promise<Blob> {
+/**
+ * Desenha UM slide, fora da tela, e devolve o blob resultante — motor
+ * compartilhado pela exportação em ZIP (`exportCarouselAsZip`, sempre
+ * PNG) e pelo painel de publicação real do carrossel
+ * (CarouselPublishPanel.tsx, sempre JPEG — a Content Publishing API da
+ * Meta só aceita esse formato, ver ALLOWED_MEDIA_CONTENT_TYPES em
+ * media-service.ts). `mimeType`/`quality` são opcionais e default para o
+ * comportamento original (PNG) — exportado (em vez de privado ao módulo)
+ * exatamente para essa reutilização, sem duplicar nenhuma lógica de
+ * desenho.
+ */
+export async function renderSlideToBlob(
+  slide: CarouselSlide,
+  format: PostFormat,
+  mimeType: string = "image/png",
+  quality?: number
+): Promise<Blob> {
   const canvas = document.createElement("canvas");
   canvas.width = format.width;
   canvas.height = format.height;
@@ -52,7 +68,7 @@ async function renderSlideToBlob(slide: CarouselSlide, format: PostFormat): Prom
   }
 
   drawPost(ctx, format, slide.state, image);
-  return canvasToBlob(canvas, "image/png");
+  return canvasToBlob(canvas, mimeType, quality);
 }
 
 export interface CarouselExportResult {

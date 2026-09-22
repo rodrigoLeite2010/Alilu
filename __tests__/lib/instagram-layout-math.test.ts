@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildCarouselSlideFileName,
   buildPostFileName,
   clamp,
   clampDragOffset,
@@ -104,5 +105,13 @@ describe("buildPostFileName", () => {
   it("gera o nome de arquivo sugerido pela ETAPA 6", () => {
     expect(buildPostFileName("png")).toBe("alilu-instagram-post.png");
     expect(buildPostFileName("jpg")).toBe("alilu-instagram-post.jpg");
+  });
+});
+
+describe("buildCarouselSlideFileName", () => {
+  it("gera um nome numerado (01, 02...) por slide, na extensão informada", () => {
+    expect(buildCarouselSlideFileName(0, "jpg")).toBe("alilu-instagram-carrossel-slide-01.jpg");
+    expect(buildCarouselSlideFileName(1, "jpg")).toBe("alilu-instagram-carrossel-slide-02.jpg");
+    expect(buildCarouselSlideFileName(9, "png")).toBe("alilu-instagram-carrossel-slide-10.png");
   });
 });

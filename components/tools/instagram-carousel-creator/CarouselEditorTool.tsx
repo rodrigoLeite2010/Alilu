@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type ComponentType } from "react";
 import Link from "next/link";
 import { ChevronDown, RotateCcw, Redo2, Undo2 } from "lucide-react";
 import { Button, LinkButton } from "@/components/ui/Button";
@@ -41,6 +41,7 @@ import {
   updateSelectedSlideState,
   type CarouselEditorState,
   type CarouselFormatId,
+  type CarouselSlide,
 } from "@/lib/instagram/carousel/carousel-state";
 import { buildSlidesFromPreset, getCarouselPresetById } from "@/lib/instagram/carousel/carousel-presets";
 import { useEditorHistory } from "@/components/tools/instagram-post-creator/useEditorHistory";
@@ -60,7 +61,25 @@ import { CarouselExportPanel } from "./CarouselExportPanel";
  * só que aplicadas apenas ao slide selecionado
  * (`updateSelectedSlideState`). Tudo roda 100% no navegador.
  */
-export function CarouselEditorTool() {
+export interface CarouselPublishPanelSlotProps {
+  slides: CarouselSlide[];
+  formatId: CarouselFormatId;
+}
+
+export interface CarouselEditorToolProps {
+  /**
+   * Slot opcional de publicação real — só preenchido pela área autenticada
+   * do calendário editorial (ver AuthenticatedCarouselComposer.tsx e
+   * app/instagram/painel/calendario/novo-carrossel/page.tsx). Componente
+   * (não uma função invocada inline) para evitar o aviso do eslint
+   * react-hooks/refs e ficar consistente com o mesmo padrão já usado em
+   * PostEditorTool.tsx. Ausente por padrão: a ferramenta pública
+   * (/instagram/carrossel) nunca recebe nem renderiza nada aqui.
+   */
+  publishPanel?: ComponentType<CarouselPublishPanelSlotProps>;
+}
+
+export function CarouselEditorTool({ publishPanel: PublishPanelSlot }: CarouselEditorToolProps = {}) {
   const {
     state,
     commit,
@@ -291,6 +310,8 @@ export function CarouselEditorTool() {
         </div>
 
         <CarouselExportPanel slides={state.slides} formatId={state.formatId} />
+
+        {PublishPanelSlot ? <PublishPanelSlot slides={state.slides} formatId={state.formatId} /> : null}
 
         <LinkButton href={captionHref} variant="secondary" className="w-full justify-center">
           Criar uma legenda para este carrossel
