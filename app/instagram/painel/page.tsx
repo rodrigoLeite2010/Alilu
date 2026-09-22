@@ -64,7 +64,7 @@ export default async function InstagramPainelPage({ searchParams }: PainelPagePr
             </p>
             <p className="mt-1 text-xs text-zinc-500">Status: {account.status}</p>
           </div>
-          <InstagramPublishTestForm />
+          <InstagramPublishTestForm userId={session.user.id} />
         </>
       ) : (
         <a

@@ -2,6 +2,7 @@
 
 import { useId, useState, type FormEvent } from "react";
 import { uploadPresigned } from "@vercel/blob/client";
+import { buildMediaPathnamePrefix, sanitizeOriginalFilename } from "@/lib/instagram/backend/media-service";
 
 type Stage = "idle" | "uploading" | "criando-post" | "publicando" | "sucesso" | "erro";
 
@@ -23,6 +24,19 @@ async function readErrorMessage(response: Response, fallback: string): Promise<s
   }
 }
 
+interface InstagramPublishTestFormProps {
+  /**
+   * Id do usuário autenticado (`session.user.id`), lido no Server Component
+   * pai (`app/instagram/painel/page.tsx`) e passado como prop — nunca
+   * obtido no cliente. É usado só para montar o `pathname` do upload
+   * (`instagram-media/{userId}/{arquivo}`); quem de fato autoriza o upload
+   * é a rota do servidor, comparando contra a própria sessão (nunca contra
+   * este valor vindo do cliente) — ver `isPathnameAllowedForUser` em
+   * `lib/instagram/backend/media-service.ts`.
+   */
+  userId: string;
+}
+
 /**
  * Formulário PROVISÓRIO para testar a publicação real de imagem única de
  * ponta a ponta (etapa do InstagramService, e106491) — sobe a imagem pro
@@ -36,7 +50,7 @@ async function readErrorMessage(response: Response, fallback: string): Promise<s
  * exige o usuário escolher um arquivo, escrever (ou não) uma legenda e
  * clicar em "Publicar agora" conscientemente.
  */
-export function InstagramPublishTestForm() {
+export function InstagramPublishTestForm({ userId }: InstagramPublishTestFormProps) {
   const fileInputId = useId();
   const captionInputId = useId();
 
@@ -55,7 +69,12 @@ export function InstagramPublishTestForm() {
 
     try {
       setStage("uploading");
-      const blob = await uploadPresigned(file.name, file, {
+      // O pathname precisa vir prefixado com a pasta do usuário logado —
+      // `isPathnameAllowedForUser`, do lado do servidor, rejeita qualquer
+      // outro valor (nunca confia no pathname vindo do cliente sem validar
+      // contra a sessão real).
+      const pathname = `${buildMediaPathnamePrefix(userId)}${sanitizeOriginalFilename(file.name) ?? "arquivo"}`;
+      const blob = await uploadPresigned(pathname, file, {
         access: "public", // precisa ser pública — a Meta busca a imagem pela URL (image_url), não recebe o arquivo
         handleUploadUrl: "/api/instagram/media/upload",
         clientPayload: JSON.stringify({ originalFilename: file.name, fileSizeBytes: file.size }),

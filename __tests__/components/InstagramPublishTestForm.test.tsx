@@ -31,17 +31,17 @@ describe("InstagramPublishTestForm", () => {
   });
 
   it("mostra o aviso de que a publicação é real", () => {
-    render(<InstagramPublishTestForm />);
+    render(<InstagramPublishTestForm userId="user-1" />);
     expect(screen.getByText(/publica de verdade/i)).toBeInTheDocument();
   });
 
   it("o botão fica desabilitado até um arquivo ser escolhido", () => {
-    render(<InstagramPublishTestForm />);
+    render(<InstagramPublishTestForm userId="user-1" />);
     expect(screen.getByRole("button", { name: "Publicar agora" })).toBeDisabled();
   });
 
   it("faz upload, cria o post e publica com sucesso (status PUBLISHED)", async () => {
-    render(<InstagramPublishTestForm />);
+    render(<InstagramPublishTestForm userId="user-1" />);
 
     const file = new File(["conteudo"], "foto.jpg", { type: "image/jpeg" });
     selectFile(screen.getByLabelText("Imagem"), file);
@@ -57,7 +57,7 @@ describe("InstagramPublishTestForm", () => {
     await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent("Publicado com sucesso"));
 
     expect(uploadPresignedMock).toHaveBeenCalledWith(
-      "foto.jpg",
+      "instagram-media/user-1/foto.jpg",
       file,
       expect.objectContaining({ access: "public", handleUploadUrl: "/api/instagram/media/upload" }),
     );
@@ -73,7 +73,7 @@ describe("InstagramPublishTestForm", () => {
   });
 
   it("mostra uma mensagem de 'ainda processando' quando o status vem PROCESSING (não é um erro)", async () => {
-    render(<InstagramPublishTestForm />);
+    render(<InstagramPublishTestForm userId="user-1" />);
 
     const file = new File(["conteudo"], "foto.jpg", { type: "image/jpeg" });
     selectFile(screen.getByLabelText("Imagem"), file);
@@ -89,7 +89,7 @@ describe("InstagramPublishTestForm", () => {
   });
 
   it("mostra a mensagem de erro devolvida pela API de criação do post", async () => {
-    render(<InstagramPublishTestForm />);
+    render(<InstagramPublishTestForm userId="user-1" />);
 
     const file = new File(["conteudo"], "foto.jpg", { type: "image/jpeg" });
     selectFile(screen.getByLabelText("Imagem"), file);
@@ -104,7 +104,7 @@ describe("InstagramPublishTestForm", () => {
   });
 
   it("mostra a mensagem de erro quando o upload em si falha", async () => {
-    render(<InstagramPublishTestForm />);
+    render(<InstagramPublishTestForm userId="user-1" />);
 
     const file = new File(["conteudo"], "foto.jpg", { type: "image/jpeg" });
     selectFile(screen.getByLabelText("Imagem"), file);
