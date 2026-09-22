@@ -1,9 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, type ComponentType, type RefObject } from "react";
 import { ChevronDown, RotateCcw, Redo2, Undo2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
-import { getFormatById, type PostFormatId } from "@/lib/instagram/formats";
+import { getFormatById, type PostFormat, type PostFormatId } from "@/lib/instagram/formats";
 import { type PostTemplateId, type TextSlotId } from "@/lib/instagram/templates";
 import {
   applyColorComboToState,
@@ -30,13 +30,35 @@ import { TextControls } from "./TextControls";
 import { BackgroundControls } from "./BackgroundControls";
 import { ExportPanel } from "./ExportPanel";
 
+export interface PublishPanelSlotProps {
+  canvasRef: RefObject<HTMLCanvasElement | null>;
+  format: PostFormat;
+}
+
+export interface PostEditorToolProps {
+  /**
+   * Componente opcional renderizado logo após o painel de exportação
+   * local (PNG/JPG), recebendo `canvasRef`/`format` como props — mesmo
+   * padrão já usado por `ExportPanel` (nunca uma função chamada
+   * diretamente durante a renderização: o hook lint `react-hooks/refs`
+   * não permite ler um ref passado como argumento de função no corpo do
+   * render, só como prop de componente). Usado pelo calendário editorial
+   * (área autenticada, ver AuthenticatedPostComposer) para acrescentar um
+   * "Agendar/Publicar no Instagram" sem tocar na ferramenta pública e sem
+   * login (/instagram/criar-post) — que continua exatamente como era,
+   * sem essa prop, e sem nenhuma ação que exija conta conectada.
+   */
+  publishPanel?: ComponentType<PublishPanelSlotProps>;
+}
+
 /**
  * Componente principal do Criador de Posts para Instagram (ETAPA 2). Todo o
  * processamento — desenho, textos, imagens e exportação — acontece 100% no
  * navegador do usuário: nada é enviado a um servidor, e não é preciso
- * criar conta nem fazer login.
+ * criar conta nem fazer login. `publishPanel` é a única exceção (ver
+ * PostEditorToolProps) — opcional, usado só pela área autenticada.
  */
-export function PostEditorTool() {
+export function PostEditorTool({ publishPanel: PublishPanelSlot }: PostEditorToolProps = {}) {
   const {
     state,
     commit,
@@ -179,6 +201,8 @@ export function PostEditorTool() {
         </div>
 
         <ExportPanel canvasRef={canvasRef} format={format} />
+
+        {PublishPanelSlot ? <PublishPanelSlot canvasRef={canvasRef} format={format} /> : null}
 
         <Button type="button" variant="ghost" onClick={handleReset} className="w-full justify-center">
           <RotateCcw className="h-4 w-4" aria-hidden />

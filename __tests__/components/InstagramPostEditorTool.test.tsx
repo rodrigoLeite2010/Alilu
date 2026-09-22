@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
+import type { RefObject } from "react";
 import { PostEditorTool } from "@/components/tools/instagram-post-creator/PostEditorTool";
+import type { PostFormat } from "@/lib/instagram/formats";
 
 describe("PostEditorTool", () => {
   it("renderiza a prévia e os textos padrão do template inicial (Promoção)", () => {
@@ -111,5 +113,30 @@ describe("PostEditorTool", () => {
     expect(screen.getByLabelText("Título promocional")).toHaveValue("Mega Promoção");
 
     confirmSpy.mockRestore();
+  });
+
+  it("sem publishPanel (uso público, sem login) não renderiza nenhum conteúdo extra de publicação", () => {
+    render(<PostEditorTool />);
+    expect(screen.queryByTestId("publish-panel-slot")).not.toBeInTheDocument();
+  });
+
+  it("com publishPanel, renderiza o componente recebendo o canvasRef e o formato atuais", () => {
+    function TestPublishPanel({
+      canvasRef,
+      format,
+    }: {
+      canvasRef: RefObject<HTMLCanvasElement | null>;
+      format: PostFormat;
+    }) {
+      return (
+        <div data-testid="publish-panel-slot">
+          {format.id} — canvas presente: {String(canvasRef.current !== null)}
+        </div>
+      );
+    }
+
+    render(<PostEditorTool publishPanel={TestPublishPanel} />);
+
+    expect(screen.getByTestId("publish-panel-slot")).toHaveTextContent("quadrado");
   });
 });

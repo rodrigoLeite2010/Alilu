@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { auth } from "@/auth";
 import { getInstagramAccountForUser } from "@/lib/instagram/backend/instagram-account-repository";
-import { InstagramPublishTestForm } from "@/components/instagram/PublishTestForm";
+import { LinkButton } from "@/components/ui/Button";
 
 export const metadata: Metadata = {
   robots: { index: false, follow: false },
@@ -12,10 +12,12 @@ interface PainelPageProps {
 }
 
 /**
- * Painel mínimo do módulo Instagram (Fase 3, ETAPA OAuth connect). Ainda
- * NÃO é o calendário editorial (etapa futura) — existe só para o fluxo de
- * conexão da conta ter para onde voltar e ser testável de ponta a ponta:
- * mostra se há uma conta conectada, ou o link para conectar uma.
+ * Painel do módulo Instagram (Fase 3): mostra se há uma conta conectada,
+ * ou o link para conectar uma, e — quando já há conta — o acesso ao
+ * calendário editorial (app/instagram/painel/calendario), que é a forma
+ * de fato de criar, agendar e publicar posts. O formulário de teste
+ * provisório (PublishTestForm) foi aposentado nesta etapa — o calendário
+ * o substitui por completo.
  */
 export default async function InstagramPainelPage({ searchParams }: PainelPageProps) {
   const session = await auth();
@@ -38,8 +40,7 @@ export default async function InstagramPainelPage({ searchParams }: PainelPagePr
       <div>
         <h1 className="text-xl font-semibold text-zinc-900">Instagram</h1>
         <p className="mt-1 text-sm text-zinc-600">
-          Conecte sua conta profissional do Instagram para publicar pelo ALILU. Esta tela é um
-          painel provisório — o calendário editorial completo vem numa próxima etapa.
+          Conecte sua conta profissional do Instagram para publicar pelo ALILU.
         </p>
       </div>
 
@@ -64,7 +65,9 @@ export default async function InstagramPainelPage({ searchParams }: PainelPagePr
             </p>
             <p className="mt-1 text-xs text-zinc-500">Status: {account.status}</p>
           </div>
-          <InstagramPublishTestForm userId={session.user.id} />
+          <LinkButton href="/instagram/painel/calendario" className="w-full justify-center">
+            Ver calendário de posts
+          </LinkButton>
         </>
       ) : (
         <a

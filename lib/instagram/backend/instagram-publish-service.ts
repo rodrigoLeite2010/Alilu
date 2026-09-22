@@ -88,7 +88,10 @@ export async function publishImagePost(postId: string, userId: string): Promise<
   if (post.status === "PUBLISHED") {
     return "PUBLISHED"; // idempotente — não tenta publicar de novo
   }
-  if (post.status !== "DRAFT" && post.status !== "PROCESSING") {
+  // SCHEDULED é publicável manualmente antes da hora — o calendário
+  // editorial permite "Publicar agora" em qualquer post agendado, sem
+  // esperar o scheduler (etapa futura, ainda sem disparo automático).
+  if (post.status !== "DRAFT" && post.status !== "SCHEDULED" && post.status !== "PROCESSING") {
     throw new InstagramPublishError(`Post no status '${post.status}' não pode ser publicado agora.`);
   }
   if (post.mediaType !== "image") {

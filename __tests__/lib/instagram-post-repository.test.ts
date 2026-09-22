@@ -16,6 +16,9 @@ const {
   markPostPublished,
   markPostFailed,
   recordPublishAttempt,
+  listPostsForUser,
+  cancelPost,
+  reschedulePost,
 } = await import("@/lib/instagram/backend/instagram-post-repository");
 
 afterEach(() => {
@@ -35,6 +38,24 @@ describe("createDraftImagePost", () => {
 
     expect(id).toBe("post-1");
     expect(dbMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("nasce SCHEDULED quando scheduledAtUtc é informado (em vez de DRAFT)", async () => {
+    dbMock.mockResolvedValueOnce([{ id: "post-1" }]).mockResolvedValueOnce([]);
+
+    await createDraftImagePost({
+      userId: "user-1",
+      instagramAccountId: "acc-1",
+      mediaId: "media-1",
+      caption: "Legenda",
+      scheduledAtUtc: new Date("2026-12-01T10:00:00.000Z"),
+    });
+
+    const [insertCall] = dbMock.mock.calls[0];
+    expect(insertCall.join("")).toContain("insert into instagram_posts");
+    // Os valores interpolados vêm como argumentos posicionais após o array de strings do template.
+    const insertArgs = dbMock.mock.calls[0].slice(1);
+    expect(insertArgs).toContain("SCHEDULED");
   });
 });
 
@@ -106,5 +127,79 @@ describe("recordPublishAttempt", () => {
     });
 
     expect(dbMock).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("listPostsForUser", () => {
+  it("mapeia as linhas (snake_case) para o formato camelCase esperado pela tela", async () => {
+    dbMock.mockResolvedValueOnce([
+      {
+        id: "post-1",
+        status: "SCHEDULED",
+        caption: "Legenda",
+        scheduled_at_utc: "2026-12-01T10:00:00.000Z",
+        published_at: null,
+        created_at: "2026-09-20T10:00:00.000Z",
+        last_error_sanitized: null,
+        ig_username: "alilu.tec",
+        media_storage_url: "https://blob.example.com/img.jpg",
+      },
+    ]);
+
+    const result = await listPostsForUser("user-1");
+
+    expect(result).toEqual([
+      {
+        id: "post-1",
+        status: "SCHEDULED",
+        caption: "Legenda",
+        scheduledAtUtc: "2026-12-01T10:00:00.000Z",
+        publishedAt: null,
+        createdAt: "2026-09-20T10:00:00.000Z",
+        lastErrorSanitized: null,
+        igUsername: "alilu.tec",
+        mediaStorageUrl: "https://blob.example.com/img.jpg",
+      },
+    ]);
+  });
+
+  it("retorna lista vazia quando o usuário não tem posts", async () => {
+    dbMock.mockResolvedValueOnce([]);
+    const result = await listPostsForUser("user-1");
+    expect(result).toEqual([]);
+  });
+});
+
+describe("cancelPost", () => {
+  it("retorna true quando o post é cancelado (status cancelável)", async () => {
+    dbMock.mockResolvedValueOnce([{ id: "post-1" }]);
+    const result = await cancelPost("post-1", "user-1");
+    expect(result).toBe(true);
+  });
+
+  it("retorna false quando nenhuma linha é afetada (post inexistente, de outro usuário, ou status não cancelável)", async () => {
+    dbMock.mockResolvedValueOnce([]);
+    const result = await cancelPost("post-1", "user-1");
+    expect(result).toBe(false);
+  });
+});
+
+describe("reschedulePost", () => {
+  it("retorna true e agenda quando uma data é informada", async () => {
+    dbMock.mockResolvedValueOnce([{ id: "post-1" }]);
+    const result = await reschedulePost("post-1", "user-1", new Date("2026-12-01T10:00:00.000Z"));
+    expect(result).toBe(true);
+  });
+
+  it("retorna true e remove o agendamento quando null é informado", async () => {
+    dbMock.mockResolvedValueOnce([{ id: "post-1" }]);
+    const result = await reschedulePost("post-1", "user-1", null);
+    expect(result).toBe(true);
+  });
+
+  it("retorna false quando nenhuma linha é afetada", async () => {
+    dbMock.mockResolvedValueOnce([]);
+    const result = await reschedulePost("post-1", "user-1", null);
+    expect(result).toBe(false);
   });
 });

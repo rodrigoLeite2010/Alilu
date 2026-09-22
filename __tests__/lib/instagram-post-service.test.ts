@@ -17,13 +17,24 @@ vi.mock("@/lib/instagram/backend/media-repository", () => ({
 }));
 
 const createDraftImagePostMock = vi.fn();
+const listPostsForUserInDbMock = vi.fn();
+const cancelPostInDbMock = vi.fn();
+const reschedulePostInDbMock = vi.fn();
 vi.mock("@/lib/instagram/backend/instagram-post-repository", () => ({
   createDraftImagePost: (...args: unknown[]) => createDraftImagePostMock(...args),
+  listPostsForUser: (...args: unknown[]) => listPostsForUserInDbMock(...args),
+  cancelPost: (...args: unknown[]) => cancelPostInDbMock(...args),
+  reschedulePost: (...args: unknown[]) => reschedulePostInDbMock(...args),
 }));
 
-const { InstagramPostValidationError, createImagePost, createImagePostFromUpload } = await import(
-  "@/lib/instagram/backend/instagram-post-service"
-);
+const {
+  InstagramPostValidationError,
+  createImagePost,
+  createImagePostFromUpload,
+  listPostsForUser,
+  cancelPost,
+  reschedulePost,
+} = await import("@/lib/instagram/backend/instagram-post-service");
 
 afterEach(() => {
   vi.clearAllMocks();
@@ -76,6 +87,7 @@ describe("createImagePost", () => {
       instagramAccountId: "acc-1",
       mediaId: "media-1",
       caption: "Legenda",
+      scheduledAtUtc: null,
     });
   });
 });
@@ -122,4 +134,91 @@ describe("createImagePostFromUpload", () => {
     ).rejects.toThrow(InstagramPostValidationError);
     expect(createDraftImagePostMock).not.toHaveBeenCalled();
   }, 10000);
+});
+
+describe("createImagePost — validação de agendamento", () => {
+  it("lança InstagramPostValidationError para uma data de agendamento inválida", async () => {
+    await expect(
+      createImagePost({ userId: "user-1", mediaId: "media-1", caption: "Legenda", scheduledAt: "não-é-uma-data" }),
+    ).rejects.toThrow(InstagramPostValidationError);
+    expect(createDraftImagePostMock).not.toHaveBeenCalled();
+  });
+
+  it("lança InstagramPostValidationError para uma data de agendamento no passado", async () => {
+    await expect(
+      createImagePost({
+        userId: "user-1",
+        mediaId: "media-1",
+        caption: "Legenda",
+        scheduledAt: "2020-01-01T00:00:00.000Z",
+      }),
+    ).rejects.toThrow(InstagramPostValidationError);
+    expect(createDraftImagePostMock).not.toHaveBeenCalled();
+  });
+
+  it("cria o post com scheduledAtUtc quando a data é válida e futura", async () => {
+    getInstagramAccountForUserMock.mockResolvedValue(account);
+    getInstagramMediaByIdMock.mockResolvedValue(imageMedia);
+    createDraftImagePostMock.mockResolvedValue("post-1");
+
+    const futureIso = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+    const id = await createImagePost({
+      userId: "user-1",
+      mediaId: "media-1",
+      caption: "Legenda",
+      scheduledAt: futureIso,
+    });
+
+    expect(id).toBe("post-1");
+    expect(createDraftImagePostMock).toHaveBeenCalledWith(
+      expect.objectContaining({ scheduledAtUtc: new Date(futureIso) }),
+    );
+  });
+});
+
+describe("listPostsForUser", () => {
+  it("repassa para o repositório", async () => {
+    listPostsForUserInDbMock.mockResolvedValue([{ id: "post-1" }]);
+    const result = await listPostsForUser("user-1");
+    expect(result).toEqual([{ id: "post-1" }]);
+    expect(listPostsForUserInDbMock).toHaveBeenCalledWith("user-1");
+  });
+});
+
+describe("cancelPost", () => {
+  it("não lança quando o repositório cancela com sucesso", async () => {
+    cancelPostInDbMock.mockResolvedValue(true);
+    await expect(cancelPost("post-1", "user-1")).resolves.toBeUndefined();
+  });
+
+  it("lança InstagramPostValidationError quando o repositório não cancela nada", async () => {
+    cancelPostInDbMock.mockResolvedValue(false);
+    await expect(cancelPost("post-1", "user-1")).rejects.toThrow(InstagramPostValidationError);
+  });
+});
+
+describe("reschedulePost", () => {
+  it("lança InstagramPostValidationError para uma nova data inválida", async () => {
+    await expect(reschedulePost("post-1", "user-1", "não-é-uma-data")).rejects.toThrow(
+      InstagramPostValidationError,
+    );
+    expect(reschedulePostInDbMock).not.toHaveBeenCalled();
+  });
+
+  it("não lança quando o repositório reagenda com sucesso", async () => {
+    reschedulePostInDbMock.mockResolvedValue(true);
+    const futureIso = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+    await expect(reschedulePost("post-1", "user-1", futureIso)).resolves.toBeUndefined();
+  });
+
+  it("permite remover o agendamento (scheduledAt nulo) sem validar data", async () => {
+    reschedulePostInDbMock.mockResolvedValue(true);
+    await expect(reschedulePost("post-1", "user-1", null)).resolves.toBeUndefined();
+    expect(reschedulePostInDbMock).toHaveBeenCalledWith("post-1", "user-1", null);
+  });
+
+  it("lança InstagramPostValidationError quando o repositório não reagenda nada", async () => {
+    reschedulePostInDbMock.mockResolvedValue(false);
+    await expect(reschedulePost("post-1", "user-1", null)).rejects.toThrow(InstagramPostValidationError);
+  });
 });

@@ -87,6 +87,19 @@ describe("publishImagePost", () => {
     await expect(publishImagePost("post-1", "user-1")).rejects.toThrow(InstagramPublishError);
   });
 
+  it("permite publicar um post SCHEDULED manualmente, antes da hora agendada (calendário editorial)", async () => {
+    getPostForPublishMock.mockResolvedValue(basePost({ status: "SCHEDULED" }));
+    decryptSecretMock.mockReturnValue("token-1");
+    createImageMediaContainerMock.mockResolvedValue("container-1");
+    getMediaContainerStatusMock.mockResolvedValue("FINISHED");
+    publishMediaContainerMock.mockResolvedValue("media-1");
+
+    const result = await publishImagePost("post-1", "user-1");
+
+    expect(result).toBe("PUBLISHED");
+    expect(createImageMediaContainerMock).toHaveBeenCalled();
+  });
+
   it("lança se o tipo do post não é imagem (carrossel/reels são etapas futuras)", async () => {
     getPostForPublishMock.mockResolvedValue(basePost({ postType: "carousel" }));
     await expect(publishImagePost("post-1", "user-1")).rejects.toThrow(InstagramPublishError);
