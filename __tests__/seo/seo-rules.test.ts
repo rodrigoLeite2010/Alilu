@@ -121,9 +121,13 @@ describe("D) metadata de ferramenta ativo permite indexação", () => {
 });
 
 describe("E) robots.txt continua correto", () => {
-  it("permite todos os agentes e aponta para o sitemap correto", () => {
+  it("permite todos os agentes, aponta para o sitemap correto e nunca indexa login/API/painel", () => {
     const result = robots();
-    expect(result.rules).toEqual({ userAgent: "*", allow: "/" });
+    expect(result.rules).toEqual({
+      userAgent: "*",
+      allow: "/",
+      disallow: ["/entrar", "/api/", "/instagram/painel"],
+    });
     expect(result.sitemap).toBe(`${SITE_URL}/sitemap.xml`);
   });
 });
