@@ -12,21 +12,32 @@
  * Uso: `npm run db:migrate` (precisa de DATABASE_URL configurada — ver
  * .env.example e o guia de configuração).
  *
+ * Este script roda fora do Next.js (via `tsx`, não via `next dev`/`next
+ * build`), então nada carrega `.env.local` automaticamente por conta
+ * própria — usamos `@next/env` (o mesmo carregador que o Next.js usa por
+ * baixo dos panos) para ler `.env.local`/`.env` com a mesma precedência,
+ * em vez de reimplementar isso à mão ou depender de mais uma dependência
+ * (dotenv) só para isso.
+ *
  * Não é chamado automaticamente pelo build nem por nenhuma rota da
  * aplicação: migração de banco é uma ação deliberada, rodada manualmente
  * pelo administrador do projeto.
  */
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
+import { loadEnvConfig } from "@next/env";
 import { Client } from "@neondatabase/serverless";
 
-const MIGRATIONS_DIR = join(process.cwd(), "db", "migrations");
+const PROJECT_DIR = process.cwd();
+const MIGRATIONS_DIR = join(PROJECT_DIR, "db", "migrations");
 
 async function main() {
+  loadEnvConfig(PROJECT_DIR);
+
   const connectionString = process.env.DATABASE_URL;
   if (!connectionString) {
     console.error(
-      "DATABASE_URL não está definida. Configure-a (veja .env.example) antes de rodar as migrações.",
+      "DATABASE_URL não está definida. Configure-a num .env.local (veja .env.example) antes de rodar as migrações.",
     );
     process.exitCode = 1;
     return;
