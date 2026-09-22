@@ -250,3 +250,140 @@ export async function fetchInstagramProfile(accessToken: string): Promise<Instag
     username: typeof entry.username === "string" ? entry.username : null,
   };
 }
+
+export type MediaContainerStatus = "EXPIRED" | "ERROR" | "FINISHED" | "IN_PROGRESS" | "PUBLISHED";
+
+const MEDIA_CONTAINER_STATUSES: readonly MediaContainerStatus[] = [
+  "EXPIRED",
+  "ERROR",
+  "FINISHED",
+  "IN_PROGRESS",
+  "PUBLISHED",
+];
+
+export interface CreateImageMediaContainerInput {
+  igUserId: string;
+  accessToken: string;
+  imageUrl: string;
+  caption: string;
+}
+
+/**
+ * Cria o container de mídia para um post de imagem única — primeiro passo
+ * da Content Publishing API do "Instagram API with Instagram Login".
+ * Endpoint, host (graph.instagram.com, igual ao já usado em
+ * fetchInstagramProfile) e parâmetros confirmados na documentação oficial
+ * (developers.facebook.com/docs/instagram-platform/content-publishing,
+ * consultada em 22/09/2026) antes de implementar: `image_url` precisa ser
+ * uma URL pública — por isso o módulo de mídia sempre grava no Vercel Blob
+ * antes de chegar aqui, nunca envia base64 direto. Retorna só o id do
+ * container: ele ainda PRECISA ser consultado (status_code) até
+ * `FINISHED` antes de publicar — ver getMediaContainerStatus.
+ */
+export async function createImageMediaContainer(
+  input: CreateImageMediaContainerInput,
+): Promise<string> {
+  const url = new URL(`https://graph.instagram.com/${GRAPH_API_VERSION}/${input.igUserId}/media`);
+  const body = new URLSearchParams();
+  body.set("image_url", input.imageUrl);
+  if (input.caption) body.set("caption", input.caption);
+  body.set("access_token", input.accessToken);
+
+  const response = await fetch(url.toString(), { method: "POST", body });
+  const text = await response.text();
+  const payload = safeParseJson(text);
+
+  if (!response.ok) {
+    throw new InstagramGraphApiError(
+      "Falha ao criar o container de mídia para publicação.",
+      payload ?? text,
+    );
+  }
+  if (!isRecord(payload) || typeof payload.id !== "string") {
+    throw new InstagramGraphApiError(
+      "Resposta inesperada da Meta ao criar o container de mídia.",
+      payload,
+    );
+  }
+  return payload.id;
+}
+
+export interface GetMediaContainerStatusInput {
+  containerId: string;
+  accessToken: string;
+}
+
+/**
+ * Consulta o status de processamento de um container de mídia
+ * (`status_code`: EXPIRED | ERROR | FINISHED | IN_PROGRESS | PUBLISHED,
+ * confirmados na mesma documentação). A Meta recomenda consultar no máximo
+ * uma vez por minuto, por até 5 minutos — este cliente faz só UMA consulta
+ * por chamada; toda a orquestração do polling (intervalo, quantas
+ * tentativas, o que fazer se não terminar a tempo dentro de uma Vercel
+ * Function) fica em instagram-publish-service.ts, nunca aqui.
+ */
+export async function getMediaContainerStatus(
+  input: GetMediaContainerStatusInput,
+): Promise<MediaContainerStatus> {
+  const url = new URL(`https://graph.instagram.com/${GRAPH_API_VERSION}/${input.containerId}`);
+  url.searchParams.set("fields", "status_code");
+  url.searchParams.set("access_token", input.accessToken);
+
+  const response = await fetch(url.toString());
+  const text = await response.text();
+  const payload = safeParseJson(text);
+
+  if (!response.ok) {
+    throw new InstagramGraphApiError(
+      "Falha ao consultar o status do container de mídia.",
+      payload ?? text,
+    );
+  }
+  const status = isRecord(payload) ? payload.status_code : null;
+  if (typeof status !== "string" || !MEDIA_CONTAINER_STATUSES.includes(status as MediaContainerStatus)) {
+    throw new InstagramGraphApiError(
+      "Resposta inesperada da Meta ao consultar o status do container de mídia.",
+      payload,
+    );
+  }
+  return status as MediaContainerStatus;
+}
+
+export interface PublishMediaContainerInput {
+  igUserId: string;
+  accessToken: string;
+  containerId: string;
+}
+
+/**
+ * Publica de fato um container de mídia — último passo, só deve ser
+ * chamado depois que getMediaContainerStatus confirmar `FINISHED`
+ * (publicar um container ainda IN_PROGRESS falha na Meta; a garantia disso
+ * é responsabilidade de quem chama, não deste cliente cru).
+ */
+export async function publishMediaContainer(
+  input: PublishMediaContainerInput,
+): Promise<string> {
+  const url = new URL(`https://graph.instagram.com/${GRAPH_API_VERSION}/${input.igUserId}/media_publish`);
+  const body = new URLSearchParams();
+  body.set("creation_id", input.containerId);
+  body.set("access_token", input.accessToken);
+
+  const response = await fetch(url.toString(), { method: "POST", body });
+  const text = await response.text();
+  const payload = safeParseJson(text);
+
+  if (!response.ok) {
+    throw new InstagramGraphApiError(
+      "Falha ao publicar o container de mídia.",
+      payload ?? text,
+    );
+  }
+  if (!isRecord(payload) || typeof payload.id !== "string") {
+    throw new InstagramGraphApiError(
+      "Resposta inesperada da Meta ao publicar o container de mídia.",
+      payload,
+    );
+  }
+  return payload.id;
+}

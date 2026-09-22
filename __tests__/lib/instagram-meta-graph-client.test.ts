@@ -8,13 +8,17 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   AUTHORIZE_URL,
   CODE_EXCHANGE_URL,
+  GRAPH_API_VERSION,
   InstagramGraphApiError,
   LONG_LIVED_EXCHANGE_URL,
   REFRESH_URL,
   buildInstagramAuthorizeUrl,
+  createImageMediaContainer,
   exchangeCodeForShortLivedToken,
   exchangeForLongLivedToken,
   fetchInstagramProfile,
+  getMediaContainerStatus,
+  publishMediaContainer,
   refreshLongLivedToken,
 } from "@/lib/instagram/backend/meta-graph-client";
 
@@ -231,5 +235,169 @@ describe("fetchInstagramProfile", () => {
     fetchMock.mockResolvedValue(jsonResponse(200, { foo: "bar" }));
 
     await expect(fetchInstagramProfile("token-x")).rejects.toThrow(InstagramGraphApiError);
+  });
+});
+
+describe("createImageMediaContainer", () => {
+  const originalFetch = global.fetch;
+  const fetchMock = vi.fn();
+
+  beforeEach(() => {
+    global.fetch = fetchMock as unknown as typeof fetch;
+    fetchMock.mockReset();
+  });
+
+  afterEach(() => {
+    global.fetch = originalFetch;
+  });
+
+  it("faz POST para <ig-user-id>/media com image_url, caption e access_token, retornando o id do container", async () => {
+    fetchMock.mockResolvedValue(jsonResponse(200, { id: "container-123" }));
+
+    const id = await createImageMediaContainer({
+      igUserId: "ig-1",
+      accessToken: "token-1",
+      imageUrl: "https://blob.example.com/foto.jpg",
+      caption: "Minha legenda",
+    });
+
+    expect(id).toBe("container-123");
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe(`https://graph.instagram.com/${GRAPH_API_VERSION}/ig-1/media`);
+    expect(init.method).toBe("POST");
+    const body = init.body as URLSearchParams;
+    expect(body.get("image_url")).toBe("https://blob.example.com/foto.jpg");
+    expect(body.get("caption")).toBe("Minha legenda");
+    expect(body.get("access_token")).toBe("token-1");
+  });
+
+  it("omite caption quando vazia", async () => {
+    fetchMock.mockResolvedValue(jsonResponse(200, { id: "container-123" }));
+
+    await createImageMediaContainer({
+      igUserId: "ig-1",
+      accessToken: "token-1",
+      imageUrl: "https://blob.example.com/foto.jpg",
+      caption: "",
+    });
+
+    const body = fetchMock.mock.calls[0][1].body as URLSearchParams;
+    expect(body.has("caption")).toBe(false);
+  });
+
+  it("lança InstagramGraphApiError numa resposta de erro HTTP", async () => {
+    fetchMock.mockResolvedValue(jsonResponse(400, { error: { message: "Invalid image_url" } }));
+
+    await expect(
+      createImageMediaContainer({ igUserId: "ig-1", accessToken: "t", imageUrl: "x", caption: "" }),
+    ).rejects.toThrow(InstagramGraphApiError);
+  });
+
+  it("lança InstagramGraphApiError quando a resposta não tem id", async () => {
+    fetchMock.mockResolvedValue(jsonResponse(200, { algumaCoisa: true }));
+
+    await expect(
+      createImageMediaContainer({ igUserId: "ig-1", accessToken: "t", imageUrl: "x", caption: "" }),
+    ).rejects.toThrow(InstagramGraphApiError);
+  });
+});
+
+describe("getMediaContainerStatus", () => {
+  const originalFetch = global.fetch;
+  const fetchMock = vi.fn();
+
+  beforeEach(() => {
+    global.fetch = fetchMock as unknown as typeof fetch;
+    fetchMock.mockReset();
+  });
+
+  afterEach(() => {
+    global.fetch = originalFetch;
+  });
+
+  it("faz GET para <container-id>?fields=status_code e retorna o status", async () => {
+    fetchMock.mockResolvedValue(jsonResponse(200, { status_code: "FINISHED" }));
+
+    const status = await getMediaContainerStatus({ containerId: "container-1", accessToken: "token-1" });
+
+    expect(status).toBe("FINISHED");
+    const [url] = fetchMock.mock.calls[0];
+    const parsed = new URL(url as string);
+    expect(parsed.origin + parsed.pathname).toBe(`https://graph.instagram.com/${GRAPH_API_VERSION}/container-1`);
+    expect(parsed.searchParams.get("fields")).toBe("status_code");
+    expect(parsed.searchParams.get("access_token")).toBe("token-1");
+  });
+
+  it.each(["EXPIRED", "ERROR", "FINISHED", "IN_PROGRESS", "PUBLISHED"])(
+    "aceita o status_code conhecido '%s'",
+    async (statusCode) => {
+      fetchMock.mockResolvedValue(jsonResponse(200, { status_code: statusCode }));
+      const status = await getMediaContainerStatus({ containerId: "c", accessToken: "t" });
+      expect(status).toBe(statusCode);
+    },
+  );
+
+  it("lança InstagramGraphApiError para um status_code desconhecido", async () => {
+    fetchMock.mockResolvedValue(jsonResponse(200, { status_code: "ALGO_NOVO_NUNCA_VISTO" }));
+
+    await expect(getMediaContainerStatus({ containerId: "c", accessToken: "t" })).rejects.toThrow(
+      InstagramGraphApiError,
+    );
+  });
+
+  it("lança InstagramGraphApiError numa resposta de erro HTTP", async () => {
+    fetchMock.mockResolvedValue(jsonResponse(404, { error: { message: "not found" } }));
+
+    await expect(getMediaContainerStatus({ containerId: "c", accessToken: "t" })).rejects.toThrow(
+      InstagramGraphApiError,
+    );
+  });
+});
+
+describe("publishMediaContainer", () => {
+  const originalFetch = global.fetch;
+  const fetchMock = vi.fn();
+
+  beforeEach(() => {
+    global.fetch = fetchMock as unknown as typeof fetch;
+    fetchMock.mockReset();
+  });
+
+  afterEach(() => {
+    global.fetch = originalFetch;
+  });
+
+  it("faz POST para <ig-user-id>/media_publish com creation_id, retornando o id da mídia publicada", async () => {
+    fetchMock.mockResolvedValue(jsonResponse(200, { id: "media-999" }));
+
+    const mediaId = await publishMediaContainer({
+      igUserId: "ig-1",
+      accessToken: "token-1",
+      containerId: "container-1",
+    });
+
+    expect(mediaId).toBe("media-999");
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe(`https://graph.instagram.com/${GRAPH_API_VERSION}/ig-1/media_publish`);
+    expect(init.method).toBe("POST");
+    const body = init.body as URLSearchParams;
+    expect(body.get("creation_id")).toBe("container-1");
+    expect(body.get("access_token")).toBe("token-1");
+  });
+
+  it("lança InstagramGraphApiError numa resposta de erro HTTP", async () => {
+    fetchMock.mockResolvedValue(jsonResponse(400, { error: { message: "Media ID is not available" } }));
+
+    await expect(
+      publishMediaContainer({ igUserId: "ig-1", accessToken: "t", containerId: "c" }),
+    ).rejects.toThrow(InstagramGraphApiError);
+  });
+
+  it("lança InstagramGraphApiError quando a resposta não tem id", async () => {
+    fetchMock.mockResolvedValue(jsonResponse(200, {}));
+
+    await expect(
+      publishMediaContainer({ igUserId: "ig-1", accessToken: "t", containerId: "c" }),
+    ).rejects.toThrow(InstagramGraphApiError);
   });
 });
