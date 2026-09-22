@@ -10,8 +10,10 @@ vi.mock("@/lib/instagram/backend/instagram-account-repository", () => ({
 }));
 
 const getInstagramMediaByIdMock = vi.fn();
+const getInstagramMediaByStorageUrlMock = vi.fn();
 vi.mock("@/lib/instagram/backend/media-repository", () => ({
   getInstagramMediaById: (...args: unknown[]) => getInstagramMediaByIdMock(...args),
+  getInstagramMediaByStorageUrl: (...args: unknown[]) => getInstagramMediaByStorageUrlMock(...args),
 }));
 
 const createDraftImagePostMock = vi.fn();
@@ -19,7 +21,7 @@ vi.mock("@/lib/instagram/backend/instagram-post-repository", () => ({
   createDraftImagePost: (...args: unknown[]) => createDraftImagePostMock(...args),
 }));
 
-const { InstagramPostValidationError, createImagePost } = await import(
+const { InstagramPostValidationError, createImagePost, createImagePostFromUpload } = await import(
   "@/lib/instagram/backend/instagram-post-service"
 );
 
@@ -76,4 +78,48 @@ describe("createImagePost", () => {
       caption: "Legenda",
     });
   });
+});
+
+describe("createImagePostFromUpload", () => {
+  it("resolve a mídia pela URL do blob e cria o post", async () => {
+    getInstagramMediaByStorageUrlMock.mockResolvedValue(imageMedia);
+    getInstagramAccountForUserMock.mockResolvedValue(account);
+    createDraftImagePostMock.mockResolvedValue("post-1");
+
+    const id = await createImagePostFromUpload({
+      userId: "user-1",
+      mediaUrl: "https://blob/img.jpg",
+      caption: "Legenda",
+    });
+
+    expect(id).toBe("post-1");
+    expect(getInstagramMediaByStorageUrlMock).toHaveBeenCalledWith("https://blob/img.jpg", "user-1");
+  });
+
+  it("faz um poll curto se a mídia ainda não apareceu (corrida com o webhook de upload)", async () => {
+    getInstagramMediaByStorageUrlMock
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(imageMedia);
+    getInstagramAccountForUserMock.mockResolvedValue(account);
+    createDraftImagePostMock.mockResolvedValue("post-1");
+
+    const id = await createImagePostFromUpload({
+      userId: "user-1",
+      mediaUrl: "https://blob/img.jpg",
+      caption: "Legenda",
+    });
+
+    expect(id).toBe("post-1");
+    expect(getInstagramMediaByStorageUrlMock).toHaveBeenCalledTimes(3);
+  }, 10000);
+
+  it("lança InstagramPostValidationError se a mídia nunca aparecer dentro da janela de poll", async () => {
+    getInstagramMediaByStorageUrlMock.mockResolvedValue(null);
+
+    await expect(
+      createImagePostFromUpload({ userId: "user-1", mediaUrl: "https://blob/img.jpg", caption: "Legenda" }),
+    ).rejects.toThrow(InstagramPostValidationError);
+    expect(createDraftImagePostMock).not.toHaveBeenCalled();
+  }, 10000);
 });

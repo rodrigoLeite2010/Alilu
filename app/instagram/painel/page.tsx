@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { auth } from "@/auth";
 import { getInstagramAccountForUser } from "@/lib/instagram/backend/instagram-account-repository";
+import { InstagramPublishTestForm } from "@/components/instagram/PublishTestForm";
 
 export const metadata: Metadata = {
   robots: { index: false, follow: false },
@@ -55,13 +56,16 @@ export default async function InstagramPainelPage({ searchParams }: PainelPagePr
       ) : null}
 
       {account ? (
-        <div className="rounded-md border border-zinc-200 px-4 py-3">
-          <p className="text-sm text-zinc-800">
-            Conectado como{" "}
-            <strong>{account.igUsername ? `@${account.igUsername}` : account.igUserId}</strong>
-          </p>
-          <p className="mt-1 text-xs text-zinc-500">Status: {account.status}</p>
-        </div>
+        <>
+          <div className="rounded-md border border-zinc-200 px-4 py-3">
+            <p className="text-sm text-zinc-800">
+              Conectado como{" "}
+              <strong>{account.igUsername ? `@${account.igUsername}` : account.igUserId}</strong>
+            </p>
+            <p className="mt-1 text-xs text-zinc-500">Status: {account.status}</p>
+          </div>
+          <InstagramPublishTestForm />
+        </>
       ) : (
         <a
           href="/api/instagram/oauth/start"
