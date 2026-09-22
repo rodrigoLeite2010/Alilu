@@ -117,12 +117,12 @@ describe("POST /api/instagram/media/upload", () => {
       expect.objectContaining({
         pathname: "instagram-media/user-1/foto.png",
         operations: ["put"],
-        allowedContentTypes: ["image/jpeg", "image/png", "image/webp"],
+        allowedContentTypes: ["image/jpeg"],
         maximumSizeInBytes: 15 * 1024 * 1024,
       }),
     );
     expect(tokenConfig?.token).toBe(FAKE_SIGNED_TOKEN);
-    expect(tokenConfig?.urlOptions.allowedContentTypes).toEqual(["image/jpeg", "image/png", "image/webp"]);
+    expect(tokenConfig?.urlOptions.allowedContentTypes).toEqual(["image/jpeg"]);
     expect(tokenConfig?.urlOptions.maximumSizeInBytes).toBe(15 * 1024 * 1024);
     expect(JSON.parse(tokenConfig!.urlOptions.tokenPayload)).toEqual({
       userId: "user-1",

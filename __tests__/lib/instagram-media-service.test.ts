@@ -107,7 +107,7 @@ describe("buildMediaTokenPayload / parseMediaTokenPayload", () => {
 
 describe("constantes exportadas", () => {
   it("permite só os 3 formatos de imagem aceitos pelo editor", () => {
-    expect(ALLOWED_MEDIA_CONTENT_TYPES).toEqual(["image/jpeg", "image/png", "image/webp"]);
+    expect(ALLOWED_MEDIA_CONTENT_TYPES).toEqual(["image/jpeg"]);
   });
 
   it("usa o mesmo limite de 15 MB do editor local", () => {

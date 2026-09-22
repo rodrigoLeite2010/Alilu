@@ -117,7 +117,9 @@ export function InstagramPublishTestForm({ userId }: InstagramPublishTestFormPro
       <p className="text-sm font-medium text-amber-900">Publicar teste (provisório)</p>
       <p className="mt-1 text-xs text-amber-800">
         Isto publica de verdade na sua conta do Instagram conectada. Não é a tela final — existe só
-        para testar o fluxo de publicação ponta a ponta antes do calendário editorial.
+        para testar o fluxo de publicação ponta a ponta antes do calendário editorial. Só aceita
+        imagem JPEG por enquanto — é o único formato que a Content Publishing API da Meta aceita
+        para posts de imagem.
       </p>
 
       <form onSubmit={handleSubmit} className="mt-3 flex flex-col gap-3">
@@ -128,7 +130,7 @@ export function InstagramPublishTestForm({ userId }: InstagramPublishTestFormPro
           <input
             id={fileInputId}
             type="file"
-            accept="image/jpeg,image/png,image/webp"
+            accept="image/jpeg"
             disabled={busy}
             onChange={(event) => setFile(event.target.files?.[0] ?? null)}
             className="text-sm text-zinc-700"

@@ -14,7 +14,11 @@
  * confirmação depois que o Blob já recebeu o arquivo (onUploadCompleted).
  */
 
-export const ALLOWED_MEDIA_CONTENT_TYPES = ["image/jpeg", "image/png", "image/webp"];
+// A Content Publishing API da Meta só aceita JPEG para containers de
+// imagem ("JPEG is the only image format supported" — confirmado na
+// documentação oficial em 22/09/2026); PNG e WebP são rejeitados pela
+// própria Meta na criação do container, não só uma preferência nossa.
+export const ALLOWED_MEDIA_CONTENT_TYPES = ["image/jpeg"];
 export const MAX_MEDIA_UPLOAD_BYTES = 15 * 1024 * 1024; // 15 MB
 export const MAX_ORIGINAL_FILENAME_LENGTH = 200;
 
