@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import {
+  INSTAGRAM_OAUTH_RETURN_COOKIE,
   INSTAGRAM_OAUTH_STATE_COOKIE,
   OAUTH_STATE_MAX_AGE_SECONDS,
   generateOAuthState,
+  sanitizeOAuthReturnPath,
 } from "@/lib/instagram/backend/oauth-state";
 import {
   InstagramOAuthConfigError,
@@ -22,8 +24,11 @@ import {
  */
 export async function GET(request: Request): Promise<NextResponse> {
   const session = await auth();
+  const returnTo = sanitizeOAuthReturnPath(new URL(request.url).searchParams.get("returnTo"));
   if (!session?.user?.id) {
-    return NextResponse.redirect(new URL("/entrar", request.url));
+    const loginUrl = new URL("/entrar", request.url);
+    if (returnTo) loginUrl.searchParams.set("callbackUrl", returnTo);
+    return NextResponse.redirect(loginUrl);
   }
 
   const redirectUri = new URL("/api/instagram/oauth/callback", request.url).toString();
@@ -47,5 +52,16 @@ export async function GET(request: Request): Promise<NextResponse> {
     maxAge: OAUTH_STATE_MAX_AGE_SECONDS,
     path: "/api/instagram/oauth",
   });
+  if (returnTo) {
+    // Volta para a publicação que estava sendo criada (o rascunho do editor
+    // fica salvo no navegador — ver lib/instagram/draft-store.ts).
+    response.cookies.set(INSTAGRAM_OAUTH_RETURN_COOKIE, returnTo, {
+      httpOnly: true,
+      secure: true,
+      sameSite: "lax",
+      maxAge: OAUTH_STATE_MAX_AGE_SECONDS,
+      path: "/api/instagram/oauth",
+    });
+  }
   return response;
 }

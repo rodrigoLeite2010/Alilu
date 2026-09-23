@@ -100,7 +100,7 @@ describe("PATCH /api/instagram/posts/[id]", () => {
 
     expect(response.status).toBe(200);
     expect(body.status).toBe("SCHEDULED");
-    expect(reschedulePostMock).toHaveBeenCalledWith("post-1", "user-1", "2026-12-01T10:00:00.000Z");
+    expect(reschedulePostMock).toHaveBeenCalledWith("post-1", "user-1", "2026-12-01T10:00:00.000Z", null);
   });
 
   it("remove o agendamento (scheduledAt nulo) e responde com o status DRAFT", async () => {
@@ -112,7 +112,7 @@ describe("PATCH /api/instagram/posts/[id]", () => {
 
     expect(response.status).toBe(200);
     expect(body.status).toBe("DRAFT");
-    expect(reschedulePostMock).toHaveBeenCalledWith("post-1", "user-1", null);
+    expect(reschedulePostMock).toHaveBeenCalledWith("post-1", "user-1", null, null);
   });
 
   it("responde 400 com mensagem genérica para erros inesperados (nunca vaza detalhes internos)", async () => {

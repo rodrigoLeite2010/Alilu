@@ -13,6 +13,7 @@ import {
   setBackgroundColor,
   setBackgroundImage,
   setBackgroundImageFocus,
+  setBackgroundImageZoom,
   setBadgeColors,
   setFormat,
   updateTextOffset,
@@ -33,6 +34,8 @@ import { ExportPanel } from "./ExportPanel";
 export interface PublishPanelSlotProps {
   canvasRef: RefObject<HTMLCanvasElement | null>;
   format: PostFormat;
+  /** Estado atual do editor (template, textos, imagem) — usado para salvar a arte e reabri-la depois. */
+  state: PostEditorState;
 }
 
 export interface PostEditorToolProps {
@@ -49,6 +52,10 @@ export interface PostEditorToolProps {
    * sem essa prop, e sem nenhuma ação que exija conta conectada.
    */
   publishPanel?: ComponentType<PublishPanelSlotProps>;
+  /** Estado inicial (ex.: reabrir um Post Viral salvo ou um rascunho restaurado). */
+  initialState?: PostEditorState;
+  /** Notificado a cada mudança do estado (ex.: guardar rascunho local antes do login). */
+  onStateChange?: (state: PostEditorState) => void;
 }
 
 /**
@@ -58,7 +65,11 @@ export interface PostEditorToolProps {
  * criar conta nem fazer login. `publishPanel` é a única exceção (ver
  * PostEditorToolProps) — opcional, usado só pela área autenticada.
  */
-export function PostEditorTool({ publishPanel: PublishPanelSlot }: PostEditorToolProps = {}) {
+export function PostEditorTool({
+  publishPanel: PublishPanelSlot,
+  initialState,
+  onStateChange,
+}: PostEditorToolProps = {}) {
   const {
     state,
     commit,
@@ -69,7 +80,11 @@ export function PostEditorTool({ publishPanel: PublishPanelSlot }: PostEditorToo
     resetHistory,
     canUndo,
     canRedo,
-  } = useEditorHistory<PostEditorState>(createInitialEditorState());
+  } = useEditorHistory<PostEditorState>(initialState ?? createInitialEditorState());
+
+  useEffect(() => {
+    onStateChange?.(state);
+  }, [state, onStateChange]);
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const backgroundImageUrlRef = useRef<string | null>(null);
@@ -159,6 +174,11 @@ export function PostEditorTool({ publishPanel: PublishPanelSlot }: PostEditorToo
     [commitDebounced]
   );
 
+  const handleImageZoomChange = useCallback(
+    (zoom: number) => commitDebounced((prev) => setBackgroundImageZoom(prev, zoom)),
+    [commitDebounced]
+  );
+
   const handleDragMove = useCallback(
     (slotId: TextSlotId, offsetXFrac: number, offsetYFrac: number) =>
       commitDebounced((prev) => updateTextOffset(prev, slotId, offsetXFrac, offsetYFrac)),
@@ -184,6 +204,8 @@ export function PostEditorTool({ publishPanel: PublishPanelSlot }: PostEditorToo
           canvasRef={canvasRef}
           onDragMove={handleDragMove}
           onDragEnd={flushPending}
+          onImagePan={handleImageFocusChange}
+          onImageZoom={handleImageZoomChange}
         />
       </div>
 
@@ -202,7 +224,7 @@ export function PostEditorTool({ publishPanel: PublishPanelSlot }: PostEditorToo
 
         <ExportPanel canvasRef={canvasRef} format={format} />
 
-        {PublishPanelSlot ? <PublishPanelSlot canvasRef={canvasRef} format={format} /> : null}
+        {PublishPanelSlot ? <PublishPanelSlot canvasRef={canvasRef} format={format} state={state} /> : null}
 
         <Button type="button" variant="ghost" onClick={handleReset} className="w-full justify-center">
           <RotateCcw className="h-4 w-4" aria-hidden />
@@ -251,6 +273,7 @@ export function PostEditorTool({ publishPanel: PublishPanelSlot }: PostEditorToo
               onImageChange={handleImageChange}
               onImageRemoved={handleImageRemoved}
               onImageFocusChange={handleImageFocusChange}
+              onImageZoomChange={handleImageZoomChange}
             />
           </div>
         </details>

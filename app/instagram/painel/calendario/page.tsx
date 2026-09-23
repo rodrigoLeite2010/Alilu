@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { auth } from "@/auth";
 import { listPostsForUser } from "@/lib/instagram/backend/instagram-post-service";
 import { LinkButton } from "@/components/ui/Button";
-import { CalendarPostCard } from "@/components/instagram/CalendarPostCard";
+import { PublicationsManager } from "@/components/instagram/PublicationsManager";
 
 export const metadata: Metadata = {
   robots: { index: false, follow: false },
@@ -15,10 +15,9 @@ export const metadata: Metadata = {
  * teste provisório (PublishTestForm, aposentado nesta mesma etapa) como
  * a forma de fato de gerenciar publicações no ALILU.
  *
- * "Agendado" aqui só significa que o post está marcado para uma data —
- * ninguém dispara a publicação sozinho ainda nesse horário (isso depende
- * do endpoint do scheduler, etapa futura). Até lá, "Publicar agora" em
- * qualquer post agendado publica de fato, na hora.
+ * Publicações agendadas são publicadas automaticamente pelo scheduler no
+ * servidor (/api/cron/instagram-publish), mesmo com o navegador fechado —
+ * ver docs/instagram-scheduler.md.
  */
 export default async function CalendarioPage() {
   const session = await auth();
@@ -41,11 +40,15 @@ export default async function CalendarioPage() {
         <div>
           <h1 className="text-xl font-semibold text-zinc-900">Minhas publicações</h1>
           <p className="mt-1 text-sm text-zinc-600">
-            Seus rascunhos, agendamentos e publicações criados no ALILU.
+            Seus rascunhos, agendamentos e publicações criados no ALILU. Os agendados são publicados
+            automaticamente no horário escolhido, mesmo com o Alilu fechado.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <LinkButton href="/instagram/painel/calendario/novo">Novo post</LinkButton>
+          <LinkButton href="/instagram/posts-virais">Post viral</LinkButton>
+          <LinkButton href="/instagram/painel/calendario/novo" variant="secondary">
+            Novo post
+          </LinkButton>
           <LinkButton href="/instagram/painel/calendario/novo-carrossel" variant="secondary">
             Novo carrossel
           </LinkButton>
@@ -55,17 +58,7 @@ export default async function CalendarioPage() {
         </div>
       </div>
 
-      {posts.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-zinc-300 px-4 py-10 text-center">
-          <p className="text-sm text-zinc-600">Nenhum post ainda.</p>
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {posts.map((post) => (
-            <CalendarPostCard key={post.id} post={post} />
-          ))}
-        </div>
-      )}
+      <PublicationsManager initialPosts={posts} userId={session.user.id} />
     </div>
   );
 }

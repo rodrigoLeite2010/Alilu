@@ -83,7 +83,8 @@ describe("createDraftCarouselPost", () => {
     // fato variáveis (userId, instagramAccountId, caption, status,
     // scheduledAtIso) aparecem como argumentos posicionais.
     const [postQueryStrings] = dbMock.mock.calls[0];
-    expect((postQueryStrings as string[]).join("")).toContain("'carousel'");
+    expect((postQueryStrings as string[]).join("")).toContain("insert into instagram_posts");
+    expect(dbMock.mock.calls[0].slice(1)).toContain("carousel");
     const postInsertArgs = dbMock.mock.calls[0].slice(1);
     expect(postInsertArgs).toContain("DRAFT");
 
@@ -198,9 +199,9 @@ describe("getPostForPublish", () => {
 describe("markPostProcessing / markPostPublished / markPostFailed", () => {
   it("executam sem lançar (o SQL do update é responsabilidade do driver, não testado aqui)", async () => {
     dbMock.mockResolvedValue([]);
-    await expect(markPostProcessing("post-1", "container-1")).resolves.toBeUndefined();
-    await expect(markPostPublished("post-1", "media-1")).resolves.toBeUndefined();
-    await expect(markPostFailed("post-1", "erro sanitizado")).resolves.toBeUndefined();
+    await expect(markPostProcessing("post-1", "container-1", "lock-1")).resolves.toBeUndefined();
+    await expect(markPostPublished("post-1", "media-1", "lock-1")).resolves.toBeUndefined();
+    await expect(markPostFailed("post-1", "erro sanitizado", "lock-1")).resolves.toBeUndefined();
     expect(dbMock).toHaveBeenCalledTimes(3);
   });
 });
@@ -261,6 +262,12 @@ describe("listPostsForUser", () => {
         igUsername: "alilu.tec",
         mediaStorageUrl: "https://blob.example.com/slide-01.jpg",
         itemCount: 4,
+        timezone: "America/Sao_Paulo",
+        source: "MANUAL",
+        templateId: null,
+        hasTemplateData: false,
+        attemptsCount: 0,
+        nextAttemptAt: null,
       },
     ]);
   });

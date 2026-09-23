@@ -56,6 +56,6 @@ describe("CalendarioNovoPostPage", () => {
 
     expect(screen.getByText("@alilu.tec", { exact: false })).toBeInTheDocument();
     expect(screen.getByTestId("instagram-post-canvas")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Publicar agora" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Publicar ou agendar" })).toBeInTheDocument();
   });
 });

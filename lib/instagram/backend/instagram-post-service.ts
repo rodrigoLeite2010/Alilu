@@ -1,8 +1,13 @@
 import "server-only";
 import { getInstagramAccountForUser } from "@/lib/instagram/backend/instagram-account-repository";
 import { getInstagramMediaById, getInstagramMediaByStorageUrl } from "@/lib/instagram/backend/media-repository";
+import { isValidTimeZone, parseAbsoluteIso } from "@/lib/instagram/schedule-time";
 import {
   cancelPost as cancelPostInDb,
+  getPostDetailsForUser,
+  updatePostContent,
+  type PostDetails,
+  type PostExtraFields,
   createDraftCarouselPost,
   createDraftImagePost,
   createDraftReelPost,
@@ -39,11 +44,15 @@ export const MAX_CAROUSEL_ITEMS = 10;
  * no banco. Não define um limite máximo no futuro: o usuário pode
  * planejar quanto quiser à frente.
  */
-function parseScheduledAt(scheduledAt: string | null | undefined): Date | null {
+export function parseScheduledAt(scheduledAt: string | null | undefined): Date | null {
   if (!scheduledAt) return null;
-  const parsed = new Date(scheduledAt);
-  if (Number.isNaN(parsed.getTime())) {
-    throw new InstagramPostValidationError("Data de agendamento inválida.");
+  // Só instantes absolutos (com Z ou offset): "2026-09-24T15:00" sem fuso
+  // é ambíguo e poderia publicar horas antes/depois do esperado.
+  const parsed = parseAbsoluteIso(scheduledAt);
+  if (!parsed) {
+    throw new InstagramPostValidationError(
+      "Data de agendamento inválida: envie a data com fuso horário (ISO 8601 com Z ou offset).",
+    );
   }
   if (parsed.getTime() <= Date.now()) {
     throw new InstagramPostValidationError(
@@ -53,7 +62,25 @@ function parseScheduledAt(scheduledAt: string | null | undefined): Date | null {
   return parsed;
 }
 
-export interface CreateImagePostInput {
+/** Valida o fuso IANA vindo do navegador; ausente = padrão do banco. */
+export function normalizeTimezone(timezone: string | null | undefined): string | null {
+  if (timezone === undefined || timezone === null || timezone === "") return null;
+  if (!isValidTimeZone(timezone)) {
+    throw new InstagramPostValidationError("Fuso horário inválido.");
+  }
+  return timezone;
+}
+
+function extraFields(input: PostExtraFields): PostExtraFields {
+  return {
+    source: input.source === "VIRAL_POST" ? "VIRAL_POST" : "MANUAL",
+    templateId: input.templateId ?? null,
+    templateData: input.templateData ?? null,
+    timezone: normalizeTimezone(input.timezone),
+  };
+}
+
+export interface CreateImagePostInput extends PostExtraFields {
   userId: string;
   mediaId: string;
   caption: string;
@@ -86,6 +113,7 @@ export async function createImagePost(input: CreateImagePostInput): Promise<stri
   }
 
   return createDraftImagePost({
+    ...extraFields(input),
     userId: input.userId,
     instagramAccountId: account.id,
     mediaId: media.id,
@@ -122,7 +150,7 @@ async function resolveUploadedMediaId(mediaUrl: string, userId: string): Promise
   );
 }
 
-export interface CreateImagePostFromUploadInput {
+export interface CreateImagePostFromUploadInput extends PostExtraFields {
   userId: string;
   mediaUrl: string;
   caption: string;
@@ -140,6 +168,7 @@ export async function createImagePostFromUpload(input: CreateImagePostFromUpload
   const mediaId = await resolveUploadedMediaId(input.mediaUrl, input.userId);
 
   return createImagePost({
+    ...input,
     userId: input.userId,
     mediaId,
     caption: input.caption,
@@ -147,7 +176,7 @@ export async function createImagePostFromUpload(input: CreateImagePostFromUpload
   });
 }
 
-export interface CreateCarouselPostInput {
+export interface CreateCarouselPostInput extends PostExtraFields {
   userId: string;
   /** De 2 a 10 ids de mídia, na ordem de exibição do carrossel. */
   mediaIds: string[];
@@ -191,6 +220,7 @@ export async function createCarouselPost(input: CreateCarouselPostInput): Promis
   }
 
   return createDraftCarouselPost({
+    ...extraFields(input),
     userId: input.userId,
     instagramAccountId: account.id,
     mediaIds: resolvedMediaIds,
@@ -199,7 +229,7 @@ export async function createCarouselPost(input: CreateCarouselPostInput): Promis
   });
 }
 
-export interface CreateCarouselPostFromUploadInput {
+export interface CreateCarouselPostFromUploadInput extends PostExtraFields {
   userId: string;
   /** De 2 a 10 URLs de blobs recém-enviados, na mesma ordem dos slides exibidos no carrossel. */
   mediaUrls: string[];
@@ -221,6 +251,7 @@ export async function createCarouselPostFromUpload(input: CreateCarouselPostFrom
   }
 
   return createCarouselPost({
+    ...input,
     userId: input.userId,
     mediaIds,
     caption: input.caption,
@@ -228,7 +259,7 @@ export async function createCarouselPostFromUpload(input: CreateCarouselPostFrom
   });
 }
 
-export interface CreateReelPostInput {
+export interface CreateReelPostInput extends PostExtraFields {
   userId: string;
   mediaId: string;
   caption: string;
@@ -254,6 +285,7 @@ export async function createReelPost(input: CreateReelPostInput): Promise<string
   }
 
   return createDraftReelPost({
+    ...extraFields(input),
     userId: input.userId,
     instagramAccountId: account.id,
     mediaId: media.id,
@@ -262,7 +294,7 @@ export async function createReelPost(input: CreateReelPostInput): Promise<string
   });
 }
 
-export interface CreateReelPostFromUploadInput {
+export interface CreateReelPostFromUploadInput extends PostExtraFields {
   userId: string;
   mediaUrl: string;
   caption: string;
@@ -272,6 +304,7 @@ export interface CreateReelPostFromUploadInput {
 export async function createReelPostFromUpload(input: CreateReelPostFromUploadInput): Promise<string> {
   const mediaId = await resolveUploadedMediaId(input.mediaUrl, input.userId);
   return createReelPost({
+    ...input,
     userId: input.userId,
     mediaId,
     caption: input.caption,
@@ -317,12 +350,91 @@ export async function reschedulePost(
   postId: string,
   userId: string,
   scheduledAt: string | null,
+  timezone?: string | null,
 ): Promise<void> {
   const scheduledAtUtc = parseScheduledAt(scheduledAt);
-  const rescheduled = await reschedulePostInDb(postId, userId, scheduledAtUtc);
+  const rescheduled = await reschedulePostInDb(postId, userId, scheduledAtUtc, normalizeTimezone(timezone));
   if (!rescheduled) {
     throw new InstagramPostValidationError(
       "Não foi possível reagendar este post — ele pode já estar em processamento, publicado, ou não existir mais.",
     );
   }
+}
+
+export interface UpdatePostInput {
+  postId: string;
+  userId: string;
+  caption?: string;
+  /** `undefined` = mantém; `null` = remove agendamento; ISO com fuso = agenda. */
+  scheduledAt?: string | null;
+  timezone?: string | null;
+  templateId?: string | null;
+  templateData?: unknown;
+  /** URLs de blobs recém-enviados que substituem TODAS as mídias do post, na ordem. */
+  mediaUrls?: string[];
+}
+
+/**
+ * Edita uma publicação ainda não enviada (rascunho, agendada ou com
+ * falha). Valida posse e tipo das novas mídias antes de gravar; o
+ * repositório recusa atomicamente PROCESSING/PUBLISHED/CANCELLED.
+ */
+export async function updatePost(input: UpdatePostInput): Promise<{ status: string }> {
+  const scheduledAtUtc = input.scheduledAt === undefined ? undefined : parseScheduledAt(input.scheduledAt);
+  const current = await getPostDetailsForUser(input.postId, input.userId);
+  if (!current) {
+    throw new InstagramPostValidationError("Publicação não encontrada.");
+  }
+  if (current.status === "PROCESSING") {
+    throw new InstagramPostValidationError("Esta publicação já está sendo processada.");
+  }
+
+  let mediaIds: string[] | undefined;
+  if (input.mediaUrls !== undefined) {
+    const expected = current.postType === "reels" ? "video" : "image";
+    if (current.postType === "carousel") {
+      if (input.mediaUrls.length < MIN_CAROUSEL_ITEMS || input.mediaUrls.length > MAX_CAROUSEL_ITEMS) {
+        throw new InstagramPostValidationError(
+          `Um carrossel precisa ter entre ${MIN_CAROUSEL_ITEMS} e ${MAX_CAROUSEL_ITEMS} imagens.`,
+        );
+      }
+    } else if (input.mediaUrls.length !== 1) {
+      throw new InstagramPostValidationError("Este tipo de publicação aceita exatamente uma mídia.");
+    }
+    mediaIds = [];
+    for (const url of input.mediaUrls) {
+      const mediaId = await resolveUploadedMediaId(url, input.userId);
+      const media = await getInstagramMediaById(mediaId, input.userId);
+      if (!media || media.mediaType !== expected) {
+        throw new InstagramPostValidationError(
+          expected === "video" ? "Reels precisam usar um arquivo de vídeo." : "Envie uma imagem JPG.",
+        );
+      }
+      mediaIds.push(media.id);
+    }
+  }
+
+  const updated = await updatePostContent(input.postId, input.userId, {
+    caption: input.caption,
+    scheduledAtUtc,
+    timezone: normalizeTimezone(input.timezone),
+    templateId: input.templateId,
+    templateData: input.templateData,
+    mediaIds,
+  });
+  if (!updated) {
+    throw new InstagramPostValidationError(
+      "Não foi possível editar esta publicação — ela pode já estar em processamento, publicada ou cancelada.",
+    );
+  }
+  return updated;
+}
+
+/** Detalhes de uma publicação do próprio usuário (para a tela de edição). */
+export async function getPostDetails(postId: string, userId: string): Promise<PostDetails> {
+  const details = await getPostDetailsForUser(postId, userId);
+  if (!details) {
+    throw new InstagramPostValidationError("Publicação não encontrada.");
+  }
+  return details;
 }

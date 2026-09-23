@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { InstagramPublishError, publishPost } from "@/lib/instagram/backend/instagram-publish-service";
 
+export const maxDuration = 60;
+
 interface RouteParams {
   params: Promise<{ id: string }>;
 }
@@ -30,7 +32,7 @@ export async function POST(request: Request, { params }: RouteParams): Promise<N
     const status = await publishPost(id, userId);
     return NextResponse.json({ status });
   } catch (error) {
-    console.error("[instagram/posts/publish] falha ao publicar", error);
+    console.error("[instagram/posts/publish] falha ao publicar", error instanceof Error ? error.message : "erro desconhecido");
     const message =
       error instanceof InstagramPublishError ? error.message : "Não foi possível publicar no Instagram.";
     return NextResponse.json({ error: message }, { status: 400 });

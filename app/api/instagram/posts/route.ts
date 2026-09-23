@@ -7,6 +7,7 @@ import {
   createReelPostFromUpload,
   listPostsForUser,
 } from "@/lib/instagram/backend/instagram-post-service";
+import { readPostExtraFields } from "@/lib/instagram/backend/post-request";
 
 const MAX_CAPTION_LENGTH = 2200; // limite real do Instagram para legendas
 
@@ -98,6 +99,11 @@ export async function POST(request: Request): Promise<NextResponse> {
     return NextResponse.json({ error: "scheduledAt precisa ser uma data em texto (ISO 8601) ou nulo." }, { status: 400 });
   }
 
+  const extra = readPostExtraFields(body as Record<string, unknown>);
+  if ("error" in extra) {
+    return NextResponse.json({ error: extra.error }, { status: 400 });
+  }
+
   try {
     const postId = normalizedPostType === "carousel"
       ? await createCarouselPostFromUpload({
@@ -105,6 +111,7 @@ export async function POST(request: Request): Promise<NextResponse> {
           mediaUrls: mediaUrls as string[],
           caption,
           scheduledAt: (scheduledAt as string | null | undefined) ?? null,
+          ...extra.fields,
         })
       : normalizedPostType === "reels"
         ? await createReelPostFromUpload({
@@ -112,12 +119,14 @@ export async function POST(request: Request): Promise<NextResponse> {
             mediaUrl: mediaUrl as string,
             caption,
             scheduledAt: (scheduledAt as string | null | undefined) ?? null,
+            ...extra.fields,
           })
       : await createImagePostFromUpload({
           userId,
           mediaUrl: mediaUrl as string,
           caption,
           scheduledAt: (scheduledAt as string | null | undefined) ?? null,
+          ...extra.fields,
         });
     return NextResponse.json({ postId }, { status: 201 });
   } catch (error) {

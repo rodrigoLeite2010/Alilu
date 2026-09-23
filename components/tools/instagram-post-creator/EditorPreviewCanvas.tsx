@@ -5,7 +5,26 @@ import type { PostFormat } from "@/lib/instagram/formats";
 import type { PostEditorState } from "@/lib/instagram/editor-state";
 import { drawPost, type SlotBoundingBoxMap } from "@/lib/instagram/render";
 import { loadImageElement } from "@/lib/instagram/image-utils";
-import { TEXT_SLOT_IDS, type TextSlotId } from "@/lib/instagram/templates";
+import { TEXT_SLOT_IDS, getTemplateById, type TextSlotId } from "@/lib/instagram/templates";
+import { panImageFocus } from "@/lib/instagram/layout-math";
+import { MAX_IMAGE_ZOOM, MIN_IMAGE_ZOOM } from "@/lib/instagram/editor-state";
+
+interface ImageBox {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+/** Arraste da própria imagem (reenquadrar) ou pinça com dois dedos (zoom). */
+interface ImageGestureState {
+  pointers: Map<number, { x: number; y: number }>;
+  startFocusX: number;
+  startFocusY: number;
+  startZoom: number;
+  startPoint: { x: number; y: number } | null;
+  startDistance: number | null;
+}
 
 interface DragState {
   slotId: TextSlotId;
@@ -22,13 +41,20 @@ export function EditorPreviewCanvas({
   canvasRef,
   onDragMove,
   onDragEnd,
+  onImagePan,
+  onImageZoom,
 }: {
   format: PostFormat;
   state: PostEditorState;
   canvasRef: RefObject<HTMLCanvasElement | null>;
   onDragMove: (slotId: TextSlotId, offsetXFrac: number, offsetYFrac: number) => void;
   onDragEnd: () => void;
+  /** Novo enquadramento da imagem do usuário (arrastar a foto na prévia). */
+  onImagePan?: (focusXFrac: number, focusYFrac: number) => void;
+  /** Novo zoom da imagem (pinça com dois dedos). */
+  onImageZoom?: (zoom: number) => void;
 }) {
+  const imageGestureRef = useRef<ImageGestureState | null>(null);
   const boxesRef = useRef<SlotBoundingBoxMap>({});
   const dragRef = useRef<DragState | null>(null);
   const [loadedImageUrl, setLoadedImageUrl] = useState<string | null>(null);
@@ -103,11 +129,113 @@ export function EditorPreviewCanvas({
     return null;
   }
 
+  function imageBox(): ImageBox {
+    const area = getTemplateById(state.templateId).imageArea;
+    if (!area) return { x: 0, y: 0, width: format.width, height: format.height };
+    return {
+      x: area.xFrac * format.width,
+      y: area.yFrac * format.height,
+      width: area.widthFrac * format.width,
+      height: area.heightFrac * format.height,
+    };
+  }
+
+  function canMoveImage(): boolean {
+    return Boolean(uploadedImage && onImagePan && state.backgroundImage.url);
+  }
+
+  function startImageGesture(event: ReactPointerEvent<HTMLCanvasElement>, point: { x: number; y: number }) {
+    const gesture: ImageGestureState = imageGestureRef.current ?? {
+      pointers: new Map(),
+      startFocusX: state.backgroundImage.focusXFrac,
+      startFocusY: state.backgroundImage.focusYFrac,
+      startZoom: state.backgroundImage.zoom ?? 1,
+      startPoint: point,
+      startDistance: null,
+    };
+    gesture.pointers.set(event.pointerId, point);
+    // Recomeça a referência a cada dedo que entra/sai, para o gesto não "pular".
+    gesture.startFocusX = state.backgroundImage.focusXFrac;
+    gesture.startFocusY = state.backgroundImage.focusYFrac;
+    gesture.startZoom = state.backgroundImage.zoom ?? 1;
+    if (gesture.pointers.size === 1) {
+      gesture.startPoint = point;
+      gesture.startDistance = null;
+    } else {
+      const [a, b] = [...gesture.pointers.values()];
+      gesture.startPoint = null;
+      gesture.startDistance = Math.hypot(a.x - b.x, a.y - b.y) || null;
+    }
+    imageGestureRef.current = gesture;
+    event.currentTarget.setPointerCapture(event.pointerId);
+  }
+
+  function moveImageGesture(event: ReactPointerEvent<HTMLCanvasElement>, point: { x: number; y: number }) {
+    const gesture = imageGestureRef.current;
+    if (!gesture || !gesture.pointers.has(event.pointerId) || !uploadedImage) return;
+    gesture.pointers.set(event.pointerId, point);
+    const box = imageBox();
+
+    if (gesture.pointers.size >= 2 && gesture.startDistance && onImageZoom) {
+      const [a, b] = [...gesture.pointers.values()];
+      const distance = Math.hypot(a.x - b.x, a.y - b.y);
+      const zoom = Math.min(MAX_IMAGE_ZOOM, Math.max(MIN_IMAGE_ZOOM, gesture.startZoom * (distance / gesture.startDistance)));
+      onImageZoom(zoom);
+      return;
+    }
+    if (gesture.startPoint && onImagePan) {
+      const next = panImageFocus({
+        focusXFrac: gesture.startFocusX,
+        focusYFrac: gesture.startFocusY,
+        deltaXFrac: (point.x - gesture.startPoint.x) / box.width,
+        deltaYFrac: (point.y - gesture.startPoint.y) / box.height,
+        boxWidth: box.width,
+        boxHeight: box.height,
+        imageWidth: uploadedImage.naturalWidth,
+        imageHeight: uploadedImage.naturalHeight,
+        zoom: state.backgroundImage.zoom ?? 1,
+      });
+      onImagePan(next.focusXFrac, next.focusYFrac);
+    }
+  }
+
+  function endImageGesture(event: ReactPointerEvent<HTMLCanvasElement>): boolean {
+    const gesture = imageGestureRef.current;
+    if (!gesture || !gesture.pointers.has(event.pointerId)) return false;
+    gesture.pointers.delete(event.pointerId);
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+    if (gesture.pointers.size === 0) {
+      imageGestureRef.current = null;
+      onDragEnd();
+    } else {
+      const [remaining] = [...gesture.pointers.values()];
+      gesture.startPoint = remaining;
+      gesture.startDistance = null;
+      gesture.startFocusX = state.backgroundImage.focusXFrac;
+      gesture.startFocusY = state.backgroundImage.focusYFrac;
+      gesture.startZoom = state.backgroundImage.zoom ?? 1;
+    }
+    return true;
+  }
+
   function handlePointerDown(event: ReactPointerEvent<HTMLCanvasElement>) {
     const point = canvasPointFromEvent(event);
     if (!point) return;
+    // Segundo dedo durante um gesto de imagem = pinça (zoom).
+    if (imageGestureRef.current) {
+      startImageGesture(event, point);
+      return;
+    }
     const slotId = findSlotAtPoint(point.x, point.y);
-    if (!slotId) return;
+    if (!slotId) {
+      const box = imageBox();
+      const insideImage =
+        point.x >= box.x && point.x <= box.x + box.width && point.y >= box.y && point.y <= box.y + box.height;
+      if (insideImage && canMoveImage()) startImageGesture(event, point);
+      return;
+    }
 
     const text = state.texts[slotId];
     dragRef.current = {
@@ -123,6 +251,11 @@ export function EditorPreviewCanvas({
   }
 
   function handlePointerMove(event: ReactPointerEvent<HTMLCanvasElement>) {
+    if (imageGestureRef.current) {
+      const point = canvasPointFromEvent(event);
+      if (point) moveImageGesture(event, point);
+      return;
+    }
     const drag = dragRef.current;
     if (!drag || drag.pointerId !== event.pointerId) return;
 
@@ -135,6 +268,7 @@ export function EditorPreviewCanvas({
   }
 
   function endDrag(event: ReactPointerEvent<HTMLCanvasElement>) {
+    if (endImageGesture(event)) return;
     if (!dragRef.current || dragRef.current.pointerId !== event.pointerId) return;
     dragRef.current = null;
     setDraggingSlot(null);
@@ -164,7 +298,8 @@ export function EditorPreviewCanvas({
         />
       </div>
       <p className="text-center text-xs text-zinc-500">
-        Dica: clique e arraste o título, o texto secundário ou o rodapé na prévia para reposicioná-los.
+        Dica: arraste os textos para reposicioná-los
+        {onImagePan && state.backgroundImage.url ? "; arraste a foto para enquadrar e use dois dedos para ampliar" : ""}.
       </p>
     </div>
   );

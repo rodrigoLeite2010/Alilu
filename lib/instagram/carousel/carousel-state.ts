@@ -276,6 +276,7 @@ export async function cloneBackgroundImage(image: BackgroundImageState): Promise
       naturalHeight: null,
       focusXFrac: image.focusXFrac,
       focusYFrac: image.focusYFrac,
+      zoom: image.zoom ?? 1,
     };
   }
 }

@@ -4,6 +4,7 @@ import { useEffect, useId, useMemo, useState, type ChangeEvent } from "react";
 import { useRouter } from "next/navigation";
 import { uploadPresigned } from "@vercel/blob/client";
 import { Button } from "@/components/ui/Button";
+import { getBrowserTimeZone } from "@/lib/instagram/schedule-time";
 import { buildMediaPathnamePrefix, MAX_VIDEO_UPLOAD_BYTES, VIDEO_MEDIA_CONTENT_TYPES } from "@/lib/instagram/backend/media-service";
 
 type Stage = "idle" | "validando" | "enviando" | "salvando" | "publicando" | "sucesso" | "erro";
@@ -160,6 +161,7 @@ export function ReelsComposer({ userId }: { userId: string | null }) {
           mediaUrl: uploaded.url,
           caption: fullCaption,
           scheduledAt: scheduledAtIso,
+          timezone: getBrowserTimeZone(),
         }),
       });
       if (!createResponse.ok) {

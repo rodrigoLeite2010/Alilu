@@ -34,7 +34,7 @@ describe("CalendarioPage", () => {
     const jsx = await CalendarioPage();
     render(jsx);
 
-    expect(screen.getByText("Nenhum post ainda.")).toBeInTheDocument();
+    expect(screen.getByText("Nenhuma publicação ainda.")).toBeInTheDocument();
   });
 
   it("lista os posts retornados pelo serviço", async () => {

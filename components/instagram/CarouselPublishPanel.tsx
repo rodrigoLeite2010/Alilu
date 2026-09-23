@@ -3,6 +3,7 @@
 import { useId, useState } from "react";
 import { uploadPresigned } from "@vercel/blob/client";
 import { Button } from "@/components/ui/Button";
+import { formatScheduleConfirmation, getBrowserTimeZone } from "@/lib/instagram/schedule-time";
 import { buildMediaPathnamePrefix } from "@/lib/instagram/backend/media-service";
 import { waitForFonts } from "@/lib/instagram/export";
 import { renderSlideToBlob } from "@/lib/instagram/carousel/carousel-export";
@@ -127,7 +128,7 @@ export function CarouselPublishPanel({ slides, formatId, userId }: CarouselPubli
       const createResponse = await fetch("/api/instagram/posts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mediaUrls, caption, scheduledAt: scheduledAtIso }),
+        body: JSON.stringify({ mediaUrls, caption, scheduledAt: scheduledAtIso, timezone: getBrowserTimeZone() }),
       });
       if (!createResponse.ok) {
         throw new Error(await readErrorMessage(createResponse, "Não foi possível salvar o carrossel."));
@@ -137,8 +138,8 @@ export function CarouselPublishPanel({ slides, formatId, userId }: CarouselPubli
       if (mode === "schedule") {
         setStage("sucesso");
         setMessage(
-          "Carrossel agendado! Ele já aparece no calendário. A publicação automática no horário exato ainda " +
-            "depende de uma etapa futura — até lá, você pode publicá-lo manualmente a qualquer momento pelo calendário.",
+          `Publicação agendada com sucesso. ${formatScheduleConfirmation(scheduledAtIso ?? "", getBrowserTimeZone())} ` +
+            "Ela será publicada automaticamente, mesmo com o Alilu fechado.",
         );
         setCaption("");
         setScheduledAt("");

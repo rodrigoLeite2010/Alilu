@@ -66,7 +66,10 @@ export default async function InstagramPainelPage({ searchParams }: PainelPagePr
             <p className="mt-1 text-xs text-zinc-500">Status: {account.status}</p>
           </div>
           <LinkButton href="/instagram/painel/calendario" className="w-full justify-center">
-            Ver calendário de posts
+            Minhas publicações
+          </LinkButton>
+          <LinkButton href="/instagram/posts-virais" variant="secondary" className="w-full justify-center">
+            Criar Post Viral
           </LinkButton>
         </>
       ) : (

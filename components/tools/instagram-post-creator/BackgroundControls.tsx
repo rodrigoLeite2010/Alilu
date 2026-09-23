@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { Trash2 } from "lucide-react";
+import { useRef, useState } from "react";
+import { Minus, Plus, RefreshCw, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { FileUploadDropzone } from "@/components/tools/pdf-shared/FileUploadDropzone";
 import { ColorSwatchInput } from "./ColorSwatchInput";
@@ -13,7 +13,12 @@ import {
   revokeImageObjectUrl,
   validateImageFile,
 } from "@/lib/instagram/image-utils";
-import type { BackgroundImageState, PostEditorState } from "@/lib/instagram/editor-state";
+import {
+  MAX_IMAGE_ZOOM,
+  MIN_IMAGE_ZOOM,
+  type BackgroundImageState,
+  type PostEditorState,
+} from "@/lib/instagram/editor-state";
 
 /**
  * Área A (fundo e cores) do editor: cor de fundo, combinações prontas, cor
@@ -29,6 +34,7 @@ export function BackgroundControls({
   onImageChange,
   onImageRemoved,
   onImageFocusChange,
+  onImageZoomChange,
 }: {
   state: PostEditorState;
   onColorComboChange: (comboId: string) => void;
@@ -37,7 +43,11 @@ export function BackgroundControls({
   onImageChange: (image: Pick<BackgroundImageState, "url" | "fileName" | "naturalWidth" | "naturalHeight">) => void;
   onImageRemoved: () => void;
   onImageFocusChange: (focusXFrac: number, focusYFrac: number) => void;
+  /** Opcional: quando ausente (ex.: carrossel), o controle de zoom não aparece. */
+  onImageZoomChange?: (zoom: number) => void;
 }) {
+  const replaceInputRef = useRef<HTMLInputElement>(null);
+  const zoom = state.backgroundImage.zoom ?? 1;
   const [isProcessingImage, setIsProcessingImage] = useState(false);
   const [imageError, setImageError] = useState<string | null>(null);
 
@@ -147,6 +157,75 @@ export function BackgroundControls({
               </Button>
             </div>
 
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => replaceInputRef.current?.click()}
+                disabled={isProcessingImage}
+                className="min-h-9 px-3 py-1.5 text-xs"
+              >
+                <RefreshCw className="h-3.5 w-3.5" aria-hidden />
+                {isProcessingImage ? "Carregando..." : "Trocar imagem"}
+              </Button>
+              <input
+                ref={replaceInputRef}
+                type="file"
+                accept={ACCEPTED_IMAGE_INPUT_ACCEPT}
+                className="hidden"
+                aria-hidden="true"
+                tabIndex={-1}
+                data-testid="instagram-post-image-replace"
+                onChange={(event) => {
+                  void handleFilesSelected(Array.from(event.target.files ?? []));
+                  event.target.value = "";
+                }}
+              />
+            </div>
+
+            {onImageZoomChange ? (
+              <div>
+                <label htmlFor="instagram-post-zoom" className="mb-1.5 block text-xs font-medium text-zinc-600">
+                  Zoom da imagem ({Math.round(zoom * 100)}%)
+                </label>
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    aria-label="Reduzir imagem"
+                    className="min-h-9 px-2"
+                    disabled={zoom <= MIN_IMAGE_ZOOM}
+                    onClick={() => onImageZoomChange(Math.max(MIN_IMAGE_ZOOM, zoom - 0.1))}
+                  >
+                    <Minus className="h-4 w-4" aria-hidden />
+                  </Button>
+                  <input
+                    id="instagram-post-zoom"
+                    type="range"
+                    min={MIN_IMAGE_ZOOM}
+                    max={MAX_IMAGE_ZOOM}
+                    step={0.05}
+                    value={zoom}
+                    onChange={(event) => onImageZoomChange(Number(event.target.value))}
+                    className="h-11 w-full accent-teal-700"
+                  />
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    aria-label="Ampliar imagem"
+                    className="min-h-9 px-2"
+                    disabled={zoom >= MAX_IMAGE_ZOOM}
+                    onClick={() => onImageZoomChange(Math.min(MAX_IMAGE_ZOOM, zoom + 0.1))}
+                  >
+                    <Plus className="h-4 w-4" aria-hidden />
+                  </Button>
+                </div>
+                <p className="mt-1 text-xs text-zinc-500">
+                  Dica: arraste a foto na prévia para reposicionar. A imagem nunca é distorcida — só recortada.
+                </p>
+              </div>
+            ) : null}
+
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div>
                 <label htmlFor="instagram-post-focus-x" className="mb-1.5 block text-xs font-medium text-zinc-600">
@@ -187,7 +266,7 @@ export function BackgroundControls({
         ) : (
           <FileUploadDropzone
             inputId="instagram-post-image-upload"
-            title="Envie uma foto"
+            title={onImageZoomChange ? "Adicionar minha imagem" : "Envie uma foto"}
             description="Arraste uma imagem aqui ou clique para escolher"
             limitDescription="JPG, PNG ou WEBP, até 15 MB. A imagem é processada só no seu navegador."
             accept={ACCEPTED_IMAGE_INPUT_ACCEPT}

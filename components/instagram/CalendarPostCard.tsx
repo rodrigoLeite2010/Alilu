@@ -1,8 +1,29 @@
 "use client";
 
 import { useState } from "react";
-import { Button } from "@/components/ui/Button";
-import type { InstagramPostStatus, InstagramPostType } from "@/lib/instagram/backend/instagram-post-repository";
+import { Button, LinkButton } from "@/components/ui/Button";
+import type {
+  InstagramPostSource,
+  InstagramPostStatus,
+  InstagramPostType,
+} from "@/lib/instagram/backend/instagram-post-repository";
+import {
+  cancelPublication,
+  deletePublication,
+  describePublishOutcome,
+  publishPublicationNow,
+  reschedulePublication,
+} from "@/lib/instagram/client/publication-api";
+import {
+  formatInTimeZone,
+  formatScheduleConfirmation,
+  getBrowserTimeZone,
+  utcToZonedInputs,
+} from "@/lib/instagram/schedule-time";
+import { ConfirmDialog } from "./ConfirmDialog";
+import { Dialog } from "./Dialog";
+import { EditPublicationDialog } from "./EditPublicationDialog";
+import { ScheduleFields, scheduleValueToIso, type ScheduleValue } from "./ScheduleFields";
 
 export interface CalendarPostCardData {
   id: string;
@@ -16,12 +37,18 @@ export interface CalendarPostCardData {
   igUsername: string | null;
   mediaStorageUrl: string | null;
   itemCount: number;
+  timezone?: string;
+  source?: InstagramPostSource;
+  templateId?: string | null;
+  hasTemplateData?: boolean;
+  attemptsCount?: number;
+  nextAttemptAt?: string | null;
 }
 
-const STATUS_LABEL: Record<InstagramPostStatus, string> = {
+export const STATUS_LABEL: Record<InstagramPostStatus, string> = {
   DRAFT: "Rascunho",
   SCHEDULED: "Agendado",
-  PROCESSING: "Publicando…",
+  PROCESSING: "Publicando",
   PUBLISHED: "Publicado",
   FAILED: "Falhou",
   CANCELLED: "Cancelado",
@@ -38,208 +65,336 @@ const STATUS_BADGE_CLASS: Record<InstagramPostStatus, string> = {
   NEEDS_REVIEW: "bg-orange-50 text-orange-800",
 };
 
-const CANCELLABLE_STATUSES: InstagramPostStatus[] = ["DRAFT", "SCHEDULED", "NEEDS_REVIEW", "FAILED"];
-const DELETABLE_STATUSES: InstagramPostStatus[] = ["DRAFT", "SCHEDULED", "PUBLISHED", "FAILED", "CANCELLED", "NEEDS_REVIEW"];
-const PUBLISHABLE_NOW_STATUSES: InstagramPostStatus[] = ["DRAFT", "SCHEDULED", "PROCESSING"];
+const TYPE_LABEL: Record<InstagramPostType, string> = {
+  image: "Post",
+  carousel: "Carrossel",
+  reels: "Reel",
+};
 
-function formatDateTime(iso: string | null): string | null {
-  if (!iso) return null;
-  return new Date(iso).toLocaleString("pt-BR", {
-    timeZone: "America/Sao_Paulo",
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
+type DialogKind = "schedule" | "edit" | "cancel" | "delete" | "error" | null;
 
-async function readErrorMessage(response: Response, fallback: string): Promise<string> {
-  try {
-    const body = (await response.json()) as { error?: unknown };
-    return typeof body.error === "string" && body.error ? body.error : fallback;
-  } catch {
-    return fallback;
-  }
-}
+const SMALL = "min-h-9 px-3 py-1.5 text-xs";
 
 /**
- * Um post na lista do calendário editorial, com as ações que fazem
- * sentido pro status atual: cancelar (DRAFT/SCHEDULED/NEEDS_REVIEW/FAILED)
- * e publicar agora (qualquer um desses + PROCESSING, para retomar um
- * polling que não terminou a tempo — ver instagram-publish-service.ts).
- * Sem "editar legenda"/"reagendar" nesta etapa — a API já suporta
- * (PATCH .../[id] com action "reschedule"), mas a tela ainda não expõe
- * isso; fica para um refino futuro se o usuário sentir falta.
+ * Uma publicação em "Minhas publicações", com as ações que fazem sentido
+ * para o status atual:
+ *   Rascunho  → Editar, Agendar, Publicar agora, Excluir
+ *   Agendado  → Editar, Alterar horário, Publicar agora, Cancelar agendamento, Excluir
+ *   Publicando→ (nenhuma — aguardando a Meta)
+ *   Publicado → Visualizar, Excluir do Alilu
+ *   Falhou    → Ver erro, Editar, Tentar novamente, Excluir
+ *   Cancelado → Excluir
  */
-export function CalendarPostCard({ post }: { post: CalendarPostCardData }) {
-  const [busy, setBusy] = useState<"cancel" | "publish" | "delete" | null>(null);
-  const [localStatus, setLocalStatus] = useState<InstagramPostStatus>(post.status);
+export function CalendarPostCard({
+  post,
+  userId,
+  onChange,
+  onRemove,
+}: {
+  post: CalendarPostCardData;
+  userId?: string;
+  onChange?: (post: CalendarPostCardData) => void;
+  onRemove?: (postId: string) => void;
+}) {
+  const [current, setCurrent] = useState(post);
   const [removed, setRemoved] = useState(false);
+  const [dialog, setDialog] = useState<DialogKind>(null);
+  const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [schedule, setSchedule] = useState<ScheduleValue>({ date: "", time: "" });
 
-  const canCancel = CANCELLABLE_STATUSES.includes(localStatus);
-  const canDelete = DELETABLE_STATUSES.includes(localStatus);
-  const canPublishNow = PUBLISHABLE_NOW_STATUSES.includes(localStatus);
+  const timeZone = current.timezone ?? "America/Sao_Paulo";
+  const status = current.status;
 
-  async function handleCancel() {
+  function apply(patch: Partial<CalendarPostCardData>) {
+    const next = { ...current, ...patch };
+    setCurrent(next);
+    onChange?.(next);
+  }
+
+  async function run(action: () => Promise<void>) {
     if (busy) return;
-    const confirmed = window.confirm("Cancelar este post? Ele não poderá mais ser publicado depois.");
-    if (!confirmed) return;
-
-    setBusy("cancel");
+    setBusy(true);
     setError(null);
+    setNotice(null);
     try {
-      const response = await fetch(`/api/instagram/posts/${post.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "cancel" }),
+      await action();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Algo deu errado. Tente novamente.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function openSchedule() {
+    const zone = getBrowserTimeZone();
+    const base = current.scheduledAtUtc ?? new Date(Date.now() + 60 * 60_000).toISOString();
+    setSchedule(utcToZonedInputs(base, zone));
+    setError(null);
+    setDialog("schedule");
+  }
+
+  const handleSchedule = () =>
+    run(async () => {
+      const zone = getBrowserTimeZone();
+      const parsed = scheduleValueToIso(schedule, zone);
+      if ("error" in parsed) throw new Error(parsed.error);
+      await reschedulePublication(current.id, parsed.iso, zone);
+      apply({ status: "SCHEDULED", scheduledAtUtc: parsed.iso, timezone: zone, lastErrorSanitized: null });
+      setDialog(null);
+      setNotice(`Publicação agendada com sucesso. ${formatScheduleConfirmation(parsed.iso, zone)}`);
+    });
+
+  const handlePublishNow = () =>
+    run(async () => {
+      const outcome = await publishPublicationNow(current.id);
+      apply({
+        status: outcome === "PUBLISHED" ? "PUBLISHED" : outcome === "PROCESSING" ? "PROCESSING" : "SCHEDULED",
+        publishedAt: outcome === "PUBLISHED" ? new Date().toISOString() : current.publishedAt,
+        lastErrorSanitized: null,
       });
-      if (!response.ok) {
-        throw new Error(await readErrorMessage(response, "Não foi possível cancelar este post."));
-      }
-      setLocalStatus("CANCELLED");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Erro inesperado ao cancelar.");
-    } finally {
-      setBusy(null);
-    }
-  }
+      setNotice(describePublishOutcome(outcome));
+    });
 
-  async function handlePublishNow() {
-    if (busy) return;
-    setBusy("publish");
-    setError(null);
-    try {
-      const response = await fetch(`/api/instagram/posts/${post.id}/publish`, { method: "POST" });
-      if (!response.ok) {
-        throw new Error(await readErrorMessage(response, "Não foi possível publicar este post."));
-      }
-      const { status } = (await response.json()) as { status: "PUBLISHED" | "PROCESSING" };
-      setLocalStatus(status);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Erro inesperado ao publicar.");
-    } finally {
-      setBusy(null);
-    }
-  }
+  const handleCancel = () =>
+    run(async () => {
+      await cancelPublication(current.id);
+      apply({ status: "CANCELLED" });
+      setDialog(null);
+      setNotice("Agendamento cancelado.");
+    });
 
-  async function handleDelete() {
-    if (busy) return;
-    const message =
-      localStatus === "PUBLISHED"
-        ? "Esta publicação será removida apenas do histórico do ALILU. Ela continuará no Instagram."
-        : "Excluir esta publicação do ALILU? Agendamentos pendentes serão cancelados.";
-    const confirmed = window.confirm(message);
-    if (!confirmed) return;
-
-    setBusy("delete");
-    setError(null);
-    try {
-      const response = await fetch(`/api/instagram/posts/${post.id}`, { method: "DELETE" });
-      if (!response.ok) {
-        throw new Error(await readErrorMessage(response, "Não foi possível excluir esta publicação."));
-      }
+  const handleDelete = () =>
+    run(async () => {
+      // Agendamento pendente: cancela antes de excluir (garante que nunca
+      // será publicado, mesmo que a exclusão falhe no meio).
+      if (status === "SCHEDULED") await cancelPublication(current.id);
+      await deletePublication(current.id);
+      setDialog(null);
       setRemoved(true);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Erro inesperado ao excluir.");
-    } finally {
-      setBusy(null);
-    }
-  }
-
-  const scheduledLabel = formatDateTime(post.scheduledAtUtc);
-  const publishedLabel = formatDateTime(post.publishedAt);
+      onRemove?.(current.id);
+    });
 
   if (removed) return null;
 
+  const scheduledLabel = formatInTimeZone(current.scheduledAtUtc, timeZone);
+  const publishedLabel = formatInTimeZone(current.publishedAt, timeZone);
+  const retryLabel =
+    status === "SCHEDULED" && current.nextAttemptAt && (current.attemptsCount ?? 0) > 0
+      ? formatInTimeZone(current.nextAttemptAt, timeZone)
+      : null;
+  const typeLabel =
+    current.postType === "carousel" ? `${TYPE_LABEL.carousel} · ${current.itemCount} fotos` : TYPE_LABEL[current.postType];
+  const canEditArt = Boolean(current.hasTemplateData) && ["DRAFT", "SCHEDULED", "FAILED"].includes(status);
+
+  const deleteCopy =
+    status === "PUBLISHED"
+      ? {
+          title: "Excluir esta publicação do histórico do Alilu?",
+          description: "A publicação continuará disponível no Instagram.",
+          confirm: "Excluir do Alilu",
+        }
+      : status === "SCHEDULED"
+        ? {
+            title: "Cancelar este agendamento e excluir a publicação?",
+            description: "Ela não será publicada no Instagram.",
+            confirm: "Cancelar e excluir",
+          }
+        : {
+            title: "Excluir esta publicação do Alilu?",
+            description: "Esta ação não pode ser desfeita.",
+            confirm: "Excluir",
+          };
+
   return (
-    <div className="flex gap-3 rounded-lg border border-zinc-200 p-3">
-      {post.mediaStorageUrl ? (
-        // eslint-disable-next-line @next/next/no-img-element -- miniatura de mídia já hospedada no Vercel Blob, sem next/image configurado pra esse domínio externo dinâmico
-        <img
-          src={post.mediaStorageUrl}
-          alt=""
-          className="h-16 w-16 flex-shrink-0 rounded-md object-cover"
-        />
+    <article className="flex gap-3 rounded-lg border border-zinc-200 bg-white p-3" aria-label={`${typeLabel} — ${STATUS_LABEL[status]}`}>
+      {current.mediaStorageUrl ? (
+        current.postType === "reels" ? (
+          <video
+            src={current.mediaStorageUrl}
+            muted
+            playsInline
+            preload="metadata"
+            className="h-20 w-16 flex-shrink-0 rounded-md bg-zinc-900 object-cover"
+            aria-hidden
+          />
+        ) : (
+          // eslint-disable-next-line @next/next/no-img-element -- miniatura hospedada no Vercel Blob (domínio dinâmico)
+          <img
+            src={current.mediaStorageUrl}
+            alt=""
+            loading="lazy"
+            className="h-20 w-16 flex-shrink-0 rounded-md bg-zinc-100 object-cover sm:w-20"
+          />
+        )
       ) : (
-        <div className="h-16 w-16 flex-shrink-0 rounded-md bg-zinc-100" aria-hidden />
+        <div className="h-20 w-16 flex-shrink-0 rounded-md bg-zinc-100 sm:w-20" aria-hidden />
       )}
 
-      <div className="min-w-0 flex-1 space-y-1">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_BADGE_CLASS[localStatus]}`}>
-            {STATUS_LABEL[localStatus]}
+      <div className="min-w-0 flex-1 space-y-1.5">
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_BADGE_CLASS[status]}`}>
+            {STATUS_LABEL[status]}
+            {status === "PROCESSING" ? "…" : ""}
           </span>
-          {post.postType === "carousel" ? (
-            <span className="rounded-full bg-violet-50 px-2 py-0.5 text-xs font-medium text-violet-700">
-              Carrossel · {post.itemCount} fotos
-            </span>
+          <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-700">{typeLabel}</span>
+          {current.source === "VIRAL_POST" ? (
+            <span className="rounded-full bg-violet-50 px-2 py-0.5 text-xs font-medium text-violet-700">Post viral</span>
           ) : null}
-          {post.postType === "reels" ? (
-            <span className="rounded-full bg-fuchsia-50 px-2 py-0.5 text-xs font-medium text-fuchsia-700">
-              Reel
-            </span>
-          ) : null}
-          {post.postType === "image" ? (
-            <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-700">
-              Post
-            </span>
-          ) : null}
-          {scheduledLabel ? (
-            <span className="text-xs text-zinc-500">Agendado para {scheduledLabel}</span>
-          ) : null}
-          {publishedLabel ? <span className="text-xs text-zinc-500">Publicado em {publishedLabel}</span> : null}
+          {current.igUsername ? <span className="text-xs text-zinc-500">@{current.igUsername}</span> : null}
         </div>
 
-        <p className="truncate text-sm text-zinc-800">{post.caption || <em className="text-zinc-400">Sem legenda</em>}</p>
-
-        {localStatus === "FAILED" && post.lastErrorSanitized ? (
-          <p className="text-xs text-red-600">{post.lastErrorSanitized}</p>
+        <p className="text-xs text-zinc-600">
+          {status === "PUBLISHED" && publishedLabel
+            ? `Publicado em ${publishedLabel}`
+            : scheduledLabel && status !== "DRAFT"
+              ? `${status === "CANCELLED" ? "Estava agendado para" : "Agendado para"} ${scheduledLabel}`
+              : `Criado em ${formatInTimeZone(current.createdAt, timeZone)}`}
+        </p>
+        {retryLabel ? (
+          <p className="text-xs text-amber-700">Nova tentativa automática em {retryLabel}.</p>
         ) : null}
 
-        {error ? (
+        <p className="line-clamp-2 break-words text-sm text-zinc-800">
+          {current.caption || <em className="text-zinc-400">Sem legenda</em>}
+        </p>
+
+        {notice ? (
+          <p role="status" className="text-xs text-teal-700">
+            {notice}
+          </p>
+        ) : null}
+        {error && !dialog ? (
           <p role="alert" className="text-xs text-red-600">
             {error}
           </p>
         ) : null}
 
-        <div className="flex gap-2 pt-1">
-          {canPublishNow ? (
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() => void handlePublishNow()}
-              disabled={busy !== null}
-              className="h-8 px-3 text-xs"
-            >
-              {busy === "publish" ? "Publicando…" : "Publicar agora"}
+        <div className="flex flex-wrap gap-1.5 pt-1">
+          {status === "PUBLISHED" && current.mediaStorageUrl ? (
+            <LinkButton href={current.mediaStorageUrl} target="_blank" rel="noopener noreferrer" variant="secondary" className={SMALL}>
+              Visualizar
+            </LinkButton>
+          ) : null}
+          {status === "FAILED" ? (
+            <Button type="button" variant="secondary" className={SMALL} onClick={() => setDialog("error")}>
+              Ver erro
             </Button>
           ) : null}
-          {canCancel ? (
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={() => void handleCancel()}
-              disabled={busy !== null}
-              className="h-8 px-3 text-xs"
-            >
-              {busy === "cancel" ? "Cancelando…" : "Cancelar"}
+          {canEditArt ? (
+            <LinkButton href={`/instagram/posts-virais?editar=${current.id}`} variant="secondary" className={SMALL}>
+              Editar arte
+            </LinkButton>
+          ) : null}
+          {["DRAFT", "SCHEDULED", "FAILED"].includes(status) && userId ? (
+            <Button type="button" variant="secondary" className={SMALL} onClick={() => setDialog("edit")} disabled={busy}>
+              Editar
             </Button>
           ) : null}
-          {canDelete ? (
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={() => void handleDelete()}
-              disabled={busy !== null}
-              className="h-8 px-3 text-xs"
-            >
-              {busy === "delete" ? "Excluindo…" : "Excluir do Alilu"}
+          {status === "DRAFT" ? (
+            <Button type="button" variant="secondary" className={SMALL} onClick={openSchedule} disabled={busy}>
+              Agendar
+            </Button>
+          ) : null}
+          {status === "SCHEDULED" ? (
+            <Button type="button" variant="secondary" className={SMALL} onClick={openSchedule} disabled={busy}>
+              Alterar horário
+            </Button>
+          ) : null}
+          {status === "DRAFT" || status === "SCHEDULED" ? (
+            <Button type="button" variant="secondary" className={SMALL} onClick={() => void handlePublishNow()} disabled={busy}>
+              {busy ? "Aguarde…" : "Publicar agora"}
+            </Button>
+          ) : null}
+          {status === "FAILED" ? (
+            <Button type="button" variant="secondary" className={SMALL} onClick={() => void handlePublishNow()} disabled={busy}>
+              {busy ? "Tentando…" : "Tentar novamente"}
+            </Button>
+          ) : null}
+          {status === "SCHEDULED" ? (
+            <Button type="button" variant="ghost" className={SMALL} onClick={() => setDialog("cancel")} disabled={busy}>
+              Cancelar agendamento
+            </Button>
+          ) : null}
+          {status !== "PROCESSING" ? (
+            <Button type="button" variant="ghost" className={`${SMALL} text-red-700`} onClick={() => setDialog("delete")} disabled={busy}>
+              {status === "PUBLISHED" ? "Excluir do Alilu" : "Excluir"}
             </Button>
           ) : null}
         </div>
       </div>
-    </div>
+
+      <Dialog
+        open={dialog === "schedule"}
+        title={status === "SCHEDULED" ? "Alterar horário" : "Agendar publicação"}
+        onClose={() => setDialog(null)}
+        footer={
+          <>
+            <Button type="button" variant="secondary" onClick={() => setDialog(null)} disabled={busy}>
+              Voltar
+            </Button>
+            <Button type="button" onClick={() => void handleSchedule()} disabled={busy}>
+              {busy ? "Salvando…" : "Confirmar"}
+            </Button>
+          </>
+        }
+      >
+        <ScheduleFields value={schedule} onChange={setSchedule} timeZone={dialog === "schedule" ? getBrowserTimeZone() : timeZone} disabled={busy} />
+        {error ? (
+          <p role="alert" className="text-sm text-red-600">
+            {error}
+          </p>
+        ) : null}
+      </Dialog>
+
+      <Dialog open={dialog === "error"} title="Por que a publicação falhou" onClose={() => setDialog(null)}>
+        <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
+          {current.lastErrorSanitized ?? "Não foi possível publicar no Instagram."}
+        </p>
+        <p className="text-sm text-zinc-600">
+          Você pode editar a publicação e tentar novamente. Se a mensagem pedir para renovar a conexão, reconecte a conta no{" "}
+          <a href="/instagram/painel" className="font-medium text-teal-700 underline">
+            painel do Instagram
+          </a>
+          .
+        </p>
+      </Dialog>
+
+      <ConfirmDialog
+        open={dialog === "cancel"}
+        title="Cancelar este agendamento?"
+        description="A publicação não será enviada ao Instagram. Ela continua no Alilu como cancelada."
+        confirmLabel="Cancelar agendamento"
+        cancelLabel="Voltar"
+        busy={busy}
+        onConfirm={() => void handleCancel()}
+        onClose={() => setDialog(null)}
+      />
+
+      <ConfirmDialog
+        open={dialog === "delete"}
+        title={deleteCopy.title}
+        description={error ? `${deleteCopy.description} (${error})` : deleteCopy.description}
+        confirmLabel={deleteCopy.confirm}
+        destructive
+        busy={busy}
+        onConfirm={() => void handleDelete()}
+        onClose={() => setDialog(null)}
+      />
+
+      {dialog === "edit" && userId ? (
+        <EditPublicationDialog
+          post={current}
+          userId={userId}
+          onClose={() => setDialog(null)}
+          onSaved={(patch, message) => {
+            apply(patch);
+            setDialog(null);
+            setNotice(message);
+          }}
+        />
+      ) : null}
+    </article>
   );
 }

@@ -115,6 +115,7 @@ describe("CarouselPublishPanel", () => {
       ],
       caption: "Minha legenda",
       scheduledAt: null,
+      timezone: expect.any(String),
     });
   });
 
@@ -137,7 +138,7 @@ describe("CarouselPublishPanel", () => {
     fireEvent.change(screen.getByLabelText("Agendar para (opcional)"), { target: { value: futureLocal } });
     fireEvent.click(screen.getByRole("button", { name: "Agendar" }));
 
-    await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent("Carrossel agendado"));
+    await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent("Publicação agendada com sucesso"));
 
     expect(fetchMock).toHaveBeenCalledTimes(1); // só criou o post, nunca chamou /publish
   });

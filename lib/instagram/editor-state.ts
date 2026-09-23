@@ -40,7 +40,22 @@ export interface BackgroundImageState {
   /** Ponto de enquadramento (0..1) usado no recorte "cover" — 0.5/0.5 é o centro. */
   focusXFrac: number;
   focusYFrac: number;
+  /**
+   * Ampliação sobre o enquadramento "cover" (1 = preenche a área sem
+   * sobras; 2 = o dobro). Nunca menor que 1: a imagem nunca deixa buraco
+   * nem é distorcida — só recortada.
+   */
+  zoom: number;
+  /**
+   * URL pública (storage persistente) da imagem ORIGINAL, quando já foi
+   * enviada — permite reabrir e editar a arte dias depois (Posts Virais).
+   * Nunca é uma URL blob:/data:.
+   */
+  storageUrl?: string | null;
 }
+
+export const MIN_IMAGE_ZOOM = 1;
+export const MAX_IMAGE_ZOOM = 4;
 
 export interface PostEditorState {
   formatId: PostFormatId;
@@ -64,6 +79,8 @@ function createEmptyBackgroundImage(): BackgroundImageState {
     naturalHeight: null,
     focusXFrac: 0.5,
     focusYFrac: 0.5,
+    zoom: 1,
+    storageUrl: null,
   };
 }
 
@@ -278,6 +295,22 @@ export function setBackgroundImageFocus(state: PostEditorState, focusXFrac: numb
   };
 }
 
+export function setBackgroundImageZoom(state: PostEditorState, zoom: number): PostEditorState {
+  const safe = Number.isFinite(zoom) ? zoom : 1;
+  return {
+    ...state,
+    backgroundImage: {
+      ...state.backgroundImage,
+      zoom: Math.min(MAX_IMAGE_ZOOM, Math.max(MIN_IMAGE_ZOOM, safe)),
+    },
+  };
+}
+
+/** Guarda a URL persistente da imagem original (depois do upload ao storage). */
+export function setBackgroundImageStorageUrl(state: PostEditorState, storageUrl: string | null): PostEditorState {
+  return { ...state, backgroundImage: { ...state.backgroundImage, storageUrl } };
+}
+
 export function setFormat(state: PostEditorState, formatId: PostFormatId): PostEditorState {
   return { ...state, formatId };
 }
@@ -285,4 +318,64 @@ export function setFormat(state: PostEditorState, formatId: PostFormatId): PostE
 /** Um slot só é considerado "visível" (e é desenhado) quando tem conteúdo — nunca desenhamos texto vazio. */
 export function isSlotVisible(state: PostEditorState, slotId: TextSlotId): boolean {
   return state.texts[slotId].value.trim().length > 0;
+}
+
+/** Versão do formato serializado do editor (template_data no banco). */
+export const EDITOR_STATE_SCHEMA_VERSION = 1;
+
+export interface SerializedEditorState {
+  version: number;
+  state: Omit<PostEditorState, "backgroundImage"> & {
+    backgroundImage: Omit<BackgroundImageState, "url">;
+  };
+}
+
+/**
+ * Estado do editor pronto para salvar (template_data): remove a URL local
+ * (blob:), que não sobrevive a um recarregamento; a imagem é reaberta
+ * depois pela `storageUrl` persistente.
+ */
+export function serializeEditorState(state: PostEditorState): SerializedEditorState {
+  const { url: _localUrl, ...image } = state.backgroundImage;
+  void _localUrl;
+  return { version: EDITOR_STATE_SCHEMA_VERSION, state: { ...state, backgroundImage: image } };
+}
+
+/**
+ * Reconstrói um estado válido a partir de template_data, tolerante a
+ * campos ausentes/antigos (tudo que faltar vem do estado inicial do
+ * template). `localImageUrl` é a URL (blob:) recriada para a imagem
+ * persistida, quando houver.
+ */
+export function deserializeEditorState(data: unknown, localImageUrl: string | null = null): PostEditorState | null {
+  if (typeof data !== "object" || data === null) return null;
+  const raw = (data as { state?: unknown }).state;
+  if (typeof raw !== "object" || raw === null) return null;
+  const saved = raw as Partial<PostEditorState> & { backgroundImage?: Partial<BackgroundImageState> };
+  const base = createInitialEditorState(
+    (typeof saved.templateId === "string" ? saved.templateId : undefined) as PostTemplateId | undefined,
+    (typeof saved.formatId === "string" ? saved.formatId : undefined) as PostFormatId | undefined,
+  );
+  const texts = { ...base.texts };
+  for (const slotId of TEXT_SLOT_IDS) {
+    const layer = saved.texts?.[slotId];
+    if (layer && typeof layer === "object") texts[slotId] = { ...base.texts[slotId], ...layer };
+  }
+  const image: Partial<BackgroundImageState> = saved.backgroundImage ?? {};
+  return {
+    ...base,
+    colorComboId: saved.colorComboId === undefined ? base.colorComboId : saved.colorComboId,
+    backgroundColor: typeof saved.backgroundColor === "string" ? saved.backgroundColor : base.backgroundColor,
+    badgeBackground: typeof saved.badgeBackground === "string" ? saved.badgeBackground : base.badgeBackground,
+    badgeTextColor: typeof saved.badgeTextColor === "string" ? saved.badgeTextColor : base.badgeTextColor,
+    accentColor: typeof saved.accentColor === "string" ? saved.accentColor : base.accentColor,
+    texts,
+    backgroundImage: {
+      ...createEmptyBackgroundImage(),
+      ...image,
+      url: localImageUrl,
+      zoom: Math.min(MAX_IMAGE_ZOOM, Math.max(MIN_IMAGE_ZOOM, Number(image.zoom ?? 1) || 1)),
+      storageUrl: typeof image.storageUrl === "string" ? image.storageUrl : null,
+    },
+  };
 }

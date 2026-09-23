@@ -36,3 +36,23 @@ export function isValidOAuthState(
 
   return timingSafeEqual(callbackBuffer, cookieBuffer);
 }
+
+/** Cookie com o caminho interno para onde voltar depois de conectar o Instagram. */
+export const INSTAGRAM_OAUTH_RETURN_COOKIE = "ig_oauth_return";
+
+/**
+ * Aceita só caminhos internos da área Instagram (nunca URL absoluta nem
+ * "//dominio" — evita open redirect). Retorna null quando inválido.
+ */
+export function sanitizeOAuthReturnPath(value: string | null | undefined): string | null {
+  if (!value || value.length > 300) return null;
+  if (!value.startsWith("/instagram")) return null;
+  if (value.startsWith("//") || value.includes("\\") || /[\u0000-\u001f]/.test(value)) return null;
+  try {
+    const url = new URL(value, "https://alilu.invalid");
+    if (url.origin !== "https://alilu.invalid") return null;
+    return `${url.pathname}${url.search}`;
+  } catch {
+    return null;
+  }
+}

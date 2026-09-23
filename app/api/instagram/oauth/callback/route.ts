@@ -1,8 +1,10 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { auth } from "@/auth";
 import {
+  INSTAGRAM_OAUTH_RETURN_COOKIE,
   INSTAGRAM_OAUTH_STATE_COOKIE,
   isValidOAuthState,
+  sanitizeOAuthReturnPath,
 } from "@/lib/instagram/backend/oauth-state";
 import {
   InstagramOAuthConfigError,
@@ -19,12 +21,17 @@ import {
  */
 
 function painelRedirect(request: NextRequest, status: string, message?: string): NextResponse {
-  const url = new URL("/instagram/painel", request.url);
+  // Depois de conectar com sucesso, volta para onde o usuário estava
+  // (ex.: o Post Viral em edição); em erro, sempre para o painel.
+  const returnTo =
+    status === "conectado" ? sanitizeOAuthReturnPath(request.cookies.get(INSTAGRAM_OAUTH_RETURN_COOKIE)?.value) : null;
+  const url = new URL(returnTo ?? "/instagram/painel", request.url);
   url.searchParams.set("status", status);
   if (message) url.searchParams.set("mensagem", message);
 
   const response = NextResponse.redirect(url);
   response.cookies.delete(INSTAGRAM_OAUTH_STATE_COOKIE);
+  response.cookies.delete(INSTAGRAM_OAUTH_RETURN_COOKIE);
   return response;
 }
 

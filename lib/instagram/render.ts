@@ -143,7 +143,8 @@ function drawBackground(
       uploadedImage.naturalWidth,
       uploadedImage.naturalHeight,
       state.backgroundImage.focusXFrac,
-      state.backgroundImage.focusYFrac
+      state.backgroundImage.focusYFrac,
+      state.backgroundImage.zoom ?? 1
     );
     ctx.drawImage(
       uploadedImage,
@@ -271,7 +272,8 @@ function drawImageArea(
       uploadedImage.naturalWidth,
       uploadedImage.naturalHeight,
       state.backgroundImage.focusXFrac,
-      state.backgroundImage.focusYFrac
+      state.backgroundImage.focusYFrac,
+      state.backgroundImage.zoom ?? 1
     );
     ctx.drawImage(uploadedImage, cover.sx, cover.sy, cover.sWidth, cover.sHeight, x, y, w, h);
   } else {

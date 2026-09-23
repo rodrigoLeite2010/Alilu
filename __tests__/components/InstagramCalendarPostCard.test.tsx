@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import { fireEvent } from "@testing-library/react";
 import { CalendarPostCard, type CalendarPostCardData } from "@/components/instagram/CalendarPostCard";
 
@@ -26,13 +26,49 @@ afterEach(() => {
 });
 
 describe("CalendarPostCard", () => {
-  it("mostra o status, a legenda, e os botões de publicar/cancelar para um DRAFT", () => {
-    render(<CalendarPostCard post={post()} />);
+  it("DRAFT: mostra status, legenda e as ações Editar, Agendar, Publicar agora e Excluir", () => {
+    render(<CalendarPostCard post={post()} userId="user-1" />);
 
     expect(screen.getByText("Rascunho")).toBeInTheDocument();
     expect(screen.getByText("Legenda de teste")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Publicar agora" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Cancelar" })).toBeInTheDocument();
+    expect(screen.getByText("@alilu.tec")).toBeInTheDocument();
+    for (const name of ["Editar", "Agendar", "Publicar agora", "Excluir"]) {
+      expect(screen.getByRole("button", { name })).toBeInTheDocument();
+    }
+  });
+
+  it("SCHEDULED: Editar, Alterar horário, Cancelar agendamento e Excluir, com data no fuso do agendamento", () => {
+    render(
+      <CalendarPostCard
+        post={post({ status: "SCHEDULED", scheduledAtUtc: "2026-09-24T21:30:00.000Z", timezone: "America/Sao_Paulo" })}
+        userId="user-1"
+      />,
+    );
+    expect(screen.getByText("Agendado para 24/09/2026, 18:30")).toBeInTheDocument();
+    for (const name of ["Editar", "Alterar horário", "Cancelar agendamento", "Excluir"]) {
+      expect(screen.getByRole("button", { name })).toBeInTheDocument();
+    }
+  });
+
+  it("PUBLISHED: Excluir do Alilu avisa que continua no Instagram", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ status: "DELETED" })));
+    vi.stubGlobal("fetch", fetchMock);
+    const onRemove = vi.fn();
+    render(
+      <CalendarPostCard
+        post={post({ status: "PUBLISHED", publishedAt: "2026-09-21T10:00:00.000Z", mediaStorageUrl: "https://blob/x.jpg" })}
+        onRemove={onRemove}
+      />,
+    );
+    expect(screen.getByRole("link", { name: "Visualizar" })).toHaveAttribute("href", "https://blob/x.jpg");
+    fireEvent.click(screen.getByRole("button", { name: "Excluir do Alilu" }));
+
+    const dialog = await screen.findByRole("dialog", { name: "Excluir esta publicação do histórico do Alilu?" });
+    expect(dialog).toHaveTextContent("A publicação continuará disponível no Instagram.");
+    fireEvent.click(within(dialog).getByRole("button", { name: "Excluir do Alilu" }));
+
+    await waitFor(() => expect(onRemove).toHaveBeenCalledWith("post-1"));
+    expect(fetchMock).toHaveBeenCalledWith("/api/instagram/posts/post-1", { method: "DELETE" });
   });
 
   it("post de carrossel mostra o indicativo \"Carrossel · N fotos\"; imagem única não mostra nada disso", () => {
@@ -50,36 +86,49 @@ describe("CalendarPostCard", () => {
 
     expect(screen.getByText("Publicado")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Publicar agora" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Cancelar" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Cancelar agendamento" })).not.toBeInTheDocument();
   });
 
-  it("cancelar chama a rota PATCH e atualiza o status exibido para Cancelado", async () => {
-    vi.spyOn(window, "confirm").mockReturnValue(true);
+  it("cancelar agendamento pede confirmação, chama a rota PATCH e mostra Cancelado", async () => {
     const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ status: "CANCELLED" }), { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);
 
-    render(<CalendarPostCard post={post()} />);
-    fireEvent.click(screen.getByRole("button", { name: "Cancelar" }));
+    render(<CalendarPostCard post={post({ status: "SCHEDULED", scheduledAtUtc: "2099-01-01T10:00:00.000Z" })} />);
+    fireEvent.click(screen.getByRole("button", { name: "Cancelar agendamento" }));
+    const dialog = await screen.findByRole("dialog");
+    fireEvent.click(within(dialog).getByRole("button", { name: "Cancelar agendamento" }));
 
     await waitFor(() => expect(screen.getByText("Cancelado")).toBeInTheDocument());
-
-    expect(fetchMock).toHaveBeenCalledWith(
-      "/api/instagram/posts/post-1",
-      expect.objectContaining({ method: "PATCH" }),
-    );
+    expect(screen.getByText("Agendamento cancelado.")).toBeInTheDocument();
     const body = JSON.parse((fetchMock.mock.calls[0][1] as RequestInit).body as string);
     expect(body).toEqual({ action: "cancel" });
   });
 
-  it("não chama a rota quando o usuário não confirma o cancelamento", () => {
-    vi.spyOn(window, "confirm").mockReturnValue(false);
+  it("não chama a rota quando o usuário volta sem confirmar o cancelamento", async () => {
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
 
-    render(<CalendarPostCard post={post()} />);
-    fireEvent.click(screen.getByRole("button", { name: "Cancelar" }));
+    render(<CalendarPostCard post={post({ status: "SCHEDULED", scheduledAtUtc: "2099-01-01T10:00:00.000Z" })} />);
+    fireEvent.click(screen.getByRole("button", { name: "Cancelar agendamento" }));
+    fireEvent.click(within(await screen.findByRole("dialog")).getByRole("button", { name: "Voltar" }));
 
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("alterar horário envia o novo instante com o fuso do navegador", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ status: "SCHEDULED" })));
+    vi.stubGlobal("fetch", fetchMock);
+    render(<CalendarPostCard post={post({ status: "SCHEDULED", scheduledAtUtc: "2099-01-01T10:00:00.000Z" })} />);
+    fireEvent.click(screen.getByRole("button", { name: "Alterar horário" }));
+    const dialog = await screen.findByRole("dialog", { name: "Alterar horário" });
+    fireEvent.change(within(dialog).getByLabelText("Data"), { target: { value: "2099-02-03" } });
+    fireEvent.change(within(dialog).getByLabelText("Hora"), { target: { value: "09:15" } });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Confirmar" }));
+
+    expect(await screen.findByText(/Publicação agendada com sucesso\. Seu post será publicado em 03\/02 às 09:15\./)).toBeInTheDocument();
+    const body = JSON.parse((fetchMock.mock.calls[0][1] as RequestInit).body as string);
+    expect(body).toMatchObject({ action: "reschedule", timezone: expect.any(String) });
+    expect(body.scheduledAt).toMatch(/Z$/);
   });
 
   it("publicar agora chama a rota de publish e atualiza o status para o retornado", async () => {
@@ -105,13 +154,17 @@ describe("CalendarPostCard", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("Post não encontrado.");
   });
 
-  it("um post FAILED mostra a mensagem de erro sanitizada", () => {
+  it("FAILED: Ver erro mostra a mensagem sanitizada e há Tentar novamente", async () => {
     render(
       <CalendarPostCard
         post={post({ status: "FAILED", lastErrorSanitized: "Falha ao criar o container de mídia." })}
+        userId="user-1"
       />,
     );
 
-    expect(screen.getByText("Falha ao criar o container de mídia.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Tentar novamente" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Editar" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Ver erro" }));
+    expect(await screen.findByText("Falha ao criar o container de mídia.")).toBeInTheDocument();
   });
 });

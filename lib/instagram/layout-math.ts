@@ -28,7 +28,8 @@ export function computeCoverRect(
   imageWidth: number,
   imageHeight: number,
   focusXFrac = 0.5,
-  focusYFrac = 0.5
+  focusYFrac = 0.5,
+  zoom = 1
 ): CoverRect {
   if (boxWidth <= 0 || boxHeight <= 0 || imageWidth <= 0 || imageHeight <= 0) {
     return { sx: 0, sy: 0, sWidth: imageWidth, sHeight: imageHeight };
@@ -47,6 +48,12 @@ export function computeCoverRect(
     // Imagem mais alta que a caixa: corta em cima/embaixo.
     sHeight = imageWidth / boxRatio;
   }
+
+  // Ampliação: recorta uma janela menor da imagem (sempre >= 1, então a
+  // área continua 100% preenchida e a proporção é preservada).
+  const safeZoom = Number.isFinite(zoom) && zoom > 1 ? zoom : 1;
+  sWidth /= safeZoom;
+  sHeight /= safeZoom;
 
   const maxSx = imageWidth - sWidth;
   const maxSy = imageHeight - sHeight;
@@ -124,4 +131,42 @@ export function buildPostFileName(extension: "png" | "jpg"): string {
  */
 export function buildCarouselSlideFileName(index: number, extension: "png" | "jpg"): string {
   return `alilu-instagram-carrossel-slide-${String(index + 1).padStart(2, "0")}.${extension}`;
+}
+
+export interface PanImageInput {
+  focusXFrac: number;
+  focusYFrac: number;
+  /** Deslocamento do ponteiro, em fração da largura/altura da área da imagem. */
+  deltaXFrac: number;
+  deltaYFrac: number;
+  boxWidth: number;
+  boxHeight: number;
+  imageWidth: number;
+  imageHeight: number;
+  zoom: number;
+}
+
+/**
+ * Novo ponto de enquadramento depois de arrastar a imagem dentro da área
+ * do template: a imagem acompanha o dedo/mouse (arrastar para a direita
+ * mostra mais do lado esquerdo). Quando não há sobra em um eixo (imagem
+ * exatamente na proporção), o foco daquele eixo não muda.
+ */
+export function panImageFocus(input: PanImageInput): { focusXFrac: number; focusYFrac: number } {
+  const rect = computeCoverRect(
+    input.boxWidth,
+    input.boxHeight,
+    input.imageWidth,
+    input.imageHeight,
+    input.focusXFrac,
+    input.focusYFrac,
+    input.zoom
+  );
+  const maxSx = input.imageWidth - rect.sWidth;
+  const maxSy = input.imageHeight - rect.sHeight;
+  const focusXFrac =
+    maxSx > 0.5 ? clampFraction(input.focusXFrac - (input.deltaXFrac * rect.sWidth) / maxSx) : input.focusXFrac;
+  const focusYFrac =
+    maxSy > 0.5 ? clampFraction(input.focusYFrac - (input.deltaYFrac * rect.sHeight) / maxSy) : input.focusYFrac;
+  return { focusXFrac, focusYFrac };
 }

@@ -96,6 +96,10 @@ describe("createImagePost", () => {
       mediaId: "media-1",
       caption: "Legenda",
       scheduledAtUtc: null,
+      source: "MANUAL",
+      templateId: null,
+      templateData: null,
+      timezone: null,
     });
   });
 });
@@ -253,6 +257,10 @@ describe("createCarouselPost", () => {
       mediaIds: ["media-1", "media-2", "media-3"],
       caption: "Legenda do carrossel",
       scheduledAtUtc: null,
+      source: "MANUAL",
+      templateId: null,
+      templateData: null,
+      timezone: null,
     });
   });
 
@@ -354,7 +362,7 @@ describe("reschedulePost", () => {
   it("permite remover o agendamento (scheduledAt nulo) sem validar data", async () => {
     reschedulePostInDbMock.mockResolvedValue(true);
     await expect(reschedulePost("post-1", "user-1", null)).resolves.toBeUndefined();
-    expect(reschedulePostInDbMock).toHaveBeenCalledWith("post-1", "user-1", null);
+    expect(reschedulePostInDbMock).toHaveBeenCalledWith("post-1", "user-1", null, null);
   });
 
   it("lança InstagramPostValidationError quando o repositório não reagenda nada", async () => {
