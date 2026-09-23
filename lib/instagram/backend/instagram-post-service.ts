@@ -137,7 +137,7 @@ function sleep(ms: number): Promise<void> {
  * media/upload/route.ts). Compartilhado por createImagePostFromUpload e
  * createCarouselPostFromUpload.
  */
-async function resolveUploadedMediaId(mediaUrl: string, userId: string): Promise<string> {
+export async function resolveUploadedMediaId(mediaUrl: string, userId: string): Promise<string> {
   for (let attempt = 0; attempt < MEDIA_RESOLVE_MAX_POLL_ATTEMPTS; attempt++) {
     const media = await getInstagramMediaByStorageUrl(mediaUrl, userId);
     if (media) return media.id;

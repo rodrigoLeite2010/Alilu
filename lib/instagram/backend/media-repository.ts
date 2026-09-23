@@ -65,6 +65,44 @@ export async function getInstagramMediaById(id: string, userId: string): Promise
 }
 
 /**
+ * Lista as mídias mais recentes do usuário, opcionalmente filtradas por
+ * tipo — usada pelo seletor de imagem/vídeo fixo do Piloto Automático de
+ * Conteúdo (nunca duplica upload: só lista o que já está em
+ * instagram_media, o mesmo storage de sempre).
+ */
+export async function listMediaForUser(
+  userId: string,
+  mediaType?: InstagramMediaType,
+  limit = 24,
+): Promise<InstagramMediaRecord[]> {
+  const db = getDb();
+  const rows = mediaType
+    ? await db`
+        select id, user_id, storage_url, media_type, file_size_bytes, original_filename, created_at
+        from instagram_media
+        where user_id = ${userId} and media_type = ${mediaType}
+        order by created_at desc
+        limit ${limit}
+      `
+    : await db`
+        select id, user_id, storage_url, media_type, file_size_bytes, original_filename, created_at
+        from instagram_media
+        where user_id = ${userId}
+        order by created_at desc
+        limit ${limit}
+      `;
+  return rows.map((row) => ({
+    id: row.id as string,
+    userId: row.user_id as string,
+    storageUrl: row.storage_url as string,
+    mediaType: row.media_type as InstagramMediaType,
+    fileSizeBytes: (row.file_size_bytes as number | null) ?? null,
+    originalFilename: (row.original_filename as string | null) ?? null,
+    createdAt: new Date(row.created_at as string),
+  }));
+}
+
+/**
  * Busca uma mídia pela URL exata de armazenamento (Vercel Blob), restrita
  * ao dono. Usada pelo fluxo de "publicar teste" (instagram-post-service.ts):
  * o upload client-side do Vercel Blob só devolve a URL do blob para o

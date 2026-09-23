@@ -178,6 +178,17 @@ export const INSTAGRAM_PUBLISHING = {
   notYetSupported: ["Stories", "Carrossel com vídeo", "Capa personalizada do Reel na publicação"],
 } as const;
 
+/**
+ * Piloto Automático de Conteúdo — automação semanal (gera, agenda e
+ * publica sozinho pela conta Instagram conectada). Ver
+ * docs/content-automation.md para a arquitetura completa.
+ */
+export const CONTENT_AUTOMATION = {
+  /** Dashboard + "Minhas automações" (lista completa, com histórico por automação). */
+  dashboardPath: "/instagram/piloto-automatico",
+  newAutomationPath: "/instagram/piloto-automatico/nova",
+} as const;
+
 export interface InstagramMenuLink {
   href: string;
   label: string;
@@ -191,6 +202,7 @@ export const instagramMenuLinks: InstagramMenuLink[] = [
   { href: "/instagram/legendas", label: "Legendas" },
   { href: "/instagram/posts-virais", label: "Posts Virais" },
   { href: "/instagram/painel/calendario", label: "Agendar e publicar" },
+  { href: "/instagram/piloto-automatico", label: "Piloto Automático" },
 ];
 
 export function getInstagramToolByPath(path: string): InstagramTool | undefined {

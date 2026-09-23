@@ -7,7 +7,7 @@ import { AdSlot } from "@/components/ui/AdSlot";
 import { Icon } from "@/components/ui/Icon";
 import { Badge } from "@/components/ui/Badge";
 import { buildPageMetadata } from "@/lib/seo/metadata";
-import { INSTAGRAM_CATEGORY, INSTAGRAM_PUBLISHING, instagramTools, plannedInstagramTools } from "@/data/instagram";
+import { CONTENT_AUTOMATION, INSTAGRAM_CATEGORY, INSTAGRAM_PUBLISHING, instagramTools, plannedInstagramTools } from "@/data/instagram";
 import { AutoPublishingCard, HowPublishingWorks } from "@/components/instagram/PublishingPromo";
 import { tools } from "@/data/tools";
 
@@ -145,6 +145,41 @@ export default function InstagramCategoryPage() {
           Requer uma conta profissional do Instagram (Criador de conteúdo ou Empresa). Ainda não disponível pela
           publicação automática: {INSTAGRAM_PUBLISHING.notYetSupported.join(", ").toLowerCase()}.
         </p>
+      </section>
+
+      <section id="piloto-automatico" className="mt-10 scroll-mt-20">
+        <SectionHeading
+          title="Piloto Automático"
+          description="Planeje sua semana uma vez e deixe o Alilu criar e publicar seus conteúdos automaticamente."
+        />
+        <div className="rounded-lg border border-teal-300 bg-teal-50/30 p-5 sm:p-6">
+          <div className="flex items-start gap-3">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-white text-teal-800">
+              <Icon name="sparkles" className="h-5 w-5" />
+            </span>
+            <div>
+              <p className="font-semibold text-zinc-900">Piloto Automático de Conteúdo</p>
+              <p className="mt-1 max-w-xl text-sm text-zinc-600">
+                Você define o que publicar em cada dia da semana — Post ou Reel, horário e conta — e o Alilu gera,
+                agenda e publica sozinho na sua conta Instagram conectada.
+              </p>
+            </div>
+          </div>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Link
+              href={CONTENT_AUTOMATION.newAutomationPath}
+              className="inline-flex min-h-11 items-center justify-center rounded-md bg-zinc-900 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-zinc-800"
+            >
+              Criar automação
+            </Link>
+            <Link
+              href={CONTENT_AUTOMATION.dashboardPath}
+              className="inline-flex min-h-11 items-center justify-center rounded-md bg-white px-4 py-2.5 text-sm font-semibold text-zinc-900 ring-1 ring-inset ring-zinc-300 transition-colors hover:bg-zinc-50"
+            >
+              Minhas automações
+            </Link>
+          </div>
+        </div>
       </section>
 
       <section className="mt-10">

@@ -23,7 +23,10 @@ export type InstagramPostStatus =
   | "CANCELLED"
   | "NEEDS_REVIEW";
 
-export type InstagramPostSource = "MANUAL" | "VIRAL_POST";
+export type InstagramPostSource = "MANUAL" | "VIRAL_POST" | "AUTOMATION";
+// "AUTOMATION" = criado pelo Piloto Automático de Conteúdo (ver
+// lib/content-automation/backend/content-automation-cron.ts e a migração
+// 0004_content_automation.sql, que estende o CHECK de `source`).
 
 /** Campos opcionais comuns a todo post criado (origem, template, fuso). */
 export interface PostExtraFields {

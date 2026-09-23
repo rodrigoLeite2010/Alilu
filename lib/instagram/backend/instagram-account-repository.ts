@@ -81,6 +81,38 @@ export async function upsertInstagramAccount(
   return mapRow(rows[0]);
 }
 
+/**
+ * TODAS as contas do Instagram conectadas do usuário, mais recente
+ * primeiro — usado pelo Piloto Automático de Conteúdo (seleção de conta
+ * na criação/edição de uma automação, seção 3 do briefing). Diferente de
+ * getInstagramAccountForUser (que devolve só a mais recente, usada pelo
+ * restante do app hoje), esta função já existe pensando em multi-conta:
+ * mesmo com uma única conta real conectada (@alilu.tec), a tela passa a
+ * listar "contas disponíveis" em vez de assumir uma única.
+ */
+export async function listInstagramAccountsForUser(userId: string): Promise<InstagramAccountRecord[]> {
+  const db = getDb();
+  const rows = await db`
+    select id, user_id, ig_user_id, ig_username, token_expires_at, scopes, status, connected_at, updated_at
+    from instagram_accounts
+    where user_id = ${userId}
+    order by connected_at desc
+  `;
+  return rows.map(mapRow);
+}
+
+/** Uma conta específica do usuário (posse validada) — usado ao criar/editar uma automação. */
+export async function getInstagramAccountByIdForUser(id: string, userId: string): Promise<InstagramAccountRecord | null> {
+  const db = getDb();
+  const rows = await db`
+    select id, user_id, ig_user_id, ig_username, token_expires_at, scopes, status, connected_at, updated_at
+    from instagram_accounts
+    where id = ${id} and user_id = ${userId}
+  `;
+  const row = rows[0];
+  return row ? mapRow(row) : null;
+}
+
 /** Conta conectada mais recente do usuário (um usuário pode, em tese, ter mais de uma no futuro). */
 export async function getInstagramAccountForUser(userId: string): Promise<InstagramAccountRecord | null> {
   const db = getDb();
