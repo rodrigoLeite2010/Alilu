@@ -39,15 +39,18 @@ export default async function CalendarioPage() {
     <div className="mx-auto max-w-2xl px-4 py-10">
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-semibold text-zinc-900">Calendário de posts</h1>
+          <h1 className="text-xl font-semibold text-zinc-900">Minhas publicações</h1>
           <p className="mt-1 text-sm text-zinc-600">
-            Seus posts criados no ALILU, com o status de cada um.
+            Seus rascunhos, agendamentos e publicações criados no ALILU.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
           <LinkButton href="/instagram/painel/calendario/novo">Novo post</LinkButton>
           <LinkButton href="/instagram/painel/calendario/novo-carrossel" variant="secondary">
             Novo carrossel
+          </LinkButton>
+          <LinkButton href="/instagram/reels" variant="secondary">
+            Novo Reel
           </LinkButton>
         </div>
       </div>

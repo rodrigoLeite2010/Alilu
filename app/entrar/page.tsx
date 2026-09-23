@@ -16,6 +16,10 @@ type Step = "email" | "code";
  * logado (a própria Meta impõe essa restrição no momento da conexão).
  */
 export default function LoginPage() {
+  const callbackUrl =
+    typeof window === "undefined"
+      ? "/instagram/painel"
+      : new URLSearchParams(window.location.search).get("callbackUrl") || "/instagram/painel";
   const [step, setStep] = useState<Step>("email");
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
@@ -60,7 +64,7 @@ export default function LoginPage() {
         return;
       }
 
-      window.location.href = "/instagram/painel";
+      window.location.href = callbackUrl;
     } finally {
       setIsSubmitting(false);
     }
@@ -77,7 +81,7 @@ export default function LoginPage() {
 
       <button
         type="button"
-        onClick={() => signIn("google", { callbackUrl: "/instagram/painel" })}
+        onClick={() => signIn("google", { callbackUrl })}
         className="flex h-11 items-center justify-center gap-2 rounded-md border border-zinc-300 bg-white text-sm font-medium text-zinc-800 transition-colors hover:bg-zinc-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
       >
         Continuar com Google

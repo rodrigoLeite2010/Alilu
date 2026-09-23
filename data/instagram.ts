@@ -18,9 +18,9 @@ export const INSTAGRAM_CATEGORY = {
   path: "/instagram",
   title: "Ferramentas gratuitas para Instagram",
   subtitle:
-    "Crie posts, carrosséis, legendas e prepare conteúdos para suas redes sociais gratuitamente.",
+    "Crie posts, carrosséis e Reels. Publique diretamente ou agende suas publicações.",
   description:
-    "Crie posts, carrosséis, legendas e conteúdos para Instagram gratuitamente. Edite modelos, personalize textos e baixe suas artes prontas para publicar.",
+    "Crie posts, carrosséis e Reels para Instagram. Edite modelos, personalize textos e prepare publicações diretas ou agendadas.",
   metaTitle: "Ferramentas para Instagram Grátis | ALILU",
   metaDescription:
     "Crie posts, carrosséis e legendas para Instagram gratuitamente. Personalize modelos, edite textos e prepare conteúdos para suas redes sociais.",
@@ -92,6 +92,27 @@ export const instagramTools: InstagramTool[] = [
     status: "ativo",
   },
   {
+    id: "criador-reels-instagram",
+    name: "Criador de Reels para Instagram",
+    shortName: "Criador de Reels",
+    path: "/instagram/reels",
+    description:
+      "Envie um vídeo vertical, escreva a legenda, confira a prévia e prepare um Reel para publicar agora ou agendar.",
+    pageDescription:
+      "Crie Reels a partir de um vídeo seu, com legenda, hashtags, prévia e publicação pela conta Instagram conectada.",
+    metaTitle: "Criar Reels para Instagram Online | ALILU",
+    metaDescription:
+      "Crie Reels para Instagram com upload de vídeo, legenda, hashtags, prévia e publicação ou agendamento pela conta conectada.",
+    keywords: [
+      "criar reels instagram",
+      "publicar reels instagram",
+      "agendar reels instagram",
+      "editor de reels online",
+    ],
+    icon: "video",
+    status: "ativo",
+  },
+  {
     id: "gerador-legendas-instagram",
     name: "Gerador de Legendas para Instagram Grátis",
     shortName: "Gerador de Legendas",
@@ -128,11 +149,6 @@ export interface PlannedInstagramTool {
 }
 
 export const plannedInstagramTools: PlannedInstagramTool[] = [
-  {
-    name: "Criador de Capas para Reels",
-    description: "Capas verticais chamativas para vídeos e Reels.",
-    icon: "image",
-  },
   {
     name: "Redimensionador para Instagram",
     description:

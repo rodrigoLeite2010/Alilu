@@ -5,6 +5,8 @@ import {
   cancelPost as cancelPostInDb,
   createDraftCarouselPost,
   createDraftImagePost,
+  createDraftReelPost,
+  deletePostForUser,
   listPostsForUser as listPostsForUserInDb,
   reschedulePost as reschedulePostInDb,
   type PostSummary,
@@ -226,6 +228,57 @@ export async function createCarouselPostFromUpload(input: CreateCarouselPostFrom
   });
 }
 
+export interface CreateReelPostInput {
+  userId: string;
+  mediaId: string;
+  caption: string;
+  scheduledAt?: string | null;
+}
+
+export async function createReelPost(input: CreateReelPostInput): Promise<string> {
+  const scheduledAtUtc = parseScheduledAt(input.scheduledAt);
+
+  const account = await getInstagramAccountForUser(input.userId);
+  if (!account) {
+    throw new InstagramPostValidationError(
+      "Nenhuma conta do Instagram conectada. Conecte uma conta antes de criar um Reel.",
+    );
+  }
+
+  const media = await getInstagramMediaById(input.mediaId, input.userId);
+  if (!media) {
+    throw new InstagramPostValidationError("Vídeo não encontrado.");
+  }
+  if (media.mediaType !== "video") {
+    throw new InstagramPostValidationError("Reels precisam usar um arquivo de vídeo.");
+  }
+
+  return createDraftReelPost({
+    userId: input.userId,
+    instagramAccountId: account.id,
+    mediaId: media.id,
+    caption: input.caption,
+    scheduledAtUtc,
+  });
+}
+
+export interface CreateReelPostFromUploadInput {
+  userId: string;
+  mediaUrl: string;
+  caption: string;
+  scheduledAt?: string | null;
+}
+
+export async function createReelPostFromUpload(input: CreateReelPostFromUploadInput): Promise<string> {
+  const mediaId = await resolveUploadedMediaId(input.mediaUrl, input.userId);
+  return createReelPost({
+    userId: input.userId,
+    mediaId,
+    caption: input.caption,
+    scheduledAt: input.scheduledAt,
+  });
+}
+
 /** Lista os posts do usuário para o calendário editorial (mais recentes/próximos primeiro). */
 export async function listPostsForUser(userId: string): Promise<PostSummary[]> {
   return listPostsForUserInDb(userId);
@@ -243,6 +296,15 @@ export async function cancelPost(postId: string, userId: string): Promise<void> 
   if (!cancelled) {
     throw new InstagramPostValidationError(
       "Não foi possível cancelar este post — ele pode já ter sido publicado, estar em processamento, ou não existir mais.",
+    );
+  }
+}
+
+export async function deletePost(postId: string, userId: string): Promise<void> {
+  const deleted = await deletePostForUser(postId, userId);
+  if (!deleted) {
+    throw new InstagramPostValidationError(
+      "Não foi possível excluir esta publicação — ela pode estar em processamento, não existir mais, ou pertencer a outra conta.",
     );
   }
 }

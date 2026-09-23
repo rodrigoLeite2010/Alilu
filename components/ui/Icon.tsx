@@ -60,6 +60,7 @@ import {
   Wifi,
   House,
   Camera,
+  Video,
   type LucideIcon,
 } from "lucide-react";
 
@@ -129,6 +130,7 @@ const iconMap: Record<string, LucideIcon> = {
   "wrap-text": WrapText,
   wifi: Wifi,
   home: House,
+  video: Video,
   // Categoria "Instagram e Redes Sociais": usamos um ícone de câmera
   // genérico (não o logotipo do Instagram, que é uma marca registrada) —
   // representa bem o tema sem reproduzir a marca.

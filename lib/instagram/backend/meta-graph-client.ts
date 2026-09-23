@@ -480,3 +480,47 @@ export async function createCarouselContainer(
   }
   return payload.id;
 }
+
+export interface CreateReelMediaContainerInput {
+  igUserId: string;
+  accessToken: string;
+  videoUrl: string;
+  caption: string;
+  shareToFeed?: boolean;
+}
+
+/**
+ * Cria o container de um Reel usando o fluxo de Content Publishing da
+ * Instagram API with Instagram Login. O vídeo precisa estar disponível por
+ * URL HTTPS para a Meta buscar; por isso usamos Vercel Blob público para a
+ * mídia, sem colocar credenciais na URL.
+ */
+export async function createReelMediaContainer(
+  input: CreateReelMediaContainerInput,
+): Promise<string> {
+  const url = new URL(`https://graph.instagram.com/${GRAPH_API_VERSION}/${input.igUserId}/media`);
+  const body = new URLSearchParams();
+  body.set("media_type", "REELS");
+  body.set("video_url", input.videoUrl);
+  if (input.caption) body.set("caption", input.caption);
+  if (input.shareToFeed !== undefined) body.set("share_to_feed", input.shareToFeed ? "true" : "false");
+  body.set("access_token", input.accessToken);
+
+  const response = await fetch(url.toString(), { method: "POST", body });
+  const text = await response.text();
+  const payload = safeParseJson(text);
+
+  if (!response.ok) {
+    throw new InstagramGraphApiError(
+      "Falha ao criar o container do Reel.",
+      payload ?? text,
+    );
+  }
+  if (!isRecord(payload) || typeof payload.id !== "string") {
+    throw new InstagramGraphApiError(
+      "Resposta inesperada da Meta ao criar o container do Reel.",
+      payload,
+    );
+  }
+  return payload.id;
+}

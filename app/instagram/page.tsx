@@ -34,28 +34,38 @@ export default function InstagramCategoryPage() {
         ]}
       />
 
-      <h1 className="text-2xl font-bold tracking-tight text-zinc-900 sm:text-3xl">
-        {INSTAGRAM_CATEGORY.title}
-      </h1>
-      <p className="mt-2 max-w-2xl text-base text-zinc-600">{INSTAGRAM_CATEGORY.subtitle}</p>
-
-      <section className="mt-6">
-        <p className="max-w-3xl text-sm leading-relaxed text-zinc-700">
-          O ALILU Utilitários está criando uma caixa de ferramentas gratuita para quem
-          produz conteúdo no Instagram: nada de cadastro, mensalidade ou marca d&apos;água
-          obrigatória. Tudo roda direto no seu navegador, então suas imagens e textos não
-          precisam ser enviados a nenhum servidor para você montar um post, um carrossel ou
-          uma legenda.
+      <section className="rounded-lg border border-teal-200 bg-teal-50/50 p-5 sm:p-6">
+        <h1 className="text-2xl font-bold tracking-tight text-zinc-900 sm:text-3xl">
+          Crie conteúdos incríveis para seu Instagram.
+        </h1>
+        <p className="mt-2 max-w-2xl text-base text-zinc-600">
+          Crie posts, carrosséis e Reels. Publique diretamente ou agende suas publicações.
         </p>
+        <div className="mt-5 flex flex-col gap-2 sm:flex-row">
+          <a
+            href="#criar-publicacao"
+            className="inline-flex min-h-11 items-center justify-center rounded-md bg-zinc-900 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-zinc-800"
+          >
+            Criar publicação
+          </a>
+          <Link
+            href="/instagram/painel/calendario"
+            className="inline-flex min-h-11 items-center justify-center rounded-md bg-white px-4 py-2.5 text-sm font-semibold text-zinc-900 ring-1 ring-inset ring-zinc-300 transition-colors hover:bg-zinc-50"
+          >
+            Minhas publicações
+          </Link>
+        </div>
       </section>
 
-      <section className="mt-10">
+      <section id="criar-publicacao" className="mt-10 scroll-mt-20">
         <SectionHeading
-          title="Ferramentas disponíveis"
-          description="Comece por aqui — novas ferramentas da categoria aparecem automaticamente nesta lista assim que forem publicadas."
+          title="Criar publicação"
+          description="Escolha o formato e comece a criar sem precisar conectar o Instagram antes."
         />
-        <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {instagramTools.map((tool) => (
+        <ul className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          {instagramTools
+            .filter((tool) => tool.id !== "gerador-legendas-instagram")
+            .map((tool) => (
             <li key={tool.id}>
               <Link
                 href={tool.path}
@@ -74,6 +84,34 @@ export default function InstagramCategoryPage() {
               </Link>
             </li>
           ))}
+        </ul>
+      </section>
+
+      <section className="mt-10">
+        <SectionHeading
+          title="Outras ferramentas"
+          description="Recursos extras para completar sua publicação."
+          as="h2"
+        />
+        <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {instagramTools
+            .filter((tool) => tool.id === "gerador-legendas-instagram")
+            .map((tool) => (
+              <li key={tool.id}>
+                <Link
+                  href={tool.path}
+                  className="group flex h-full flex-col gap-3 rounded-lg border border-zinc-200 bg-white p-4 transition-colors hover:border-teal-700/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
+                >
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-zinc-50 text-zinc-700 transition-colors group-hover:bg-teal-100 group-hover:text-teal-800">
+                    <Icon name={tool.icon} className="h-5 w-5" />
+                  </span>
+                  <div>
+                    <p className="font-semibold text-zinc-900 group-hover:text-teal-800">{tool.shortName}</p>
+                    <p className="mt-1 text-sm text-zinc-600">{tool.description}</p>
+                  </div>
+                </Link>
+              </li>
+            ))}
         </ul>
       </section>
 

@@ -4,6 +4,7 @@ import {
   InstagramPostValidationError,
   createCarouselPostFromUpload,
   createImagePostFromUpload,
+  createReelPostFromUpload,
   listPostsForUser,
 } from "@/lib/instagram/backend/instagram-post-service";
 
@@ -14,9 +15,9 @@ const MAX_CAPTION_LENGTH = 2200; // limite real do Instagram para legendas
  * (ver app/instagram/painel/calendario). POST: cria um post a partir de
  * mídia já enviada ao Vercel Blob (ver app/api/instagram/media/upload) —
  * DRAFT, ou SCHEDULED se `scheduledAt` for informado. Aceita `mediaUrl`
- * (post de imagem única) OU `mediaUrls` (carrossel, 2 a 10 imagens na
- * ordem de exibição) — nunca os dois ao mesmo tempo. A validação de
- * quantidade do carrossel acontece no serviço (instagram-post-service.ts).
+ * (post de imagem única ou Reel, conforme `postType`) OU `mediaUrls`
+ * (carrossel, 2 a 10 imagens na ordem de exibição) — nunca os dois ao
+ * mesmo tempo.
  */
 export async function GET(): Promise<NextResponse> {
   const session = await auth();
@@ -51,12 +52,14 @@ export async function POST(request: Request): Promise<NextResponse> {
   if (typeof body !== "object" || body === null) {
     return NextResponse.json({ error: "Corpo da requisição inválido." }, { status: 400 });
   }
-  const { mediaUrl, mediaUrls, caption, scheduledAt } = body as {
+  const { mediaUrl, mediaUrls, caption, scheduledAt, postType } = body as {
     mediaUrl?: unknown;
     mediaUrls?: unknown;
     caption?: unknown;
     scheduledAt?: unknown;
+    postType?: unknown;
   };
+  const normalizedPostType = postType === undefined ? (mediaUrls !== undefined ? "carousel" : "image") : postType;
 
   if (mediaUrl !== undefined && mediaUrls !== undefined) {
     return NextResponse.json(
@@ -66,6 +69,15 @@ export async function POST(request: Request): Promise<NextResponse> {
   }
   if (mediaUrl === undefined && mediaUrls === undefined) {
     return NextResponse.json({ error: "mediaUrl ou mediaUrls é obrigatório." }, { status: 400 });
+  }
+  if (normalizedPostType !== "image" && normalizedPostType !== "carousel" && normalizedPostType !== "reels") {
+    return NextResponse.json({ error: "postType precisa ser image, carousel ou reels." }, { status: 400 });
+  }
+  if (mediaUrls !== undefined && normalizedPostType !== "carousel") {
+    return NextResponse.json({ error: "mediaUrls só pode ser usado com postType carousel." }, { status: 400 });
+  }
+  if (mediaUrl !== undefined && normalizedPostType === "carousel") {
+    return NextResponse.json({ error: "Carrosséis precisam usar mediaUrls." }, { status: 400 });
   }
   if (mediaUrls !== undefined && (!Array.isArray(mediaUrls) || mediaUrls.some((url) => typeof url !== "string" || !url))) {
     return NextResponse.json({ error: "mediaUrls precisa ser uma lista de URLs em texto." }, { status: 400 });
@@ -87,13 +99,20 @@ export async function POST(request: Request): Promise<NextResponse> {
   }
 
   try {
-    const postId = mediaUrls
+    const postId = normalizedPostType === "carousel"
       ? await createCarouselPostFromUpload({
           userId,
           mediaUrls: mediaUrls as string[],
           caption,
           scheduledAt: (scheduledAt as string | null | undefined) ?? null,
         })
+      : normalizedPostType === "reels"
+        ? await createReelPostFromUpload({
+            userId,
+            mediaUrl: mediaUrl as string,
+            caption,
+            scheduledAt: (scheduledAt as string | null | undefined) ?? null,
+          })
       : await createImagePostFromUpload({
           userId,
           mediaUrl: mediaUrl as string,

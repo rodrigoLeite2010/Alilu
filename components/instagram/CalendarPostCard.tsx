@@ -39,6 +39,7 @@ const STATUS_BADGE_CLASS: Record<InstagramPostStatus, string> = {
 };
 
 const CANCELLABLE_STATUSES: InstagramPostStatus[] = ["DRAFT", "SCHEDULED", "NEEDS_REVIEW", "FAILED"];
+const DELETABLE_STATUSES: InstagramPostStatus[] = ["DRAFT", "SCHEDULED", "PUBLISHED", "FAILED", "CANCELLED", "NEEDS_REVIEW"];
 const PUBLISHABLE_NOW_STATUSES: InstagramPostStatus[] = ["DRAFT", "SCHEDULED", "PROCESSING"];
 
 function formatDateTime(iso: string | null): string | null {
@@ -72,11 +73,13 @@ async function readErrorMessage(response: Response, fallback: string): Promise<s
  * isso; fica para um refino futuro se o usuário sentir falta.
  */
 export function CalendarPostCard({ post }: { post: CalendarPostCardData }) {
-  const [busy, setBusy] = useState<"cancel" | "publish" | null>(null);
+  const [busy, setBusy] = useState<"cancel" | "publish" | "delete" | null>(null);
   const [localStatus, setLocalStatus] = useState<InstagramPostStatus>(post.status);
+  const [removed, setRemoved] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const canCancel = CANCELLABLE_STATUSES.includes(localStatus);
+  const canDelete = DELETABLE_STATUSES.includes(localStatus);
   const canPublishNow = PUBLISHABLE_NOW_STATUSES.includes(localStatus);
 
   async function handleCancel() {
@@ -121,8 +124,34 @@ export function CalendarPostCard({ post }: { post: CalendarPostCardData }) {
     }
   }
 
+  async function handleDelete() {
+    if (busy) return;
+    const message =
+      localStatus === "PUBLISHED"
+        ? "Esta publicação será removida apenas do histórico do ALILU. Ela continuará no Instagram."
+        : "Excluir esta publicação do ALILU? Agendamentos pendentes serão cancelados.";
+    const confirmed = window.confirm(message);
+    if (!confirmed) return;
+
+    setBusy("delete");
+    setError(null);
+    try {
+      const response = await fetch(`/api/instagram/posts/${post.id}`, { method: "DELETE" });
+      if (!response.ok) {
+        throw new Error(await readErrorMessage(response, "Não foi possível excluir esta publicação."));
+      }
+      setRemoved(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erro inesperado ao excluir.");
+    } finally {
+      setBusy(null);
+    }
+  }
+
   const scheduledLabel = formatDateTime(post.scheduledAtUtc);
   const publishedLabel = formatDateTime(post.publishedAt);
+
+  if (removed) return null;
 
   return (
     <div className="flex gap-3 rounded-lg border border-zinc-200 p-3">
@@ -145,6 +174,16 @@ export function CalendarPostCard({ post }: { post: CalendarPostCardData }) {
           {post.postType === "carousel" ? (
             <span className="rounded-full bg-violet-50 px-2 py-0.5 text-xs font-medium text-violet-700">
               Carrossel · {post.itemCount} fotos
+            </span>
+          ) : null}
+          {post.postType === "reels" ? (
+            <span className="rounded-full bg-fuchsia-50 px-2 py-0.5 text-xs font-medium text-fuchsia-700">
+              Reel
+            </span>
+          ) : null}
+          {post.postType === "image" ? (
+            <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-700">
+              Post
             </span>
           ) : null}
           {scheduledLabel ? (
@@ -186,6 +225,17 @@ export function CalendarPostCard({ post }: { post: CalendarPostCardData }) {
               className="h-8 px-3 text-xs"
             >
               {busy === "cancel" ? "Cancelando…" : "Cancelar"}
+            </Button>
+          ) : null}
+          {canDelete ? (
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => void handleDelete()}
+              disabled={busy !== null}
+              className="h-8 px-3 text-xs"
+            >
+              {busy === "delete" ? "Excluindo…" : "Excluir do Alilu"}
             </Button>
           ) : null}
         </div>

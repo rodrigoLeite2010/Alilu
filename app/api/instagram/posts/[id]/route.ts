@@ -3,6 +3,7 @@ import { auth } from "@/auth";
 import {
   InstagramPostValidationError,
   cancelPost,
+  deletePost,
   reschedulePost,
 } from "@/lib/instagram/backend/instagram-post-service";
 
@@ -61,6 +62,26 @@ export async function PATCH(request: Request, { params }: RouteParams): Promise<
     console.error("[instagram/posts/id] falha ao atualizar o post", error);
     const message =
       error instanceof InstagramPostValidationError ? error.message : "Não foi possível atualizar o post.";
+    return NextResponse.json({ error: message }, { status: 400 });
+  }
+}
+
+export async function DELETE(_request: Request, { params }: RouteParams): Promise<NextResponse> {
+  const session = await auth();
+  const userId = session?.user?.id;
+  if (!userId) {
+    return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
+  }
+
+  const { id } = await params;
+
+  try {
+    await deletePost(id, userId);
+    return NextResponse.json({ status: "DELETED" });
+  } catch (error) {
+    console.error("[instagram/posts/id] falha ao excluir o post", error);
+    const message =
+      error instanceof InstagramPostValidationError ? error.message : "Não foi possível excluir a publicação.";
     return NextResponse.json({ error: message }, { status: 400 });
   }
 }

@@ -78,6 +78,35 @@ export interface CreateDraftCarouselPostInput {
   scheduledAtUtc?: Date | null;
 }
 
+export interface CreateDraftReelPostInput {
+  userId: string;
+  instagramAccountId: string;
+  mediaId: string;
+  caption: string;
+  scheduledAtUtc?: Date | null;
+}
+
+/** Cria um rascunho/agendamento de Reel, associado a um único vídeo. */
+export async function createDraftReelPost(input: CreateDraftReelPostInput): Promise<string> {
+  const db = getDb();
+  const status = input.scheduledAtUtc ? "SCHEDULED" : "DRAFT";
+  const scheduledAtIso = input.scheduledAtUtc ? input.scheduledAtUtc.toISOString() : null;
+
+  const postRows = await db`
+    insert into instagram_posts (user_id, instagram_account_id, post_type, caption, status, scheduled_at_utc)
+    values (${input.userId}, ${input.instagramAccountId}, 'reels', ${input.caption}, ${status}, ${scheduledAtIso})
+    returning id
+  `;
+  const postId = postRows[0].id as string;
+
+  await db`
+    insert into instagram_post_items (post_id, media_id, position, is_cover)
+    values (${postId}, ${input.mediaId}, 0, true)
+  `;
+
+  return postId;
+}
+
 /**
  * Cria um post de carrossel — mesma ideia de createDraftImagePost, mas
  * com um item por mídia informada, na ordem recebida (position 0..n-1;
@@ -236,6 +265,11 @@ export interface PostSummary {
   itemCount: number;
 }
 
+export interface DueScheduledPost {
+  id: string;
+  userId: string;
+}
+
 /**
  * Lista os posts do usuário para o calendário editorial, com a conta e a
  * mídia de capa já resolvidas (evita N+1 na tela de lista). Ordenado pela
@@ -275,6 +309,22 @@ export async function listPostsForUser(userId: string): Promise<PostSummary[]> {
   }));
 }
 
+/** Lista agendamentos vencidos para um executor externo protegido por segredo. */
+export async function listDueScheduledPosts(limit = 10): Promise<DueScheduledPost[]> {
+  const db = getDb();
+  const rows = await db`
+    select id, user_id
+    from instagram_posts
+    where status = 'SCHEDULED' and scheduled_at_utc <= now()
+    order by scheduled_at_utc asc
+    limit ${limit}
+  `;
+  return rows.map((row) => ({
+    id: row.id as string,
+    userId: row.user_id as string,
+  }));
+}
+
 /**
  * Cancela um post — só permitido a partir de status que ainda não
  * publicaram nem estão em processamento na Meta (nunca cancela um
@@ -295,6 +345,21 @@ export async function cancelPost(postId: string, userId: string): Promise<boolea
     set status = 'CANCELLED', updated_at = now()
     where id = ${postId} and user_id = ${userId}
       and status in ('DRAFT', 'SCHEDULED', 'NEEDS_REVIEW', 'FAILED')
+    returning id
+  `;
+  return rows.length > 0;
+}
+
+/**
+ * Exclui do histórico do ALILU sem prometer apagar nada no Instagram.
+ * PROCESSING fica bloqueado para evitar perder o registro enquanto a Meta
+ * ainda pode concluir ou falhar a publicação.
+ */
+export async function deletePostForUser(postId: string, userId: string): Promise<boolean> {
+  const db = getDb();
+  const rows = await db`
+    delete from instagram_posts
+    where id = ${postId} and user_id = ${userId} and status <> 'PROCESSING'
     returning id
   `;
   return rows.length > 0;

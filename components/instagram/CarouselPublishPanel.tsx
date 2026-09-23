@@ -113,7 +113,11 @@ export function CarouselPublishPanel({ slides, formatId, userId }: CarouselPubli
         const uploaded = await uploadPresigned(pathname, blob, {
           access: "public", // precisa ser pública — a Meta busca a imagem pela URL, não recebe o arquivo
           handleUploadUrl: "/api/instagram/media/upload",
-          clientPayload: JSON.stringify({ originalFilename: fileName, fileSizeBytes: blob.size }),
+          clientPayload: JSON.stringify({
+            originalFilename: fileName,
+            fileSizeBytes: blob.size,
+            contentType: "image/jpeg",
+          }),
         });
         mediaUrls.push(uploaded.url);
       }

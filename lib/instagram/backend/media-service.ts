@@ -19,7 +19,11 @@
 // documentação oficial em 22/09/2026); PNG e WebP são rejeitados pela
 // própria Meta na criação do container, não só uma preferência nossa.
 export const ALLOWED_MEDIA_CONTENT_TYPES = ["image/jpeg"];
-export const MAX_MEDIA_UPLOAD_BYTES = 15 * 1024 * 1024; // 15 MB
+export const IMAGE_MEDIA_CONTENT_TYPES = ALLOWED_MEDIA_CONTENT_TYPES;
+export const VIDEO_MEDIA_CONTENT_TYPES = ["video/mp4", "video/quicktime"];
+export const ALLOWED_UPLOAD_CONTENT_TYPES = [...IMAGE_MEDIA_CONTENT_TYPES, ...VIDEO_MEDIA_CONTENT_TYPES];
+export const MAX_MEDIA_UPLOAD_BYTES = 15 * 1024 * 1024; // 15 MB para imagens, preservando o editor existente.
+export const MAX_VIDEO_UPLOAD_BYTES = 250 * 1024 * 1024; // 250 MB para Reels; upload direto ao Blob.
 export const MAX_ORIGINAL_FILENAME_LENGTH = 200;
 
 /** Prefixo de pasta reservado para os uploads do usuário autenticado dentro do Blob. */
@@ -66,6 +70,7 @@ export interface MediaTokenPayload {
   userId: string;
   originalFilename: string | null;
   fileSizeBytes: number | null;
+  contentType?: string | null;
 }
 
 /**
@@ -78,10 +83,15 @@ export interface MediaTokenPayload {
 export function buildMediaTokenPayload(userId: string, clientPayload: string | null): string {
   let originalFilename: string | null = null;
   let fileSizeBytes: number | null = null;
+  let contentType: string | null = null;
 
   if (clientPayload) {
     try {
-      const parsed = JSON.parse(clientPayload) as { originalFilename?: unknown; fileSizeBytes?: unknown };
+      const parsed = JSON.parse(clientPayload) as {
+        originalFilename?: unknown;
+        fileSizeBytes?: unknown;
+        contentType?: unknown;
+      };
       originalFilename = sanitizeOriginalFilename(
         typeof parsed.originalFilename === "string" ? parsed.originalFilename : null,
       );
@@ -89,13 +99,21 @@ export function buildMediaTokenPayload(userId: string, clientPayload: string | n
         typeof parsed.fileSizeBytes === "number" && Number.isFinite(parsed.fileSizeBytes) && parsed.fileSizeBytes >= 0
           ? Math.floor(parsed.fileSizeBytes)
           : null;
+      contentType =
+        typeof parsed.contentType === "string" && ALLOWED_UPLOAD_CONTENT_TYPES.includes(parsed.contentType)
+          ? parsed.contentType
+          : null;
     } catch {
       // clientPayload malformado (nunca deveria acontecer vindo do nosso
       // próprio cliente) — ignora e segue só com o essencial (userId).
     }
   }
 
-  return JSON.stringify({ userId, originalFilename, fileSizeBytes });
+  return JSON.stringify(
+    contentType
+      ? { userId, originalFilename, fileSizeBytes, contentType }
+      : { userId, originalFilename, fileSizeBytes },
+  );
 }
 
 /** Lê de volta o payload montado em buildMediaTokenPayload — nunca lança, só retorna null se algo não bater. */
@@ -104,11 +122,13 @@ export function parseMediaTokenPayload(raw: string | null | undefined): MediaTok
   try {
     const parsed = JSON.parse(raw) as Partial<MediaTokenPayload>;
     if (typeof parsed.userId !== "string" || !parsed.userId) return null;
-    return {
+    const payload: MediaTokenPayload = {
       userId: parsed.userId,
       originalFilename: typeof parsed.originalFilename === "string" ? parsed.originalFilename : null,
       fileSizeBytes: typeof parsed.fileSizeBytes === "number" ? parsed.fileSizeBytes : null,
     };
+    if (typeof parsed.contentType === "string") payload.contentType = parsed.contentType;
+    return payload;
   } catch {
     return null;
   }

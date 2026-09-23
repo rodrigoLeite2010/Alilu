@@ -3,8 +3,11 @@ import { handleUploadPresigned, type HandleUploadPresignedBody } from "@vercel/b
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import {
-  ALLOWED_MEDIA_CONTENT_TYPES,
+  ALLOWED_UPLOAD_CONTENT_TYPES,
+  IMAGE_MEDIA_CONTENT_TYPES,
   MAX_MEDIA_UPLOAD_BYTES,
+  MAX_VIDEO_UPLOAD_BYTES,
+  VIDEO_MEDIA_CONTENT_TYPES,
   buildMediaTokenPayload,
   isPathnameAllowedForUser,
   parseMediaTokenPayload,
@@ -45,8 +48,8 @@ const SIGNED_TOKEN_VALID_MS = 5 * 60 * 1000;
  *    `tokenPayload` que nós mesmos assinamos no passo 1. A assinatura do
  *    webhook é verificada com `BLOB_WEBHOOK_PUBLIC_KEY`.
  *
- * Nunca aceitamos vídeo aqui ainda — Reels/vídeo é uma etapa futura, com
- * suas próprias regras (não declarar publicado enquanto a Meta processa).
+ * Aceita JPEG para posts/carrosséis e MP4/MOV para Reels. O upload segue
+ * direto ao Blob; arquivo grande nunca atravessa a Vercel Function.
  */
 export async function POST(request: Request): Promise<NextResponse> {
   let body: HandleUploadPresignedBody;
@@ -70,21 +73,25 @@ export async function POST(request: Request): Promise<NextResponse> {
           throw new Error("Caminho de upload inválido.");
         }
 
+        const tokenPayload = buildMediaTokenPayload(userId, clientPayload);
+        const parsedPayload = parseMediaTokenPayload(tokenPayload);
+        const isVideoUpload = VIDEO_MEDIA_CONTENT_TYPES.includes(parsedPayload?.contentType ?? "");
+        const allowedContentTypes = isVideoUpload ? ALLOWED_UPLOAD_CONTENT_TYPES : IMAGE_MEDIA_CONTENT_TYPES;
         const token = await issueSignedToken({
           pathname,
           operations: ["put"],
-          allowedContentTypes: ALLOWED_MEDIA_CONTENT_TYPES,
-          maximumSizeInBytes: MAX_MEDIA_UPLOAD_BYTES,
+          allowedContentTypes,
+          maximumSizeInBytes: isVideoUpload ? MAX_VIDEO_UPLOAD_BYTES : MAX_MEDIA_UPLOAD_BYTES,
           validUntil: Date.now() + SIGNED_TOKEN_VALID_MS,
         });
 
         return {
           token,
           urlOptions: {
-            allowedContentTypes: ALLOWED_MEDIA_CONTENT_TYPES,
-            maximumSizeInBytes: MAX_MEDIA_UPLOAD_BYTES,
+            allowedContentTypes,
+            maximumSizeInBytes: isVideoUpload ? MAX_VIDEO_UPLOAD_BYTES : MAX_MEDIA_UPLOAD_BYTES,
             addRandomSuffix: true,
-            tokenPayload: buildMediaTokenPayload(userId, clientPayload),
+            tokenPayload,
           },
         };
       },
@@ -98,10 +105,30 @@ export async function POST(request: Request): Promise<NextResponse> {
           return;
         }
 
+        const filename = parsed.originalFilename?.toLowerCase() ?? "";
+        const inferredContentType =
+          parsed.contentType ??
+          (filename.endsWith(".jpg") || filename.endsWith(".jpeg") || filename.endsWith(".png")
+            ? "image/jpeg"
+            : filename.endsWith(".mp4")
+              ? "video/mp4"
+              : filename.endsWith(".mov")
+                ? "video/quicktime"
+                : null);
+        const mediaType = VIDEO_MEDIA_CONTENT_TYPES.includes(inferredContentType ?? "")
+          ? "video"
+          : IMAGE_MEDIA_CONTENT_TYPES.includes(inferredContentType ?? "")
+            ? "image"
+            : null;
+        if (!mediaType) {
+          console.error("[instagram/media/upload] contentType ausente ou inválido no callback de conclusão");
+          return;
+        }
+
         await insertInstagramMedia({
           userId: parsed.userId,
           storageUrl: blob.url,
-          mediaType: "image",
+          mediaType,
           fileSizeBytes: parsed.fileSizeBytes,
           originalFilename: parsed.originalFilename,
         });

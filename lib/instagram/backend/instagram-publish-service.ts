@@ -5,6 +5,7 @@ import {
   createCarouselContainer,
   createCarouselItemContainer,
   createImageMediaContainer,
+  createReelMediaContainer,
   getMediaContainerStatus,
   publishMediaContainer,
 } from "@/lib/instagram/backend/meta-graph-client";
@@ -145,7 +146,7 @@ async function pollAndPublishContainer(
 }
 
 /** Valida o que é comum a imagem única e carrossel antes de publicar: post existe, tipo bate, e o status atual permite publicar (ou já está PUBLISHED, idempotente). Retorna `null` quando já deve devolver PUBLISHED sem fazer mais nada. */
-function assertPublishable(post: PostForPublish, expectedType: "image" | "carousel"): "PUBLISHED" | null {
+function assertPublishable(post: PostForPublish, expectedType: "image" | "carousel" | "reels"): "PUBLISHED" | null {
   if (post.postType !== expectedType) {
     throw new InstagramPublishError(
       "Este post não é do tipo esperado para esta publicação — use a rota de publicação correspondente ao tipo.",
@@ -278,6 +279,44 @@ export async function publishCarouselPost(postId: string, userId: string): Promi
   return pollAndPublishContainer(postId, post.igUserId, accessToken, containerId);
 }
 
+export async function publishReelPost(postId: string, userId: string): Promise<PublishImagePostResult> {
+  const post = await getPostForPublish(postId, userId);
+  if (!post) {
+    throw new InstagramPublishError("Post não encontrado.");
+  }
+  const idempotent = assertPublishable(post, "reels");
+  if (idempotent) return idempotent;
+
+  const item = post.items[0];
+  if (!item || item.mediaType !== "video") {
+    throw new InstagramPublishError("A mídia associada a este Reel não é um vídeo.");
+  }
+
+  const accessToken = decryptSecret(post.accessTokenEncrypted);
+
+  let containerId = post.metaContainerId;
+  if (!containerId) {
+    try {
+      containerId = await createReelMediaContainer({
+        igUserId: post.igUserId,
+        accessToken,
+        videoUrl: item.storageUrl,
+        caption: post.caption,
+        shareToFeed: true,
+      });
+    } catch (error) {
+      logPublishError("falha ao criar o container do Reel", error);
+      const message = sanitizeErrorForStorage(error);
+      await markPostFailed(postId, message);
+      await recordPublishAttempt({ postId, outcome: "failure", errorSanitized: message });
+      throw new InstagramPublishError("Falha ao preparar o Reel no Instagram.");
+    }
+    await markPostProcessing(postId, containerId);
+  }
+
+  return pollAndPublishContainer(postId, post.igUserId, accessToken, containerId);
+}
+
 /**
  * Ponto único chamado pela rota de publicação (POST
  * .../posts/[id]/publish) — despacha para publishImagePost ou
@@ -298,9 +337,9 @@ export async function publishPost(postId: string, userId: string): Promise<Publi
       return publishImagePost(postId, userId);
     case "carousel":
       return publishCarouselPost(postId, userId);
+    case "reels":
+      return publishReelPost(postId, userId);
     default:
-      throw new InstagramPublishError(
-        "Tipo de post ainda não suportado para publicação (Reels vem em etapa futura).",
-      );
+      throw new InstagramPublishError("Tipo de post não suportado para publicação.");
   }
 }
