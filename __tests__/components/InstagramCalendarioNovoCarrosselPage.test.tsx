@@ -25,7 +25,7 @@ describe("CalendarioNovoCarrosselPage", () => {
     const jsx = await CalendarioNovoCarrosselPage();
     render(jsx);
 
-    expect(screen.getByRole("link", { name: "Entrar" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Começar a criar sem login" })).toBeInTheDocument();
     expect(getInstagramAccountForUserMock).not.toHaveBeenCalled();
   });
 

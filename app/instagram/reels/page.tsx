@@ -4,6 +4,7 @@ import { Breadcrumbs } from "@/components/navigation/Breadcrumbs";
 import { Container } from "@/components/ui/Container";
 import { ReelsComposer } from "@/components/instagram/ReelsComposer";
 import { buildPageMetadata } from "@/lib/seo/metadata";
+import { getInstagramAccountForUser } from "@/lib/instagram/backend/instagram-account-repository";
 
 export const metadata: Metadata = buildPageMetadata({
   title: "Criar Reels para Instagram Online | ALILU",
@@ -14,6 +15,16 @@ export const metadata: Metadata = buildPageMetadata({
 
 export default async function InstagramReelsPage() {
   const session = await auth();
+  const userId = session?.user?.id ?? null;
+  let account: { connected: boolean; username: string | null } | null = null;
+  if (userId) {
+    try {
+      const record = await getInstagramAccountForUser(userId);
+      account = { connected: Boolean(record && record.status === "connected"), username: record?.igUsername ?? null };
+    } catch {
+      account = null; // banco indisponível: o próprio envio mostra o erro
+    }
+  }
 
   return (
     <Container className="py-8 sm:py-10">
@@ -30,11 +41,16 @@ export default async function InstagramReelsPage() {
           Criar Reels
         </h1>
         <p className="mt-2 text-base text-zinc-600">
-          Envie um vídeo, confira a prévia, escreva a legenda e publique ou agende pela sua conta conectada.
+          Envie um vídeo, confira a prévia, escreva a legenda e publique agora ou agende no seu Instagram. Você só entra e
+          conecta a conta na hora de publicar.
         </p>
       </div>
 
-      <ReelsComposer userId={session?.user?.id ?? null} />
+      <ReelsComposer
+        userId={userId}
+        instagramConnected={account?.connected ?? null}
+        igUsername={account?.username ?? null}
+      />
     </Container>
   );
 }

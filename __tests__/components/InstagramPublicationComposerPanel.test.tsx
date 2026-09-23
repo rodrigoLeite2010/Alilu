@@ -65,18 +65,27 @@ afterEach(() => {
 const connected = { authenticated: true, connected: true, username: "alilu.tec", userId: "user-1" };
 
 describe("PublicationComposerPanel", () => {
-  it("sem login: guarda o rascunho local e manda para o login, voltando para a publicação", async () => {
+  it("sem login: os botões aparecem, e só ao clicar pede para conectar (login → Meta → volta)", async () => {
     mockApi({ authenticated: false, connected: false, username: null });
     const persist = vi.fn().mockResolvedValue(undefined);
     render(
       <PublicationComposerPanel canvasRef={canvasRef} format={format} state={createInitialEditorState()} source="VIRAL_POST" returnPath="/instagram/posts-virais" onPersistLocalDraft={persist} />,
     );
-    await screen.findByText(/Crie à vontade/);
+    await screen.findByText(/Você só conecta sua conta na hora de publicar/);
     fireEvent.change(screen.getByLabelText("Legenda"), { target: { value: "Minha legenda" } });
-    fireEvent.click(screen.getByRole("button", { name: "Salvar rascunho" }));
+    fireEvent.click(screen.getByRole("button", { name: "Agendar publicação" }));
 
-    await waitFor(() => expect(locationHref).toBe("/entrar?callbackUrl=%2Finstagram%2Fposts-virais"));
-    expect(persist).toHaveBeenCalledWith(expect.objectContaining({ caption: "Minha legenda" }));
+    const gate = await screen.findByRole("dialog", { name: "Conecte seu Instagram para continuar" });
+    expect(gate).toHaveTextContent("A criação das artes continua gratuita e sem login.");
+    expect(persist).not.toHaveBeenCalled();
+    fireEvent.click(within(gate).getByRole("button", { name: "Entrar e conectar Instagram" }));
+
+    await waitFor(() =>
+      expect(locationHref).toBe(
+        `/entrar?callbackUrl=${encodeURIComponent("/api/instagram/oauth/start?returnTo=%2Finstagram%2Fposts-virais")}`,
+      ),
+    );
+    expect(persist).toHaveBeenCalledWith(expect.objectContaining({ caption: "Minha legenda", mode: "schedule" }));
     expect(uploadPresignedMock).not.toHaveBeenCalled();
   });
 
@@ -86,8 +95,10 @@ describe("PublicationComposerPanel", () => {
     render(
       <PublicationComposerPanel canvasRef={canvasRef} format={format} state={createInitialEditorState()} source="VIRAL_POST" returnPath="/instagram/posts-virais" onPersistLocalDraft={persist} />,
     );
-    expect(await screen.findByText("Conecte seu Instagram para publicar.")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Conectar Instagram" }));
+    await screen.findByText(/Você só conecta sua conta na hora de publicar/);
+    fireEvent.click(screen.getByRole("button", { name: "Publicar no Instagram" }));
+    const gate = await screen.findByRole("dialog");
+    fireEvent.click(within(gate).getByRole("button", { name: "Conectar Instagram" }));
     await waitFor(() =>
       expect(locationHref).toBe("/api/instagram/oauth/start?returnTo=%2Finstagram%2Fposts-virais"),
     );
@@ -111,14 +122,14 @@ describe("PublicationComposerPanel", () => {
     );
     await screen.findByText("@alilu.tec");
     fireEvent.change(screen.getByLabelText("Legenda"), { target: { value: "Promo 🚀" } });
-    fireEvent.click(screen.getByRole("button", { name: "Publicar ou agendar" }));
+    fireEvent.click(screen.getByRole("button", { name: "Agendar publicação" }));
 
     const dialog = await screen.findByRole("dialog", { name: "Prévia da publicação" });
     expect(within(dialog).getByAltText("Prévia da arte que será publicada")).toBeInTheDocument();
     expect(within(dialog).getAllByText("@alilu.tec").length).toBeGreaterThan(0);
     expect(within(dialog).getByText("Promo 🚀")).toBeInTheDocument();
 
-    fireEvent.click(within(dialog).getByLabelText("Agendar"));
+    expect(within(dialog).getByLabelText("Agendar")).toBeChecked();
     fireEvent.change(within(dialog).getByLabelText("Data"), { target: { value: "2099-09-24" } });
     fireEvent.change(within(dialog).getByLabelText("Hora"), { target: { value: "18:30" } });
     fireEvent.click(within(dialog).getByRole("button", { name: "Confirmar" }));
@@ -142,7 +153,7 @@ describe("PublicationComposerPanel", () => {
     });
     render(<PublicationComposerPanel canvasRef={canvasRef} format={format} state={createInitialEditorState()} source="MANUAL" returnPath="/x" />);
     await screen.findByText("@alilu.tec");
-    fireEvent.click(screen.getByRole("button", { name: "Publicar ou agendar" }));
+    fireEvent.click(screen.getByRole("button", { name: "Publicar no Instagram" }));
     const dialog = await screen.findByRole("dialog");
     fireEvent.click(within(dialog).getByRole("button", { name: "Confirmar" }));
     expect(await screen.findByText(/Publicação realizada com sucesso\./)).toBeInTheDocument();
@@ -157,7 +168,7 @@ describe("PublicationComposerPanel", () => {
     );
     await screen.findByText("@alilu.tec");
     expect(screen.getByLabelText("Legenda")).toHaveValue("antiga");
-    fireEvent.click(screen.getByRole("button", { name: "Salvar rascunho" }));
+    fireEvent.click(screen.getByRole("button", { name: "Salvar rascunho em Minhas publicações" }));
     expect(await screen.findByText(/Rascunho salvo/)).toBeInTheDocument();
     const body = bodyOf(fetchMock, "/api/instagram/posts/post-7");
     expect(body).toMatchObject({ action: "update", caption: "antiga", scheduledAt: null });
@@ -168,7 +179,7 @@ describe("PublicationComposerPanel", () => {
     mockApi(connected);
     render(<PublicationComposerPanel canvasRef={canvasRef} format={format} state={createInitialEditorState()} source="MANUAL" returnPath="/x" />);
     await screen.findByText("@alilu.tec");
-    fireEvent.click(screen.getByRole("button", { name: "Publicar ou agendar" }));
+    fireEvent.click(screen.getByRole("button", { name: "Publicar no Instagram" }));
     const dialog = await screen.findByRole("dialog");
     fireEvent.click(within(dialog).getByLabelText("Agendar"));
     fireEvent.change(within(dialog).getByLabelText("Data"), { target: { value: "2020-01-01" } });

@@ -5,6 +5,9 @@ import { useRouter } from "next/navigation";
 import { uploadPresigned } from "@vercel/blob/client";
 import { Button } from "@/components/ui/Button";
 import { getBrowserTimeZone } from "@/lib/instagram/schedule-time";
+import { loadLocalValue, saveLocalValue } from "@/lib/instagram/draft-store";
+import { describePublishOutcome, type PublishOutcome } from "@/lib/instagram/client/publication-api";
+import { ConnectInstagramDialog, buildConnectTarget } from "./ConnectInstagramDialog";
 import { buildMediaPathnamePrefix, MAX_VIDEO_UPLOAD_BYTES, VIDEO_MEDIA_CONTENT_TYPES } from "@/lib/instagram/backend/media-service";
 
 type Stage = "idle" | "validando" | "enviando" | "salvando" | "publicando" | "sucesso" | "erro";
@@ -54,7 +57,16 @@ function slugFileName(name: string): string {
   return `${base || "reel"}-${Date.now()}.${extension}`;
 }
 
-export function ReelsComposer({ userId }: { userId: string | null }) {
+export function ReelsComposer({
+  userId,
+  instagramConnected = null,
+  igUsername = null,
+}: {
+  userId: string | null;
+  /** null = não sabemos (sem login ou banco indisponível). */
+  instagramConnected?: boolean | null;
+  igUsername?: string | null;
+}) {
   const router = useRouter();
   const videoId = useId();
   const captionId = useId();
@@ -70,6 +82,28 @@ export function ReelsComposer({ userId }: { userId: string | null }) {
   const [scheduledAt, setScheduledAt] = useState(initialDraft.scheduledAt);
   const [stage, setStage] = useState<Stage>("idle");
   const [message, setMessage] = useState<string | null>(null);
+  const [gateOpen, setGateOpen] = useState(false);
+
+  // Volta do login/conexão: restaura o vídeo guardado no navegador (a legenda
+  // já volta pelo rascunho da aba).
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("continuar") !== "1") return;
+    let cancelled = false;
+    loadLocalValue<{ video: Blob | null; name: string | null }>("reel").then((stored) => {
+      if (cancelled || !stored?.video) return;
+      setFile(new File([stored.video], stored.name ?? "reel.mp4", { type: stored.video.type || "video/mp4" }));
+      setStage("sucesso");
+      setMessage(
+        params.get("status") === "conectado"
+          ? "Instagram conectado! Seu vídeo e sua legenda foram restaurados — agora é só publicar ou agendar."
+          : "Seu vídeo e sua legenda foram restaurados.",
+      );
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const busy = stage === "validando" || stage === "enviando" || stage === "salvando" || stage === "publicando";
   const previewUrl = useMemo(() => (file ? URL.createObjectURL(file) : null), [file]);
@@ -84,13 +118,21 @@ export function ReelsComposer({ userId }: { userId: string | null }) {
     window.sessionStorage.setItem(DRAFT_KEY, JSON.stringify({ caption, hashtags, scheduledAt }));
   }
 
+  /** Login e Instagram conectado só são exigidos aqui, ao salvar/publicar/agendar. */
   function requireLogin(): boolean {
-    if (userId) return true;
-    persistDraftForRedirect();
-    setStage("erro");
-    setMessage("Entre no ALILU para salvar, publicar ou agendar. Sua legenda fica preservada nesta aba.");
-    router.push("/entrar?callbackUrl=/instagram/reels");
+    if (userId && instagramConnected !== false) return true;
+    setGateOpen(true);
     return false;
+  }
+
+  async function goConnect() {
+    persistDraftForRedirect();
+    try {
+      await saveLocalValue("reel", { video: file, name: file?.name ?? null });
+    } catch {
+      // sem espaço no navegador: a legenda continua salva; o vídeo é escolhido de novo
+    }
+    router.push(buildConnectTarget(Boolean(userId), "/instagram/reels?continuar=1"));
   }
 
   function handleVideoChange(event: ChangeEvent<HTMLInputElement>) {
@@ -181,12 +223,14 @@ export function ReelsComposer({ userId }: { userId: string | null }) {
       if (!publishResponse.ok) {
         throw new Error(await readErrorMessage(publishResponse, "Não foi possível publicar o Reel."));
       }
-      const { status } = (await publishResponse.json()) as { status: "PUBLISHED" | "PROCESSING" };
+      const { status } = (await publishResponse.json()) as { status: PublishOutcome };
       setStage("sucesso");
       setMessage(
         status === "PUBLISHED"
           ? "Reel publicado com sucesso."
-          : "A Meta ainda está processando o vídeo. Acompanhe em Minhas publicações para concluir a reconciliação.",
+          : status === "PROCESSING"
+            ? "O Instagram ainda está processando o vídeo. A publicação será concluída automaticamente — acompanhe em Minhas publicações."
+            : describePublishOutcome(status),
       );
       window.sessionStorage.removeItem(DRAFT_KEY);
     } catch (error) {
@@ -234,9 +278,15 @@ export function ReelsComposer({ userId }: { userId: string | null }) {
 
       <aside className="space-y-4 rounded-lg border border-teal-200 bg-teal-50/50 p-4">
         <div>
-          <h2 className="text-base font-semibold text-zinc-900">Criar Reels</h2>
+          <h2 className="text-base font-semibold text-zinc-900">Publicar no Instagram</h2>
           <p className="mt-1 text-sm text-zinc-600">
-            Prepare o conteúdo sem login. Para salvar, publicar ou agendar, conecte sua conta.
+            {instagramConnected && igUsername ? (
+              <>
+                Publicar em: <strong>@{igUsername}</strong>
+              </>
+            ) : (
+              "Prepare o Reel sem login. Você só conecta sua conta na hora de salvar, publicar ou agendar."
+            )}
           </p>
         </div>
 
@@ -303,6 +353,13 @@ export function ReelsComposer({ userId }: { userId: string | null }) {
           </p>
         ) : null}
       </aside>
+
+      <ConnectInstagramDialog
+        open={gateOpen}
+        authenticated={Boolean(userId)}
+        onClose={() => setGateOpen(false)}
+        onConnect={() => void goConnect()}
+      />
     </div>
   );
 }

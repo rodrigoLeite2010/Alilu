@@ -9,22 +9,51 @@ vi.mock("@/lib/instagram/backend/instagram-post-service", () => ({
   listPostsForUser: (...args: unknown[]) => listPostsForUserMock(...args),
 }));
 
+const getAccountMock = vi.fn();
+vi.mock("@/lib/instagram/backend/instagram-account-repository", () => ({
+  getInstagramAccountForUser: (...args: unknown[]) => getAccountMock(...args),
+}));
+
 const { default: CalendarioPage } = await import("@/app/instagram/painel/calendario/page");
 
 describe("CalendarioPage", () => {
   beforeEach(() => {
     authMock.mockReset();
     listPostsForUserMock.mockReset();
+    getAccountMock.mockReset();
+    getAccountMock.mockResolvedValue({ id: "acc-1", igUsername: "alilu.tec", status: "connected" });
   });
 
-  it("mostra o link de entrar quando não há sessão, sem consultar posts", async () => {
+  it("sem sessão: apresenta o agendamento e oferece entrar e conectar, sem consultar posts", async () => {
     authMock.mockResolvedValue(null);
 
     const jsx = await CalendarioPage();
     render(jsx);
 
-    expect(screen.getByRole("link", { name: "Entrar" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Organize e agende suas publicações" })).toBeInTheDocument();
+    const connect = screen.getByRole("link", { name: "Entrar e conectar Instagram" });
+    expect(connect.getAttribute("href")).toMatch(/^\/entrar\?callbackUrl=%2Fapi%2Finstagram%2Foauth%2Fstart/);
     expect(listPostsForUserMock).not.toHaveBeenCalled();
+  });
+
+  it("logado sem Instagram e sem posts: convida a conectar", async () => {
+    authMock.mockResolvedValue({ user: { id: "user-1" } });
+    listPostsForUserMock.mockResolvedValue([]);
+    getAccountMock.mockResolvedValue(null);
+
+    render(await CalendarioPage());
+
+    expect(screen.getByRole("link", { name: "Conectar Instagram" })).toHaveAttribute(
+      "href",
+      "/api/instagram/oauth/start?returnTo=%2Finstagram%2Fpainel%2Fcalendario",
+    );
+  });
+
+  it("com conta conectada mostra o CTA de agendar nova publicação", async () => {
+    authMock.mockResolvedValue({ user: { id: "user-1" } });
+    listPostsForUserMock.mockResolvedValue([]);
+    render(await CalendarioPage());
+    expect(screen.getByRole("link", { name: "Agendar nova publicação" })).toBeInTheDocument();
   });
 
   it("mostra o estado vazio quando o usuário não tem posts", async () => {
@@ -70,7 +99,7 @@ describe("CalendarioPage", () => {
     const jsx = await CalendarioPage();
     render(jsx);
 
-    expect(screen.getByRole("link", { name: "Novo post" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "Agendar nova publicação" })).toHaveAttribute(
       "href",
       "/instagram/painel/calendario/novo",
     );

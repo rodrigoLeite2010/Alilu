@@ -46,9 +46,12 @@ export function ExportPanel({
 
   return (
     <div className="space-y-3 rounded-lg border border-zinc-200 bg-zinc-50/70 p-4">
-      <p className="text-sm text-zinc-600">
-        Baixe sua arte em {format.width} × {format.height}px, prontinha para publicar.
-      </p>
+      <div>
+        <p className="text-sm font-semibold text-zinc-900">Seu post está pronto!</p>
+        <p className="mt-0.5 text-sm text-zinc-600">
+          Baixe sua arte em {format.width} × {format.height}px, prontinha para publicar.
+        </p>
+      </div>
       <div className="flex flex-wrap gap-3">
         <Button
           type="button"

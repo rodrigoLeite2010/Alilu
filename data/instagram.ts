@@ -16,14 +16,14 @@ export const INSTAGRAM_CATEGORY = {
   name: "Instagram e Redes Sociais",
   shortName: "Instagram",
   path: "/instagram",
-  title: "Ferramentas gratuitas para Instagram",
+  title: "Crie, agende e publique no Instagram",
   subtitle:
-    "Crie posts, carrosséis e Reels. Publique diretamente ou agende suas publicações.",
+    "Crie posts, carrosséis e Reels de graça, sem login. Quando quiser, conecte seu Instagram e publique na hora ou deixe agendado.",
   description:
-    "Crie posts, carrosséis e Reels para Instagram. Edite modelos, personalize textos e prepare publicações diretas ou agendadas.",
-  metaTitle: "Ferramentas para Instagram Grátis | ALILU",
+    "Crie posts, carrosséis e Reels grátis e, se quiser, publique ou agende direto no seu Instagram pelo Alilu.",
+  metaTitle: "Criar, Agendar e Publicar Posts no Instagram Grátis | ALILU",
   metaDescription:
-    "Crie posts, carrosséis e legendas para Instagram gratuitamente. Personalize modelos, edite textos e prepare conteúdos para suas redes sociais.",
+    "Crie posts, carrosséis e Reels para Instagram grátis e sem login. Quando quiser, conecte sua conta para publicar na hora ou agendar suas publicações.",
   icon: "instagram",
 } as const;
 
@@ -53,12 +53,12 @@ export const instagramTools: InstagramTool[] = [
     shortName: "Criador de Posts",
     path: "/instagram/criar-post",
     description:
-      "Monte posts para Instagram direto do navegador: escolha um template, personalize textos, cores e fotos, e baixe em PNG ou JPG.",
+      "Monte posts (e capas 9:16 para Stories e Reels) com templates, textos, cores e sua foto. Baixe em PNG/JPG ou publique e agende no Instagram.",
     pageDescription:
-      "Escolha um template, personalize textos, cores e fotos, e baixe sua arte pronta para publicar no Instagram — grátis, sem cadastro e sem enviar suas imagens para nenhum servidor.",
+      "Escolha um template, personalize textos, cores e fotos, e baixe sua arte pronta — grátis e sem cadastro. Se quiser, publique ou agende direto no seu Instagram.",
     metaTitle: "Criar Post para Instagram Grátis Online | ALILU",
     metaDescription:
-      "Crie posts para Instagram gratuitamente. Escolha modelos, personalize textos, cores e fotos e baixe suas imagens em PNG ou JPG.",
+      "Crie posts para Instagram grátis: escolha modelos, personalize textos, cores e fotos e baixe em PNG ou JPG — ou publique e agende direto no Instagram.",
     keywords: [
       "criador de post para instagram",
       "criar post instagram grátis",
@@ -75,12 +75,12 @@ export const instagramTools: InstagramTool[] = [
     shortName: "Criador de Carrosséis",
     path: "/instagram/carrossel",
     description:
-      "Monte carrosséis para Instagram com vários slides: edite cada um no mesmo editor do Criador de Posts, reordene e baixe tudo em um ZIP.",
+      "Monte carrosséis com vários slides, reordene e baixe tudo em ZIP — ou publique e agende o carrossel (2 a 10 imagens) no Instagram.",
     pageDescription:
-      "Crie sequências de slides para carrossel, edite cada um separadamente, reordene por arraste e baixe todas as imagens em um único arquivo ZIP — grátis, sem cadastro e sem enviar suas imagens para nenhum servidor.",
+      "Crie sequências de slides para carrossel, edite cada um separadamente, reordene por arraste e baixe todas as imagens em um único arquivo ZIP — grátis e sem cadastro. Se quiser, publique ou agende o carrossel no seu Instagram.",
     metaTitle: "Criar Carrossel para Instagram Grátis Online | ALILU",
     metaDescription:
-      "Crie carrosséis para Instagram gratuitamente. Edite slides, organize a sequência e baixe todas as imagens em ZIP.",
+      "Crie carrosséis para Instagram grátis: edite slides, organize a sequência e baixe em ZIP — ou conecte sua conta para publicar ou agendar.",
     keywords: [
       "criador de carrossel para instagram",
       "criar carrossel instagram grátis",
@@ -155,11 +155,42 @@ export const plannedInstagramTools: PlannedInstagramTool[] = [
       "Ajuste qualquer imagem para os formatos ideais de post, story e perfil.",
     icon: "scissors",
   },
-  {
-    name: "Calendário de Publicações",
-    description: "Organize datas e temas dos próximos posts.",
-    icon: "calendar",
-  },
+];
+
+/**
+ * Publicação e agendamento no Instagram (Meta — Instagram API with
+ * Instagram Login). Só lista o que está IMPLEMENTADO no código
+ * (lib/instagram/backend/instagram-publish-service.ts); o que ainda não
+ * existe fica em `notYetSupported` e nunca é anunciado como disponível.
+ */
+export const INSTAGRAM_PUBLISHING = {
+  /** Minhas publicações / calendário (apresenta o recurso para quem não entrou). */
+  schedulePath: "/instagram/painel/calendario",
+  /** OAuth oficial da Meta; sem login no Alilu, leva antes para /entrar e volta. */
+  connectPath: "/api/instagram/oauth/start?returnTo=%2Finstagram%2Fpainel%2Fcalendario",
+  viralPostsPath: "/instagram/posts-virais",
+  supported: [
+    { label: "Post de imagem", detail: "Publica a arte criada no Alilu no feed." },
+    { label: "Carrossel", detail: "De 2 a 10 imagens, na ordem que você escolher." },
+    { label: "Reels", detail: "Vídeo MP4 ou MOV, de 3 segundos a 15 minutos." },
+    { label: "Agendamento", detail: "Publicação automática no dia e horário escolhidos, mesmo com o Alilu fechado." },
+  ],
+  notYetSupported: ["Stories", "Carrossel com vídeo", "Capa personalizada do Reel na publicação"],
+} as const;
+
+export interface InstagramMenuLink {
+  href: string;
+  label: string;
+}
+
+/** Atalhos da área Instagram no menu lateral — publicação/agendamento sempre visível. */
+export const instagramMenuLinks: InstagramMenuLink[] = [
+  { href: "/instagram/criar-post", label: "Criar post" },
+  { href: "/instagram/carrossel", label: "Carrossel" },
+  { href: "/instagram/reels", label: "Reels" },
+  { href: "/instagram/legendas", label: "Legendas" },
+  { href: "/instagram/posts-virais", label: "Posts Virais" },
+  { href: "/instagram/painel/calendario", label: "Agendar e publicar" },
 ];
 
 export function getInstagramToolByPath(path: string): InstagramTool | undefined {

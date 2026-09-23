@@ -3,6 +3,8 @@ import { auth } from "@/auth";
 import { listPostsForUser } from "@/lib/instagram/backend/instagram-post-service";
 import { LinkButton } from "@/components/ui/Button";
 import { PublicationsManager } from "@/components/instagram/PublicationsManager";
+import { SchedulingIntro } from "@/components/instagram/SchedulingIntro";
+import { getInstagramAccountForUser } from "@/lib/instagram/backend/instagram-account-repository";
 
 export const metadata: Metadata = {
   robots: { index: false, follow: false },
@@ -23,16 +25,24 @@ export default async function CalendarioPage() {
   const session = await auth();
   if (!session?.user?.id) {
     return (
-      <div className="mx-auto flex min-h-[40vh] max-w-md flex-col items-center justify-center gap-4 px-4 py-12 text-center">
-        <p className="text-sm text-zinc-600">Você precisa entrar para ver esta página.</p>
-        <a href="/entrar" className="text-sm font-medium text-teal-700 underline underline-offset-2">
-          Entrar
-        </a>
+      <div className="mx-auto max-w-2xl px-4 py-10">
+        <SchedulingIntro mode="login" returnPath="/instagram/painel/calendario" />
       </div>
     );
   }
 
-  const posts = await listPostsForUser(session.user.id);
+  const [posts, account] = await Promise.all([
+    listPostsForUser(session.user.id),
+    getInstagramAccountForUser(session.user.id),
+  ]);
+
+  if (!account && posts.length === 0) {
+    return (
+      <div className="mx-auto max-w-2xl px-4 py-10">
+        <SchedulingIntro mode="connect" returnPath="/instagram/painel/calendario" />
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-10">
@@ -45,9 +55,9 @@ export default async function CalendarioPage() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <LinkButton href="/instagram/posts-virais">Post viral</LinkButton>
-          <LinkButton href="/instagram/painel/calendario/novo" variant="secondary">
-            Novo post
+          <LinkButton href="/instagram/painel/calendario/novo">Agendar nova publicação</LinkButton>
+          <LinkButton href="/instagram/posts-virais" variant="secondary">
+            Post viral
           </LinkButton>
           <LinkButton href="/instagram/painel/calendario/novo-carrossel" variant="secondary">
             Novo carrossel

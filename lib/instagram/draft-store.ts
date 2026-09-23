@@ -15,7 +15,8 @@ import type { SerializedEditorState } from "@/lib/instagram/editor-state";
 
 const DB_NAME = "alilu-instagram";
 const STORE = "drafts";
-const KEY = "viral-post";
+/** Um rascunho por origem: "viral-post", "post" (Criador de Posts), "carousel", "reel". */
+export type DraftKind = "viral-post" | "post" | "carousel" | "reel";
 const MAX_AGE_MS = 24 * 60 * 60 * 1000;
 
 export interface LocalPublicationDraft {
@@ -58,16 +59,30 @@ async function withStore<T>(mode: IDBTransactionMode, run: (store: IDBObjectStor
   });
 }
 
-export async function saveLocalDraft(draft: Omit<LocalPublicationDraft, "savedAt">): Promise<void> {
-  await withStore("readwrite", (store) => store.put({ ...draft, savedAt: Date.now() }, KEY));
+export async function saveLocalDraft(
+  draft: Omit<LocalPublicationDraft, "savedAt">,
+  kind: DraftKind = "viral-post",
+): Promise<void> {
+  await withStore("readwrite", (store) => store.put({ ...draft, savedAt: Date.now() }, kind));
 }
 
-export async function loadLocalDraft(): Promise<LocalPublicationDraft | null> {
-  const draft = await withStore<LocalPublicationDraft>("readonly", (store) => store.get(KEY));
+export async function loadLocalDraft(kind: DraftKind = "viral-post"): Promise<LocalPublicationDraft | null> {
+  const draft = await withStore<LocalPublicationDraft>("readonly", (store) => store.get(kind));
   if (!draft || Date.now() - draft.savedAt > MAX_AGE_MS) return null;
   return draft;
 }
 
-export async function clearLocalDraft(): Promise<void> {
-  await withStore("readwrite", (store) => store.delete(KEY));
+export async function clearLocalDraft(kind: DraftKind = "viral-post"): Promise<void> {
+  await withStore("readwrite", (store) => store.delete(kind));
+}
+
+/** Rascunho genérico (ex.: carrossel com vários slides e imagens). */
+export async function saveLocalValue<T>(kind: DraftKind, value: T): Promise<void> {
+  await withStore("readwrite", (store) => store.put({ value, savedAt: Date.now() }, kind));
+}
+
+export async function loadLocalValue<T>(kind: DraftKind): Promise<T | null> {
+  const stored = await withStore<{ value: T; savedAt: number }>("readonly", (store) => store.get(kind));
+  if (!stored || Date.now() - stored.savedAt > MAX_AGE_MS) return null;
+  return stored.value;
 }

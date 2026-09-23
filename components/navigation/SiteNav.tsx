@@ -6,7 +6,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Icon } from "@/components/ui/Icon";
 import { categories } from "@/data/categories";
-import { INSTAGRAM_CATEGORY } from "@/data/instagram";
+import { INSTAGRAM_CATEGORY, instagramMenuLinks } from "@/data/instagram";
 
 type NavigationLink = {
   href: string;
@@ -80,6 +80,42 @@ function NavigationItem({
   );
 }
 
+/**
+ * Atalhos da área Instagram. "Agendar e publicar" aparece sempre (o recurso
+ * não pode ficar escondido); dentro de /instagram, a lista completa.
+ */
+function InstagramSubLinks({ pathname, onNavigate }: { pathname: string; onNavigate?: () => void }) {
+  const insideInstagram = pathname === "/instagram" || pathname.startsWith("/instagram/");
+  const links = insideInstagram ? instagramMenuLinks : instagramMenuLinks.filter((link) => link.href === "/instagram/painel/calendario");
+  return (
+    <li>
+      <div role="group" aria-label="Atalhos do Instagram" className="ml-6 flex flex-col border-l border-zinc-200 pl-3">
+        {links.map((link) => {
+          const active = pathname === link.href || pathname.startsWith(`${link.href}/`);
+          const isPublishing = link.href === "/instagram/painel/calendario";
+          return (
+            <Link
+              key={link.href}
+              href={link.href}
+              onClick={onNavigate}
+              aria-current={active ? "page" : undefined}
+              className={`flex min-h-9 items-center rounded-md px-2 text-sm transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-700 ${
+                active
+                  ? "bg-teal-50 font-medium text-teal-900"
+                  : isPublishing
+                    ? "font-medium text-teal-800 hover:bg-white"
+                    : "text-zinc-600 hover:bg-white hover:text-zinc-950"
+              }`}
+            >
+              {link.label}
+            </Link>
+          );
+        })}
+      </div>
+    </li>
+  );
+}
+
 function NavigationList({
   pathname,
   onNavigate,
@@ -105,6 +141,7 @@ function NavigationList({
       </p>
       <ul className="mt-2 space-y-1">
         <NavigationItem link={instagramCategoryLink} pathname={pathname} onNavigate={onNavigate} />
+        <InstagramSubLinks pathname={pathname} onNavigate={onNavigate} />
         {categoryLinks.map((link) => (
           <NavigationItem
             key={link.href}

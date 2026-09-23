@@ -6,7 +6,7 @@ import { SectionHeading } from "@/components/ui/SectionHeading";
 import { AdSlot } from "@/components/ui/AdSlot";
 import { buildPageMetadata } from "@/lib/seo/metadata";
 import { INSTAGRAM_CATEGORY, instagramTools } from "@/data/instagram";
-import { CarouselEditorTool } from "@/components/tools/instagram-carousel-creator/CarouselEditorTool";
+import { PublicCarouselCreator } from "@/components/instagram/PublicCarouselCreator";
 
 const tool = instagramTools.find((item) => item.id === "criador-carrossel-instagram")!;
 
@@ -43,15 +43,19 @@ const contentSections = [
     body: "Clique em \"Baixar carrossel em ZIP\" para gerar um arquivo com todas as imagens, numeradas na ordem exibida (slide-01.png, slide-02.png...) e prontas para publicar. O processamento acontece inteiramente no seu navegador — nada é enviado para os servidores do ALILU.",
   },
   {
+    title: "Como publicar ou agendar o carrossel no Instagram",
+    body: "Com os slides prontos (de 2 a 10 para o Instagram), clique em \"Publicar no Instagram\" ou \"Agendar publicação\". Só então você entra no Alilu e conecta sua conta profissional pela tela oficial da Meta; depois volta para o mesmo carrossel e escolhe publicar agora ou em um dia e horário.",
+  },
+  {
     title: "Privacidade",
-    body: "As fotos que você envia são processadas inteiramente no seu navegador e nunca saem do seu dispositivo. O ALILU Utilitários não recebe, não armazena e não tem acesso às imagens ou textos que você usa nesta ferramenta.",
+    body: "Enquanto você cria e baixa, as fotos são processadas no seu navegador e não saem do seu dispositivo. Elas só são enviadas ao armazenamento do Alilu se você decidir publicar ou agendar.",
   },
 ];
 
 const faq = [
   {
     question: "O Criador de Carrosséis é gratuito?",
-    answer: "Sim, é totalmente gratuito, sem limite de downloads e sem necessidade de cadastro.",
+    answer: "Sim, é totalmente gratuito, sem limite de downloads e sem necessidade de cadastro. A conta só é pedida se você quiser publicar ou agendar no Instagram.",
   },
   {
     question: "Quantos slides posso ter no carrossel?",
@@ -74,7 +78,7 @@ const faq = [
   {
     question: "As imagens que eu envio ficam salvas em algum servidor?",
     answer:
-      "Não. Todo o processamento acontece no seu navegador — suas fotos não são enviadas para nenhum servidor do ALILU.",
+      "Para criar e baixar, não: tudo acontece no seu navegador. Só quando você publica ou agenda os slides são enviados ao armazenamento do Alilu, para o Instagram buscá-los.",
   },
   {
     question: "O editor funciona no celular?",
@@ -100,7 +104,7 @@ export default function InstagramCarouselCreatorPage() {
       </div>
 
       <div className="mt-6">
-        <CarouselEditorTool />
+        <PublicCarouselCreator />
       </div>
 
       <div className="mt-8 print:hidden">

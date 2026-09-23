@@ -21,6 +21,7 @@ import {
   utcToZonedInputs,
 } from "@/lib/instagram/schedule-time";
 import { Dialog } from "./Dialog";
+import { ConnectInstagramDialog, buildConnectTarget } from "./ConnectInstagramDialog";
 import { ScheduleFields, scheduleValueToIso, type ScheduleValue } from "./ScheduleFields";
 
 const MAX_CAPTION = 2200;
@@ -125,6 +126,7 @@ export function PublicationComposerPanel({
   const [mode, setMode] = useState<Mode>(initialValues?.mode ?? "now");
   const [schedule, setSchedule] = useState<ScheduleValue>(initialValues?.schedule ?? { date: "", time: "" });
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [gateOpen, setGateOpen] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [stage, setStage] = useState<Stage>("idle");
   const [error, setError] = useState<string | null>(null);
@@ -162,26 +164,32 @@ export function PublicationComposerPanel({
     }
   }
 
-  /** Garante login + Instagram conectado. Retorna o userId quando pode seguir. */
+  /**
+   * Garante login + Instagram conectado. Quando falta algo, abre a etapa
+   * "Conecte seu Instagram para continuar" (nada é pedido antes disso).
+   * Retorna o userId quando pode seguir.
+   */
   function ensureReady(): string | null {
     if (!account) {
       setError("Verificando sua conta… tente novamente em instantes.");
       return null;
     }
-    if (!account.authenticated) {
-      void leaveForAuth(`/entrar?callbackUrl=${encodeURIComponent(returnPath)}`);
-      return null;
-    }
-    if (!account.connected || !account.userId) {
-      setError(account.needsReconnect ? "Sua conexão com o Instagram precisa ser renovada." : "Conecte seu Instagram para publicar.");
+    if (!account.authenticated || !account.connected || !account.userId) {
+      setGateOpen(true);
       return null;
     }
     return account.userId;
   }
 
-  async function openPreview() {
+  /** Sem login: entra no Alilu e segue direto para a conexão oficial da Meta; depois volta para cá. */
+  function connectTarget(): string {
+    return buildConnectTarget(Boolean(account?.authenticated), returnPath);
+  }
+
+  async function openPreview(nextMode: Mode = mode) {
     setError(null);
     setSuccess(null);
+    setMode(nextMode);
     if (!ensureReady()) return;
     if (caption.length > MAX_CAPTION) {
       setError(`A legenda pode ter no máximo ${MAX_CAPTION} caracteres.`);
@@ -300,34 +308,19 @@ export function PublicationComposerPanel({
   return (
     <div className="space-y-3 rounded-lg border border-teal-200 bg-teal-50/60 p-4">
       <div>
-        <p className="text-sm font-medium text-teal-900">Publicar no Instagram</p>
+        <p className="text-sm font-semibold text-teal-900">Publicar no Instagram</p>
         <p className="mt-1 text-xs text-teal-800">
           {accountLabel ? (
             <>
               Publicar em: <strong>{accountLabel}</strong> · {format.width} × {format.height}px
             </>
-          ) : account && !account.authenticated ? (
-            "Crie à vontade. Para salvar ou publicar, você entra na sua conta Alilu."
+          ) : account?.needsReconnect ? (
+            "Sua conexão com o Instagram precisa ser renovada."
           ) : (
-            `Arte em ${format.width} × ${format.height}px.`
+            "Publique agora ou agende. Você só conecta sua conta na hora de publicar — criar e baixar continua grátis e sem login."
           )}
         </p>
       </div>
-
-      {account?.authenticated && !account.connected ? (
-        <div className="space-y-2 rounded-md bg-white px-3 py-2">
-          <p className="text-sm text-zinc-700">
-            {account.needsReconnect ? "Sua conexão com o Instagram precisa ser renovada." : "Conecte seu Instagram para publicar."}
-          </p>
-          <Button
-            type="button"
-            className="w-full justify-center"
-            onClick={() => void leaveForAuth(`/api/instagram/oauth/start?returnTo=${encodeURIComponent(returnPath)}`)}
-          >
-            Conectar Instagram
-          </Button>
-        </div>
-      ) : null}
 
       <div className="flex flex-col gap-1">
         <label htmlFor={captionId} className="text-xs font-medium text-zinc-700">
@@ -348,13 +341,16 @@ export function PublicationComposerPanel({
       </div>
 
       <div className="flex flex-wrap gap-2">
-        <Button type="button" onClick={() => void openPreview()} disabled={busy} className="flex-1 justify-center">
-          Publicar ou agendar
+        <Button type="button" onClick={() => void openPreview("now")} disabled={busy} className="flex-1 justify-center">
+          Publicar no Instagram
         </Button>
-        <Button type="button" variant="secondary" onClick={() => void save("draft")} disabled={busy} className="flex-1 justify-center">
-          {busy && !previewOpen ? STAGE_LABEL[stage as Exclude<Stage, "idle">] : "Salvar rascunho"}
+        <Button type="button" variant="secondary" onClick={() => void openPreview("schedule")} disabled={busy} className="flex-1 justify-center">
+          Agendar publicação
         </Button>
       </div>
+      <Button type="button" variant="ghost" onClick={() => void save("draft")} disabled={busy} className="min-h-9 w-full justify-center py-1.5 text-xs">
+        {busy && !previewOpen ? STAGE_LABEL[stage as Exclude<Stage, "idle">] : "Salvar rascunho em Minhas publicações"}
+      </Button>
 
       {error && !previewOpen ? (
         <p role="alert" className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
@@ -371,6 +367,14 @@ export function PublicationComposerPanel({
           ) : null}
         </p>
       ) : null}
+
+      <ConnectInstagramDialog
+        open={gateOpen}
+        authenticated={Boolean(account?.authenticated)}
+        needsReconnect={Boolean(account?.needsReconnect)}
+        onClose={() => setGateOpen(false)}
+        onConnect={() => void leaveForAuth(connectTarget())}
+      />
 
       <Dialog
         open={previewOpen}

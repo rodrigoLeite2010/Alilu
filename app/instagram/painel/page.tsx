@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { auth } from "@/auth";
 import { getInstagramAccountForUser } from "@/lib/instagram/backend/instagram-account-repository";
 import { LinkButton } from "@/components/ui/Button";
+import { SchedulingIntro } from "@/components/instagram/SchedulingIntro";
 
 export const metadata: Metadata = {
   robots: { index: false, follow: false },
@@ -23,11 +24,8 @@ export default async function InstagramPainelPage({ searchParams }: PainelPagePr
   const session = await auth();
   if (!session?.user?.id) {
     return (
-      <div className="mx-auto flex min-h-[40vh] max-w-md flex-col items-center justify-center gap-4 px-4 py-12 text-center">
-        <p className="text-sm text-zinc-600">Você precisa entrar para ver esta página.</p>
-        <a href="/entrar" className="text-sm font-medium text-teal-700 underline underline-offset-2">
-          Entrar
-        </a>
+      <div className="mx-auto max-w-2xl px-4 py-10">
+        <SchedulingIntro mode="login" returnPath="/instagram/painel/calendario" />
       </div>
     );
   }

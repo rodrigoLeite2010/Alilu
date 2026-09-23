@@ -23,7 +23,7 @@ describe("CalendarioNovoPostPage", () => {
     const jsx = await CalendarioNovoPostPage();
     render(jsx);
 
-    expect(screen.getByRole("link", { name: "Entrar" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Começar a criar sem login" })).toBeInTheDocument();
     expect(getInstagramAccountForUserMock).not.toHaveBeenCalled();
   });
 
@@ -56,6 +56,6 @@ describe("CalendarioNovoPostPage", () => {
 
     expect(screen.getByText("@alilu.tec", { exact: false })).toBeInTheDocument();
     expect(screen.getByTestId("instagram-post-canvas")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Publicar ou agendar" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Publicar no Instagram" })).toBeInTheDocument();
   });
 });

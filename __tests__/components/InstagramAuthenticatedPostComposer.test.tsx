@@ -17,7 +17,7 @@ describe("AuthenticatedPostComposer", () => {
     render(<AuthenticatedPostComposer userId="user-1" />);
 
     expect(screen.getByTestId("instagram-post-canvas")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Publicar ou agendar" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Salvar rascunho" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Publicar no Instagram" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Agendar publicação" })).toBeInTheDocument();
   });
 });

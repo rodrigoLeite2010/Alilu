@@ -11,6 +11,7 @@ import { categories } from "@/data/categories";
 import { getFeaturedTools } from "@/data/tools";
 import { INSTAGRAM_CATEGORY, instagramTools } from "@/data/instagram";
 import { buildPageMetadata } from "@/lib/seo/metadata";
+import { HomePublishingPromo } from "@/components/instagram/PublishingPromo";
 
 export const metadata: Metadata = buildPageMetadata({
   title: "ALILU Utilitários — Calculadoras e ferramentas online gratuitas",
@@ -60,6 +61,10 @@ export default function HomePage() {
           </Container>
         </section>
       ) : null}
+
+      <Container className="pt-10 sm:pt-12">
+        <HomePublishingPromo />
+      </Container>
 
       <Container className="py-12 sm:py-16" id="categorias">
         <SectionHeading

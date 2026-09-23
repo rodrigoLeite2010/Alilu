@@ -77,9 +77,17 @@ export interface CarouselEditorToolProps {
    * (/instagram/carrossel) nunca recebe nem renderiza nada aqui.
    */
   publishPanel?: ComponentType<CarouselPublishPanelSlotProps>;
+  /** Estado inicial (ex.: carrossel restaurado depois do login/conexão com o Instagram). */
+  initialState?: CarouselEditorState;
+  /** Notificado a cada mudança (ex.: guardar rascunho local antes de sair para o login). */
+  onStateChange?: (state: CarouselEditorState) => void;
 }
 
-export function CarouselEditorTool({ publishPanel: PublishPanelSlot }: CarouselEditorToolProps = {}) {
+export function CarouselEditorTool({
+  publishPanel: PublishPanelSlot,
+  initialState,
+  onStateChange,
+}: CarouselEditorToolProps = {}) {
   const {
     state,
     commit,
@@ -91,7 +99,11 @@ export function CarouselEditorTool({ publishPanel: PublishPanelSlot }: CarouselE
     resetHistory,
     canUndo,
     canRedo,
-  } = useEditorHistory<CarouselEditorState>(createInitialCarouselState());
+  } = useEditorHistory<CarouselEditorState>(initialState ?? createInitialCarouselState());
+
+  useEffect(() => {
+    onStateChange?.(state);
+  }, [state, onStateChange]);
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [isDuplicating, setIsDuplicating] = useState(false);

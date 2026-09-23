@@ -22,9 +22,12 @@ export default async function CalendarioNovoCarrosselPage() {
   if (!session?.user?.id) {
     return (
       <div className="mx-auto flex min-h-[40vh] max-w-md flex-col items-center justify-center gap-4 px-4 py-12 text-center">
-        <p className="text-sm text-zinc-600">Você precisa entrar para ver esta página.</p>
-        <a href="/entrar" className="text-sm font-medium text-teal-700 underline underline-offset-2">
-          Entrar
+        <p className="text-sm text-zinc-600">
+          Você pode criar sem conta: monte a arte e clique em &quot;Publicar no Instagram&quot; ou &quot;Agendar publicação&quot;
+          — só então pedimos o login e a conexão, sem perder o que você fez.
+        </p>
+        <a href="/instagram/carrossel" className="text-sm font-medium text-teal-700 underline underline-offset-2">
+          Começar a criar sem login
         </a>
       </div>
     );

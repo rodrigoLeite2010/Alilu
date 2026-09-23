@@ -28,7 +28,7 @@ describe("InstagramPainelPage", () => {
     const jsx = await InstagramPainelPage({ searchParams: Promise.resolve({}) });
     render(jsx);
 
-    expect(screen.getByRole("link", { name: "Entrar" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Entrar e conectar Instagram" })).toBeInTheDocument();
     expect(getInstagramAccountForUserMock).not.toHaveBeenCalled();
   });
 

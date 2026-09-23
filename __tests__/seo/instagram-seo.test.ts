@@ -33,16 +33,18 @@ describe("SEO da categoria Instagram", () => {
     }
   });
 
-  it("a página da categoria usa o title definido no PROMPT e menciona as ferramentas disponíveis na description", () => {
-    expect(categoryMetadata.title).toBe("Ferramentas para Instagram Grátis | ALILU");
+  it("a página da categoria destaca criar, agendar e publicar no title e na description", () => {
+    expect(categoryMetadata.title).toBe("Criar, Agendar e Publicar Posts no Instagram Grátis | ALILU");
     expect(categoryMetadata.description).toContain("carrosséis");
+    expect(categoryMetadata.description).toContain("agendar");
+    expect(String(categoryMetadata.description).length).toBeLessThanOrEqual(160);
     expect(categoryMetadata.alternates?.canonical).toBe(`${SITE_URL}/instagram`);
   });
 
   it("a página do Criador de Posts usa o title e a description definidos no PROMPT (Fase 1)", () => {
     expect(postToolMetadata.title).toBe("Criar Post para Instagram Grátis Online | ALILU");
     expect(postToolMetadata.description).toBe(
-      "Crie posts para Instagram gratuitamente. Escolha modelos, personalize textos, cores e fotos e baixe suas imagens em PNG ou JPG."
+      "Crie posts para Instagram grátis: escolha modelos, personalize textos, cores e fotos e baixe em PNG ou JPG — ou publique e agende direto no Instagram."
     );
     expect(postToolMetadata.alternates?.canonical).toBe(`${SITE_URL}/instagram/criar-post`);
   });
@@ -50,7 +52,7 @@ describe("SEO da categoria Instagram", () => {
   it("a página do Criador de Carrosséis usa o title e a description definidos no PROMPT (Fase 2, ETAPA 13)", () => {
     expect(carouselToolMetadata.title).toBe("Criar Carrossel para Instagram Grátis Online | ALILU");
     expect(carouselToolMetadata.description).toBe(
-      "Crie carrosséis para Instagram gratuitamente. Edite slides, organize a sequência e baixe todas as imagens em ZIP."
+      "Crie carrosséis para Instagram grátis: edite slides, organize a sequência e baixe em ZIP — ou conecte sua conta para publicar ou agendar."
     );
     expect(carouselToolMetadata.alternates?.canonical).toBe(`${SITE_URL}/instagram/carrossel`);
   });

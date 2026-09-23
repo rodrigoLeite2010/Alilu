@@ -6,7 +6,7 @@ import { SectionHeading } from "@/components/ui/SectionHeading";
 import { AdSlot } from "@/components/ui/AdSlot";
 import { buildPageMetadata } from "@/lib/seo/metadata";
 import { INSTAGRAM_CATEGORY, instagramTools } from "@/data/instagram";
-import { PostEditorTool } from "@/components/tools/instagram-post-creator/PostEditorTool";
+import { PublicPostCreator } from "@/components/instagram/PublicPostCreator";
 
 const tool = instagramTools[0];
 
@@ -20,7 +20,7 @@ export const metadata: Metadata = buildPageMetadata({
 const contentSections = [
   {
     title: "Como criar seu post",
-    body: "Escolha um formato e um template prontos, personalize os textos, as cores e — se quiser — envie uma foto sua. A prévia à direita mostra exatamente como a arte vai ficar, em tempo real. Quando estiver pronta, baixe em PNG ou JPG.",
+    body: "Escolha um formato e um template prontos, personalize os textos, as cores e — se quiser — envie uma foto sua. A prévia mostra exatamente como a arte vai ficar, em tempo real. Quando estiver pronta, baixe em PNG ou JPG, ou publique e agende direto no Instagram.",
   },
   {
     title: "Como escolher o formato",
@@ -35,8 +35,12 @@ const contentSections = [
     body: "Clique em \"Baixar PNG\" ou \"Baixar JPG\" na coluna de exportação. O arquivo é gerado na resolução exata do formato escolhido e baixado direto no seu dispositivo — nada é enviado para os servidores do ALILU.",
   },
   {
+    title: "Como publicar ou agendar no Instagram",
+    body: "Com a arte pronta, clique em \"Publicar no Instagram\" ou \"Agendar publicação\". Só nesse momento você entra no Alilu e conecta sua conta profissional do Instagram pela tela oficial da Meta. Depois disso você volta para a mesma arte, escolhe publicar agora ou em um dia e horário, e o Alilu publica sozinho — mesmo com o site fechado.",
+  },
+  {
     title: "Privacidade",
-    body: "As fotos que você envia são processadas inteiramente no seu navegador e nunca saem do seu dispositivo. O ALILU Utilitários não recebe, não armazena e não tem acesso às imagens ou textos que você usa nesta ferramenta.",
+    body: "Enquanto você cria e baixa, as fotos são processadas no seu navegador e não saem do seu dispositivo. Elas só são enviadas ao armazenamento do Alilu se você decidir publicar ou agendar — é daí que o Instagram busca a imagem.",
   },
 ];
 
@@ -47,12 +51,17 @@ const faq = [
   },
   {
     question: "Preciso criar uma conta para usar?",
-    answer: "Não. Você pode usar o editor e baixar suas artes sem fazer login.",
+    answer: "Não. Você pode usar o editor e baixar suas artes sem fazer login. A conta só é pedida se você quiser publicar ou agendar direto no Instagram.",
   },
   {
     question: "As imagens que eu envio ficam salvas em algum servidor?",
     answer:
-      "Não. Todo o processamento acontece no seu navegador — suas fotos não são enviadas para nenhum servidor do ALILU.",
+      "Para criar e baixar, não: tudo acontece no seu navegador. Só quando você publica ou agenda a arte é enviada ao armazenamento do Alilu, para o Instagram conseguir buscá-la.",
+  },
+  {
+    question: "Posso publicar ou agendar direto no Instagram?",
+    answer:
+      "Sim. Conecte uma conta profissional do Instagram (Criador de conteúdo ou Empresa) e publique na hora ou escolha data e horário — a publicação acontece automaticamente.",
   },
   {
     question: "Posso usar a imagem gerada em outras redes sociais, além do Instagram?",
@@ -86,7 +95,7 @@ export default function InstagramPostCreatorPage() {
       </div>
 
       <div className="mt-6">
-        <PostEditorTool />
+        <PublicPostCreator />
       </div>
 
       <div className="mt-8 print:hidden">
