@@ -1,4 +1,5 @@
 import type { ToolContentSection, ToolFaqItem } from "@/components/tools/ToolPageTemplate";
+import { base64ToolContent } from "@/components/tools/base64/base64-content";
 
 /**
  * Conteúdo explicativo e FAQ específicos de cada ferramenta já implementada
@@ -2484,4 +2485,7 @@ export const toolContent: Record<
       { question: "O site guarda a senha?", answer: "Não. A criptografia acontece localmente no navegador e nenhuma senha é enviada ou armazenada pelo Alilu Utilitários." },
     ],
   },
+
+  // CONVERSOR BASE64 — textos em components/tools/base64/base64-content.ts
+  ...base64ToolContent,
 };

@@ -42,6 +42,8 @@ export interface Tool {
   pageDescription?: string;
   /** Descrição específica para metadata quando precisa diferir do texto do card */
   metaDescription?: string;
+  /** Título específico para metadata (<title>) quando precisa diferir do H1 */
+  metaTitle?: string;
   /** Palavras-chave para busca interna e SEO */
   keywords: string[];
   /** Nome de ícone (chave usada por components/ui/Icon.tsx) */
@@ -1579,6 +1581,311 @@ export const tools: Tool[] = [
     ],
     icon: "monitor",
     relatedTools: ["meu-ip", "meu-navegador"],
+    status: "ativo",
+  },
+  // CONVERSOR BASE64 (conversões 100% no navegador — ver components/tools/base64)
+  {
+    id: "base64-para-ascii",
+    name: "Base64 para ASCII",
+    shortName: "Base64 para ASCII",
+    slug: "base64-para-ascii",
+    category: "conversor-base64",
+    description:
+      "Decodifique Base64 em caracteres ASCII, byte a byte, e identifique bytes fora da tabela ASCII.",
+    metaTitle: "Base64 para ASCII Online Grátis",
+    metaDescription:
+      "Converta Base64 para ASCII online e grátis. Decodifique byte a byte, veja caracteres fora da tabela ASCII e copie o resultado — tudo no navegador.",
+    keywords: ["base64 para ascii", "decodificar base64 ascii", "base64 decode ascii", "base64 to ascii"],
+    icon: "type",
+    relatedTools: ["base64-para-texto", "base64-para-hex", "texto-para-base64"],
+    status: "ativo",
+  },
+  {
+    id: "base64-para-audio",
+    name: "Base64 para Áudio",
+    shortName: "Base64 para Áudio",
+    slug: "base64-para-audio",
+    category: "conversor-base64",
+    description:
+      "Transforme Base64 ou Data URI em áudio: ouça no player e baixe o arquivo MP3, WAV, OGG ou WEBM.",
+    metaTitle: "Base64 para Áudio Online Grátis",
+    metaDescription:
+      "Converta Base64 em áudio online grátis. Cole o Base64 ou Data URI, ouça no player e baixe MP3, WAV, OGG ou WEBM sem enviar nada ao servidor.",
+    keywords: ["base64 para áudio", "base64 para mp3", "base64 to audio", "data uri áudio", "decodificar áudio base64"],
+    icon: "music",
+    relatedTools: ["audio-para-base64", "base64-para-video", "base64-para-arquivo"],
+    status: "ativo",
+  },
+  {
+    id: "basic-auth-decode",
+    name: "Basic Auth Decode",
+    shortName: "Basic Auth Decode",
+    slug: "basic-auth-decode",
+    category: "conversor-base64",
+    description:
+      "Decodifique um cabeçalho HTTP Basic Auth e veja o usuário e a senha separados.",
+    metaTitle: "Basic Auth Decode Online Grátis",
+    metaDescription:
+      "Decodifique cabeçalhos HTTP Basic Auth online. Cole \"Basic ...\" ou só o Base64 e veja usuário e senha separados, direto no seu navegador.",
+    keywords: ["basic auth decode", "decodificar basic auth", "authorization basic", "http basic authentication", "usuário e senha base64"],
+    icon: "key-round",
+    relatedTools: ["base64-para-texto", "texto-para-base64", "base64-para-ascii"],
+    status: "ativo",
+  },
+  {
+    id: "base64-para-arquivo",
+    name: "Base64 para Arquivo",
+    shortName: "Base64 para Arquivo",
+    slug: "base64-para-arquivo",
+    category: "conversor-base64",
+    description:
+      "Converta Base64 em arquivo para download, com nome, extensão e MIME type definidos por você.",
+    metaTitle: "Base64 para Arquivo Online Grátis",
+    metaDescription:
+      "Converta Base64 em arquivo online grátis. Defina nome, extensão e MIME type, detecte o formato automaticamente e baixe o arquivo sem upload.",
+    keywords: ["base64 para arquivo", "base64 to file", "decodificar base64 arquivo", "baixar base64", "converter base64 em arquivo"],
+    icon: "file-output",
+    relatedTools: ["arquivo-para-base64", "base64-para-pdf", "base64-para-imagem"],
+    status: "ativo",
+  },
+  {
+    id: "base64-para-hex",
+    name: "Base64 para Hexadecimal",
+    shortName: "Base64 para Hex",
+    slug: "base64-para-hex",
+    category: "conversor-base64",
+    description:
+      "Converta Base64 em hexadecimal, com letras maiúsculas ou minúsculas e contagem de bytes.",
+    metaTitle: "Base64 para Hexadecimal Online Grátis",
+    metaDescription:
+      "Converta Base64 para hexadecimal online grátis. Escolha letras maiúsculas ou minúsculas, veja a quantidade de bytes e copie o resultado.",
+    keywords: ["base64 para hex", "base64 para hexadecimal", "base64 to hex", "decodificar base64 hex", "bytes hexadecimal"],
+    icon: "hash",
+    relatedTools: ["hex-para-base64", "base64-para-ascii", "base64-para-texto"],
+    status: "ativo",
+  },
+  {
+    id: "base64-para-imagem",
+    name: "Base64 para Imagem",
+    shortName: "Base64 para Imagem",
+    slug: "base64-para-imagem",
+    category: "conversor-base64",
+    description:
+      "Visualize e baixe imagens PNG, JPG, GIF, WebP ou SVG a partir de Base64 ou Data URI.",
+    metaTitle: "Base64 para Imagem Online Grátis",
+    metaDescription:
+      "Converta Base64 em imagem online gratuitamente. Visualize e baixe PNG, JPG, GIF e WebP diretamente no navegador, com MIME, tamanho e dimensões.",
+    keywords: ["base64 para imagem", "base64 to image", "base64 para png", "base64 para jpg", "data uri imagem"],
+    icon: "image",
+    relatedTools: ["imagem-para-base64", "base64-para-arquivo", "base64-para-pdf"],
+    status: "ativo",
+  },
+  {
+    id: "base64-para-pdf",
+    name: "Base64 para PDF",
+    shortName: "Base64 para PDF",
+    slug: "base64-para-pdf",
+    category: "conversor-base64",
+    description:
+      "Transforme Base64 em PDF: valide o arquivo, visualize no navegador e baixe o documento.",
+    metaTitle: "Base64 para PDF Online Grátis",
+    metaDescription:
+      "Converta Base64 em PDF online grátis. Cole o Base64 ou data:application/pdf, visualize o documento e baixe o PDF sem enviar nada ao servidor.",
+    keywords: ["base64 para pdf", "base64 to pdf", "decodificar pdf base64", "data application pdf base64", "visualizar pdf base64"],
+    icon: "file-pdf",
+    relatedTools: ["pdf-para-base64", "base64-para-arquivo", "base64-para-imagem"],
+    status: "ativo",
+  },
+  {
+    id: "base64-para-texto",
+    name: "Base64 para Texto",
+    shortName: "Base64 para Texto",
+    slug: "base64-para-texto",
+    category: "conversor-base64",
+    description:
+      "Decodifique Base64 em texto UTF-8, com suporte a acentos, emojis e caracteres especiais.",
+    metaTitle: "Base64 para Texto Online Grátis",
+    metaDescription:
+      "Decodifique Base64 para texto online grátis. Suporte completo a UTF-8: acentos, emojis e caracteres especiais, direto no navegador.",
+    keywords: ["base64 para texto", "base64 decode", "decodificar base64", "base64 to text", "base64 utf-8"],
+    icon: "file-text",
+    relatedTools: ["texto-para-base64", "base64-para-ascii", "basic-auth-decode"],
+    status: "ativo",
+  },
+  {
+    id: "base64-para-video",
+    name: "Base64 para Vídeo",
+    shortName: "Base64 para Vídeo",
+    slug: "base64-para-video",
+    category: "conversor-base64",
+    description:
+      "Converta Base64 ou Data URI em vídeo MP4, WEBM ou OGG, assista no player e baixe o arquivo.",
+    metaTitle: "Base64 para Vídeo Online Grátis",
+    metaDescription:
+      "Converta Base64 em vídeo online grátis. Assista no player do navegador e baixe MP4, WEBM ou OGG a partir de Base64 ou Data URI, sem upload.",
+    keywords: ["base64 para vídeo", "base64 para mp4", "base64 to video", "data uri vídeo", "decodificar vídeo base64"],
+    icon: "video",
+    relatedTools: ["video-para-base64", "base64-para-audio", "base64-para-arquivo"],
+    status: "ativo",
+  },
+  {
+    id: "audio-para-base64",
+    name: "Áudio para Base64",
+    shortName: "Áudio para Base64",
+    slug: "audio-para-base64",
+    category: "conversor-base64",
+    description:
+      "Converta arquivos de áudio em Base64 e Data URI localmente, com tamanho original e final.",
+    metaTitle: "Áudio para Base64 Online Grátis",
+    metaDescription:
+      "Converta áudio para Base64 online grátis. Envie MP3, WAV, OGG ou M4A e gere Base64 e Data URI no navegador, sem upload para servidores.",
+    keywords: ["áudio para base64", "mp3 para base64", "audio to base64", "wav para base64", "data uri áudio"],
+    icon: "music",
+    relatedTools: ["base64-para-audio", "video-para-base64", "arquivo-para-base64"],
+    status: "ativo",
+  },
+  {
+    id: "css-para-base64",
+    name: "CSS para Base64",
+    shortName: "CSS para Base64",
+    slug: "css-para-base64",
+    category: "conversor-base64",
+    description:
+      "Codifique CSS em Base64 e gere um Data URI text/css pronto para usar em links e @import.",
+    metaTitle: "CSS para Base64 Online Grátis",
+    metaDescription:
+      "Converta CSS para Base64 online grátis. Cole o código ou envie um arquivo .css e gere Base64 e Data URI text/css no navegador.",
+    keywords: ["css para base64", "css to base64", "data uri css", "codificar css base64", "text/css base64"],
+    icon: "palette",
+    relatedTools: ["html-para-base64", "texto-para-base64", "imagem-para-base64"],
+    status: "ativo",
+  },
+  {
+    id: "arquivo-para-base64",
+    name: "Arquivo para Base64",
+    shortName: "Arquivo para Base64",
+    slug: "arquivo-para-base64",
+    category: "conversor-base64",
+    description:
+      "Converta qualquer arquivo em Base64 e Data URI, com nome, MIME e tamanho, sem upload.",
+    metaTitle: "Arquivo para Base64 Online Grátis",
+    metaDescription:
+      "Converta qualquer arquivo para Base64 online grátis. Veja nome, MIME e tamanho e gere Base64 e Data URI localmente, sem enviar o arquivo.",
+    keywords: ["arquivo para base64", "file to base64", "converter arquivo base64", "codificar arquivo base64", "data uri arquivo"],
+    icon: "file-input",
+    relatedTools: ["base64-para-arquivo", "pdf-para-base64", "imagem-para-base64"],
+    status: "ativo",
+  },
+  {
+    id: "hex-para-base64",
+    name: "Hexadecimal para Base64",
+    shortName: "Hex para Base64",
+    slug: "hex-para-base64",
+    category: "conversor-base64",
+    description:
+      "Converta uma string hexadecimal em Base64, com remoção automática de espaços e validação.",
+    metaTitle: "Hexadecimal para Base64 Online Grátis",
+    metaDescription:
+      "Converta hexadecimal para Base64 online grátis. Aceita maiúsculas, minúsculas, espaços e prefixo 0x, com validação dos caracteres.",
+    keywords: ["hex para base64", "hexadecimal para base64", "hex to base64", "converter hex base64", "bytes para base64"],
+    icon: "hash",
+    relatedTools: ["base64-para-hex", "texto-para-base64", "arquivo-para-base64"],
+    status: "ativo",
+  },
+  {
+    id: "html-para-base64",
+    name: "HTML para Base64",
+    shortName: "HTML para Base64",
+    slug: "html-para-base64",
+    category: "conversor-base64",
+    description:
+      "Codifique HTML em Base64 (UTF-8) e gere um Data URI text/html — sem executar o código.",
+    metaTitle: "HTML para Base64 Online Grátis",
+    metaDescription:
+      "Converta HTML para Base64 online grátis. Gere Base64 em UTF-8 e Data URI text/html com segurança: o código nunca é executado na página.",
+    keywords: ["html para base64", "html to base64", "data uri html", "codificar html base64", "text/html base64"],
+    icon: "code",
+    relatedTools: ["css-para-base64", "texto-para-base64", "url-para-base64"],
+    status: "ativo",
+  },
+  {
+    id: "imagem-para-base64",
+    name: "Imagem para Base64",
+    shortName: "Imagem para Base64",
+    slug: "imagem-para-base64",
+    category: "conversor-base64",
+    description:
+      "Converta PNG, JPG, GIF, WebP ou SVG em Base64 e Data URI, com prévia e tamanho do arquivo.",
+    metaTitle: "Imagem para Base64 Online Grátis",
+    metaDescription:
+      "Converta imagem para Base64 online grátis. Envie PNG, JPG, GIF, WebP ou SVG, veja a prévia e copie o Base64 ou o Data URI para usar em HTML e CSS.",
+    keywords: ["imagem para base64", "png para base64", "jpg para base64", "image to base64", "data uri imagem"],
+    icon: "image",
+    relatedTools: ["base64-para-imagem", "arquivo-para-base64", "css-para-base64"],
+    status: "ativo",
+  },
+  {
+    id: "pdf-para-base64",
+    name: "PDF para Base64",
+    shortName: "PDF para Base64",
+    slug: "pdf-para-base64",
+    category: "conversor-base64",
+    description:
+      "Converta um PDF em Base64 e em data:application/pdf, com validação do arquivo e tamanho.",
+    metaTitle: "PDF para Base64 Online Grátis",
+    metaDescription:
+      "Converta PDF para Base64 online grátis. O arquivo é validado e convertido no navegador, gerando Base64 e data:application/pdf prontos para copiar.",
+    keywords: ["pdf para base64", "pdf to base64", "converter pdf em base64", "data application pdf", "codificar pdf base64"],
+    icon: "file-pdf",
+    relatedTools: ["base64-para-pdf", "arquivo-para-base64", "imagem-para-base64"],
+    status: "ativo",
+  },
+  {
+    id: "texto-para-base64",
+    name: "Texto para Base64",
+    shortName: "Texto para Base64",
+    slug: "texto-para-base64",
+    category: "conversor-base64",
+    description:
+      "Codifique texto em Base64 com UTF-8 correto: português, acentos, emojis e qualquer Unicode.",
+    metaTitle: "Texto para Base64 Online Grátis",
+    metaDescription:
+      "Converta texto para Base64 online grátis. Codificação UTF-8 correta para acentos, emojis e Unicode, com resultado pronto para copiar.",
+    keywords: ["texto para base64", "base64 encode", "codificar base64", "text to base64", "utf-8 base64"],
+    icon: "file-text",
+    relatedTools: ["base64-para-texto", "url-para-base64", "html-para-base64"],
+    status: "ativo",
+  },
+  {
+    id: "url-para-base64",
+    name: "URL para Base64",
+    shortName: "URL para Base64",
+    slug: "url-para-base64",
+    category: "conversor-base64",
+    description:
+      "Codifique o texto de uma URL em Base64 ou baixe o conteúdo do endereço pelo navegador e converta.",
+    metaTitle: "URL para Base64 Online Grátis",
+    metaDescription:
+      "Converta URL para Base64 online grátis. Codifique o endereço em si ou baixe o arquivo da URL pelo seu navegador e gere Base64 e Data URI.",
+    keywords: ["url para base64", "url to base64", "link para base64", "codificar url base64", "base64 de url"],
+    icon: "link",
+    relatedTools: ["texto-para-base64", "arquivo-para-base64", "html-para-base64"],
+    status: "ativo",
+  },
+  {
+    id: "video-para-base64",
+    name: "Vídeo para Base64",
+    shortName: "Vídeo para Base64",
+    slug: "video-para-base64",
+    category: "conversor-base64",
+    description:
+      "Converta vídeos MP4, WEBM, OGV ou MOV em Base64 e Data URI localmente, com barra de progresso.",
+    metaTitle: "Vídeo para Base64 Online Grátis",
+    metaDescription:
+      "Converta vídeo para Base64 online grátis. Envie MP4, WEBM ou MOV de até 100 MB e gere Base64 e Data URI no navegador, sem upload.",
+    keywords: ["vídeo para base64", "mp4 para base64", "video to base64", "data uri vídeo", "converter vídeo base64"],
+    icon: "video",
+    relatedTools: ["base64-para-video", "audio-para-base64", "arquivo-para-base64"],
     status: "ativo",
   },
 ];

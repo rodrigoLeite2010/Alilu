@@ -1,4 +1,5 @@
 import type { ComponentType } from "react";
+import { base64ToolComponents } from "@/components/tools/base64/base64-registry";
 import { ReceiptTool } from "@/components/tools/receipt/ReceiptTool";
 import { CompoundInterestTool } from "@/components/tools/compound-interest/CompoundInterestTool";
 import { FinancingTool } from "@/components/tools/financing/FinancingTool";
@@ -209,4 +210,7 @@ export const toolComponents: Record<string, ComponentType> = {
   "meu-ip": MeuIpTool,
   "meu-navegador": MeuNavegadorTool,
   "meu-sistema-operacional": MeuSistemaOperacionalTool,
+
+  // CONVERSOR BASE64 (19 ferramentas, mesmo componente com configurações diferentes)
+  ...base64ToolComponents,
 };

@@ -61,6 +61,14 @@ import {
   House,
   Camera,
   Video,
+  Binary,
+  Music,
+  Film,
+  KeyRound,
+  Link,
+  Palette,
+  FileInput,
+  FileOutput,
   type LucideIcon,
 } from "lucide-react";
 
@@ -131,6 +139,14 @@ const iconMap: Record<string, LucideIcon> = {
   wifi: Wifi,
   home: House,
   video: Video,
+  binary: Binary,
+  music: Music,
+  film: Film,
+  "key-round": KeyRound,
+  link: Link,
+  palette: Palette,
+  "file-input": FileInput,
+  "file-output": FileOutput,
   // Categoria "Instagram e Redes Sociais": usamos um ícone de câmera
   // genérico (não o logotipo do Instagram, que é uma marca registrada) —
   // representa bem o tema sem reproduzir a marca.

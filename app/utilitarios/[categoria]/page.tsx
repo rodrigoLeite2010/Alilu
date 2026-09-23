@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { Container } from "@/components/ui/Container";
 import { Breadcrumbs } from "@/components/navigation/Breadcrumbs";
 import { ToolGrid } from "@/components/tools/ToolGrid";
+import { Base64CategoryTools } from "@/components/tools/base64/Base64CategoryTools";
 import { categories, getCategoryById } from "@/data/categories";
 import { getToolsByCategory } from "@/data/tools";
 import { buildPageMetadata } from "@/lib/seo/metadata";
@@ -58,9 +59,15 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
         {category.description}
       </p>
 
-      <div className="mt-6">
-        <ToolGrid tools={toolsInCategory} />
-      </div>
+      {category.id === "conversor-base64" ? (
+        // Com 19 conversores, a categoria ganha busca e divisão entre
+        // "Decodificar" e "Converter para" Base64.
+        <Base64CategoryTools tools={toolsInCategory} />
+      ) : (
+        <div className="mt-6">
+          <ToolGrid tools={toolsInCategory} />
+        </div>
+      )}
     </Container>
   );
 }

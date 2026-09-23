@@ -14,7 +14,8 @@ export type CategoryId =
   | "geradores"
   | "validadores"
   | "funcoes-string"
-  | "rede-internet";
+  | "rede-internet"
+  | "conversor-base64";
 
 export interface Category {
   /** Identificador estável, também usado como slug de URL (/utilitarios/[slug]) */
@@ -99,6 +100,15 @@ export const categories: Category[] = [
     description:
       "Ferramentas rápidas para identificar informações básicas da sua conexão, navegador e dispositivo.",
     icon: "globe",
+  },
+  {
+    // Conversões de e para Base64 feitas 100% no navegador: nenhum texto,
+    // arquivo ou Base64 é enviado ao servidor.
+    id: "conversor-base64",
+    name: "Conversor Base64",
+    description:
+      "Converta textos, arquivos, imagens, PDFs, vídeos, áudios e outros conteúdos de e para Base64.",
+    icon: "binary",
   },
 ];
 
