@@ -3,6 +3,16 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   /* config options here */
 
+  // @napi-rs/canvas (renderização server-side de imagem do Piloto
+  // Automático — AUTO_TEMPLATE, ver lib/instagram/backend/template-render-
+  // service.ts) embute um binário nativo (.node) carregado via
+  // js-binding.js. Bundlers de JS (Turbopack/Webpack) não sabem empacotar
+  // um binário nativo como módulo ESM — sem isso, o build falha com
+  // "non-ecmascript placeable asset". serverExternalPackages diz ao
+  // Next.js pra não tentar empacotar esse pacote nas rotas de servidor;
+  // ele é resolvido via require() normal do node_modules em runtime.
+  serverExternalPackages: ["@napi-rs/canvas"],
+
   async redirects() {
     return [
       // A ferramenta "Simulador de Financiamento SAC x Price" já teve o
