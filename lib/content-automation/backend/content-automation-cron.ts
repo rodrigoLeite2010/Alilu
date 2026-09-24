@@ -97,6 +97,36 @@ async function resolveVideoMediaId(
 }
 
 /**
+ * Resolve a legenda final para o dia: em modo MANUAL, usa `manualCaption`
+ * tal como está — NUNCA chama o provedor de IA (getContentAIProvider),
+ * então uma automação com todos os dias em modo manual não exige
+ * CONTENT_AI_API_KEY configurada. Em modo AI (padrão), chama o gerador de
+ * sempre (content-generation-service.ts). Defesa em profundidade: mesmo
+ * validado na ativação (automation-service.ts), confere de novo aqui —
+ * mesmo padrão já usado para imageMode/videoSelection nesta função.
+ */
+async function resolveCaptionForRun(
+  automation: AutomationRecord,
+  day: AutomationDayRecord,
+  runId: string,
+  kind: "POST" | "REEL" = "POST",
+): Promise<string> {
+  if (day.contentMode === "MANUAL") {
+    const manualCaption = day.manualCaption?.trim();
+    if (!manualCaption) {
+      throw new ContentAutomationConfigError(
+        "Modo manual selecionado, mas nenhuma legenda foi escrita para este dia.",
+      );
+    }
+    return manualCaption;
+  }
+  const generated = kind === "REEL"
+    ? await generateReelContentForRun(automation, day, runId)
+    : await generatePostContentForRun(automation, day, runId);
+  return generated.caption;
+}
+
+/**
  * Gera o conteúdo e cria a publicação. Decide DRAFT (modo aprovação, o
  * padrão) ou já SCHEDULED (modo automático) — mas nunca publica
  * diretamente: SCHEDULED só entra na fila do agendador já existente.
@@ -117,12 +147,12 @@ async function generateAndCreatePublication(
       );
     }
     const mediaId = await resolveImageMediaId(automation, day);
-    const generated = await generatePostContentForRun(automation, day, runId);
+    const caption = await resolveCaptionForRun(automation, day, runId);
     const publicationId = await createDraftImagePost({
       userId: automation.userId,
       instagramAccountId: automation.instagramAccountId,
       mediaId,
-      caption: generated.caption,
+      caption,
       scheduledAtUtc,
       timezone: automation.timezone,
       source: "AUTOMATION",
@@ -132,12 +162,12 @@ async function generateAndCreatePublication(
 
   // REEL
   const mediaId = await resolveVideoMediaId(automation, day);
-  const generated = await generateReelContentForRun(automation, day, runId);
+  const caption = await resolveCaptionForRun(automation, day, runId, "REEL");
   const publicationId = await createDraftReelPost({
     userId: automation.userId,
     instagramAccountId: automation.instagramAccountId,
     mediaId,
-    caption: generated.caption,
+    caption,
     scheduledAtUtc,
     timezone: automation.timezone,
     source: "AUTOMATION",
@@ -162,7 +192,9 @@ export async function runContentAutomationCron(
     const nowDate = now();
     const { date, dayOfWeek } = zonedToday(nowDate, automation.timezone);
     const day = automation.days.find((candidate) => candidate.dayOfWeek === dayOfWeek);
-    if (!day || !day.enabled || !day.prompt.trim()) continue;
+    if (!day || !day.enabled) continue;
+    const hasContentSource = day.contentMode === "MANUAL" ? Boolean(day.manualCaption?.trim()) : Boolean(day.prompt.trim());
+    if (!hasContentSource) continue;
 
     const publishAtUtc = publishInstantUtc(date, day.publishTime, automation.timezone);
     if (!isDueForGeneration(nowDate, publishAtUtc, automation.generationLeadMinutes)) continue;

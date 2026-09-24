@@ -203,6 +203,101 @@ describe("modo aprovação vs. modo automático", () => {
   });
 });
 
+describe("modo manual (sem IA) por dia", () => {
+  async function activeManualAutomation(
+    seed: Awaited<ReturnType<typeof seedUserWithAccount>>,
+    overrides: { contentType?: "POST" | "REEL"; manualCaption?: string } = {},
+  ) {
+    const contentType = overrides.contentType ?? "POST";
+    const automationId = await repo.createAutomation({
+      userId: seed.userId,
+      instagramAccountId: seed.accountId,
+      name: "Automação manual de teste",
+      description: "",
+      timezone: "America/Sao_Paulo",
+      brandContext: "",
+      autoPublish: false,
+      requireApproval: true,
+      generationLeadMinutes: 120,
+      imageMode: "FIXED_IMAGE",
+      fixedImageMediaId: seed.mediaId,
+      videoSelection: "FIXED",
+      fixedVideoMediaId: seed.videoId,
+    });
+
+    // Propositalmente SEM prompt — modo manual nunca deveria exigir um.
+    await repo.updateAutomationDay(automationId, seed.userId, "WEDNESDAY" as never, {
+      enabled: true,
+      contentType,
+      contentMode: "MANUAL",
+      prompt: "",
+      manualCaption: overrides.manualCaption ?? "Legenda escrita à mão, publicada exatamente assim.",
+      publishTime: "19:00",
+    });
+
+    await repo.setAutomationStatus(automationId, seed.userId, "ACTIVE");
+    return automationId;
+  }
+
+  it("publica a legenda manual tal como escrita, sem chamar o provedor de IA", async () => {
+    const seed = await seedUserWithAccount(db);
+    await activeManualAutomation(seed, { manualCaption: "Promoção desta semana: 20% off em tudo!" });
+    const now = () => new Date("2026-09-23T20:00:00.000Z");
+
+    const [result] = await cron.runContentAutomationCron({ now });
+    expect(result.status).toBe("WAITING_APPROVAL");
+    expect(fakeProvider.generatePost).not.toHaveBeenCalled();
+    expect(fakeProvider.generateReel).not.toHaveBeenCalled();
+
+    const runRow = (await db.sql`select * from automation_runs`)[0];
+    const [post] = await db.sql`select * from instagram_posts where id = ${runRow.publication_id}`;
+    expect(post.caption).toBe("Promoção desta semana: 20% off em tudo!");
+  });
+
+  it("funciona também para REEL em modo manual, sem chamar o provedor de IA", async () => {
+    const seed = await seedUserWithAccount(db);
+    await activeManualAutomation(seed, { contentType: "REEL", manualCaption: "Legenda manual do reel." });
+    const now = () => new Date("2026-09-23T20:00:00.000Z");
+
+    const [result] = await cron.runContentAutomationCron({ now });
+    expect(result.status).toBe("WAITING_APPROVAL");
+    expect(fakeProvider.generateReel).not.toHaveBeenCalled();
+    expect(fakeProvider.generatePost).not.toHaveBeenCalled();
+
+    const runRow = (await db.sql`select * from automation_runs`)[0];
+    const [post] = await db.sql`select * from instagram_posts where id = ${runRow.publication_id}`;
+    expect(post.post_type).toBe("reels");
+    expect(post.caption).toBe("Legenda manual do reel.");
+  });
+
+  it("não deixa ativar um dia manual sem legenda escrita (prompt vazio não conta)", async () => {
+    const seed = await seedUserWithAccount(db);
+    const automationId = await repo.createAutomation({
+      userId: seed.userId,
+      instagramAccountId: seed.accountId,
+      name: "Automação manual incompleta",
+      description: "",
+      timezone: "America/Sao_Paulo",
+      brandContext: "",
+      autoPublish: false,
+      requireApproval: true,
+      generationLeadMinutes: 120,
+      imageMode: "FIXED_IMAGE",
+      fixedImageMediaId: seed.mediaId,
+      videoSelection: "FIXED",
+      fixedVideoMediaId: seed.videoId,
+    });
+    await repo.updateAutomationDay(automationId, seed.userId, "WEDNESDAY" as never, {
+      enabled: true,
+      contentType: "POST",
+      contentMode: "MANUAL",
+      manualCaption: "",
+    });
+
+    await expect(service.activateAutomation(automationId, seed.userId)).rejects.toThrow(/legenda manual/i);
+  });
+});
+
 describe("POST vs. REEL", () => {
   it("dia configurado como REEL usa o vídeo e cria um post do tipo reels", async () => {
     const seed = await seedUserWithAccount(db);

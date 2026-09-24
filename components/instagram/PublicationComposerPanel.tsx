@@ -10,6 +10,7 @@ import {
   describePublishOutcome,
   ensureJpeg,
   fetchAccountStatus,
+  generateCaptionWithAI,
   publishPublicationNow,
   updatePublication,
   uploadInstagramMedia,
@@ -121,8 +122,13 @@ export function PublicationComposerPanel({
   onCompleted,
 }: PublicationComposerPanelProps) {
   const captionId = useId();
+  const aiPromptId = useId();
   const [account, setAccount] = useState<AccountStatus | null>(null);
   const [caption, setCaption] = useState(initialValues?.caption ?? "");
+  const [aiPromptOpen, setAiPromptOpen] = useState(false);
+  const [aiPrompt, setAiPrompt] = useState("");
+  const [aiBusy, setAiBusy] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
   const [mode, setMode] = useState<Mode>(initialValues?.mode ?? "now");
   const [schedule, setSchedule] = useState<ScheduleValue>(initialValues?.schedule ?? { date: "", time: "" });
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -184,6 +190,32 @@ export function PublicationComposerPanel({
   /** Sem login: entra no Alilu e segue direto para a conexão oficial da Meta; depois volta para cá. */
   function connectTarget(): string {
     return buildConnectTarget(Boolean(account?.authenticated), returnPath);
+  }
+
+  /**
+   * Sugestão de legenda com IA (botão "Gerar com IA"): reaproveita o
+   * mesmo provedor de IA do Piloto Automático, via /api/instagram/ai-caption
+   * — nunca publica nem agenda nada sozinha, só preenche o campo de
+   * legenda para o usuário revisar/editar antes de continuar, exatamente
+   * como se tivesse digitado à mão.
+   */
+  async function handleGenerateCaption() {
+    if (!aiPrompt.trim()) {
+      setAiError("Descreva o que a legenda deve falar.");
+      return;
+    }
+    setAiBusy(true);
+    setAiError(null);
+    try {
+      const result = await generateCaptionWithAI(aiPrompt.trim());
+      setCaption(result.caption);
+      setAiPromptOpen(false);
+      setAiPrompt("");
+    } catch (err) {
+      setAiError(err instanceof Error ? err.message : "Não foi possível gerar a legenda com IA agora.");
+    } finally {
+      setAiBusy(false);
+    }
   }
 
   async function openPreview(nextMode: Mode = mode) {
@@ -323,9 +355,66 @@ export function PublicationComposerPanel({
       </div>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor={captionId} className="text-xs font-medium text-zinc-700">
-          Legenda
-        </label>
+        <div className="flex items-center justify-between">
+          <label htmlFor={captionId} className="text-xs font-medium text-zinc-700">
+            Legenda
+          </label>
+          <Button
+            type="button"
+            variant="ghost"
+            className="min-h-0 px-2 py-1 text-xs"
+            disabled={busy}
+            onClick={() => {
+              setAiError(null);
+              setAiPromptOpen((open) => !open);
+            }}
+          >
+            Gerar com IA ✨
+          </Button>
+        </div>
+
+        {aiPromptOpen ? (
+          <div className="space-y-2 rounded-md border border-teal-200 bg-white p-2">
+            <label htmlFor={aiPromptId} className="text-xs font-medium text-zinc-700">
+              Sobre o que é o post?
+            </label>
+            <textarea
+              id={aiPromptId}
+              value={aiPrompt}
+              disabled={aiBusy}
+              onChange={(event) => setAiPrompt(event.target.value)}
+              rows={2}
+              placeholder="Ex.: divulgar a promoção de terça-feira na academia"
+              className="w-full rounded-md border border-zinc-300 bg-white px-2 py-1.5 text-sm text-zinc-900"
+            />
+            {aiError ? (
+              <p role="alert" className="text-xs text-red-700">
+                {aiError}
+              </p>
+            ) : null}
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant="secondary"
+                className="min-h-8 px-3 py-1 text-xs"
+                disabled={aiBusy}
+                onClick={() => void handleGenerateCaption()}
+              >
+                {aiBusy ? "Gerando…" : "Gerar legenda"}
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                className="min-h-8 px-3 py-1 text-xs"
+                disabled={aiBusy}
+                onClick={() => setAiPromptOpen(false)}
+              >
+                Cancelar
+              </Button>
+            </div>
+          </div>
+        ) : null}
+
         <textarea
           id={captionId}
           value={caption}

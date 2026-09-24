@@ -6,6 +6,7 @@ import {
   clampDragOffset,
   clampFraction,
   computeCoverRect,
+  computeContainRect,
   hexToRgba,
   resolveFontSizePx,
   shadeHexColor,
@@ -46,6 +47,38 @@ describe("computeCoverRect (recorte 'cover', sem distorcer a imagem)", () => {
     expect(rightAligned.sx).toBeGreaterThan(centered.sx);
     expect(leftAligned.sx).toBeCloseTo(0);
     expect(rightAligned.sx).toBeCloseTo(400 - rightAligned.sWidth);
+  });
+});
+
+describe("computeContainRect (encaixe 'contain', nunca corta a imagem)", () => {
+  it("encaixa pela largura quando a imagem é mais larga que a caixa (sobra espaço em cima/embaixo)", () => {
+    const rect = computeContainRect(100, 100, 400, 100);
+    expect(rect.dWidth).toBeCloseTo(100);
+    expect(rect.dHeight).toBeCloseTo(25);
+    expect(rect.dx).toBeCloseTo(0);
+    expect(rect.dy).toBeCloseTo(37.5);
+  });
+
+  it("encaixa pela altura quando a imagem é mais alta que a caixa (sobra espaço nas laterais)", () => {
+    const rect = computeContainRect(100, 100, 100, 400);
+    expect(rect.dHeight).toBeCloseTo(100);
+    expect(rect.dWidth).toBeCloseTo(25);
+    expect(rect.dy).toBeCloseTo(0);
+    expect(rect.dx).toBeCloseTo(37.5);
+  });
+
+  it("preenche a caixa inteira, centralizada e sem sobra, quando a proporção já é igual", () => {
+    const rect = computeContainRect(200, 100, 400, 200);
+    expect(rect.dWidth).toBeCloseTo(200);
+    expect(rect.dHeight).toBeCloseTo(100);
+    expect(rect.dx).toBeCloseTo(0);
+    expect(rect.dy).toBeCloseTo(0);
+  });
+
+  it("nunca corta: a imagem inteira sempre cabe dentro da caixa calculada", () => {
+    const rect = computeContainRect(300, 150, 400, 100);
+    expect(rect.dWidth).toBeLessThanOrEqual(300 + 0.001);
+    expect(rect.dHeight).toBeLessThanOrEqual(150 + 0.001);
   });
 });
 

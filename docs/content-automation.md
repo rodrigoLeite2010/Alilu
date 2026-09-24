@@ -39,12 +39,18 @@ Disparador externo ──► GET|POST /api/cron/instagram-publish (Bearer segred
 | Tabela | Papel |
 |---|---|
 | `content_automations` | Uma automação = uma conta do Instagram (`instagram_account_id`) + configuração geral (fuso, contexto de marca, modo aprovação/automático, origem de imagem/vídeo). |
-| `content_automation_days` | Sempre 7 linhas por automação (segunda a domingo, criadas juntas — a UI só faz `UPDATE`, nunca `insert`/`delete` de um dia). Cada linha: habilitado?, POST ou REEL, prompt do dia, horário (`HH:mm`), mídia específica do dia (opcional, sobrescreve a da automação). |
+| `content_automation_days` | Sempre 7 linhas por automação (segunda a domingo, criadas juntas — a UI só faz `UPDATE`, nunca `insert`/`delete` de um dia). Cada linha: habilitado?, POST ou REEL, **modo (`content_mode`: `AI` ou `MANUAL`)**, prompt do dia (modo `AI`) ou legenda final (`manual_caption`, modo `MANUAL`), horário (`HH:mm`), mídia específica do dia (opcional, sobrescreve a da automação). |
 | `automation_runs` | Uma linha por `(automation_id, data civil no fuso da automação)` — `UNIQUE (automation_id, run_date)` é a **chave da idempotência**: o cron pode rodar 100 vezes no mesmo dia que só gera uma vez. Guarda status, a publicação gerada (`publication_id` → `instagram_posts.id`), tentativas e erro. |
 | `generation_usage` | Registro de custo/uso de tokens por execução — nunca bloqueia nada, é só auditoria. |
 | `instagram_posts.automation_run_id` | Nova coluna (nullable) ligando a publicação à execução que a criou. `source` ganhou o valor `'AUTOMATION'` (antes só `MANUAL`/`VIRAL_POST`). |
 
 Multi-conta desde o dia 1: toda automação pertence a um `instagram_account_id` (não a "a conta do usuário"), e `instagram_accounts` já suportava mais de uma conta por usuário no banco antes deste módulo — só faltavam funções de listagem (`listInstagramAccountsForUser`, `getInstagramAccountByIdForUser`), que foram adicionadas. Hoje só existe `@alilu.tec` em produção, mas nada na arquitetura assume isso.
+
+### 2.1 Modo manual por dia (`content_mode`)
+
+Cada dia pode ser `AI` (padrão — legenda gerada a partir do `prompt` do dia, ver seção 6) ou `MANUAL` (a legenda sai exatamente como escrita em `manual_caption`, **sem nenhuma chamada ao provedor de IA**). É por dia, não por automação inteira: dá para misturar, ex. segunda com legenda fixa que nunca muda e sexta gerada por IA.
+
+Consequência prática: **uma automação com todos os dias em modo `MANUAL` não exige `CONTENT_AI_API_KEY`/`CONTENT_AI_MODEL` configuradas** — `getContentAIProvider()` só é chamado quando o cron encontra um dia em modo `AI` (`content-automation-cron.ts`, `resolveCaptionForRun`). Validado em dois lugares, mesmo padrão de defesa em profundidade já usado para `imageMode`/`videoSelection`: na ativação (`automation-service.ts`, exige `manual_caption` não vazio para dia `MANUAL` habilitado) e de novo dentro do próprio cron.
 
 ## 3. Status de uma execução (`automation_runs.status`)
 
@@ -81,6 +87,7 @@ Prova de idempotência: `__tests__/lib/content-automation.test.ts`, cenário "cr
 
 ## 6. Geração de conteúdo com IA
 
+- Só se aplica a dias em modo `AI` (padrão). Um dia em modo `MANUAL` nunca passa por esta seção — `resolveCaptionForRun()` (`content-automation-cron.ts`) devolve `manual_caption` direto, sem chamar `getContentAIProvider()` nem `content-generation-service.ts`.
 - Interface única `AIContentProvider` (`ai-provider.ts`) — a regra de negócio nunca fala diretamente com um provedor específico. `provider-factory.ts` escolhe a implementação por `CONTENT_AI_PROVIDER` (hoje só `"anthropic"`, via `anthropic-content-provider.ts`). Trocar de provedor no futuro é implementar a interface de novo e adicionar um `case`, sem tocar em cron/UI/banco.
 - Todo prompt combina: contexto geral da marca (`brand_context`, editável na automação) + prompt específico do dia + as últimas 7 legendas geradas (`listRecentGenerationsForAutomation`) como "evite repetir estes temas".
 - Uso (tokens de entrada/saída, provedor, modelo) é registrado em `generation_usage` por execução — nunca bloqueia a geração se o registro falhar.
@@ -109,6 +116,8 @@ Outras limitações desta etapa, não bloqueantes:
 ## 9. Variáveis de ambiente
 
 Ver `.env.example` (seção "Piloto Automático de Conteúdo"): `CONTENT_AI_PROVIDER`, `CONTENT_AI_API_KEY`, `CONTENT_AI_MODEL`, `CONTENT_AUTOMATION_CRON_SECRET` (opcional — sem ela, aceita os mesmos segredos do agendador de publicação).
+
+`CONTENT_AI_API_KEY`/`CONTENT_AI_MODEL` só são obrigatórias na prática se pelo menos uma automação tiver algum dia em modo `AI` (seção 2.1) **ou** se o botão "Gerar com IA" do compositor manual (Agendador — `docs/instagram-scheduler.md`) for usado; ambos reaproveitam o mesmo `getContentAIProvider()`. Uma instalação 100% manual (automações e Agendador sem nenhuma chamada de IA) não precisa dessas variáveis.
 
 ## 10. Como ativar em produção
 

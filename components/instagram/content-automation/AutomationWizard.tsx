@@ -18,7 +18,9 @@ function emptyDay(dayOfWeek: DayOfWeek): DayFormState {
     dayOfWeek,
     enabled: false,
     contentType: "POST",
+    contentMode: "AI",
     prompt: "",
+    manualCaption: "",
     publishTime: "09:00",
     imageMediaId: null,
     videoMediaId: null,
@@ -79,7 +81,12 @@ export function AutomationWizard({ userId, accounts }: { userId: string; account
     if (current === 2) {
       if (enabledCount === 0) return "Habilite pelo menos um dia da semana.";
       for (const day of days) {
-        if (day.enabled && !day.prompt.trim()) {
+        if (!day.enabled) continue;
+        if (day.contentMode === "MANUAL") {
+          if (!day.manualCaption.trim()) {
+            return `Escreva a legenda manual de ${DAY_OF_WEEK_LABEL[day.dayOfWeek]}.`;
+          }
+        } else if (!day.prompt.trim()) {
           return `Defina o que publicar em ${DAY_OF_WEEK_LABEL[day.dayOfWeek]}.`;
         }
       }
@@ -144,7 +151,9 @@ export function AutomationWizard({ userId, accounts }: { userId: string; account
           body: JSON.stringify({
             enabled: true,
             contentType: day.contentType,
+            contentMode: day.contentMode,
             prompt: day.prompt,
+            manualCaption: day.manualCaption,
             publishTime: day.publishTime,
             imageMediaId: day.imageMediaId,
             videoMediaId: day.videoMediaId,
@@ -360,6 +369,7 @@ export function AutomationWizard({ userId, accounts }: { userId: string; account
                   <th className="px-3 py-2">Dia</th>
                   <th className="px-3 py-2">Formato</th>
                   <th className="px-3 py-2">Horário</th>
+                  <th className="px-3 py-2">Modo</th>
                   <th className="px-3 py-2">Conteúdo</th>
                 </tr>
               </thead>
@@ -371,12 +381,15 @@ export function AutomationWizard({ userId, accounts }: { userId: string; account
                       <td className="px-3 py-2 font-medium text-zinc-900">{DAY_OF_WEEK_LABEL[day.dayOfWeek]}</td>
                       <td className="px-3 py-2">{day.contentType === "POST" ? "Post" : "Reel"}</td>
                       <td className="px-3 py-2">{day.publishTime}</td>
-                      <td className="max-w-xs truncate px-3 py-2 text-zinc-600">{day.prompt}</td>
+                      <td className="px-3 py-2">{day.contentMode === "MANUAL" ? "Manual" : "IA"}</td>
+                      <td className="max-w-xs truncate px-3 py-2 text-zinc-600">
+                        {day.contentMode === "MANUAL" ? day.manualCaption : day.prompt}
+                      </td>
                     </tr>
                   ))}
                 {enabledCount === 0 ? (
                   <tr>
-                    <td colSpan={4} className="px-3 py-4 text-center text-zinc-500">
+                    <td colSpan={5} className="px-3 py-4 text-center text-zinc-500">
                       Nenhum dia configurado.
                     </td>
                   </tr>

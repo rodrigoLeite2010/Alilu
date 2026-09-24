@@ -38,6 +38,15 @@ export const DAY_OF_WEEK_LABEL: Record<DayOfWeek, string> = {
 
 export type AutomationContentType = "POST" | "REEL";
 
+/**
+ * Como a legenda de um dia é definida: "AI" (padrão histórico) chama o
+ * provedor de IA configurado a partir do `prompt` do dia; "MANUAL" usa
+ * `manualCaption` tal como escrito pelo usuário, sem nenhuma chamada de
+ * IA — o cron (content-automation-cron.ts) pula content-generation-service.ts
+ * inteiro para esses dias.
+ */
+export type AutomationContentMode = "AI" | "MANUAL";
+
 export type ImageMode = "AUTO_TEMPLATE" | "FIXED_IMAGE" | "MEDIA_LIBRARY";
 
 export type VideoSelection = "FIXED" | "ROTATE" | "RANDOM";
@@ -59,7 +68,10 @@ export interface AutomationDayRecord {
   dayOfWeek: DayOfWeek;
   enabled: boolean;
   contentType: AutomationContentType;
+  contentMode: AutomationContentMode;
   prompt: string;
+  /** Legenda final, usada tal como está quando contentMode = "MANUAL" (ignorado em modo "AI"). */
+  manualCaption: string | null;
   publishTime: string; // "HH:mm"
   templateId: string | null;
   styleConfig: Record<string, unknown> | null;

@@ -63,6 +63,42 @@ export function computeCoverRect(
   return { sx, sy, sWidth, sHeight };
 }
 
+export interface ContainRect {
+  dx: number;
+  dy: number;
+  dWidth: number;
+  dHeight: number;
+}
+
+/**
+ * Calcula o retângulo de destino (dentro de uma caixa de `boxWidth` x
+ * `boxHeight`) onde a imagem INTEIRA (`imageWidth` x `imageHeight`) deve
+ * ser desenhada, escalada para caber sem cortar nenhuma parte e sem
+ * distorcer (equivalente a `object-fit: contain`), centralizada na caixa.
+ * O espaço sobrando (quando a proporção da imagem é diferente da caixa)
+ * fica por conta de quem desenha o fundo por trás (ver drawBackground/
+ * drawImageArea em render.ts) — esta função só devolve onde a imagem
+ * entra.
+ */
+export function computeContainRect(
+  boxWidth: number,
+  boxHeight: number,
+  imageWidth: number,
+  imageHeight: number
+): ContainRect {
+  if (boxWidth <= 0 || boxHeight <= 0 || imageWidth <= 0 || imageHeight <= 0) {
+    return { dx: 0, dy: 0, dWidth: boxWidth, dHeight: boxHeight };
+  }
+
+  const scale = Math.min(boxWidth / imageWidth, boxHeight / imageHeight);
+  const dWidth = imageWidth * scale;
+  const dHeight = imageHeight * scale;
+  const dx = (boxWidth - dWidth) / 2;
+  const dy = (boxHeight - dHeight) / 2;
+
+  return { dx, dy, dWidth, dHeight };
+}
+
 export function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }

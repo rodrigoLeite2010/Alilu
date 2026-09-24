@@ -29,6 +29,7 @@ import {
 import { publishInstantUtc, zonedToday } from "./automation-time";
 import {
   DAYS_OF_WEEK,
+  type AutomationContentMode,
   type AutomationContentType,
   type AutomationWithDays,
   type DayOfWeek,
@@ -61,6 +62,8 @@ const SUPPORTED_VIDEO_SELECTIONS: VideoSelection[] = ["FIXED"];
 const MAX_NAME_LENGTH = 120;
 const MAX_BRAND_CONTEXT_LENGTH = 2000;
 const MAX_PROMPT_LENGTH = 800;
+/** Mesmo limite de legenda da Meta usado em todo o resto do projeto (ver instagram-post-service.ts). */
+const MAX_MANUAL_CAPTION_LENGTH = 2200;
 const PUBLISH_TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
 
 function assertName(name: string): string {
@@ -205,7 +208,9 @@ export async function updateAutomation(
 export interface UpdateDayServiceInput {
   enabled?: boolean;
   contentType?: AutomationContentType;
+  contentMode?: AutomationContentMode;
   prompt?: string;
+  manualCaption?: string | null;
   publishTime?: string;
   imageMediaId?: string | null;
   videoMediaId?: string | null;
@@ -222,12 +227,20 @@ export async function updateAutomationDay(
   const patch: UpdateAutomationDayInput = {};
   if (input.enabled !== undefined) patch.enabled = input.enabled;
   if (input.contentType !== undefined) patch.contentType = input.contentType;
+  if (input.contentMode !== undefined) patch.contentMode = input.contentMode;
   if (input.prompt !== undefined) {
     const trimmed = input.prompt.trim();
     if (trimmed.length > MAX_PROMPT_LENGTH) {
       throw new AutomationValidationError(`O prompt do dia pode ter no máximo ${MAX_PROMPT_LENGTH} caracteres.`);
     }
     patch.prompt = trimmed;
+  }
+  if (input.manualCaption !== undefined) {
+    const trimmed = input.manualCaption === null ? null : input.manualCaption.trim();
+    if (trimmed && trimmed.length > MAX_MANUAL_CAPTION_LENGTH) {
+      throw new AutomationValidationError(`A legenda manual pode ter no máximo ${MAX_MANUAL_CAPTION_LENGTH} caracteres.`);
+    }
+    patch.manualCaption = trimmed;
   }
   if (input.publishTime !== undefined) {
     if (!PUBLISH_TIME_RE.test(input.publishTime)) throw new AutomationValidationError("Horário inválido (use HH:mm).");
@@ -251,7 +264,11 @@ function assertReadyToActivate(automation: AutomationWithDays): void {
     throw new AutomationValidationError("Habilite pelo menos um dia da semana antes de ativar.");
   }
   for (const day of enabledDays) {
-    if (!day.prompt.trim()) {
+    if (day.contentMode === "MANUAL") {
+      if (!day.manualCaption?.trim()) {
+        throw new AutomationValidationError(`Escreva a legenda manual de ${day.dayOfWeek.toLowerCase()} antes de ativar.`);
+      }
+    } else if (!day.prompt.trim()) {
       throw new AutomationValidationError(`Defina o que publicar em ${day.dayOfWeek.toLowerCase()} antes de ativar.`);
     }
     if (day.contentType === "POST") {

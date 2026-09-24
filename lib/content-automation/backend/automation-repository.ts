@@ -2,6 +2,7 @@ import "server-only";
 import { getDb } from "@/lib/db/client";
 import {
   DAYS_OF_WEEK,
+  type AutomationContentMode,
   type AutomationContentType,
   type AutomationDayRecord,
   type AutomationRecord,
@@ -73,7 +74,9 @@ function mapDayRow(row: Record<string, unknown>): AutomationDayRecord {
     dayOfWeek: row.day_of_week as DayOfWeek,
     enabled: Boolean(row.enabled),
     contentType: row.content_type as AutomationContentType,
+    contentMode: (row.content_mode as AutomationContentMode | null) ?? "AI",
     prompt: (row.prompt as string | null) ?? "",
+    manualCaption: (row.manual_caption as string | null) ?? null,
     publishTime: row.publish_time as string,
     templateId: (row.template_id as string | null) ?? null,
     styleConfig,
@@ -228,7 +231,9 @@ export async function updateAutomation(
 export interface UpdateAutomationDayInput {
   enabled?: boolean;
   contentType?: AutomationContentType;
+  contentMode?: AutomationContentMode;
   prompt?: string;
+  manualCaption?: string | null;
   publishTime?: string;
   templateId?: string | null;
   styleConfig?: Record<string, unknown> | null;
@@ -255,7 +260,9 @@ export async function updateAutomationDay(
 
   const enabled = patch.enabled ?? Boolean(current.enabled);
   const contentType = patch.contentType ?? (current.content_type as AutomationContentType);
+  const contentMode = patch.contentMode ?? ((current.content_mode as AutomationContentMode | null) ?? "AI");
   const prompt = patch.prompt ?? ((current.prompt as string | null) ?? "");
+  const manualCaption = patch.manualCaption === undefined ? ((current.manual_caption as string | null) ?? null) : patch.manualCaption;
   const publishTime = patch.publishTime ?? (current.publish_time as string);
   const templateId = patch.templateId === undefined ? ((current.template_id as string | null) ?? null) : patch.templateId;
   const styleConfig =
@@ -276,7 +283,8 @@ export async function updateAutomationDay(
 
   await db`
     update content_automation_days set
-      enabled = ${enabled}, content_type = ${contentType}, prompt = ${prompt}, publish_time = ${publishTime},
+      enabled = ${enabled}, content_type = ${contentType}, content_mode = ${contentMode},
+      prompt = ${prompt}, manual_caption = ${manualCaption}, publish_time = ${publishTime},
       template_id = ${templateId}, style_config = ${styleConfigJson}, image_media_id = ${imageMediaId},
       video_media_id = ${videoMediaId}, updated_at = now()
     where automation_id = ${automationId} and day_of_week = ${dayOfWeek}

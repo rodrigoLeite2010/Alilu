@@ -17,7 +17,7 @@
 
 import type { PostFormat } from "./formats";
 import { getFontById } from "./fonts";
-import { clamp, computeCoverRect, resolveFontSizePx, shadeHexColor } from "./layout-math";
+import { clamp, computeCoverRect, computeContainRect, resolveFontSizePx, shadeHexColor } from "./layout-math";
 import { getTemplateById, TEXT_SLOT_IDS, type PostTemplate, type TextSlotId } from "./templates";
 import type { PostEditorState } from "./editor-state";
 
@@ -137,26 +137,42 @@ function drawBackground(
   uploadedImage: HTMLImageElement | null
 ): void {
   if (template.imageArea === null && uploadedImage) {
-    const cover = computeCoverRect(
-      format.width,
-      format.height,
-      uploadedImage.naturalWidth,
-      uploadedImage.naturalHeight,
-      state.backgroundImage.focusXFrac,
-      state.backgroundImage.focusYFrac,
-      state.backgroundImage.zoom ?? 1
-    );
-    ctx.drawImage(
-      uploadedImage,
-      cover.sx,
-      cover.sy,
-      cover.sWidth,
-      cover.sHeight,
-      0,
-      0,
-      format.width,
-      format.height
-    );
+    if (state.backgroundImage.fitMode === "contain") {
+      const backdrop = ctx.createLinearGradient(0, 0, 0, format.height);
+      backdrop.addColorStop(0, shadeHexColor(state.backgroundColor, 0.14));
+      backdrop.addColorStop(1, shadeHexColor(state.backgroundColor, -0.14));
+      ctx.fillStyle = backdrop;
+      ctx.fillRect(0, 0, format.width, format.height);
+
+      const contain = computeContainRect(
+        format.width,
+        format.height,
+        uploadedImage.naturalWidth,
+        uploadedImage.naturalHeight
+      );
+      ctx.drawImage(uploadedImage, 0, 0, uploadedImage.naturalWidth, uploadedImage.naturalHeight, contain.dx, contain.dy, contain.dWidth, contain.dHeight);
+    } else {
+      const cover = computeCoverRect(
+        format.width,
+        format.height,
+        uploadedImage.naturalWidth,
+        uploadedImage.naturalHeight,
+        state.backgroundImage.focusXFrac,
+        state.backgroundImage.focusYFrac,
+        state.backgroundImage.zoom ?? 1
+      );
+      ctx.drawImage(
+        uploadedImage,
+        cover.sx,
+        cover.sy,
+        cover.sWidth,
+        cover.sHeight,
+        0,
+        0,
+        format.width,
+        format.height
+      );
+    }
 
     if (template.scrimOverBackgroundImage) {
       const gradient = ctx.createLinearGradient(0, 0, 0, format.height);
@@ -266,16 +282,37 @@ function drawImageArea(
   ctx.clip();
 
   if (uploadedImage) {
-    const cover = computeCoverRect(
-      w,
-      h,
-      uploadedImage.naturalWidth,
-      uploadedImage.naturalHeight,
-      state.backgroundImage.focusXFrac,
-      state.backgroundImage.focusYFrac,
-      state.backgroundImage.zoom ?? 1
-    );
-    ctx.drawImage(uploadedImage, cover.sx, cover.sy, cover.sWidth, cover.sHeight, x, y, w, h);
+    if (state.backgroundImage.fitMode === "contain") {
+      const areaGradient = ctx.createLinearGradient(x, y, x + w, y + h);
+      areaGradient.addColorStop(0, "rgba(255, 255, 255, 0.22)");
+      areaGradient.addColorStop(1, "rgba(0, 0, 0, 0.12)");
+      ctx.fillStyle = areaGradient;
+      ctx.fillRect(x, y, w, h);
+
+      const contain = computeContainRect(w, h, uploadedImage.naturalWidth, uploadedImage.naturalHeight);
+      ctx.drawImage(
+        uploadedImage,
+        0,
+        0,
+        uploadedImage.naturalWidth,
+        uploadedImage.naturalHeight,
+        x + contain.dx,
+        y + contain.dy,
+        contain.dWidth,
+        contain.dHeight
+      );
+    } else {
+      const cover = computeCoverRect(
+        w,
+        h,
+        uploadedImage.naturalWidth,
+        uploadedImage.naturalHeight,
+        state.backgroundImage.focusXFrac,
+        state.backgroundImage.focusYFrac,
+        state.backgroundImage.zoom ?? 1
+      );
+      ctx.drawImage(uploadedImage, cover.sx, cover.sy, cover.sWidth, cover.sHeight, x, y, w, h);
+    }
   } else {
     const gradient = ctx.createLinearGradient(x, y, x + w, y + h);
     gradient.addColorStop(0, "rgba(255, 255, 255, 0.22)");

@@ -12,6 +12,7 @@ import {
   createInitialEditorState,
   setBackgroundColor,
   setBackgroundImage,
+  setBackgroundImageFitMode,
   setBackgroundImageFocus,
   setBackgroundImageZoom,
   setBadgeColors,
@@ -179,6 +180,11 @@ export function PostEditorTool({
     [commitDebounced]
   );
 
+  const handleImageFitModeChange = useCallback(
+    (fitMode: Parameters<typeof setBackgroundImageFitMode>[1]) => commit((prev) => setBackgroundImageFitMode(prev, fitMode)),
+    [commit]
+  );
+
   const handleDragMove = useCallback(
     (slotId: TextSlotId, offsetXFrac: number, offsetYFrac: number) =>
       commitDebounced((prev) => updateTextOffset(prev, slotId, offsetXFrac, offsetYFrac)),
@@ -274,6 +280,7 @@ export function PostEditorTool({
               onImageRemoved={handleImageRemoved}
               onImageFocusChange={handleImageFocusChange}
               onImageZoomChange={handleImageZoomChange}
+              onImageFitModeChange={handleImageFitModeChange}
             />
           </div>
         </details>

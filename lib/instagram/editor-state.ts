@@ -52,7 +52,17 @@ export interface BackgroundImageState {
    * Nunca é uma URL blob:/data:.
    */
   storageUrl?: string | null;
+  /**
+   * Como a imagem ocupa a área disponível: "cover" (padrão histórico —
+   * preenche a área, cortando o excesso, controlado por focus/zoom acima)
+   * ou "contain" (a imagem inteira, sem cortar nada; o espaço sobrando
+   * fica com o fundo da arte). Ausente em dados salvos antes desse campo
+   * existir — tratado como "cover" em deserializeEditorState.
+   */
+  fitMode: ImageFitMode;
 }
+
+export type ImageFitMode = "cover" | "contain";
 
 export const MIN_IMAGE_ZOOM = 1;
 export const MAX_IMAGE_ZOOM = 4;
@@ -81,6 +91,7 @@ function createEmptyBackgroundImage(): BackgroundImageState {
     focusYFrac: 0.5,
     zoom: 1,
     storageUrl: null,
+    fitMode: "cover",
   };
 }
 
@@ -306,6 +317,14 @@ export function setBackgroundImageZoom(state: PostEditorState, zoom: number): Po
   };
 }
 
+/** Alterna entre preencher a área cortando a imagem ("cover") e mostrar a imagem inteira sem cortar ("contain"). */
+export function setBackgroundImageFitMode(state: PostEditorState, fitMode: ImageFitMode): PostEditorState {
+  return {
+    ...state,
+    backgroundImage: { ...state.backgroundImage, fitMode },
+  };
+}
+
 /** Guarda a URL persistente da imagem original (depois do upload ao storage). */
 export function setBackgroundImageStorageUrl(state: PostEditorState, storageUrl: string | null): PostEditorState {
   return { ...state, backgroundImage: { ...state.backgroundImage, storageUrl } };
@@ -376,6 +395,7 @@ export function deserializeEditorState(data: unknown, localImageUrl: string | nu
       url: localImageUrl,
       zoom: Math.min(MAX_IMAGE_ZOOM, Math.max(MIN_IMAGE_ZOOM, Number(image.zoom ?? 1) || 1)),
       storageUrl: typeof image.storageUrl === "string" ? image.storageUrl : null,
+      fitMode: image.fitMode === "contain" ? "contain" : "cover",
     },
   };
 }

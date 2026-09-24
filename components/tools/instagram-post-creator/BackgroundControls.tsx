@@ -17,6 +17,7 @@ import {
   MAX_IMAGE_ZOOM,
   MIN_IMAGE_ZOOM,
   type BackgroundImageState,
+  type ImageFitMode,
   type PostEditorState,
 } from "@/lib/instagram/editor-state";
 
@@ -35,6 +36,7 @@ export function BackgroundControls({
   onImageRemoved,
   onImageFocusChange,
   onImageZoomChange,
+  onImageFitModeChange,
 }: {
   state: PostEditorState;
   onColorComboChange: (comboId: string) => void;
@@ -45,9 +47,12 @@ export function BackgroundControls({
   onImageFocusChange: (focusXFrac: number, focusYFrac: number) => void;
   /** Opcional: quando ausente (ex.: carrossel), o controle de zoom não aparece. */
   onImageZoomChange?: (zoom: number) => void;
+  /** Opcional: quando ausente, o controle de "sem corte" não aparece. */
+  onImageFitModeChange?: (fitMode: ImageFitMode) => void;
 }) {
   const replaceInputRef = useRef<HTMLInputElement>(null);
   const zoom = state.backgroundImage.zoom ?? 1;
+  const fitMode: ImageFitMode = state.backgroundImage.fitMode ?? "cover";
   const [isProcessingImage, setIsProcessingImage] = useState(false);
   const [imageError, setImageError] = useState<string | null>(null);
 
@@ -183,7 +188,36 @@ export function BackgroundControls({
               />
             </div>
 
-            {onImageZoomChange ? (
+            {onImageFitModeChange ? (
+              <div>
+                <span className="mb-1.5 block text-xs font-medium text-zinc-600">Como a imagem aparece</span>
+                <div className="flex gap-2" role="radiogroup" aria-label="Como a imagem aparece">
+                  <Button
+                    type="button"
+                    variant={fitMode === "cover" ? "primary" : "secondary"}
+                    aria-pressed={fitMode === "cover"}
+                    className="min-h-9 flex-1 px-2 text-xs"
+                    onClick={() => onImageFitModeChange("cover")}
+                  >
+                    Preencher (corta)
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={fitMode === "contain" ? "primary" : "secondary"}
+                    aria-pressed={fitMode === "contain"}
+                    className="min-h-9 flex-1 px-2 text-xs"
+                    onClick={() => onImageFitModeChange("contain")}
+                  >
+                    Mostrar tudo (sem corte)
+                  </Button>
+                </div>
+                <p className="mt-1 text-xs text-zinc-500">
+                  {"\"Mostrar tudo\" nunca corta a foto — o espaço sobrando fica com a cor de fundo da arte."}
+                </p>
+              </div>
+            ) : null}
+
+            {onImageZoomChange && fitMode !== "contain" ? (
               <div>
                 <label htmlFor="instagram-post-zoom" className="mb-1.5 block text-xs font-medium text-zinc-600">
                   Zoom da imagem ({Math.round(zoom * 100)}%)

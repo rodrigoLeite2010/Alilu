@@ -1,14 +1,17 @@
 "use client";
 
 import { useId, useState } from "react";
-import { DAY_OF_WEEK_LABEL, type AutomationContentType, type DayOfWeek } from "@/lib/content-automation/backend/automation-types";
+import { DAY_OF_WEEK_LABEL, type AutomationContentMode, type AutomationContentType, type DayOfWeek } from "@/lib/content-automation/backend/automation-types";
 import { MediaPicker } from "./MediaPicker";
 
 export interface DayFormState {
   dayOfWeek: DayOfWeek;
   enabled: boolean;
   contentType: AutomationContentType;
+  /** "AI" (padrão) gera a legenda a partir de `prompt`; "MANUAL" publica `manualCaption` tal como escrito, sem chamar IA. */
+  contentMode: AutomationContentMode;
   prompt: string;
+  manualCaption: string;
   publishTime: string;
   imageMediaId: string | null;
   videoMediaId: string | null;
@@ -32,6 +35,7 @@ export function WeekDayEditor({
   const [overrideMedia, setOverrideMedia] = useState(Boolean(day.imageMediaId || day.videoMediaId));
   const checkboxId = useId();
   const promptId = useId();
+  const manualCaptionId = useId();
   const timeId = useId();
 
   return (
@@ -85,23 +89,69 @@ export function WeekDayEditor({
           </div>
 
           <div>
-            <label htmlFor={promptId} className="mb-1 block text-xs font-medium text-zinc-700">
-              O que publicar
-            </label>
-            <textarea
-              id={promptId}
-              value={day.prompt}
-              onChange={(event) => onChange({ prompt: event.target.value })}
-              rows={3}
-              maxLength={800}
-              placeholder={
-                day.contentType === "POST"
-                  ? "Ex.: Crie uma dica curta de produtividade para pequenos empresários, tom profissional, com uma chamada para ação."
-                  : "Ex.: Crie um Reel curto mostrando uma dica sobre ferramentas online."
-              }
-              className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm"
-            />
+            <span className="mb-1 block text-xs font-medium text-zinc-700">Como gerar a legenda</span>
+            <div className="flex gap-3 text-sm">
+              <label className="inline-flex items-center gap-1.5">
+                <input
+                  type="radio"
+                  name={`${day.dayOfWeek}-content-mode`}
+                  checked={day.contentMode === "AI"}
+                  onChange={() => onChange({ contentMode: "AI" })}
+                  className="h-4 w-4 border-zinc-300 text-teal-700"
+                />
+                Gerar com IA
+              </label>
+              <label className="inline-flex items-center gap-1.5">
+                <input
+                  type="radio"
+                  name={`${day.dayOfWeek}-content-mode`}
+                  checked={day.contentMode === "MANUAL"}
+                  onChange={() => onChange({ contentMode: "MANUAL" })}
+                  className="h-4 w-4 border-zinc-300 text-teal-700"
+                />
+                Escrever eu mesmo
+              </label>
+            </div>
           </div>
+
+          {day.contentMode === "MANUAL" ? (
+            <div>
+              <label htmlFor={manualCaptionId} className="mb-1 block text-xs font-medium text-zinc-700">
+                Legenda final
+              </label>
+              <textarea
+                id={manualCaptionId}
+                value={day.manualCaption}
+                onChange={(event) => onChange({ manualCaption: event.target.value })}
+                rows={4}
+                maxLength={2200}
+                placeholder="Escreva a legenda exatamente como ela deve ser publicada — nenhuma IA é chamada para este dia."
+                className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm"
+              />
+              <p className="mt-1 text-xs text-zinc-500">
+                {day.manualCaption.length}/2200 — publicada exatamente como escrita, sem passar pela IA.
+              </p>
+            </div>
+          ) : (
+            <div>
+              <label htmlFor={promptId} className="mb-1 block text-xs font-medium text-zinc-700">
+                O que publicar
+              </label>
+              <textarea
+                id={promptId}
+                value={day.prompt}
+                onChange={(event) => onChange({ prompt: event.target.value })}
+                rows={3}
+                maxLength={800}
+                placeholder={
+                  day.contentType === "POST"
+                    ? "Ex.: Crie uma dica curta de produtividade para pequenos empresários, tom profissional, com uma chamada para ação."
+                    : "Ex.: Crie um Reel curto mostrando uma dica sobre ferramentas online."
+                }
+                className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm"
+              />
+            </div>
+          )}
 
           <div>
             <label className="inline-flex items-center gap-1.5 text-xs font-medium text-zinc-700">

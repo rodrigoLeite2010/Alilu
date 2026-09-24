@@ -26,6 +26,28 @@ async function jsonOrThrow<T>(response: Response, fallback: string): Promise<T> 
   return (await response.json()) as T;
 }
 
+export interface AIGeneratedCaption {
+  caption: string;
+  title: string;
+  hashtags: string[];
+}
+
+/**
+ * Pede uma sugestão de legenda com IA a partir de um prompt curto do
+ * usuário — usado pelo botão "Gerar com IA" do compositor manual.
+ * Reaproveita o MESMO provedor de IA do Piloto Automático no servidor
+ * (/api/instagram/ai-caption); o usuário sempre revisa/edita o resultado
+ * antes de publicar ou agendar, como faria escrevendo a legenda na mão.
+ */
+export async function generateCaptionWithAI(prompt: string): Promise<AIGeneratedCaption> {
+  const response = await fetch("/api/instagram/ai-caption", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ prompt }),
+  });
+  return jsonOrThrow<AIGeneratedCaption>(response, "Não foi possível gerar a legenda com IA agora.");
+}
+
 /**
  * Converte qualquer imagem (PNG/WEBP/JPEG) em JPEG — o único formato de
  * imagem aceito pela Content Publishing API da Meta. Se já for JPEG,

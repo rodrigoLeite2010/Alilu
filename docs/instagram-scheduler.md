@@ -92,6 +92,11 @@ Garantias contra publicação duplicada:
 - Sem login: rascunho local (IndexedDB, 24 h, sem tokens) → `/entrar?callbackUrl=…`. Sem Instagram: "Conecte seu Instagram para publicar." → `/api/instagram/oauth/start?returnTo=…` → volta para a publicação com tudo restaurado (cookie `ig_oauth_return`, só caminhos internos `/instagram…`).
 - Editar arte de uma publicação agendada: `/instagram/posts-virais?editar=<id>` (a gravação substitui mídia e template; o scheduler usa a versão nova).
 
+## 7.1 Imagem sem corte e legenda com IA (compositor manual)
+
+- **`fitMode` ("cover" | "contain")**: campo novo em `BackgroundImageState` (`lib/instagram/editor-state.ts`, dentro de `template_data`, sem migração de banco — é jsonb livre). Padrão `"cover"` (comportamento de sempre: preenche a área, cortando o excesso, com zoom/enquadramento). `"contain"` mostra a imagem inteira, sem cortar nada — o espaço sobrando fica com a cor de fundo da arte. Cálculo puro e testado em `computeContainRect()` (`lib/instagram/layout-math.ts`, mesmo padrão de `computeCoverRect()`); usado em `render.ts` nos dois lugares que desenham a imagem (fundo cheio e área recortada de template). Toggle "Preencher (corta) / Mostrar tudo (sem corte)" em `BackgroundControls.tsx`, disponível no Criador de Posts e reaproveitado pelo Criador de Carrosséis (mesmo `PostEditorState` por slide).
+- **Botão "Gerar com IA" na legenda**: reaproveita o MESMO provedor de IA do Piloto Automático (`getContentAIProvider()`, `docs/content-automation.md`) através de uma rota dedicada (`POST /api/instagram/ai-caption`, sessão obrigatória) — não cria automação/execução nem grava uso em `generation_usage`, é só uma sugestão pontual a partir de um prompt curto que o usuário revisa/edita antes de publicar ou agendar, exatamente como se tivesse escrito a legenda à mão. UI em `PublicationComposerPanel.tsx`.
+
 ## 8. Segurança
 
 - Token da Meta: só no servidor, cifrado (AES-256-GCM, `INSTAGRAM_TOKEN_ENCRYPTION_KEY`); nunca em respostas, `localStorage`, `sessionStorage`, props de componentes ou logs. `GET /api/instagram/account` devolve só `authenticated/connected/username/userId`.

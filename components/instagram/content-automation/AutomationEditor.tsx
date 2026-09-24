@@ -121,7 +121,9 @@ export function AutomationEditor({
           body: JSON.stringify({
             enabled: day.enabled,
             contentType: day.contentType,
+            contentMode: day.contentMode,
             prompt: day.prompt,
+            manualCaption: day.manualCaption,
             publishTime: day.publishTime,
             imageMediaId: day.imageMediaId,
             videoMediaId: day.videoMediaId,

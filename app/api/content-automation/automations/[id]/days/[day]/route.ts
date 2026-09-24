@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { AutomationValidationError, updateAutomationDay, getAutomationDetails } from "@/lib/content-automation/backend/automation-service";
 import { serializeAutomation } from "@/lib/content-automation/backend/automation-dto";
-import { DAYS_OF_WEEK, type AutomationContentType, type DayOfWeek } from "@/lib/content-automation/backend/automation-types";
+import { DAYS_OF_WEEK, type AutomationContentMode, type AutomationContentType, type DayOfWeek } from "@/lib/content-automation/backend/automation-types";
 
 interface RouteParams {
   params: Promise<{ id: string; day: string }>;
@@ -35,13 +35,16 @@ export async function PATCH(request: Request, { params }: RouteParams): Promise<
   if (typeof body !== "object" || body === null) {
     return NextResponse.json({ error: "Corpo da requisição inválido." }, { status: 400 });
   }
-  const { enabled, contentType, prompt, publishTime, imageMediaId, videoMediaId } = body as Record<string, unknown>;
+  const { enabled, contentType, contentMode, prompt, manualCaption, publishTime, imageMediaId, videoMediaId } =
+    body as Record<string, unknown>;
 
   try {
     await updateAutomationDay(id, userId, dayOfWeek, {
       enabled: typeof enabled === "boolean" ? enabled : undefined,
       contentType: typeof contentType === "string" ? (contentType as AutomationContentType) : undefined,
+      contentMode: typeof contentMode === "string" ? (contentMode as AutomationContentMode) : undefined,
       prompt: typeof prompt === "string" ? prompt : undefined,
+      manualCaption: manualCaption === null ? null : typeof manualCaption === "string" ? manualCaption : undefined,
       publishTime: typeof publishTime === "string" ? publishTime : undefined,
       imageMediaId: imageMediaId === null ? null : typeof imageMediaId === "string" ? imageMediaId : undefined,
       videoMediaId: videoMediaId === null ? null : typeof videoMediaId === "string" ? videoMediaId : undefined,
