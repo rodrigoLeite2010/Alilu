@@ -21,6 +21,8 @@ function emptyDay(dayOfWeek: DayOfWeek): DayFormState {
     contentMode: "AI",
     prompt: "",
     manualCaption: "",
+    visualText: "",
+    templateId: null,
     publishTime: "09:00",
     imageMediaId: null,
     videoMediaId: null,
@@ -56,8 +58,7 @@ export function AutomationWizard({ userId, accounts }: { userId: string; account
   const [brandContext, setBrandContext] = useState("");
   const [requireApproval, setRequireApproval] = useState(true);
   const [generationLeadMinutes, setGenerationLeadMinutes] = useState(120);
-  // Nesta etapa só "imagem fixa" está disponível na UI do wizard (ver docs/content-automation.md, Pendências).
-  const imageMode: ImageMode = "FIXED_IMAGE";
+  const [imageMode, setImageMode] = useState<ImageMode>("FIXED_IMAGE");
   const [fixedImageMediaId, setFixedImageMediaId] = useState<string | null>(null);
   const [videoSelection] = useState<VideoSelection>("FIXED");
   const [fixedVideoMediaId, setFixedVideoMediaId] = useState<string | null>(null);
@@ -85,6 +86,9 @@ export function AutomationWizard({ userId, accounts }: { userId: string; account
         if (day.contentMode === "MANUAL") {
           if (!day.manualCaption.trim()) {
             return `Escreva a legenda manual de ${DAY_OF_WEEK_LABEL[day.dayOfWeek]}.`;
+          }
+          if (imageMode === "AUTO_TEMPLATE" && day.contentType === "POST" && !day.visualText.trim()) {
+            return `Escreva o texto que vai sobre a imagem de ${DAY_OF_WEEK_LABEL[day.dayOfWeek]}.`;
           }
         } else if (!day.prompt.trim()) {
           return `Defina o que publicar em ${DAY_OF_WEEK_LABEL[day.dayOfWeek]}.`;
@@ -154,6 +158,8 @@ export function AutomationWizard({ userId, accounts }: { userId: string; account
             contentMode: day.contentMode,
             prompt: day.prompt,
             manualCaption: day.manualCaption,
+            visualText: day.visualText,
+            templateId: day.templateId,
             publishTime: day.publishTime,
             imageMediaId: day.imageMediaId,
             videoMediaId: day.videoMediaId,
@@ -317,11 +323,54 @@ export function AutomationWizard({ userId, accounts }: { userId: string; account
         <section className="space-y-4">
           <h2 className="text-lg font-semibold text-zinc-900">Configure sua semana</h2>
 
+          {needsImage ? (
+            <fieldset className="rounded-md border border-zinc-200 p-4">
+              <legend className="px-1 text-sm font-semibold text-zinc-900">Como definir a imagem dos posts</legend>
+              <label className="flex items-start gap-2 py-1 text-sm">
+                <input
+                  type="radio"
+                  name="image-mode"
+                  checked={imageMode === "FIXED_IMAGE"}
+                  onChange={() => setImageMode("FIXED_IMAGE")}
+                  className="mt-0.5 h-4 w-4 border-zinc-300 text-teal-700"
+                />
+                <span>
+                  <strong>Imagem fixa</strong> — publica a foto escolhida abaixo do jeito que ela é, sem nenhum texto desenhado em cima.
+                </span>
+              </label>
+              <label className="flex items-start gap-2 py-1 text-sm">
+                <input
+                  type="radio"
+                  name="image-mode"
+                  checked={imageMode === "MEDIA_LIBRARY"}
+                  onChange={() => setImageMode("MEDIA_LIBRARY")}
+                  className="mt-0.5 h-4 w-4 border-zinc-300 text-teal-700"
+                />
+                <span>
+                  <strong>Biblioteca de imagens</strong> — cada dia pode usar uma foto diferente da sua biblioteca, publicada como está.
+                </span>
+              </label>
+              <label className="flex items-start gap-2 py-1 text-sm">
+                <input
+                  type="radio"
+                  name="image-mode"
+                  checked={imageMode === "AUTO_TEMPLATE"}
+                  onChange={() => setImageMode("AUTO_TEMPLATE")}
+                  className="mt-0.5 h-4 w-4 border-zinc-300 text-teal-700"
+                />
+                <span>
+                  <strong>Gerar com IA sobre a imagem</strong> — escolhe um template e uma foto de fundo; a IA (ou você, no modo
+                  manual) gera um texto curto que o Alilu desenha em cima da foto automaticamente.
+                </span>
+              </label>
+            </fieldset>
+          ) : null}
+
           <div className="rounded-md border border-zinc-200 p-4">
             <h3 className="text-sm font-semibold text-zinc-900">Imagem e vídeo padrão</h3>
             <p className="mt-1 text-xs text-zinc-600">
-              Usados nos dias que não definirem uma imagem/vídeo próprios. A geração automática de arte com template ainda
-              não está disponível nesta etapa — use uma imagem/vídeo real.
+              Usados nos dias que não definirem uma imagem/vídeo próprios
+              {imageMode === "AUTO_TEMPLATE" ? " — nesse modo, é a foto de fundo do template." : "."}
             </p>
             {needsImage ? (
               <div className="mt-3">
@@ -342,7 +391,7 @@ export function AutomationWizard({ userId, accounts }: { userId: string; account
 
           <div className="space-y-3">
             {days.map((day) => (
-              <WeekDayEditor key={day.dayOfWeek} userId={userId} day={day} onChange={(patch) => updateDay(day.dayOfWeek, patch)} />
+              <WeekDayEditor key={day.dayOfWeek} userId={userId} day={day} imageMode={imageMode} onChange={(patch) => updateDay(day.dayOfWeek, patch)} />
             ))}
           </div>
         </section>

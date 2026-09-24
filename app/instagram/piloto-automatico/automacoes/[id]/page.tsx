@@ -64,6 +64,7 @@ export default async function AutomationDetailPage({ params }: PageProps) {
           autoPublish: automation.autoPublish,
           requireApproval: automation.requireApproval,
           generationLeadMinutes: automation.generationLeadMinutes,
+          imageMode: automation.imageMode,
           fixedImageMediaId: automation.fixedImageMediaId,
           fixedVideoMediaId: automation.fixedVideoMediaId,
           days: automation.days.map((day) => ({
@@ -73,6 +74,8 @@ export default async function AutomationDetailPage({ params }: PageProps) {
             contentMode: day.contentMode,
             prompt: day.prompt,
             manualCaption: day.manualCaption ?? "",
+            visualText: day.visualText ?? "",
+            templateId: day.templateId,
             publishTime: day.publishTime,
             imageMediaId: day.imageMediaId,
             videoMediaId: day.videoMediaId,

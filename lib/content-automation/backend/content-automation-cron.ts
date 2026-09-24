@@ -12,8 +12,9 @@ import {
 } from "./automation-run-repository";
 import { zonedToday, publishInstantUtc, isDueForGeneration } from "./automation-time";
 import { generatePostContentForRun, generateReelContentForRun } from "./content-generation-service";
-import { getInstagramMediaById } from "@/lib/instagram/backend/media-repository";
+import { getInstagramMediaById, type InstagramMediaRecord } from "@/lib/instagram/backend/media-repository";
 import { createDraftImagePost, createDraftReelPost } from "@/lib/instagram/backend/instagram-post-repository";
+import { renderAndStoreAutomationArt } from "@/lib/instagram/backend/template-render-service";
 import type { AutomationDayRecord, AutomationRecord, AutomationRunStatus } from "./automation-types";
 
 /**
@@ -56,11 +57,16 @@ export interface RunContentAutomationOptions {
 export const DEFAULT_CONTENT_AUTOMATION_LIMIT = 10;
 const DEFAULT_TIME_BUDGET_MS = 45_000;
 
-/** Resolve a mídia de imagem a usar para um dia (override do dia > padrão da automação). Valida posse e tipo. */
+/**
+ * Resolve a mídia de imagem a usar para um dia (override do dia > padrão
+ * da automação). Valida posse e tipo. Retorna o registro completo (não só
+ * o id) porque o modo AUTO_TEMPLATE precisa da storageUrl como imagem de
+ * origem para renderizar a arte final (ver template-render-service.ts).
+ */
 async function resolveImageMediaId(
   automation: AutomationRecord,
   day: AutomationDayRecord,
-): Promise<string> {
+): Promise<InstagramMediaRecord> {
   const mediaId = day.imageMediaId ?? automation.fixedImageMediaId;
   if (!mediaId) {
     throw new ContentAutomationConfigError(
@@ -71,7 +77,7 @@ async function resolveImageMediaId(
   if (!media || media.mediaType !== "image") {
     throw new ContentAutomationConfigError("A imagem configurada para este dia não foi encontrada ou não é uma imagem válida.");
   }
-  return media.id;
+  return media;
 }
 
 async function resolveVideoMediaId(
@@ -97,20 +103,24 @@ async function resolveVideoMediaId(
 }
 
 /**
- * Resolve a legenda final para o dia: em modo MANUAL, usa `manualCaption`
- * tal como está — NUNCA chama o provedor de IA (getContentAIProvider),
- * então uma automação com todos os dias em modo manual não exige
- * CONTENT_AI_API_KEY configurada. Em modo AI (padrão), chama o gerador de
- * sempre (content-generation-service.ts). Defesa em profundidade: mesmo
- * validado na ativação (automation-service.ts), confere de novo aqui —
- * mesmo padrão já usado para imageMode/videoSelection nesta função.
+ * Resolve a legenda final (e, para POST com imageMode = AUTO_TEMPLATE, o
+ * texto visual a desenhar sobre a imagem) para o dia: em modo MANUAL, usa
+ * `manualCaption`/`visualText` tal como estão — NUNCA chama o provedor de
+ * IA (getContentAIProvider), então uma automação com todos os dias em
+ * modo manual não exige CONTENT_AI_API_KEY configurada. Em modo AI
+ * (padrão), chama o gerador de sempre (content-generation-service.ts),
+ * pedindo o texto visual na MESMA chamada quando `needsVisualText` for
+ * true — evita duplicar custo de IA por dia. Defesa em profundidade:
+ * mesmo validado na ativação (automation-service.ts), confere de novo
+ * aqui — mesmo padrão já usado para imageMode/videoSelection nesta função.
  */
 async function resolveCaptionForRun(
   automation: AutomationRecord,
   day: AutomationDayRecord,
   runId: string,
   kind: "POST" | "REEL" = "POST",
-): Promise<string> {
+  needsVisualText = false,
+): Promise<{ caption: string; visualText: string | null }> {
   if (day.contentMode === "MANUAL") {
     const manualCaption = day.manualCaption?.trim();
     if (!manualCaption) {
@@ -118,12 +128,21 @@ async function resolveCaptionForRun(
         "Modo manual selecionado, mas nenhuma legenda foi escrita para este dia.",
       );
     }
-    return manualCaption;
+    if (!needsVisualText) return { caption: manualCaption, visualText: null };
+    const visualText = day.visualText?.trim();
+    if (!visualText) {
+      throw new ContentAutomationConfigError(
+        "Modo manual selecionado, mas nenhum texto foi escrito para a imagem deste dia.",
+      );
+    }
+    return { caption: manualCaption, visualText };
   }
-  const generated = kind === "REEL"
-    ? await generateReelContentForRun(automation, day, runId)
-    : await generatePostContentForRun(automation, day, runId);
-  return generated.caption;
+  if (kind === "REEL") {
+    const generated = await generateReelContentForRun(automation, day, runId);
+    return { caption: generated.caption, visualText: null };
+  }
+  const generated = await generatePostContentForRun(automation, day, runId, { includeVisualText: needsVisualText });
+  return { caption: generated.caption, visualText: needsVisualText ? (generated.visualText ?? null) : null };
 }
 
 /**
@@ -141,13 +160,26 @@ async function generateAndCreatePublication(
   const scheduledAtUtc = willAutoPublish ? publishAtUtc : null;
 
   if (day.contentType === "POST") {
-    if (automation.imageMode === "AUTO_TEMPLATE") {
-      throw new ContentAutomationConfigError(
-        'Modo de imagem "Gerar automaticamente" ainda não está disponível nesta etapa — use "Imagem fixa" ou "Biblioteca de imagens" (ver docs/content-automation.md, Pendências).',
-      );
+    const sourceMedia = await resolveImageMediaId(automation, day);
+    const needsVisualText = automation.imageMode === "AUTO_TEMPLATE";
+    const { caption, visualText } = await resolveCaptionForRun(automation, day, runId, "POST", needsVisualText);
+
+    let mediaId = sourceMedia.id;
+    if (needsVisualText) {
+      if (!visualText) {
+        throw new ContentAutomationConfigError("Não foi possível obter o texto para desenhar sobre a imagem deste dia.");
+      }
+      mediaId = await renderAndStoreAutomationArt({
+        userId: automation.userId,
+        templateId: day.templateId,
+        styleConfig: day.styleConfig,
+        sourceImageUrl: sourceMedia.storageUrl,
+        sourceMediaId: sourceMedia.id,
+        visualText,
+        automationRunId: runId,
+      });
     }
-    const mediaId = await resolveImageMediaId(automation, day);
-    const caption = await resolveCaptionForRun(automation, day, runId);
+
     const publicationId = await createDraftImagePost({
       userId: automation.userId,
       instagramAccountId: automation.instagramAccountId,
@@ -161,12 +193,12 @@ async function generateAndCreatePublication(
   }
 
   // REEL
-  const mediaId = await resolveVideoMediaId(automation, day);
-  const caption = await resolveCaptionForRun(automation, day, runId, "REEL");
+  const video = await resolveVideoMediaId(automation, day);
+  const { caption } = await resolveCaptionForRun(automation, day, runId, "REEL");
   const publicationId = await createDraftReelPost({
     userId: automation.userId,
     instagramAccountId: automation.instagramAccountId,
-    mediaId,
+    mediaId: video,
     caption,
     scheduledAtUtc,
     timezone: automation.timezone,

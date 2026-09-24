@@ -15,14 +15,29 @@ export interface InsertInstagramMediaInput {
   mediaType: InstagramMediaType;
   fileSizeBytes: number | null;
   originalFilename: string | null;
+  /**
+   * Rastreabilidade de mídia gerada pelo Piloto Automático (modo
+   * AUTO_TEMPLATE, ver template-render-service.ts): qual foto de origem
+   * foi usada como fundo e qual execução gerou esta imagem composta.
+   * `null` nos dois para um upload manual comum do usuário (padrão
+   * histórico, sem mudança de comportamento).
+   */
+  generatedFromMediaId?: string | null;
+  automationRunId?: string | null;
 }
 
 /** Grava a mídia já persistida no Vercel Blob e retorna o id gerado (instagram_media.id). */
 export async function insertInstagramMedia(input: InsertInstagramMediaInput): Promise<string> {
   const db = getDb();
   const rows = await db`
-    insert into instagram_media (user_id, storage_url, media_type, file_size_bytes, original_filename)
-    values (${input.userId}, ${input.storageUrl}, ${input.mediaType}, ${input.fileSizeBytes}, ${input.originalFilename})
+    insert into instagram_media (
+      user_id, storage_url, media_type, file_size_bytes, original_filename,
+      generated_from_media_id, automation_run_id
+    )
+    values (
+      ${input.userId}, ${input.storageUrl}, ${input.mediaType}, ${input.fileSizeBytes}, ${input.originalFilename},
+      ${input.generatedFromMediaId ?? null}, ${input.automationRunId ?? null}
+    )
     returning id
   `;
   return rows[0].id as string;

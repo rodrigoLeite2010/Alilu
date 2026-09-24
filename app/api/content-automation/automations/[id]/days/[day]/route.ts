@@ -35,8 +35,19 @@ export async function PATCH(request: Request, { params }: RouteParams): Promise<
   if (typeof body !== "object" || body === null) {
     return NextResponse.json({ error: "Corpo da requisição inválido." }, { status: 400 });
   }
-  const { enabled, contentType, contentMode, prompt, manualCaption, publishTime, imageMediaId, videoMediaId } =
-    body as Record<string, unknown>;
+  const {
+    enabled,
+    contentType,
+    contentMode,
+    prompt,
+    manualCaption,
+    visualText,
+    publishTime,
+    templateId,
+    styleConfig,
+    imageMediaId,
+    videoMediaId,
+  } = body as Record<string, unknown>;
 
   try {
     await updateAutomationDay(id, userId, dayOfWeek, {
@@ -45,7 +56,15 @@ export async function PATCH(request: Request, { params }: RouteParams): Promise<
       contentMode: typeof contentMode === "string" ? (contentMode as AutomationContentMode) : undefined,
       prompt: typeof prompt === "string" ? prompt : undefined,
       manualCaption: manualCaption === null ? null : typeof manualCaption === "string" ? manualCaption : undefined,
+      visualText: visualText === null ? null : typeof visualText === "string" ? visualText : undefined,
       publishTime: typeof publishTime === "string" ? publishTime : undefined,
+      templateId: templateId === null ? null : typeof templateId === "string" ? templateId : undefined,
+      styleConfig:
+        styleConfig === null
+          ? null
+          : typeof styleConfig === "object" && styleConfig !== null && !Array.isArray(styleConfig)
+            ? (styleConfig as Record<string, unknown>)
+            : undefined,
       imageMediaId: imageMediaId === null ? null : typeof imageMediaId === "string" ? imageMediaId : undefined,
       videoMediaId: videoMediaId === null ? null : typeof videoMediaId === "string" ? videoMediaId : undefined,
     });

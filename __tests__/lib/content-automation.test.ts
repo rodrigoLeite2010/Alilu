@@ -19,6 +19,11 @@ vi.mock("@/lib/content-automation/backend/provider-factory", () => ({
   getContentAIProvider: () => fakeProvider,
 }));
 
+const fakeRenderAndStoreAutomationArt = vi.fn();
+vi.mock("@/lib/instagram/backend/template-render-service", () => ({
+  renderAndStoreAutomationArt: (...args: unknown[]) => fakeRenderAndStoreAutomationArt(...args),
+}));
+
 const repo = await import("@/lib/content-automation/backend/automation-repository");
 const runRepo = await import("@/lib/content-automation/backend/automation-run-repository");
 const cron = await import("@/lib/content-automation/backend/content-automation-cron");
@@ -110,6 +115,7 @@ afterEach(async () => {
   await db.close();
   fakeProvider.generatePost.mockReset();
   fakeProvider.generateReel.mockReset();
+  fakeRenderAndStoreAutomationArt.mockReset();
   vi.restoreAllMocks();
 });
 
@@ -295,6 +301,147 @@ describe("modo manual (sem IA) por dia", () => {
     });
 
     await expect(service.activateAutomation(automationId, seed.userId)).rejects.toThrow(/legenda manual/i);
+  });
+});
+
+describe("modo AUTO_TEMPLATE (IA/manual desenha o texto sobre a imagem)", () => {
+  async function activeAutoTemplateAutomation(
+    seed: Awaited<ReturnType<typeof seedUserWithAccount>>,
+    overrides: { contentMode?: "AI" | "MANUAL"; visualText?: string; manualCaption?: string; templateId?: string | null } = {},
+  ) {
+    const contentMode = overrides.contentMode ?? "AI";
+    const automationId = await repo.createAutomation({
+      userId: seed.userId,
+      instagramAccountId: seed.accountId,
+      name: "Automação AUTO_TEMPLATE de teste",
+      description: "",
+      timezone: "America/Sao_Paulo",
+      brandContext: "Marca de utilitários domésticos",
+      autoPublish: false,
+      requireApproval: true,
+      generationLeadMinutes: 120,
+      imageMode: "AUTO_TEMPLATE",
+      fixedImageMediaId: seed.mediaId,
+      videoSelection: "FIXED",
+      fixedVideoMediaId: seed.videoId,
+    });
+
+    await repo.updateAutomationDay(automationId, seed.userId, "WEDNESDAY" as never, {
+      enabled: true,
+      contentType: "POST",
+      contentMode,
+      prompt: contentMode === "AI" ? "Fale sobre a promoção de hoje" : "",
+      manualCaption: contentMode === "MANUAL" ? (overrides.manualCaption ?? "Legenda manual completa, com CTA.") : undefined,
+      visualText: contentMode === "MANUAL" ? (overrides.visualText ?? "20% OFF hoje") : undefined,
+      templateId: overrides.templateId,
+      publishTime: "19:00",
+    });
+
+    await repo.setAutomationStatus(automationId, seed.userId, "ACTIVE");
+    return automationId;
+  }
+
+  it("modo IA: pede legenda + texto visual numa única chamada e usa a mídia renderizada pelo template", async () => {
+    const seed = await seedUserWithAccount(db);
+    // A mídia gerada é uma linha real de instagram_media (é o que
+    // renderAndStoreAutomationArt faz de verdade, via insertInstagramMedia) —
+    // instagram_post_items.media_id tem FK para instagram_media, então o
+    // mock precisa devolver um id existente, não uma string qualquer.
+    const [renderedMedia] = await db.sql`
+      insert into instagram_media (user_id, storage_url, media_type)
+      values (${seed.userId}, 'https://blob.example.com/generated-ai.jpg', 'image') returning id
+    `;
+    fakeRenderAndStoreAutomationArt.mockResolvedValue(renderedMedia.id);
+    happyPost({ caption: "Legenda gerada pela IA", cta: "", hashtags: [], visualText: "Frase curta pra imagem" });
+    await activeAutoTemplateAutomation(seed, { contentMode: "AI", templateId: "promocao" });
+    const now = () => new Date("2026-09-23T20:00:00.000Z");
+
+    const [result] = await cron.runContentAutomationCron({ now });
+    expect(result.status).toBe("WAITING_APPROVAL");
+
+    // Uma única chamada à IA — não duas (legenda e texto visual vêm juntos).
+    expect(fakeProvider.generatePost).toHaveBeenCalledTimes(1);
+    const [[callArgs]] = fakeProvider.generatePost.mock.calls;
+    expect(callArgs.includeVisualText).toBe(true);
+
+    expect(fakeRenderAndStoreAutomationArt).toHaveBeenCalledTimes(1);
+    const [renderArgs] = fakeRenderAndStoreAutomationArt.mock.calls[0];
+    expect(renderArgs).toMatchObject({
+      userId: seed.userId,
+      templateId: "promocao",
+      sourceImageUrl: "https://blob.example.com/1.jpg",
+      sourceMediaId: seed.mediaId,
+      visualText: "Frase curta pra imagem",
+    });
+    expect(renderArgs.automationRunId).toEqual(expect.any(String));
+
+    const runRow = (await db.sql`select * from automation_runs`)[0];
+    const [post] = await db.sql`select * from instagram_posts where id = ${runRow.publication_id}`;
+    expect(post.caption).toBe("Legenda gerada pela IA");
+    const [item] = await db.sql`select media_id from instagram_post_items where post_id = ${runRow.publication_id}`;
+    expect(item.media_id).toBe(renderedMedia.id);
+  });
+
+  it("modo manual: usa a legenda e o texto visual escritos à mão, sem chamar a IA, mas ainda renderiza a arte", async () => {
+    const seed = await seedUserWithAccount(db);
+    const [renderedMedia] = await db.sql`
+      insert into instagram_media (user_id, storage_url, media_type)
+      values (${seed.userId}, 'https://blob.example.com/generated-manual.jpg', 'image') returning id
+    `;
+    fakeRenderAndStoreAutomationArt.mockResolvedValue(renderedMedia.id);
+    await activeAutoTemplateAutomation(seed, {
+      contentMode: "MANUAL",
+      manualCaption: "Promoção de quarta-feira, corre lá!",
+      visualText: "Só hoje: 20% OFF",
+      templateId: "frase-motivacional",
+    });
+    const now = () => new Date("2026-09-23T20:00:00.000Z");
+
+    const [result] = await cron.runContentAutomationCron({ now });
+    expect(result.status).toBe("WAITING_APPROVAL");
+    expect(fakeProvider.generatePost).not.toHaveBeenCalled();
+
+    expect(fakeRenderAndStoreAutomationArt).toHaveBeenCalledTimes(1);
+    const [renderArgs] = fakeRenderAndStoreAutomationArt.mock.calls[0];
+    expect(renderArgs).toMatchObject({
+      templateId: "frase-motivacional",
+      sourceImageUrl: "https://blob.example.com/1.jpg",
+      visualText: "Só hoje: 20% OFF",
+    });
+
+    const runRow = (await db.sql`select * from automation_runs`)[0];
+    const [post] = await db.sql`select * from instagram_posts where id = ${runRow.publication_id}`;
+    expect(post.caption).toBe("Promoção de quarta-feira, corre lá!");
+    const [item] = await db.sql`select media_id from instagram_post_items where post_id = ${runRow.publication_id}`;
+    expect(item.media_id).toBe(renderedMedia.id);
+  });
+
+  it("não deixa ativar um dia manual em AUTO_TEMPLATE sem o texto visual, mesmo com legenda preenchida", async () => {
+    const seed = await seedUserWithAccount(db);
+    const automationId = await repo.createAutomation({
+      userId: seed.userId,
+      instagramAccountId: seed.accountId,
+      name: "Automação AUTO_TEMPLATE incompleta",
+      description: "",
+      timezone: "America/Sao_Paulo",
+      brandContext: "",
+      autoPublish: false,
+      requireApproval: true,
+      generationLeadMinutes: 120,
+      imageMode: "AUTO_TEMPLATE",
+      fixedImageMediaId: seed.mediaId,
+      videoSelection: "FIXED",
+      fixedVideoMediaId: seed.videoId,
+    });
+    await repo.updateAutomationDay(automationId, seed.userId, "WEDNESDAY" as never, {
+      enabled: true,
+      contentType: "POST",
+      contentMode: "MANUAL",
+      manualCaption: "Legenda preenchida normalmente.",
+      visualText: "",
+    });
+
+    await expect(service.activateAutomation(automationId, seed.userId)).rejects.toThrow(/texto.*imagem/i);
   });
 });
 
@@ -542,8 +689,11 @@ describe("ativação exige configuração completa", () => {
     await expect(service.activateAutomation(automationId, seed.userId)).rejects.toThrow(/imagem/);
   });
 
-  it("rejeita imageMode AUTO_TEMPLATE e videoSelection ROTATE/RANDOM nesta etapa", async () => {
+  it("aceita imageMode AUTO_TEMPLATE (implementado nesta etapa), mas ainda rejeita videoSelection ROTATE/RANDOM", async () => {
     const seed = await seedUserWithAccount(db);
+    // AUTO_TEMPLATE agora é um imageMode suportado — a validação de
+    // mídia/texto visual acontece só na ativação (ver
+    // "não deixa ativar" nos testes de AUTO_TEMPLATE acima), não na criação.
     await expect(
       service.createAutomation({
         userId: seed.userId,
@@ -551,7 +701,7 @@ describe("ativação exige configuração completa", () => {
         name: "Template automático",
         imageMode: "AUTO_TEMPLATE",
       }),
-    ).rejects.toThrow(/Gerar automaticamente/);
+    ).resolves.toEqual(expect.any(String));
 
     await expect(
       service.createAutomation({
@@ -596,6 +746,13 @@ describe("retentativa de geração com falha", () => {
     expect(runRow.status).toBe("PENDING");
     expect(runRow.generation_attempt).toBe(1);
     expect(runRow.next_attempt_at).not.toBeNull();
+
+    // O backoff calculado usa o `now` injetado (fixo em 2026-09-23), mas a
+    // elegibilidade do claim compara com o relógio REAL do Postgres (ver
+    // comentário do teste seguinte) — então força next_attempt_at para o
+    // futuro relativo ao relógio real, em vez de depender da data fixa do
+    // teste continuar no futuro conforme o tempo passa.
+    await db.sql`update automation_runs set next_attempt_at = now() + interval '1 hour'`;
 
     // Antes do backoff acabar, uma nova chamada não tenta de novo.
     expect(await cron.runContentAutomationCron({ now })).toEqual([]);

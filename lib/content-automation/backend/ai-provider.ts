@@ -15,6 +15,13 @@ export interface GeneratePostContentInput {
   dayPrompt: string;
   /** Assuntos/legendas recentes a evitar repetir (seção 21). */
   avoidTopics: string[];
+  /**
+   * Quando true, pede também um texto curto para desenhar sobre a imagem
+   * (modo de imagem AUTO_TEMPLATE — ver template-render-service.ts),
+   * numa única chamada em vez de duas. `false`/ausente preserva o
+   * comportamento histórico (só legenda).
+   */
+  includeVisualText?: boolean;
 }
 
 export interface GeneratedPostContent {
@@ -24,6 +31,12 @@ export interface GeneratedPostContent {
   cta: string;
   /** Descrição do visual sugerido — informativo hoje (a arte final usa a imagem fixa/biblioteca configurada, ver docs/content-automation.md). */
   visualDescription: string;
+  /**
+   * Frase curta para desenhar sobre a imagem (modo AUTO_TEMPLATE), gerada
+   * só quando `includeVisualText` foi pedido — `undefined` caso
+   * contrário, nunca usado como legenda.
+   */
+  visualText?: string;
 }
 
 export interface GenerateReelContentInput {

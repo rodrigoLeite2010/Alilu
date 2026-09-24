@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { PostFormat } from "@/lib/instagram/formats";
 import type { PostEditorState } from "@/lib/instagram/editor-state";
-import { drawPost } from "@/lib/instagram/render";
+import { drawPost, type RenderingContext2DLike } from "@/lib/instagram/render";
 import { loadImageElement } from "@/lib/instagram/image-utils";
 
 /**
@@ -60,7 +60,7 @@ export function SlideThumbnail({ state, format }: { state: PostEditorState; form
     if (canvas.width !== width) canvas.width = width;
     if (canvas.height !== height) canvas.height = height;
 
-    drawPost(ctx, { ...format, width: canvas.width, height: canvas.height }, state, image);
+    drawPost(ctx as unknown as RenderingContext2DLike, { ...format, width: canvas.width, height: canvas.height }, state, image);
   }, [state, format, image]);
 
   return (

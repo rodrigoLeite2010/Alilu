@@ -19,6 +19,8 @@ export interface GeneratedPostForPublication {
   title: string;
   hashtags: string[];
   visualDescription: string;
+  /** Presente só quando chamado com includeVisualText=true (dia em modo AUTO_TEMPLATE). */
+  visualText?: string;
 }
 
 export interface GeneratedReelForPublication {
@@ -34,6 +36,7 @@ export async function generatePostContentForRun(
   automation: AutomationRecord,
   day: AutomationDayRecord,
   runId: string,
+  options: { includeVisualText?: boolean } = {},
 ): Promise<GeneratedPostForPublication> {
   const provider = getContentAIProvider();
   const recent = await listRecentGenerationsForAutomation(automation.id, 7);
@@ -43,6 +46,7 @@ export async function generatePostContentForRun(
     brandContext: automation.brandContext,
     dayPrompt: day.prompt,
     avoidTopics,
+    includeVisualText: options.includeVisualText,
   });
   await recordGenerationUsage(automation.id, runId, usage);
 
@@ -50,6 +54,7 @@ export async function generatePostContentForRun(
     title: content.title,
     hashtags: content.hashtags,
     visualDescription: content.visualDescription,
+    visualText: content.visualText,
     caption: composeCaption(content.caption, content.cta, content.hashtags),
   };
 }

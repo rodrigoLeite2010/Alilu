@@ -77,6 +77,7 @@ function mapDayRow(row: Record<string, unknown>): AutomationDayRecord {
     contentMode: (row.content_mode as AutomationContentMode | null) ?? "AI",
     prompt: (row.prompt as string | null) ?? "",
     manualCaption: (row.manual_caption as string | null) ?? null,
+    visualText: (row.visual_text as string | null) ?? null,
     publishTime: row.publish_time as string,
     templateId: (row.template_id as string | null) ?? null,
     styleConfig,
@@ -234,6 +235,7 @@ export interface UpdateAutomationDayInput {
   contentMode?: AutomationContentMode;
   prompt?: string;
   manualCaption?: string | null;
+  visualText?: string | null;
   publishTime?: string;
   templateId?: string | null;
   styleConfig?: Record<string, unknown> | null;
@@ -263,6 +265,7 @@ export async function updateAutomationDay(
   const contentMode = patch.contentMode ?? ((current.content_mode as AutomationContentMode | null) ?? "AI");
   const prompt = patch.prompt ?? ((current.prompt as string | null) ?? "");
   const manualCaption = patch.manualCaption === undefined ? ((current.manual_caption as string | null) ?? null) : patch.manualCaption;
+  const visualText = patch.visualText === undefined ? ((current.visual_text as string | null) ?? null) : patch.visualText;
   const publishTime = patch.publishTime ?? (current.publish_time as string);
   const templateId = patch.templateId === undefined ? ((current.template_id as string | null) ?? null) : patch.templateId;
   const styleConfig =
@@ -284,7 +287,7 @@ export async function updateAutomationDay(
   await db`
     update content_automation_days set
       enabled = ${enabled}, content_type = ${contentType}, content_mode = ${contentMode},
-      prompt = ${prompt}, manual_caption = ${manualCaption}, publish_time = ${publishTime},
+      prompt = ${prompt}, manual_caption = ${manualCaption}, visual_text = ${visualText}, publish_time = ${publishTime},
       template_id = ${templateId}, style_config = ${styleConfigJson}, image_media_id = ${imageMediaId},
       video_media_id = ${videoMediaId}, updated_at = now()
     where automation_id = ${automationId} and day_of_week = ${dayOfWeek}

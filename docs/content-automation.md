@@ -52,6 +52,21 @@ Cada dia pode ser `AI` (padrão — legenda gerada a partir do `prompt` do dia, 
 
 Consequência prática: **uma automação com todos os dias em modo `MANUAL` não exige `CONTENT_AI_API_KEY`/`CONTENT_AI_MODEL` configuradas** — `getContentAIProvider()` só é chamado quando o cron encontra um dia em modo `AI` (`content-automation-cron.ts`, `resolveCaptionForRun`). Validado em dois lugares, mesmo padrão de defesa em profundidade já usado para `imageMode`/`videoSelection`: na ativação (`automation-service.ts`, exige `manual_caption` não vazio para dia `MANUAL` habilitado) e de novo dentro do próprio cron.
 
+### 2.2 Geração de arte com template (`imageMode = "AUTO_TEMPLATE"`, migração `0006_content_automation_auto_template.sql`)
+
+A IA (ou o usuário, em modo `MANUAL`) gera só um **texto visual curto** — separado da legenda completa do Instagram — e o servidor desenha esse texto sobre a foto de fundo escolhida, usando o mesmo motor de template do compositor manual (Agendador). O resultado é uma imagem final (JPEG) salva como uma `instagram_media` normal, publicada exatamente como qualquer outra.
+
+- **Reaproveitamento total do motor existente**: `lib/instagram/templates.ts` (biblioteca de templates) e `lib/instagram/layout-math.ts` (matemática de recorte/posicionamento) já eram funções puras, sem nenhuma dependência de navegador. `lib/instagram/render.ts` (a função `drawPost`) foi generalizado para depender de uma interface própria (`RenderingContext2DLike`/`RenderableImage`, cobrindo só os métodos realmente usados) em vez do `CanvasRenderingContext2D` do navegador diretamente — o navegador continua passando seu contexto real (com um cast de tipo, sem mudar nenhum comportamento) e o servidor passa o contexto do `@napi-rs/canvas`, que implementa a mesma API. **Nenhuma lógica de desenho/layout foi duplicada.**
+- **Renderização server-side**: `lib/instagram/backend/template-render-service.ts` (`renderAndStoreAutomationArt`) — carrega a foto de origem com `@napi-rs/canvas` (`loadImage`), desenha o template com `drawPost()`, sobe o JPEG resultante ao Vercel Blob (`put()`, mesma autenticação OIDC já usada pelo upload manual — não precisa de `BLOB_READ_WRITE_TOKEN` novo) e cria a linha em `instagram_media` via `insertInstagramMedia()` (a mesma função do upload manual).
+- **Slot de texto**: fixo em `"heading"` nesta etapa (`AUTO_TEMPLATE_TEXT_SLOT`, em `template-render-service.ts`) — todos os 5 templates existentes o usam como destaque principal. Escolher outro slot fica para uma etapa futura, junto de um editor de estilo completo por dia.
+- **Origem da foto de fundo**: reaproveita exatamente a mesma resolução de mídia que `FIXED_IMAGE`/`MEDIA_LIBRARY` já usavam (`resolveImageMediaId`, dia > padrão da automação) — o modo `AUTO_TEMPLATE` não é uma origem de foto diferente, é uma **transformação** aplicada sobre a foto resolvida.
+- **Texto visual, por `content_mode`**:
+  - `MANUAL`: o usuário escreve o texto em `content_automation_days.visual_text` (coluna nova, nullable — obrigatória só quando o dia está habilitado, é `POST` e a automação está em `AUTO_TEMPLATE`, validado em `automation-service.ts`).
+  - `AI`: o provedor de IA gera o texto visual **na mesma chamada** que gera a legenda (`GeneratePostContentInput.includeVisualText`, `GeneratedPostContent.visualText`) — evita duplicar custo de IA por dia. Nunca é salvo em `visual_text` (o dia continua sendo um molde reaproveitado toda semana, não uma instância).
+- **Template e estilo por dia**: `content_automation_days.template_id`/`style_config` (já existiam desde a migração `0004`, reservados para esta etapa) — `style_config` guarda o mesmo formato serializado do editor (`serializeEditorState`/`deserializeEditorState`, `lib/instagram/editor-state.ts`). Nesta entrega, a UI só deixa escolher o **template** por dia (dropdown com os 5 templates de `lib/instagram/templates.ts`); cores/fontes usam os padrões do template — um editor de estilo completo por dia fica para uma etapa futura.
+- **Rastreabilidade**: `instagram_media` ganhou `generated_from_media_id` (a foto de origem) e `automation_run_id` (a execução que gerou a arte) — nullable, nunca afeta uploads manuais existentes.
+- **Limitação conhecida — fontes**: as fontes do editor (`lib/instagram/fonts.ts`) são fontes de sistema do navegador do usuário (Segoe UI, Impact, etc.), que não existem no container Linux da Vercel. Sem registrar arquivos de fonte reais via `GlobalFonts` do `@napi-rs/canvas`, o texto renderiza com a fonte padrão do Skia — legível, mas não necessariamente idêntica à prévia do compositor. Registrar fontes reais é uma melhoria futura, não bloqueia a funcionalidade.
+
 ## 3. Status de uma execução (`automation_runs.status`)
 
 | Status | Significado |
@@ -95,15 +110,13 @@ Prova de idempotência: `__tests__/lib/content-automation.test.ts`, cenário "cr
 
 ## 7. Pendências conhecidas (escopo desta etapa)
 
-Duas restrições reais, deliberadas, e **impostas em dois lugares** (validação na criação/edição + defesa em profundidade dentro do próprio cron, que lança `ContentAutomationConfigError` se algo escapar da validação):
+Uma restrição real, deliberada, e **imposta em dois lugares** (validação na criação/edição + defesa em profundidade dentro do próprio cron, que lança `ContentAutomationConfigError` se algo escapar da validação):
 
-- **`imageMode = "AUTO_TEMPLATE"` não está disponível.** O motor de templates visuais do projeto (`lib/instagram/templates.ts` + `lib/instagram/render.ts`) usa a Canvas API do navegador — documentado no próprio cabeçalho de `render.ts` como impossível de rodar em Node/servidor (é exatamente o que um cron precisaria). Implementar isso exigiria um renderizador server-side novo (ex.: `@napi-rs/canvas` ou similar), fora do escopo desta entrega. Hoje só `"FIXED_IMAGE"` (uma imagem fixa por automação/dia) e `"MEDIA_LIBRARY"` (reaproveita a biblioteca de mídia já enviada) estão disponíveis — ambas reaproveitam `instagram_media`, sem nenhum código novo de upload.
-- **`videoSelection` só aceita `"FIXED"`.** `"ROTATE"` (alterna vídeos numa lista) e `"RANDOM"` ficam para uma etapa futura — o schema já reserva os valores (`CHECK` inclui as três opções) para não exigir nova migração quando forem implementados.
-
-Ambas ficam bloqueadas na validação (`automation-service.ts`, mensagens claras) e, redundantemente, no próprio cron — nunca é possível uma automação "escapar" e tentar gerar algo que o sistema não sabe montar.
+- **`videoSelection` só aceita `"FIXED"`.** `"ROTATE"` (alterna vídeos numa lista) e `"RANDOM"` ficam para uma etapa futura — o schema já reserva os valores (`CHECK` inclui as três opções) para não exigir nova migração quando forem implementados. A mesma limitação vale para fotos em modo `AUTO_TEMPLATE`/`MEDIA_LIBRARY`: hoje a variação de foto entre dias é sempre manual (escolher uma mídia diferente por dia no assistente) — não existe ainda uma rotação automática `FIXED`/`ROTATE`/`RANDOM` para imagens, análoga à de vídeo.
 
 Outras limitações desta etapa, não bloqueantes:
 
+- `imageMode = "AUTO_TEMPLATE"` (seção 2.2) usa sempre o slot de texto `"heading"` e os estilos padrão do template escolhido — sem editor de cor/fonte/posição por dia ainda, e sem registrar fontes reais para o renderizador server-side (usa a fonte padrão do Skia).
 - O assistente de criação de automação é um formulário único (client-side, em etapas) em vez de rotas separadas por etapa — decisão de simplicidade que não muda nenhuma regra de negócio nem a API.
 - Sem testes automatizados de UI (componentes React) para o módulo — os testes cobrem toda a camada de banco/regra de negócio/cron (`__tests__/lib/content-automation.test.ts` e `content-automation-time.test.ts`), no mesmo padrão do agendador de publicação.
 

@@ -138,13 +138,16 @@ export class AnthropicContentProvider implements AIContentProvider {
   async generatePost(
     input: GeneratePostContentInput,
   ): Promise<{ content: GeneratedPostContent; usage: AIGenerationUsage }> {
+    const visualTextField = input.includeVisualText
+      ? ', "visualText": string (frase BEM curta e de impacto, até 80 caracteres, sem hashtags e sem emojis, para ser desenhada em cima da imagem — diferente da legenda)'
+      : "";
     const prompt = [
       `Contexto da marca: ${input.brandContext || "(sem contexto adicional)"}`,
       `O que publicar hoje: ${input.dayPrompt}`,
       buildAvoidTopicsInstruction(input.avoidTopics),
       "",
       "Gere o conteúdo de UM post para Instagram (imagem única) com este formato JSON exato:",
-      '{"title": string (até 70 caracteres), "caption": string (legenda completa, com quebras de linha, pronta para publicar, incluindo uma chamada para ação natural no texto), "hashtags": string[] (5 a 10 hashtags relevantes, cada uma começando com #), "cta": string (chamada para ação curta, até 60 caracteres), "visualDescription": string (descrição breve da imagem ideal para este post, até 200 caracteres)}',
+      '{"title": string (até 70 caracteres), "caption": string (legenda completa, com quebras de linha, pronta para publicar, incluindo uma chamada para ação natural no texto), "hashtags": string[] (5 a 10 hashtags relevantes, cada uma começando com #), "cta": string (chamada para ação curta, até 60 caracteres), "visualDescription": string (descrição breve da imagem ideal para este post, até 200 caracteres)' + visualTextField + "}",
     ]
       .filter(Boolean)
       .join("\n");
@@ -158,9 +161,13 @@ export class AnthropicContentProvider implements AIContentProvider {
       hashtags: asStringArray(json.hashtags),
       cta: asString(json.cta),
       visualDescription: asString(json.visualDescription),
+      visualText: input.includeVisualText ? asString(json.visualText).slice(0, 80) : undefined,
     };
     if (!content.caption) {
       throw new AIProviderRequestError("A IA não gerou uma legenda válida.");
+    }
+    if (input.includeVisualText && !content.visualText) {
+      throw new AIProviderRequestError("A IA não gerou o texto visual para a imagem.");
     }
     return { content, usage };
   }

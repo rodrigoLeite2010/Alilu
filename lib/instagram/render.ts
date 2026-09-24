@@ -21,6 +21,68 @@ import { clamp, computeCoverRect, computeContainRect, resolveFontSizePx, shadeHe
 import { getTemplateById, TEXT_SLOT_IDS, type PostTemplate, type TextSlotId } from "./templates";
 import type { PostEditorState } from "./editor-state";
 
+/**
+ * Subconjunto mínimo da Canvas 2D API que este arquivo realmente usa —
+ * permite reaproveitar drawPost() tanto no navegador
+ * (CanvasRenderingContext2D) quanto no servidor (@napi-rs/canvas, que
+ * implementa essa mesma API — ver lib/instagram/backend/template-render-service.ts),
+ * sem duplicar a lógica de desenho/layout. Os dois tipos reais satisfazem
+ * esta interface estruturalmente; nos pontos de chamada no navegador
+ * (EditorPreviewCanvas.tsx, SlideThumbnail.tsx, carousel-export.ts) o
+ * `CanvasRenderingContext2D` nativo é passado com um cast explícito
+ * (`as unknown as RenderingContext2DLike`) só porque a sobrecarga real de
+ * `drawImage` é mais ampla (aceita HTMLCanvasElement etc.) do que o
+ * necessário aqui — nenhuma lógica muda, é só alinhamento de tipos.
+ */
+export interface RenderingGradientLike {
+  addColorStop(offset: number, color: string): void;
+}
+
+/** Só os campos de imagem que este arquivo lê — HTMLImageElement (navegador) e Image do @napi-rs/canvas (servidor) têm os dois. */
+export interface RenderableImage {
+  naturalWidth: number;
+  naturalHeight: number;
+}
+
+export interface RenderingContext2DLike {
+  save(): void;
+  restore(): void;
+  beginPath(): void;
+  moveTo(x: number, y: number): void;
+  lineTo(x: number, y: number): void;
+  arcTo(x1: number, y1: number, x2: number, y2: number, radius: number): void;
+  arc(x: number, y: number, radius: number, startAngle: number, endAngle: number): void;
+  closePath(): void;
+  stroke(): void;
+  fill(): void;
+  clip(): void;
+  clearRect(x: number, y: number, w: number, h: number): void;
+  fillRect(x: number, y: number, w: number, h: number): void;
+  drawImage(
+    image: RenderableImage,
+    sx: number,
+    sy: number,
+    sw: number,
+    sh: number,
+    dx: number,
+    dy: number,
+    dw: number,
+    dh: number
+  ): void;
+  measureText(text: string): { width: number };
+  fillText(text: string, x: number, y: number): void;
+  createLinearGradient(x0: number, y0: number, x1: number, y1: number): RenderingGradientLike;
+  font: string;
+  textAlign: string;
+  textBaseline: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- write-only neste arquivo; o tipo real (string | CanvasGradient | CanvasPattern) varia entre navegador e @napi-rs/canvas.
+  fillStyle: any;
+  strokeStyle: string;
+  lineWidth: number;
+  lineJoin: string;
+  globalAlpha: number;
+}
+
 export interface SlotBoundingBox {
   x: number;
   y: number;
@@ -31,7 +93,7 @@ export interface SlotBoundingBox {
 export type SlotBoundingBoxMap = Partial<Record<TextSlotId, SlotBoundingBox>>;
 
 function roundedRectPath(
-  ctx: CanvasRenderingContext2D,
+  ctx: RenderingContext2DLike,
   x: number,
   y: number,
   width: number,
@@ -52,7 +114,7 @@ function roundedRectPath(
   ctx.closePath();
 }
 
-function wrapLines(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string[] {
+function wrapLines(ctx: RenderingContext2DLike, text: string, maxWidth: number): string[] {
   const paragraphs = text.split("\n");
   const lines: string[] = [];
 
@@ -80,7 +142,7 @@ function wrapLines(ctx: CanvasRenderingContext2D, text: string, maxWidth: number
 }
 
 function drawTextLine(
-  ctx: CanvasRenderingContext2D,
+  ctx: RenderingContext2DLike,
   text: string,
   x: number,
   y: number,
@@ -112,11 +174,11 @@ function drawTextLine(
   ctx.textAlign = previousAlign;
 }
 
-function measureLinesWidth(ctx: CanvasRenderingContext2D, lines: string[]): number {
+function measureLinesWidth(ctx: RenderingContext2DLike, lines: string[]): number {
   return lines.reduce((max, line) => Math.max(max, ctx.measureText(line).width), 0);
 }
 
-function drawPlaceholderIcon(ctx: CanvasRenderingContext2D, cx: number, cy: number, size: number): void {
+function drawPlaceholderIcon(ctx: RenderingContext2DLike, cx: number, cy: number, size: number): void {
   ctx.save();
   ctx.strokeStyle = "rgba(255, 255, 255, 0.55)";
   ctx.lineWidth = Math.max(2, size * 0.08);
@@ -130,11 +192,11 @@ function drawPlaceholderIcon(ctx: CanvasRenderingContext2D, cx: number, cy: numb
 }
 
 function drawBackground(
-  ctx: CanvasRenderingContext2D,
+  ctx: RenderingContext2DLike,
   state: PostEditorState,
   format: PostFormat,
   template: PostTemplate,
-  uploadedImage: HTMLImageElement | null
+  uploadedImage: RenderableImage | null
 ): void {
   if (template.imageArea === null && uploadedImage) {
     if (state.backgroundImage.fitMode === "contain") {
@@ -193,7 +255,7 @@ function drawBackground(
 }
 
 function drawDecoration(
-  ctx: CanvasRenderingContext2D,
+  ctx: RenderingContext2DLike,
   format: PostFormat,
   template: PostTemplate,
   accentColor: string
@@ -262,11 +324,11 @@ function drawDecoration(
 }
 
 function drawImageArea(
-  ctx: CanvasRenderingContext2D,
+  ctx: RenderingContext2DLike,
   state: PostEditorState,
   format: PostFormat,
   template: PostTemplate,
-  uploadedImage: HTMLImageElement | null
+  uploadedImage: RenderableImage | null
 ): void {
   const area = template.imageArea;
   if (!area) return;
@@ -332,7 +394,7 @@ function drawImageArea(
 }
 
 function drawTextSlots(
-  ctx: CanvasRenderingContext2D,
+  ctx: RenderingContext2DLike,
   state: PostEditorState,
   format: PostFormat,
   template: PostTemplate
@@ -423,10 +485,10 @@ function drawTextSlots(
  * arrastar/reposicionar os textos (ETAPA 5.1).
  */
 export function drawPost(
-  ctx: CanvasRenderingContext2D,
+  ctx: RenderingContext2DLike,
   format: PostFormat,
   state: PostEditorState,
-  uploadedImage: HTMLImageElement | null
+  uploadedImage: RenderableImage | null
 ): SlotBoundingBoxMap {
   const template = getTemplateById(state.templateId);
 

@@ -1,7 +1,8 @@
 "use client";
 
 import { useId, useState } from "react";
-import { DAY_OF_WEEK_LABEL, type AutomationContentMode, type AutomationContentType, type DayOfWeek } from "@/lib/content-automation/backend/automation-types";
+import { DAY_OF_WEEK_LABEL, type AutomationContentMode, type AutomationContentType, type DayOfWeek, type ImageMode } from "@/lib/content-automation/backend/automation-types";
+import { POST_TEMPLATES } from "@/lib/instagram/templates";
 import { MediaPicker } from "./MediaPicker";
 
 export interface DayFormState {
@@ -12,6 +13,10 @@ export interface DayFormState {
   contentMode: AutomationContentMode;
   prompt: string;
   manualCaption: string;
+  /** Texto curto desenhado sobre a imagem quando a automação usa imageMode = "AUTO_TEMPLATE" e este dia está em modo manual. */
+  visualText: string;
+  /** Template do compositor (lib/instagram/templates.ts) usado quando imageMode = "AUTO_TEMPLATE". null usa o padrão. */
+  templateId: string | null;
   publishTime: string;
   imageMediaId: string | null;
   videoMediaId: string | null;
@@ -26,17 +31,23 @@ export interface DayFormState {
 export function WeekDayEditor({
   userId,
   day,
+  imageMode,
   onChange,
 }: {
   userId: string;
   day: DayFormState;
+  /** Modo de imagem da automação (não do dia) — controla se aparece o seletor de template/texto visual. */
+  imageMode: ImageMode;
   onChange: (patch: Partial<DayFormState>) => void;
 }) {
   const [overrideMedia, setOverrideMedia] = useState(Boolean(day.imageMediaId || day.videoMediaId));
   const checkboxId = useId();
   const promptId = useId();
   const manualCaptionId = useId();
+  const visualTextId = useId();
+  const templateId = useId();
   const timeId = useId();
+  const isAutoTemplatePost = imageMode === "AUTO_TEMPLATE" && day.contentType === "POST";
 
   return (
     <fieldset className={`rounded-lg border p-4 transition-colors ${day.enabled ? "border-teal-300 bg-teal-50/30" : "border-zinc-200"}`}>
@@ -152,6 +163,48 @@ export function WeekDayEditor({
               />
             </div>
           )}
+
+          {isAutoTemplatePost ? (
+            <div className="rounded-md border border-teal-200 bg-teal-50/40 p-3 space-y-3">
+              <div>
+                <label htmlFor={templateId} className="mb-1 block text-xs font-medium text-zinc-700">
+                  Template da arte
+                </label>
+                <select
+                  id={templateId}
+                  value={day.templateId ?? ""}
+                  onChange={(event) => onChange({ templateId: event.target.value || null })}
+                  className="w-full min-h-11 rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm"
+                >
+                  <option value="">Padrão (Promoção)</option>
+                  {POST_TEMPLATES.map((template) => (
+                    <option key={template.id} value={template.id}>
+                      {template.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              {day.contentMode === "MANUAL" ? (
+                <div>
+                  <label htmlFor={visualTextId} className="mb-1 block text-xs font-medium text-zinc-700">
+                    Texto sobre a imagem
+                  </label>
+                  <textarea
+                    id={visualTextId}
+                    value={day.visualText}
+                    onChange={(event) => onChange({ visualText: event.target.value })}
+                    rows={2}
+                    maxLength={120}
+                    placeholder="Frase curta desenhada sobre a foto — diferente da legenda."
+                    className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm"
+                  />
+                  <p className="mt-1 text-xs text-zinc-500">{day.visualText.length}/120</p>
+                </div>
+              ) : (
+                <p className="text-xs text-zinc-600">A IA também gera o texto curto desenhado sobre a imagem, a partir do prompt acima.</p>
+              )}
+            </div>
+          ) : null}
 
           <div>
             <label className="inline-flex items-center gap-1.5 text-xs font-medium text-zinc-700">

@@ -72,6 +72,13 @@ export interface AutomationDayRecord {
   prompt: string;
   /** Legenda final, usada tal como está quando contentMode = "MANUAL" (ignorado em modo "AI"). */
   manualCaption: string | null;
+  /**
+   * Frase curta desenhada sobre a imagem quando imageMode = "AUTO_TEMPLATE"
+   * e contentMode = "MANUAL" (ver template-render-service.ts). Em modo
+   * "AI" o texto visual é gerado a cada execução e nunca fica salvo aqui
+   * — este campo é ignorado nesse caso.
+   */
+  visualText: string | null;
   publishTime: string; // "HH:mm"
   templateId: string | null;
   styleConfig: Record<string, unknown> | null;

@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { MediaPicker } from "./MediaPicker";
 import { WeekDayEditor, type DayFormState } from "./WeekDayEditor";
-import { DAYS_OF_WEEK, type AutomationStatus, type DayOfWeek } from "@/lib/content-automation/backend/automation-types";
+import { DAYS_OF_WEEK, type AutomationStatus, type DayOfWeek, type ImageMode } from "@/lib/content-automation/backend/automation-types";
 
 export interface AutomationDetailDto {
   id: string;
@@ -18,6 +18,7 @@ export interface AutomationDetailDto {
   autoPublish: boolean;
   requireApproval: boolean;
   generationLeadMinutes: number;
+  imageMode: ImageMode;
   fixedImageMediaId: string | null;
   fixedVideoMediaId: string | null;
   days: DayFormState[];
@@ -61,6 +62,7 @@ export function AutomationEditor({
   const [brandContext, setBrandContext] = useState(automation.brandContext);
   const [requireApproval, setRequireApproval] = useState(automation.requireApproval);
   const [generationLeadMinutes, setGenerationLeadMinutes] = useState(automation.generationLeadMinutes);
+  const [imageMode, setImageMode] = useState<ImageMode>(automation.imageMode);
   const [fixedImageMediaId, setFixedImageMediaId] = useState(automation.fixedImageMediaId);
   const [fixedVideoMediaId, setFixedVideoMediaId] = useState(automation.fixedVideoMediaId);
   const [days, setDays] = useState<DayFormState[]>(automation.days);
@@ -96,6 +98,7 @@ export function AutomationEditor({
           requireApproval,
           autoPublish: !requireApproval,
           generationLeadMinutes,
+          imageMode,
           fixedImageMediaId,
           fixedVideoMediaId,
         }),
@@ -124,6 +127,8 @@ export function AutomationEditor({
             contentMode: day.contentMode,
             prompt: day.prompt,
             manualCaption: day.manualCaption,
+            visualText: day.visualText,
+            templateId: day.templateId,
             publishTime: day.publishTime,
             imageMediaId: day.imageMediaId,
             videoMediaId: day.videoMediaId,
@@ -290,8 +295,52 @@ export function AutomationEditor({
         </div>
 
         {needsImage ? (
+          <fieldset className="rounded-md border border-zinc-200 p-3">
+            <legend className="px-1 text-sm font-medium text-zinc-800">Como definir a imagem dos posts</legend>
+            <label className="flex items-start gap-2 py-1 text-sm">
+              <input
+                type="radio"
+                name="edit-image-mode"
+                checked={imageMode === "FIXED_IMAGE"}
+                onChange={() => setImageMode("FIXED_IMAGE")}
+                className="mt-0.5 h-4 w-4 border-zinc-300 text-teal-700"
+              />
+              <span>
+                <strong>Imagem fixa</strong> — publica a foto escolhida abaixo do jeito que ela é.
+              </span>
+            </label>
+            <label className="flex items-start gap-2 py-1 text-sm">
+              <input
+                type="radio"
+                name="edit-image-mode"
+                checked={imageMode === "MEDIA_LIBRARY"}
+                onChange={() => setImageMode("MEDIA_LIBRARY")}
+                className="mt-0.5 h-4 w-4 border-zinc-300 text-teal-700"
+              />
+              <span>
+                <strong>Biblioteca de imagens</strong> — cada dia pode usar uma foto diferente, publicada como está.
+              </span>
+            </label>
+            <label className="flex items-start gap-2 py-1 text-sm">
+              <input
+                type="radio"
+                name="edit-image-mode"
+                checked={imageMode === "AUTO_TEMPLATE"}
+                onChange={() => setImageMode("AUTO_TEMPLATE")}
+                className="mt-0.5 h-4 w-4 border-zinc-300 text-teal-700"
+              />
+              <span>
+                <strong>Gerar com IA sobre a imagem</strong> — desenha um texto curto (IA ou manual) sobre a foto de fundo, com o template escolhido em cada dia.
+              </span>
+            </label>
+          </fieldset>
+        ) : null}
+
+        {needsImage ? (
           <div>
-            <p className="mb-1 text-sm font-medium text-zinc-800">Imagem padrão</p>
+            <p className="mb-1 text-sm font-medium text-zinc-800">
+              {imageMode === "AUTO_TEMPLATE" ? "Foto de fundo padrão" : "Imagem padrão"}
+            </p>
             <MediaPicker userId={userId} mediaType="image" value={fixedImageMediaId} onChange={setFixedImageMediaId} />
           </div>
         ) : null}
@@ -313,7 +362,7 @@ export function AutomationEditor({
           {DAYS_OF_WEEK.map((dow) => {
             const day = days.find((candidate) => candidate.dayOfWeek === dow);
             if (!day) return null;
-            return <WeekDayEditor key={dow} userId={userId} day={day} onChange={(patch) => updateDay(dow, patch)} />;
+            return <WeekDayEditor key={dow} userId={userId} day={day} imageMode={imageMode} onChange={(patch) => updateDay(dow, patch)} />;
           })}
         </div>
         <Button onClick={saveDays} disabled={savingDays}>

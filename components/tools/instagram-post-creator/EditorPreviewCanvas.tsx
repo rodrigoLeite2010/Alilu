@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type RefObject } from "react";
 import type { PostFormat } from "@/lib/instagram/formats";
 import type { PostEditorState } from "@/lib/instagram/editor-state";
-import { drawPost, type SlotBoundingBoxMap } from "@/lib/instagram/render";
+import { drawPost, type RenderingContext2DLike, type SlotBoundingBoxMap } from "@/lib/instagram/render";
 import { loadImageElement } from "@/lib/instagram/image-utils";
 import { TEXT_SLOT_IDS, getTemplateById, type TextSlotId } from "@/lib/instagram/templates";
 import { panImageFocus } from "@/lib/instagram/layout-math";
@@ -102,7 +102,7 @@ export function EditorPreviewCanvas({
     if (canvas.width !== format.width) canvas.width = format.width;
     if (canvas.height !== format.height) canvas.height = format.height;
 
-    boxesRef.current = drawPost(ctx, format, state, uploadedImage);
+    boxesRef.current = drawPost(ctx as unknown as RenderingContext2DLike, format, state, uploadedImage);
   }, [state, format, uploadedImage, canvasRef]);
 
   function canvasPointFromEvent(event: ReactPointerEvent<HTMLCanvasElement>) {

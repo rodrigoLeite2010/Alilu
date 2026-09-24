@@ -17,7 +17,7 @@
 import JSZip from "jszip";
 import { canvasToBlob, downloadBlob, waitForFonts } from "../export";
 import { getFormatById, type PostFormat } from "../formats";
-import { drawPost } from "../render";
+import { drawPost, type RenderingContext2DLike } from "../render";
 import { loadImageElement } from "../image-utils";
 import type { CarouselFormatId, CarouselSlide } from "./carousel-state";
 
@@ -67,7 +67,7 @@ export async function renderSlideToBlob(
     image = await loadImageElement(url);
   }
 
-  drawPost(ctx, format, slide.state, image);
+  drawPost(ctx as unknown as RenderingContext2DLike, format, slide.state, image);
   return canvasToBlob(canvas, mimeType, quality);
 }
 

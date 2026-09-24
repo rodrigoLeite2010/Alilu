@@ -1,5 +1,6 @@
 import "server-only";
 import { isValidTimeZone } from "@/lib/instagram/schedule-time";
+import { isPostTemplateId } from "@/lib/instagram/templates";
 import { getInstagramAccountByIdForUser } from "@/lib/instagram/backend/instagram-account-repository";
 import { getInstagramMediaById } from "@/lib/instagram/backend/media-repository";
 import {
@@ -42,12 +43,13 @@ import {
  * confia em nada vindo do cliente sem checar posse (conta, mídia) e
  * formato, mesmo padrão de instagram-post-service.ts.
  *
- * Restrições desta etapa (ver docs/content-automation.md, "Pendências"):
- * imageMode só aceita FIXED_IMAGE/MEDIA_LIBRARY (AUTO_TEMPLATE depende de
- * renderização de template no servidor, ainda não implementada) e
- * videoSelection só aceita FIXED (ROTATE/RANDOM ficam para uma etapa
- * futura). O schema já reserva os outros valores para não exigir
- * migração quando isso for implementado.
+ * Restrições desta etapa (ver docs/content-automation.md):
+ * imageMode aceita FIXED_IMAGE/MEDIA_LIBRARY/AUTO_TEMPLATE (este último
+ * renderiza o texto visual — IA ou manual — sobre a imagem escolhida no
+ * servidor, ver template-render-service.ts) e videoSelection só aceita
+ * FIXED (ROTATE/RANDOM ficam para uma etapa futura). O schema já reserva
+ * os outros valores de videoSelection para não exigir migração quando
+ * isso for implementado.
  */
 
 export class AutomationValidationError extends Error {
@@ -57,13 +59,15 @@ export class AutomationValidationError extends Error {
   }
 }
 
-const SUPPORTED_IMAGE_MODES: ImageMode[] = ["FIXED_IMAGE", "MEDIA_LIBRARY"];
+const SUPPORTED_IMAGE_MODES: ImageMode[] = ["FIXED_IMAGE", "MEDIA_LIBRARY", "AUTO_TEMPLATE"];
 const SUPPORTED_VIDEO_SELECTIONS: VideoSelection[] = ["FIXED"];
 const MAX_NAME_LENGTH = 120;
 const MAX_BRAND_CONTEXT_LENGTH = 2000;
 const MAX_PROMPT_LENGTH = 800;
 /** Mesmo limite de legenda da Meta usado em todo o resto do projeto (ver instagram-post-service.ts). */
 const MAX_MANUAL_CAPTION_LENGTH = 2200;
+/** Texto curto desenhado sobre a imagem (modo AUTO_TEMPLATE) — bem menor que a legenda, para não ficar ilegível no template. */
+const MAX_VISUAL_TEXT_LENGTH = 120;
 const PUBLISH_TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
 
 function assertName(name: string): string {
@@ -80,9 +84,7 @@ function assertTimezone(timezone: string): string {
 
 function assertImageMode(imageMode: ImageMode): ImageMode {
   if (!SUPPORTED_IMAGE_MODES.includes(imageMode)) {
-    throw new AutomationValidationError(
-      'Modo de imagem "Gerar automaticamente" ainda não está disponível — escolha "Imagem fixa" ou "Biblioteca de imagens".',
-    );
+    throw new AutomationValidationError('Modo de imagem inválido.');
   }
   return imageMode;
 }
@@ -211,7 +213,13 @@ export interface UpdateDayServiceInput {
   contentMode?: AutomationContentMode;
   prompt?: string;
   manualCaption?: string | null;
+  /** Texto curto para desenhar sobre a imagem quando imageMode = "AUTO_TEMPLATE" e contentMode = "MANUAL". */
+  visualText?: string | null;
   publishTime?: string;
+  /** Template do compositor (ver lib/instagram/templates.ts) usado quando imageMode = "AUTO_TEMPLATE". null/ausente usa o template padrão. */
+  templateId?: string | null;
+  /** Estado serializado do editor (mesmo formato de serializeEditorState) — cores/fontes do template; o texto visual é sempre injetado por cima na hora de renderizar. */
+  styleConfig?: Record<string, unknown> | null;
   imageMediaId?: string | null;
   videoMediaId?: string | null;
 }
@@ -242,6 +250,25 @@ export async function updateAutomationDay(
     }
     patch.manualCaption = trimmed;
   }
+  if (input.visualText !== undefined) {
+    const trimmed = input.visualText === null ? null : input.visualText.trim();
+    if (trimmed && trimmed.length > MAX_VISUAL_TEXT_LENGTH) {
+      throw new AutomationValidationError(`O texto sobre a imagem pode ter no máximo ${MAX_VISUAL_TEXT_LENGTH} caracteres.`);
+    }
+    patch.visualText = trimmed;
+  }
+  if (input.templateId !== undefined) {
+    if (input.templateId !== null && !isPostTemplateId(input.templateId)) {
+      throw new AutomationValidationError("Template inválido.");
+    }
+    patch.templateId = input.templateId;
+  }
+  if (input.styleConfig !== undefined) {
+    if (input.styleConfig !== null && (typeof input.styleConfig !== "object" || Array.isArray(input.styleConfig))) {
+      throw new AutomationValidationError("Configuração de estilo inválida.");
+    }
+    patch.styleConfig = input.styleConfig;
+  }
   if (input.publishTime !== undefined) {
     if (!PUBLISH_TIME_RE.test(input.publishTime)) throw new AutomationValidationError("Horário inválido (use HH:mm).");
     patch.publishTime = input.publishTime;
@@ -267,6 +294,9 @@ function assertReadyToActivate(automation: AutomationWithDays): void {
     if (day.contentMode === "MANUAL") {
       if (!day.manualCaption?.trim()) {
         throw new AutomationValidationError(`Escreva a legenda manual de ${day.dayOfWeek.toLowerCase()} antes de ativar.`);
+      }
+      if (automation.imageMode === "AUTO_TEMPLATE" && day.contentType === "POST" && !day.visualText?.trim()) {
+        throw new AutomationValidationError(`Escreva o texto que vai sobre a imagem de ${day.dayOfWeek.toLowerCase()} antes de ativar.`);
       }
     } else if (!day.prompt.trim()) {
       throw new AutomationValidationError(`Defina o que publicar em ${day.dayOfWeek.toLowerCase()} antes de ativar.`);

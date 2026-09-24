@@ -12,8 +12,10 @@ export function serializeDay(day: AutomationDayRecord) {
     contentMode: day.contentMode,
     prompt: day.prompt,
     manualCaption: day.manualCaption,
+    visualText: day.visualText,
     publishTime: day.publishTime,
     templateId: day.templateId,
+    styleConfig: day.styleConfig,
     imageMediaId: day.imageMediaId,
     videoMediaId: day.videoMediaId,
   };
