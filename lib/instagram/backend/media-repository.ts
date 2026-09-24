@@ -150,3 +150,50 @@ export async function getInstagramMediaByStorageUrl(
     createdAt: new Date(row.created_at as string),
   };
 }
+
+/**
+ * true se esta mídia já está referenciada em algum item de publicação
+ * (instagram_post_items.media_id tem FK "on delete restrict" para
+ * instagram_media) — apagar apagaria uma publicação existente (rascunho,
+ * agendada ou já publicada), então isso é checado ANTES de excluir, pra
+ * devolver uma mensagem clara em vez de deixar o Postgres estourar um
+ * erro de violação de chave estrangeira (ver media-delete-service.ts).
+ */
+export async function isMediaUsedInPosts(id: string, userId: string): Promise<boolean> {
+  const db = getDb();
+  const rows = await db`
+    select 1
+    from instagram_post_items ipi
+    join instagram_media im on im.id = ipi.media_id
+    where ipi.media_id = ${id} and im.user_id = ${userId}
+    limit 1
+  `;
+  return rows.length > 0;
+}
+
+/**
+ * Apaga a linha da mídia (instagram_media), restrito ao dono. Devolve o
+ * registro apagado (com a storageUrl) pra quem chamou também poder apagar
+ * o arquivo correspondente no Vercel Blob — essa função só cuida do banco;
+ * a orquestração completa (checar uso em posts/automações + apagar o
+ * arquivo) fica em media-delete-service.ts.
+ */
+export async function deleteInstagramMedia(id: string, userId: string): Promise<InstagramMediaRecord | null> {
+  const db = getDb();
+  const rows = await db`
+    delete from instagram_media
+    where id = ${id} and user_id = ${userId}
+    returning id, user_id, storage_url, media_type, file_size_bytes, original_filename, created_at
+  `;
+  const row = rows[0];
+  if (!row) return null;
+  return {
+    id: row.id as string,
+    userId: row.user_id as string,
+    storageUrl: row.storage_url as string,
+    mediaType: row.media_type as InstagramMediaType,
+    fileSizeBytes: (row.file_size_bytes as number | null) ?? null,
+    originalFilename: (row.original_filename as string | null) ?? null,
+    createdAt: new Date(row.created_at as string),
+  };
+}

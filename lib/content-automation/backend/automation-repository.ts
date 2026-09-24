@@ -317,6 +317,29 @@ export async function deleteAutomation(id: string, userId: string): Promise<bool
   return rows.length > 0;
 }
 
+/**
+ * Nomes das automações (sem repetir) que usam esta mídia como imagem/vídeo
+ * padrão da automação OU como override de algum dia específico — usado
+ * pra bloquear a exclusão de mídia em uso (ver media-delete-service.ts)
+ * com uma mensagem clara em vez de deixar o dia/automação ficar sem
+ * imagem silenciosamente (fixed_image_media_id/image_media_id etc. têm
+ * FK "on delete set null" para instagram_media).
+ */
+export async function listAutomationNamesUsingMedia(mediaId: string, userId: string): Promise<string[]> {
+  const db = getDb();
+  const rows = await db`
+    select distinct name from content_automations
+    where user_id = ${userId}
+      and (fixed_image_media_id = ${mediaId} or fixed_video_media_id = ${mediaId})
+    union
+    select distinct ca.name from content_automation_days cad
+    join content_automations ca on ca.id = cad.automation_id
+    where ca.user_id = ${userId}
+      and (cad.image_media_id = ${mediaId} or cad.video_media_id = ${mediaId})
+  `;
+  return rows.map((row) => row.name as string);
+}
+
 /** Duplica a automação inteira (config + 7 dias) — a cópia sempre nasce PAUSADA, mesmo se a original estiver ativa. */
 export async function duplicateAutomation(id: string, userId: string, newName: string): Promise<string | null> {
   const original = await getAutomationForUser(id, userId);

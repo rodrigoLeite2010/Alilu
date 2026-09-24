@@ -1,16 +1,11 @@
 "use client";
 
 import { useEffect, useId, useRef, useState, type ChangeEvent } from "react";
+import { Trash2 } from "lucide-react";
 import { uploadPresigned } from "@vercel/blob/client";
 import { Button } from "@/components/ui/Button";
+import { ConfirmDialog } from "@/components/instagram/ConfirmDialog";
 import { buildMediaPathnamePrefix, IMAGE_MEDIA_CONTENT_TYPES, VIDEO_MEDIA_CONTENT_TYPES } from "@/lib/instagram/backend/media-service";
-
-interface MediaItem {
-  id: string;
-  storageUrl: string;
-  mediaType: "image" | "video";
-  originalFilename: string | null;
-}
 
 async function readErrorMessage(response: Response, fallback: string): Promise<string> {
   try {
@@ -19,6 +14,13 @@ async function readErrorMessage(response: Response, fallback: string): Promise<s
   } catch {
     return fallback;
   }
+}
+
+interface MediaItem {
+  id: string;
+  storageUrl: string;
+  mediaType: "image" | "video";
+  originalFilename: string | null;
 }
 
 function slugFileName(name: string, extension: string): string {
@@ -55,6 +57,8 @@ export function MediaPicker({
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<MediaItem | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const inputId = useId();
 
@@ -121,6 +125,26 @@ export function MediaPicker({
     }
   }
 
+  async function handleDeleteConfirmed() {
+    if (!deleteTarget) return;
+    const target = deleteTarget;
+    setDeleting(true);
+    setError(null);
+    try {
+      const response = await fetch(`/api/content-automation/media/${target.id}`, { method: "DELETE" });
+      if (!response.ok) {
+        throw new Error(await readErrorMessage(response, "Não foi possível apagar a mídia."));
+      }
+      setItems((list) => list.filter((item) => item.id !== target.id));
+      if (value === target.id) onChange(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Não foi possível apagar a mídia.");
+    } finally {
+      setDeleting(false);
+      setDeleteTarget(null);
+    }
+  }
+
   return (
     <div className="space-y-2">
       {loading ? (
@@ -130,28 +154,41 @@ export function MediaPicker({
           {items.map((item) => {
             const selected = item.id === value;
             return (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => onChange(item.id)}
-                className={`relative aspect-square overflow-hidden rounded-md ring-2 transition-shadow ${
-                  selected ? "ring-teal-600" : "ring-transparent hover:ring-zinc-300"
-                }`}
-                aria-pressed={selected}
-                aria-label={item.originalFilename ?? "Selecionar mídia"}
-              >
-                {item.mediaType === "image" ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={item.storageUrl} alt="" className="h-full w-full object-cover" />
-                ) : (
-                  <video src={item.storageUrl} className="h-full w-full object-cover" muted />
-                )}
-                {selected ? (
-                  <span className="absolute inset-0 flex items-center justify-center bg-teal-900/30 text-xs font-semibold text-white">
-                    Selecionada
-                  </span>
-                ) : null}
-              </button>
+              <div key={item.id} className="group relative aspect-square">
+                <button
+                  type="button"
+                  onClick={() => onChange(item.id)}
+                  className={`absolute inset-0 overflow-hidden rounded-md ring-2 transition-shadow ${
+                    selected ? "ring-teal-600" : "ring-transparent hover:ring-zinc-300"
+                  }`}
+                  aria-pressed={selected}
+                  aria-label={item.originalFilename ?? "Selecionar mídia"}
+                >
+                  {item.mediaType === "image" ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={item.storageUrl} alt="" className="h-full w-full object-cover" />
+                  ) : (
+                    <video src={item.storageUrl} className="h-full w-full object-cover" muted />
+                  )}
+                  {selected ? (
+                    <span className="absolute inset-0 flex items-center justify-center bg-teal-900/30 text-xs font-semibold text-white">
+                      Selecionada
+                    </span>
+                  ) : null}
+                </button>
+                <button
+                  type="button"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    setDeleteTarget(item);
+                  }}
+                  className="absolute right-1 top-1 rounded-full bg-black/60 p-1 text-white opacity-0 transition-opacity hover:bg-red-700 focus-visible:opacity-100 group-hover:opacity-100"
+                  aria-label="Apagar mídia"
+                  title="Apagar mídia"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              </div>
             );
           })}
         </div>
@@ -192,6 +229,17 @@ export function MediaPicker({
           {error}
         </p>
       ) : null}
+
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        title="Apagar mídia"
+        description="Isso apaga o arquivo da sua biblioteca para sempre. Não é possível desfazer."
+        confirmLabel="Apagar"
+        destructive
+        busy={deleting}
+        onConfirm={handleDeleteConfirmed}
+        onClose={() => setDeleteTarget(null)}
+      />
     </div>
   );
 }
