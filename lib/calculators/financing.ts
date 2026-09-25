@@ -165,21 +165,57 @@ export function toMonthlyRate(
 }
 
 /**
+ * Prestação constante da Tabela Price para um valor financiado, taxa mensal
+ * e número de parcelas — a mesma fórmula financeira padrão (PMT). Extraída
+ * como função pura e exportada porque o cluster de Financiamento de
+ * Veículos (lib/calculators/vehicle-financing.ts) reaproveita exatamente
+ * este cálculo (e o seu inverso, o valor presente) em várias ferramentas —
+ * nunca duplicar esta fórmula em outro arquivo. Com taxa zero, a prestação
+ * é simplesmente o valor financiado dividido pelo número de parcelas.
+ */
+export function calculatePricePayment(
+  financedAmount: number,
+  monthlyRate: number,
+  installmentsCount: number
+): number {
+  if (monthlyRate === 0) {
+    return financedAmount / installmentsCount;
+  }
+  return (
+    (financedAmount * (monthlyRate * Math.pow(1 + monthlyRate, installmentsCount))) /
+    (Math.pow(1 + monthlyRate, installmentsCount) - 1)
+  );
+}
+
+/**
+ * Valor presente de uma prestação constante (o inverso de
+ * calculatePricePayment): quanto é possível financiar, a uma taxa mensal e
+ * número de parcelas dados, para chegar numa prestação-alvo. Usado pelo
+ * cluster de Financiamento de Veículos para "quanto cabe no bolso" e
+ * "quanto preciso dar de entrada" (ambos perguntam o inverso do PMT).
+ */
+export function calculatePresentValueFromPayment(
+  payment: number,
+  monthlyRate: number,
+  installmentsCount: number
+): number {
+  if (monthlyRate === 0) {
+    return payment * installmentsCount;
+  }
+  return (payment * (Math.pow(1 + monthlyRate, installmentsCount) - 1)) /
+    (monthlyRate * Math.pow(1 + monthlyRate, installmentsCount));
+}
+
+/**
  * Tabela de amortização pela Tabela Price: prestação constante, calculada
- * pela fórmula financeira padrão. Com taxa zero, a prestação é simplesmente
- * o valor financiado dividido pelo número de parcelas.
+ * por calculatePricePayment (acima).
  */
 function buildPriceInstallments(
   financedAmount: number,
   monthlyRate: number,
   installmentsCount: number
 ): FinancingInstallment[] {
-  const payment =
-    monthlyRate === 0
-      ? financedAmount / installmentsCount
-      : (financedAmount *
-          (monthlyRate * Math.pow(1 + monthlyRate, installmentsCount))) /
-        (Math.pow(1 + monthlyRate, installmentsCount) - 1);
+  const payment = calculatePricePayment(financedAmount, monthlyRate, installmentsCount);
 
   const rows: FinancingInstallment[] = [];
   let balance = financedAmount;

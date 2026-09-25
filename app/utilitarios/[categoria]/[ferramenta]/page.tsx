@@ -51,6 +51,15 @@ export default async function ToolPage({ params }: ToolPageProps) {
   const ToolComponent = toolComponents[tool.id];
   const content = toolContent[tool.id];
 
+  // A Calculadora de Financiamento de Veículo é a "porta de entrada" do
+  // cluster de Financiamento de Veículos (docs/PROMPT_MESTRE_ALILU.md não
+  // documenta isso — ver o comentário em data/tools.ts, campo relatedTools
+  // desta ferramenta): sua página, já indexada, ganha uma seção de
+  // ferramentas relacionadas com título e quantidade customizados, sem
+  // mudar URL, H1, metadata ou qualquer outro dado indexado. Todas as
+  // outras páginas continuam com o padrão de ToolPageTemplate.
+  const isVehicleFinancingEntryPoint = tool.id === "financiamento-veiculo";
+
   return (
     <Container>
       <ToolPageTemplate
@@ -58,6 +67,10 @@ export default async function ToolPage({ params }: ToolPageProps) {
         category={category}
         contentSections={content?.contentSections}
         faq={content?.faq}
+        relatedToolsHeading={
+          isVehicleFinancingEntryPoint ? "Mais ferramentas para financiamento de veículos" : undefined
+        }
+        relatedToolsLimit={isVehicleFinancingEntryPoint ? tool.relatedTools.length : undefined}
       >
         {ToolComponent ? <ToolComponent /> : undefined}
       </ToolPageTemplate>

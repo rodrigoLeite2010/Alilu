@@ -151,7 +151,25 @@ export const tools: Tool[] = [
       "Simule as parcelas de um financiamento de veículo e o custo total do financiamento.",
     keywords: ["financiamento", "financiamento de veículo", "parcelas", "simulador"],
     icon: "car",
-    relatedTools: ["sac-x-price", "juros-compostos", "parcelamento"],
+    // Cluster "Financiamento de Veículos" (ver comentário mais abaixo, antes
+    // de "// EMPRESA"): esta ferramenta é a porta de entrada do cluster, por
+    // isso relatedTools aqui aponta para o hub e para a lista completa
+    // pedida na página ("Mais ferramentas para financiamento de veículos"),
+    // não apenas para 3 itens genéricos como as demais ferramentas do
+    // catálogo — ver o limite/título customizados em
+    // app/utilitarios/[categoria]/[ferramenta]/page.tsx.
+    relatedTools: [
+      "financiamento-veiculos",
+      "qual-carro-cabe-no-bolso",
+      "entrada-financiamento-veiculo",
+      "taxa-juros-financiamento-veiculo",
+      "comparador-propostas-financiamento",
+      "comparador-prazos-financiamento",
+      "antecipacao-parcelas-financiamento",
+      "sac-x-price",
+      "cet-estimado-financiamento",
+      "custo-mensal-carro",
+    ],
     status: "ativo",
   },
   {
@@ -174,7 +192,7 @@ export const tools: Tool[] = [
       "Simule financiamentos pelos sistemas SAC e Price, compare parcelas, juros, valor total e evolução do saldo devedor.",
     keywords: ["sac", "price", "amortização", "financiamento", "simulador"],
     icon: "scale",
-    relatedTools: ["financiamento-veiculo", "juros-compostos"],
+    relatedTools: ["financiamento-veiculo", "financiamento-veiculos", "comparador-prazos-financiamento"],
     status: "ativo",
   },
   {
@@ -201,6 +219,284 @@ export const tools: Tool[] = [
     keywords: ["meta financeira", "poupança", "planejamento financeiro"],
     icon: "piggy-bank",
     relatedTools: ["juros-compostos", "divisao-de-despesas"],
+    status: "ativo",
+  },
+
+  // CLUSTER "FINANCIAMENTO DE VEÍCULOS": hub + ferramentas específicas em
+  // torno da já existente "financiamento-veiculo" (que continua com sua
+  // própria URL/metadata/canonical intocados — ver comentário na própria
+  // entrada dela, acima). "sac-x-price" (Price x SAC) já existe e cobre o
+  // item 8 do cluster — não duplicado aqui. IDs desta lista também em
+  // VEHICLE_FINANCING_CLUSTER_TOOL_IDS (abaixo), única fonte de verdade da
+  // ordem de exibição no hub.
+  {
+    id: "financiamento-veiculos",
+    name: "Financiamento de Veículos",
+    shortName: "Financiamento de Veículos",
+    slug: "financiamento-veiculos",
+    category: "financeiro",
+    description:
+      "Todas as calculadoras de financiamento de veículo do Alilu em um só lugar: parcelas, entrada, taxa de juros, comparação de propostas e prazos, antecipação e mais.",
+    pageDescription:
+      "Escolha a pergunta que você quer responder sobre o financiamento do seu veículo — cada calculadora abaixo resolve uma etapa diferente da simulação, todas gratuitas e sem cadastro.",
+    metaTitle: "Financiamento de Veículos: Calculadoras Grátis | ALILU",
+    metaDescription:
+      "Calcule parcelas, entrada, taxa de juros e compare propostas de financiamento de veículo. Ferramentas gratuitas, sem cadastro, direto no navegador.",
+    keywords: [
+      "financiamento de veículo",
+      "calculadora de financiamento",
+      "simulador de financiamento de carro",
+      "financiamento de carro",
+    ],
+    icon: "car",
+    relatedTools: ["financiamento-veiculo", "juros-compostos", "quanto-guardar-por-mes"],
+    status: "ativo",
+  },
+  {
+    id: "qual-carro-cabe-no-bolso",
+    name: "Qual Carro Cabe no Meu Bolso",
+    shortName: "Carro Cabe no Bolso",
+    slug: "qual-carro-cabe-no-bolso",
+    category: "financeiro",
+    description:
+      "Descubra o valor aproximado do carro que cabe no seu bolso a partir da entrada disponível e da parcela máxima que você pode pagar.",
+    metaTitle: "Qual Carro Cabe no Meu Bolso? Calculadora Grátis | ALILU",
+    metaDescription:
+      "Informe sua entrada e a parcela máxima que pode pagar e descubra o valor aproximado do carro que cabe no seu orçamento, com juros estimados.",
+    keywords: [
+      "qual carro cabe no bolso",
+      "orçamento para comprar carro",
+      "quanto posso financiar",
+      "simulador de financiamento",
+    ],
+    icon: "wallet",
+    relatedTools: ["financiamento-veiculos", "entrada-financiamento-veiculo", "financiamento-veiculo"],
+    status: "ativo",
+  },
+  {
+    id: "entrada-financiamento-veiculo",
+    name: "Quanto Preciso Dar de Entrada no Financiamento",
+    shortName: "Entrada do Financiamento",
+    slug: "entrada-financiamento-veiculo",
+    category: "financeiro",
+    description:
+      "Calcule quanto você precisa dar de entrada para financiar um veículo com a parcela que você quer pagar, no prazo e na taxa informados.",
+    metaTitle: "Quanto Dar de Entrada no Financiamento de Veículo | ALILU",
+    metaDescription:
+      "Descubra a entrada aproximada necessária para financiar seu veículo com a parcela desejada. Calculadora grátis, sem cadastro.",
+    keywords: [
+      "entrada financiamento veículo",
+      "quanto de entrada dar",
+      "simulador de entrada",
+      "financiamento de carro",
+    ],
+    icon: "piggy-bank",
+    relatedTools: ["financiamento-veiculos", "qual-carro-cabe-no-bolso", "financiamento-veiculo"],
+    status: "ativo",
+  },
+  {
+    id: "taxa-juros-financiamento-veiculo",
+    name: "Descobrir a Taxa de Juros do Financiamento",
+    shortName: "Taxa de Juros Implícita",
+    slug: "taxa-juros-financiamento-veiculo",
+    category: "financeiro",
+    description:
+      "Descubra a taxa de juros mensal e anual cobrada no seu financiamento, a partir do preço do veículo, da entrada e do valor da parcela.",
+    metaTitle: "Descobrir a Taxa de Juros do Financiamento de Veículo | ALILU",
+    metaDescription:
+      "Calcule a taxa de juros implícita do seu financiamento de veículo a partir da parcela, da entrada e do preço do carro. Cálculo iterativo preciso.",
+    keywords: [
+      "taxa de juros financiamento",
+      "descobrir taxa de juros",
+      "taxa implícita",
+      "quanto de juros estou pagando",
+    ],
+    icon: "percent",
+    relatedTools: ["financiamento-veiculos", "financiamento-veiculo", "sac-x-price"],
+    status: "ativo",
+  },
+  {
+    id: "comparador-propostas-financiamento",
+    name: "Comparador de Propostas de Financiamento",
+    shortName: "Comparar Propostas",
+    slug: "comparador-propostas-financiamento",
+    category: "financeiro",
+    description:
+      "Compare até três propostas de financiamento de veículo lado a lado: parcela, juros, tarifas, seguro e total pago em cada uma.",
+    metaTitle: "Comparador de Propostas de Financiamento de Veículo | ALILU",
+    metaDescription:
+      "Compare até 3 propostas de financiamento de veículo lado a lado, com parcela, juros, tarifas e total pago, antes de decidir qual contratar.",
+    keywords: [
+      "comparar propostas financiamento",
+      "qual financiamento é melhor",
+      "comparador de financiamento",
+      "simulador de propostas",
+    ],
+    icon: "columns",
+    relatedTools: ["financiamento-veiculos", "comparador-prazos-financiamento", "financiamento-veiculo"],
+    status: "ativo",
+  },
+  {
+    id: "comparador-prazos-financiamento",
+    name: "Comparador de Prazos de Financiamento (24x, 36x, 48x, 60x)",
+    shortName: "Comparador de Prazos",
+    slug: "comparador-prazos-financiamento",
+    category: "financeiro",
+    description:
+      "Compare a parcela, os juros e o total pago do financiamento do seu veículo em 24, 36, 48 e 60 meses, ou em prazos personalizados.",
+    metaTitle: "Comparador de Prazos de Financiamento: 24x, 36x, 48x, 60x | ALILU",
+    metaDescription:
+      "Compare parcela, juros e total pago em diferentes prazos de financiamento de veículo. Veja o impacto de cada prazo antes de fechar negócio.",
+    keywords: [
+      "comparar prazos financiamento",
+      "24x 36x 48x 60x",
+      "prazo financiamento veículo",
+      "simulador de prazos",
+    ],
+    icon: "calendar",
+    relatedTools: ["financiamento-veiculos", "financiamento-veiculo", "sac-x-price"],
+    status: "ativo",
+  },
+  {
+    id: "entrada-maior-x-menor-financiamento",
+    name: "Entrada Maior x Entrada Menor no Financiamento",
+    shortName: "Entrada Maior x Menor",
+    slug: "entrada-maior-x-menor-financiamento",
+    category: "financeiro",
+    description:
+      "Compare dois cenários de entrada no financiamento do seu veículo e veja a diferença na parcela, nos juros e no total pago.",
+    metaTitle: "Entrada Maior x Entrada Menor: Compare Financiamentos | ALILU",
+    metaDescription:
+      "Compare dois valores de entrada no financiamento de veículo e veja a diferença exata na parcela, nos juros totais e no total pago.",
+    keywords: [
+      "entrada maior ou menor",
+      "comparar entrada financiamento",
+      "vale a pena dar mais entrada",
+      "simulador de entrada",
+    ],
+    icon: "arrow-left-right",
+    relatedTools: ["financiamento-veiculos", "entrada-financiamento-veiculo", "financiamento-veiculo"],
+    status: "ativo",
+  },
+  {
+    id: "antecipacao-parcelas-financiamento",
+    name: "Antecipação de Parcelas do Financiamento",
+    shortName: "Antecipar Parcelas",
+    slug: "antecipacao-parcelas-financiamento",
+    category: "financeiro",
+    description:
+      "Simule a economia de juros ao antecipar parcelas do financiamento do seu veículo, a partir do saldo devedor aproximado e do valor a antecipar.",
+    metaTitle: "Antecipação de Parcelas do Financiamento de Veículo | ALILU",
+    metaDescription:
+      "Simule quanto você pode economizar de juros ao antecipar parcelas do financiamento do seu veículo. Estimativa gratuita, sem cadastro.",
+    keywords: [
+      "antecipar parcelas financiamento",
+      "quitar financiamento antecipado",
+      "economia de juros",
+      "simulador de antecipação",
+    ],
+    icon: "trending-up",
+    relatedTools: ["financiamento-veiculos", "financiamento-veiculo", "comparador-prazos-financiamento"],
+    status: "ativo",
+  },
+  {
+    id: "cet-estimado-financiamento",
+    name: "Calculadora de CET Estimado do Financiamento",
+    shortName: "CET Estimado",
+    slug: "cet-estimado-financiamento",
+    category: "financeiro",
+    description:
+      "Estime o Custo Efetivo Total (CET) do financiamento do seu veículo somando taxa de juros, tarifas, seguro e outros custos.",
+    metaTitle: "Calculadora de CET Estimado do Financiamento de Veículo | ALILU",
+    metaDescription:
+      "Estime o Custo Efetivo Total (CET) do financiamento do seu veículo para comparar propostas de forma mais justa. Cálculo gratuito.",
+    keywords: ["cet financiamento", "custo efetivo total", "calcular cet", "simulador de cet"],
+    icon: "calculator",
+    relatedTools: ["financiamento-veiculos", "comparador-propostas-financiamento", "financiamento-veiculo"],
+    status: "ativo",
+  },
+  {
+    id: "financiamento-x-a-vista",
+    name: "Financiamento x Pagamento à Vista",
+    shortName: "Financiamento x À Vista",
+    slug: "financiamento-x-a-vista",
+    category: "financeiro",
+    description:
+      "Compare numericamente financiar o veículo ou pagar à vista, com o total pago e os juros de cada cenário lado a lado.",
+    metaTitle: "Financiamento x Pagamento à Vista: Compare os Números | ALILU",
+    metaDescription:
+      "Compare financiar o veículo ou pagar à vista, com os números de cada cenário lado a lado, para decidir com mais clareza.",
+    keywords: [
+      "financiar ou pagar à vista",
+      "financiamento x à vista",
+      "vale a pena financiar",
+      "comparador de pagamento",
+    ],
+    icon: "scale",
+    relatedTools: ["financiamento-veiculos", "financiamento-veiculo", "entrada-maior-x-menor-financiamento"],
+    status: "ativo",
+  },
+  {
+    id: "financiamento-x-consorcio",
+    name: "Financiamento x Consórcio de Veículo",
+    shortName: "Financiamento x Consórcio",
+    slug: "financiamento-x-consorcio",
+    category: "financeiro",
+    description:
+      "Compare os números do financiamento e do consórcio para a compra do seu veículo, lado a lado, sem cravar data de contemplação.",
+    metaTitle: "Financiamento x Consórcio de Veículo: Comparador | ALILU",
+    metaDescription:
+      "Compare financiamento e consórcio de veículo lado a lado: parcela, prazo, taxa administrativa e mais, para decidir com mais informação.",
+    keywords: [
+      "financiamento x consórcio",
+      "consórcio ou financiamento de carro",
+      "comparador de consórcio",
+      "simulador de consórcio",
+    ],
+    icon: "users-round",
+    relatedTools: ["financiamento-veiculos", "financiamento-veiculo", "financiamento-x-a-vista"],
+    status: "ativo",
+  },
+  {
+    id: "custo-mensal-carro",
+    name: "Custo Mensal de Ter um Carro",
+    shortName: "Custo Mensal do Carro",
+    slug: "custo-mensal-carro",
+    category: "financeiro",
+    description:
+      "Some parcela, combustível, seguro, IPVA, manutenção e outros gastos para descobrir quanto seu carro custa por mês e por ano.",
+    metaTitle: "Custo Mensal de Ter um Carro: Calculadora Completa | ALILU",
+    metaDescription:
+      "Descubra quanto seu carro custa por mês somando parcela, combustível, seguro, IPVA, manutenção e outros gastos. Grátis e sem cadastro.",
+    keywords: [
+      "custo mensal do carro",
+      "quanto custa manter um carro",
+      "gasto mensal veículo",
+      "calculadora de custo de carro",
+    ],
+    icon: "coins",
+    relatedTools: ["financiamento-veiculos", "financiamento-veiculo", "parcela-maxima-pela-renda"],
+    status: "ativo",
+  },
+  {
+    id: "parcela-maxima-pela-renda",
+    name: "Parcela Máxima do Financiamento pela Renda",
+    shortName: "Parcela Máxima pela Renda",
+    slug: "parcela-maxima-pela-renda",
+    category: "financeiro",
+    description:
+      "Calcule a parcela máxima recomendada de financiamento com base na sua renda líquida e nos seus compromissos mensais.",
+    metaTitle: "Parcela Máxima do Financiamento pela Renda | ALILU",
+    metaDescription:
+      "Calcule quanto da sua renda líquida pode ir para a parcela do financiamento do veículo, considerando seus compromissos mensais.",
+    keywords: [
+      "parcela máxima pela renda",
+      "quanto posso pagar de parcela",
+      "comprometimento de renda",
+      "simulador de parcela",
+    ],
+    icon: "wallet",
+    relatedTools: ["financiamento-veiculos", "qual-carro-cabe-no-bolso", "financiamento-veiculo"],
     status: "ativo",
   },
 
@@ -1922,3 +2218,43 @@ export function getRelatedTools(tool: Tool, limit = 3): Tool[] {
     .filter((candidate): candidate is Tool => Boolean(candidate))
     .slice(0, limit);
 }
+
+/**
+ * Resolve uma lista de ids de ferramentas para os objetos Tool completos,
+ * NA ORDEM informada (diferente de getToolsByCategory, que ordena por
+ * featureRank) — usado pela página hub do cluster "Financiamento de
+ * Veículos" para controlar a ordem de exibição dos cards manualmente.
+ * Ids sem correspondência no catálogo são ignorados silenciosamente (nunca
+ * deveria acontecer — protegido por __tests__/data/catalog.test.ts).
+ */
+export function getToolsByIds(ids: string[]): Tool[] {
+  return ids
+    .map((id) => tools.find((candidate) => candidate.id === id))
+    .filter((candidate): candidate is Tool => Boolean(candidate));
+}
+
+/**
+ * Ordem de exibição dos cards na página hub do cluster "Financiamento de
+ * Veículos" (/utilitarios/financeiro/financiamento-veiculos) — única fonte
+ * de verdade, para o hub e para qualquer outro lugar que precise listar o
+ * cluster inteiro nunca duplicarem esta lista manualmente. A calculadora
+ * original ("financiamento-veiculo") vem primeiro, como porta de entrada
+ * histórica do cluster; "sac-x-price" (Price x SAC) é a ferramenta já
+ * existente que cobre o item 8 do cluster, sem duplicação.
+ */
+export const VEHICLE_FINANCING_CLUSTER_TOOL_IDS = [
+  "financiamento-veiculo",
+  "qual-carro-cabe-no-bolso",
+  "entrada-financiamento-veiculo",
+  "taxa-juros-financiamento-veiculo",
+  "comparador-propostas-financiamento",
+  "comparador-prazos-financiamento",
+  "entrada-maior-x-menor-financiamento",
+  "antecipacao-parcelas-financiamento",
+  "sac-x-price",
+  "cet-estimado-financiamento",
+  "financiamento-x-a-vista",
+  "financiamento-x-consorcio",
+  "custo-mensal-carro",
+  "parcela-maxima-pela-renda",
+] as const;

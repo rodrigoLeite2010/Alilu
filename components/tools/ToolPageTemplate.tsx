@@ -43,14 +43,27 @@ export function ToolPageTemplate({
   children,
   contentSections,
   faq,
+  relatedToolsHeading = "Ferramentas relacionadas",
+  relatedToolsLimit = 3,
 }: {
   tool: Tool;
   category: Category;
   children?: React.ReactNode;
   contentSections?: ToolContentSection[];
   faq?: ToolFaqItem[];
+  /**
+   * Título da seção de ferramentas relacionadas. Só a Calculadora de
+   * Financiamento de Veículo usa um título customizado hoje ("Mais
+   * ferramentas para financiamento de veículos", cluster de Financiamento
+   * de Veículos — ver app/utilitarios/[categoria]/[ferramenta]/page.tsx) —
+   * o padrão ("Ferramentas relacionadas") continua igual para todas as
+   * outras páginas.
+   */
+  relatedToolsHeading?: string;
+  /** Quantas ferramentas relacionadas mostrar (padrão: 3, igual a getRelatedTools). */
+  relatedToolsLimit?: number;
 }) {
-  const relatedTools = getRelatedTools(tool);
+  const relatedTools = getRelatedTools(tool, relatedToolsLimit);
 
   return (
     <div className="py-8 sm:py-10">
@@ -136,7 +149,7 @@ export function ToolPageTemplate({
 
         {relatedTools.length > 0 ? (
           <section className="mt-10">
-            <SectionHeading title="Ferramentas relacionadas" as="h2" />
+            <SectionHeading title={relatedToolsHeading} as="h2" />
             <ToolGrid tools={relatedTools} />
           </section>
         ) : null}

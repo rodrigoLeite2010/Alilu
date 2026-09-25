@@ -370,6 +370,309 @@ export const toolContent: Record<
     ],
   },
 
+  "financiamento-veiculos": {
+    contentSections: [
+      {
+        title: "O que é o cluster de Financiamento de Veículos?",
+        body: "É um conjunto de calculadoras independentes que respondem, cada uma, a uma pergunta específica de quem está comprando um carro financiado: quanto cabe no orçamento, quanto entrar de entrada, qual taxa está embutida numa proposta, qual prazo compensa mais e quanto custa manter o carro depois de financiado. Você escolhe a calculadora que responde à sua dúvida do momento — não precisa preencher tudo de novo em cada uma.",
+      },
+      {
+        title: "Por onde começar?",
+        body: "Se você ainda não escolheu o carro, comece por \"Qual carro cabe no meu bolso?\". Se já tem um veículo e uma proposta em mãos, as calculadoras de entrada, taxa de juros e comparação de prazos ajudam a avaliar se as condições fazem sentido antes de assinar o contrato.",
+      },
+    ],
+    faq: [
+      {
+        question: "Essas calculadoras substituem a simulação do banco?",
+        answer: "Não. Elas ajudam a organizar o orçamento e comparar cenários antes de negociar, mas a simulação oficial — com todas as taxas, tarifas e o CET — só a instituição financeira pode fornecer.",
+      },
+      {
+        question: "Os meus dados ficam armazenados?",
+        answer: "Não. Todo o cálculo acontece no seu navegador.",
+      },
+    ],
+  },
+
+  "qual-carro-cabe-no-bolso": {
+    contentSections: [
+      {
+        title: "Como descobrir qual carro cabe no meu orçamento?",
+        body: "Informe quanto você tem disponível para dar de entrada, qual o valor máximo de parcela que cabe no seu orçamento mensal, a taxa de juros estimada e o prazo desejado. A calculadora usa o sistema de prestação constante (Tabela Price) de trás para frente: a partir da parcela máxima, descobre o valor total que pode ser financiado e soma à entrada para chegar ao preço aproximado do veículo.",
+      },
+      {
+        title: "Por que o valor é \"aproximado\"?",
+        body: "A taxa de juros real de uma proposta específica só é conhecida quando o banco a informa. Este cálculo usa a taxa que você estimar como referência — quanto mais próxima da taxa real oferecida, mais preciso fica o resultado.",
+      },
+    ],
+    faq: [
+      {
+        question: "Esse valor é uma pré-aprovação de crédito?",
+        answer: "Não. É apenas uma estimativa matemática de quanto cabe no seu orçamento com a parcela e a taxa informadas. A aprovação de crédito depende de análise da instituição financeira.",
+      },
+      {
+        question: "E se eu não souber a taxa de juros?",
+        answer: "Use uma taxa estimada com base em propostas recentes do mercado, ou consulte a ferramenta \"Descobrir taxa de juros\" quando já tiver uma proposta concreta em mãos.",
+      },
+      {
+        question: "Os meus dados ficam armazenados?",
+        answer: "Não. Todo o cálculo acontece no seu navegador.",
+      },
+    ],
+  },
+
+  "entrada-financiamento-veiculo": {
+    contentSections: [
+      {
+        title: "Como calcular a entrada necessária?",
+        body: "Informe o preço do veículo, a parcela que você quer pagar por mês, a taxa de juros e o prazo. A calculadora resolve a fórmula da Tabela Price de trás para frente: a partir da parcela desejada, descobre o valor máximo que pode ser financiado nesse prazo e taxa, e a diferença entre o preço do veículo e esse valor é a entrada aproximada necessária.",
+      },
+      {
+        title: "E se a parcela desejada já cobrir o veículo inteiro?",
+        body: "Quando a parcela informada é suficiente para financiar o preço total do veículo (sem entrada) nesse prazo e taxa, a calculadora mostra que nenhuma entrada é necessária e recalcula a parcela real correspondente ao valor cheio — que fica menor que a parcela máxima informada.",
+      },
+    ],
+    faq: [
+      {
+        question: "Esse resultado é uma aprovação de crédito?",
+        answer: "Não. É uma simulação matemática. A aprovação e as condições finais dependem de análise da instituição financeira.",
+      },
+      {
+        question: "Os meus dados ficam armazenados?",
+        answer: "Não. Todo o cálculo acontece no seu navegador.",
+      },
+    ],
+  },
+
+  "comparador-prazos-financiamento": {
+    contentSections: [
+      {
+        title: "Como comparar prazos de financiamento?",
+        body: "Informe o preço do veículo, uma entrada (opcional), a taxa de juros e, se quiser, um prazo personalizado além dos quatro mais comuns (24x, 36x, 48x e 60x). A calculadora monta uma tabela mostrando a parcela, o total de juros e o total pago em cada prazo, usando o sistema de prestação constante (Tabela Price) em todos eles.",
+      },
+      {
+        title: "Prazo mais longo sempre é pior?",
+        body: "Prazos mais longos reduzem o valor da parcela mensal, mas aumentam o total de juros pagos ao longo do financiamento, porque o saldo devedor demora mais para diminuir. A tabela comparativa deixa esse trade-off visível lado a lado, para você decidir com base no seu orçamento mensal e no custo total que está disposto a pagar.",
+      },
+    ],
+    faq: [
+      {
+        question: "Qual prazo é o melhor?",
+        answer: "Depende do seu orçamento: não existe um prazo \"melhor\" em termos absolutos. Parcelas menores (prazos longos) aliviam o orçamento mensal, mas custam mais caro no total; parcelas maiores (prazos curtos) custam menos juros no total, mas exigem mais folga mensal.",
+      },
+      {
+        question: "Os meus dados ficam armazenados?",
+        answer: "Não. Todo o cálculo acontece no seu navegador.",
+      },
+    ],
+  },
+
+  "entrada-maior-x-menor-financiamento": {
+    contentSections: [
+      {
+        title: "Como comparar dar mais ou menos entrada?",
+        body: "Informe o preço do veículo, dois valores de entrada (um menor e um maior), a taxa de juros e um prazo comum aos dois cenários. A calculadora simula o mesmo financiamento duas vezes — mudando apenas a entrada — e mostra lado a lado a parcela, o total de juros e o total pago em cada cenário, além da diferença exata entre eles.",
+      },
+      {
+        title: "Vale a pena dar mais entrada?",
+        body: "Dar mais entrada reduz o valor financiado e, consequentemente, a parcela mensal e o total de juros pagos. A decisão depende de quanto dinheiro disponível você tem hoje e se comprometer mais recursos agora compensa a economia de juros no total — a calculadora mostra a diferença exata para essa comparação.",
+      },
+    ],
+    faq: [
+      {
+        question: "É sempre melhor dar a entrada maior?",
+        answer: "Em termos de juros pagos, sim — quanto maior a entrada, menor o total de juros. Mas isso depende de você ter esse dinheiro disponível sem comprometer sua reserva de emergência ou outros compromissos financeiros.",
+      },
+      {
+        question: "Os meus dados ficam armazenados?",
+        answer: "Não. Todo o cálculo acontece no seu navegador.",
+      },
+    ],
+  },
+
+  "taxa-juros-financiamento-veiculo": {
+    contentSections: [
+      {
+        title: "Como descobrir a taxa de juros de uma proposta?",
+        body: "Informe o preço do veículo, a entrada (se houver), a parcela informada na proposta e o número de parcelas. A calculadora resolve, por tentativa e ajuste (bisseção), qual taxa de juros mensal faz o valor financiado gerar exatamente essa parcela nesse prazo — o mesmo raciocínio usado para calcular a taxa interna de retorno de um financiamento, só que aplicado de trás para frente.",
+      },
+      {
+        title: "Por que não existe uma fórmula direta para isso?",
+        body: "Na Tabela Price, a taxa de juros aparece dos dois lados da equação (multiplicando e dentro de uma potência), o que impede isolá-la algebricamente. Por isso o cálculo é iterativo: a calculadora testa taxas sucessivas, cada vez mais próximas da taxa real, até convergir com alta precisão — não é uma aproximação grosseira.",
+      },
+    ],
+    faq: [
+      {
+        question: "Esse valor é a taxa exata cobrada pelo banco?",
+        answer: "É a taxa de juros pura embutida na relação entre valor financiado, parcela e prazo informados. Ela não inclui tarifas, seguros e outros custos que compõem o CET — por isso pode ser ligeiramente diferente da taxa de juros anunciada oficialmente pela instituição financeira.",
+      },
+      {
+        question: "Os meus dados ficam armazenados?",
+        answer: "Não. Todo o cálculo acontece no seu navegador.",
+      },
+    ],
+  },
+
+  "financiamento-x-a-vista": {
+    contentSections: [
+      {
+        title: "Como comparar financiar ou pagar à vista?",
+        body: "Informe o preço do veículo, um desconto para pagamento à vista (se houver) e os dados do financiamento (entrada, taxa e prazo). A calculadora mostra lado a lado o preço à vista com desconto e o total que você pagaria financiando (entrada mais todas as parcelas), com a diferença exata entre os dois cenários.",
+      },
+      {
+        title: "Essa calculadora diz qual opção é melhor?",
+        body: "Não. Ela mostra os números de cada cenário, mas a decisão depende de fatores que a calculadora não conhece — por exemplo, se você tem o valor à vista disponível sem comprometer sua reserva financeira, ou o que faria com esse dinheiro caso optasse por financiar em vez de usá-lo à vista.",
+      },
+    ],
+    faq: [
+      {
+        question: "A calculadora considera o rendimento do dinheiro se eu investir em vez de pagar à vista?",
+        answer: "Não nesta versão. Ela compara apenas o preço à vista e o total pago no financiamento — o possível rendimento de investir o valor à vista é um fator a mais para você considerar por conta própria.",
+      },
+      {
+        question: "Os meus dados ficam armazenados?",
+        answer: "Não. Todo o cálculo acontece no seu navegador.",
+      },
+    ],
+  },
+
+  "parcela-maxima-pela-renda": {
+    contentSections: [
+      {
+        title: "Como calcular a parcela máxima recomendada?",
+        body: "Informe sua renda mensal, o percentual dela que você considera saudável comprometer com a parcela do carro (uma referência comum fica entre 20% e 30%) e outras dívidas mensais que já tem. A calculadora aplica o percentual sobre a renda e desconta as outras dívidas para chegar à parcela máxima recomendada.",
+      },
+      {
+        title: "De onde vem o percentual sugerido?",
+        body: "Não existe uma regra oficial única — 20% a 30% da renda é uma referência de planejamento financeiro pessoal amplamente usada para todo o comprometimento com dívidas, não uma exigência de nenhum banco. Ajuste o percentual conforme sua própria margem de segurança financeira.",
+      },
+    ],
+    faq: [
+      {
+        question: "Esse valor é uma pré-aprovação de crédito?",
+        answer: "Não. É uma referência de planejamento pessoal baseada numa regra prática de orçamento. A aprovação de crédito e o valor real da parcela dependem de análise da instituição financeira, com critérios próprios.",
+      },
+      {
+        question: "Os meus dados ficam armazenados?",
+        answer: "Não. Todo o cálculo acontece no seu navegador.",
+      },
+    ],
+  },
+
+  "comparador-propostas-financiamento": {
+    contentSections: [
+      {
+        title: "Como comparar propostas de financiamento?",
+        body: "Informe o valor financiado, a taxa de juros e o prazo de até 3 propostas que você recebeu (de bancos, financeiras ou concessionárias diferentes). A calculadora mostra, lado a lado, a parcela, os juros totais e o total pago de cada uma, na mesma ordem em que você preencheu.",
+      },
+      {
+        title: "A calculadora diz qual proposta é a melhor?",
+        body: "Não. Ela mostra os números de cada proposta simulados apenas com juros compostos — sem tarifas, seguros nem o CET oficial de cada instituição, que só ela pode informar. Use os números aqui como um primeiro filtro, e confirme o CET de cada proposta antes de decidir.",
+      },
+    ],
+    faq: [
+      {
+        question: "Por que a calculadora não aponta a proposta com menor custo?",
+        answer: "Porque o total pago simulado aqui não inclui tarifas, seguros obrigatórios nem o Custo Efetivo Total (CET) de cada proposta — fatores que podem mudar qual delas é realmente mais barata. Comparar apenas os juros simulados pode levar a uma escolha equivocada.",
+      },
+      {
+        question: "Os meus dados ficam armazenados?",
+        answer: "Não. Todo o cálculo acontece no seu navegador.",
+      },
+    ],
+  },
+
+  "antecipacao-parcelas-financiamento": {
+    contentSections: [
+      {
+        title: "Como simular a antecipação de parcelas?",
+        body: "Informe o valor financiado original, a taxa de juros do contrato, o prazo total e quantas parcelas você já pagou. A calculadora estima o saldo devedor — o valor presente das parcelas que ainda faltam, descontado pela mesma taxa do contrato — e compara com o que você pagaria se seguisse até o fim sem antecipar.",
+      },
+      {
+        title: "Por que o valor de quitação é menor que a soma das parcelas restantes?",
+        body: "Porque cada parcela futura embute uma parte de juros que ainda não venceu. Ao quitar antecipadamente, esses juros futuros deixam de ser cobrados — por isso o valor de quitação (valor presente) é menor que simplesmente multiplicar a parcela pelo número de parcelas restantes.",
+      },
+    ],
+    faq: [
+      {
+        question: "Esse é o valor exato que vou pagar para quitar meu financiamento?",
+        answer: "Não necessariamente. Esta é uma simulação. O valor oficial de liquidação ou antecipação deve ser consultado junto à instituição financeira, que pode usar critérios de cálculo diferentes.",
+      },
+      {
+        question: "Os meus dados ficam armazenados?",
+        answer: "Não. Todo o cálculo acontece no seu navegador.",
+      },
+    ],
+  },
+
+  "cet-estimado-financiamento": {
+    contentSections: [
+      {
+        title: "Como estimar o CET do meu financiamento?",
+        body: "Informe o valor financiado, a taxa de juros nominal, o prazo, as tarifas cobradas na contratação (como a TAC) e o seguro (ou outro custo) cobrado junto de cada parcela. A calculadora encontra, por bisseção, a taxa que iguala o valor líquido que você recebe a tudo que sai do seu bolso mês a mês.",
+      },
+      {
+        title: "Qual a diferença entre a taxa de juros nominal e o CET?",
+        body: "A taxa de juros nominal é só uma parte do custo do financiamento. O CET (Custo Efetivo Total) soma a ela as tarifas, os seguros e outros encargos, mostrando o custo real do crédito em uma única taxa — por isso o CET é sempre igual ou maior que a taxa de juros nominal.",
+      },
+    ],
+    faq: [
+      {
+        question: "Esse CET é o CET oficial da minha proposta?",
+        answer: "Não necessariamente. Este é um CET estimado com base apenas nos custos que você informou. O CET oficial — que pode incluir outros encargos — deve ser informado pela instituição financeira antes da contratação, conforme exigido por lei.",
+      },
+      {
+        question: "Os meus dados ficam armazenados?",
+        answer: "Não. Todo o cálculo acontece no seu navegador.",
+      },
+    ],
+  },
+
+  "financiamento-x-consorcio": {
+    contentSections: [
+      {
+        title: "Como comparar financiamento e consórcio?",
+        body: "Informe os dados do financiamento (preço do veículo, entrada, taxa e prazo) e os dados do consórcio (parcela mensal informada pela administradora e prazo do plano). A calculadora mostra o total pago em cada modalidade, lado a lado, com a diferença exata entre elas.",
+      },
+      {
+        title: "Por que a calculadora não informa quando eu seria contemplado no consórcio?",
+        body: "Porque não é possível prever isso: a contemplação de um consórcio acontece por sorteio ou lance, dois mecanismos que nenhuma calculadora consegue antecipar. Diferente do financiamento, em que o veículo fica disponível assim que o contrato é assinado, no consórcio o acesso à carta de crédito depende desses fatores.",
+      },
+    ],
+    faq: [
+      {
+        question: "O consórcio é sempre mais barato que o financiamento?",
+        answer: "Não necessariamente — depende da taxa de administração do consórcio e da taxa de juros do financiamento em cada caso. Além disso, o consórcio tem uma diferença fundamental: você não sabe exatamente quando será contemplado, enquanto o financiamento dá acesso imediato ao veículo.",
+      },
+      {
+        question: "Os meus dados ficam armazenados?",
+        answer: "Não. Todo o cálculo acontece no seu navegador.",
+      },
+    ],
+  },
+
+  "custo-mensal-carro": {
+    contentSections: [
+      {
+        title: "Como calcular o custo mensal de ter um carro?",
+        body: "Informe a parcela do financiamento (se houver), combustível, seguro, IPVA e licenciamento anuais, manutenção, estacionamento, pedágio e outros gastos. A calculadora divide os valores anuais (IPVA e licenciamento) por 12 e soma tudo para mostrar o custo mensal total, o custo anual estimado e a participação de cada categoria.",
+      },
+      {
+        title: "Por que incluir custos que não são fixos, como manutenção?",
+        body: "Muita gente subestima o custo real de ter um carro porque só considera a parcela e o combustível. Incluir uma estimativa mensal de manutenção, pedágio e estacionamento — mesmo que aproximada — dá uma visão mais completa do quanto o veículo realmente custa por mês.",
+      },
+    ],
+    faq: [
+      {
+        question: "E se eu não souber exatamente quanto gasto em alguma categoria?",
+        answer: "Use uma média dos últimos meses, ou deixe o campo em branco (ou zero) se não se aplicar ao seu caso — todos os campos são opcionais e a calculadora soma apenas o que for informado.",
+      },
+      {
+        question: "Os meus dados ficam armazenados?",
+        answer: "Não. Todo o cálculo acontece no seu navegador.",
+      },
+    ],
+  },
+
   "quanto-guardar-por-mes": {
     contentSections: [
       {

@@ -11,6 +11,19 @@ import { BillSplitTool } from "@/components/tools/bill-split/BillSplitTool";
 import { OvertimeTool } from "@/components/tools/overtime/OvertimeTool";
 import { ParcelamentoTool } from "@/components/tools/parcelamento/ParcelamentoTool";
 import { FinanciamentoVeiculoTool } from "@/components/tools/financiamento-veiculo/FinanciamentoVeiculoTool";
+import { FinanciamentoVeiculosHubTool } from "@/components/tools/financiamento-veiculos/FinanciamentoVeiculosHubTool";
+import { QualCarroCabeNoBolsoTool } from "@/components/tools/qual-carro-cabe-no-bolso/QualCarroCabeNoBolsoTool";
+import { EntradaFinanciamentoVeiculoTool } from "@/components/tools/entrada-financiamento-veiculo/EntradaFinanciamentoVeiculoTool";
+import { ComparadorPrazosFinanciamentoTool } from "@/components/tools/comparador-prazos-financiamento/ComparadorPrazosFinanciamentoTool";
+import { EntradaMaiorXMenorFinanciamentoTool } from "@/components/tools/entrada-maior-x-menor-financiamento/EntradaMaiorXMenorFinanciamentoTool";
+import { TaxaJurosFinanciamentoVeiculoTool } from "@/components/tools/taxa-juros-financiamento-veiculo/TaxaJurosFinanciamentoVeiculoTool";
+import { FinanciamentoXAVistaTool } from "@/components/tools/financiamento-x-a-vista/FinanciamentoXAVistaTool";
+import { ParcelaMaximaPelaRendaTool } from "@/components/tools/parcela-maxima-pela-renda/ParcelaMaximaPelaRendaTool";
+import { ComparadorPropostasFinanciamentoTool } from "@/components/tools/comparador-propostas-financiamento/ComparadorPropostasFinanciamentoTool";
+import { AntecipacaoParcelasFinanciamentoTool } from "@/components/tools/antecipacao-parcelas-financiamento/AntecipacaoParcelasFinanciamentoTool";
+import { CetEstimadoFinanciamentoTool } from "@/components/tools/cet-estimado-financiamento/CetEstimadoFinanciamentoTool";
+import { FinanciamentoXConsorcioTool } from "@/components/tools/financiamento-x-consorcio/FinanciamentoXConsorcioTool";
+import { CustoMensalCarroTool } from "@/components/tools/custo-mensal-carro/CustoMensalCarroTool";
 import { SavingsGoalTool } from "@/components/tools/savings-goal/SavingsGoalTool";
 import { NetSalaryTool } from "@/components/tools/net-salary/NetSalaryTool";
 import { VacationTool } from "@/components/tools/vacation/VacationTool";
@@ -116,6 +129,23 @@ export const toolComponents: Record<string, ComponentType> = {
   "hora-extra": OvertimeTool,
   parcelamento: ParcelamentoTool,
   "financiamento-veiculo": FinanciamentoVeiculoTool,
+  // Cluster "Financiamento de Veículos" — hub + ferramentas já implementadas
+  // deste lote. As demais ferramentas do cluster (ver data/tools.ts,
+  // VEHICLE_FINANCING_CLUSTER_TOOL_IDS) continuam "em-breve" até serem
+  // implementadas em lotes seguintes.
+  "financiamento-veiculos": FinanciamentoVeiculosHubTool,
+  "qual-carro-cabe-no-bolso": QualCarroCabeNoBolsoTool,
+  "entrada-financiamento-veiculo": EntradaFinanciamentoVeiculoTool,
+  "comparador-prazos-financiamento": ComparadorPrazosFinanciamentoTool,
+  "entrada-maior-x-menor-financiamento": EntradaMaiorXMenorFinanciamentoTool,
+  "taxa-juros-financiamento-veiculo": TaxaJurosFinanciamentoVeiculoTool,
+  "financiamento-x-a-vista": FinanciamentoXAVistaTool,
+  "parcela-maxima-pela-renda": ParcelaMaximaPelaRendaTool,
+  "comparador-propostas-financiamento": ComparadorPropostasFinanciamentoTool,
+  "antecipacao-parcelas-financiamento": AntecipacaoParcelasFinanciamentoTool,
+  "cet-estimado-financiamento": CetEstimadoFinanciamentoTool,
+  "financiamento-x-consorcio": FinanciamentoXConsorcioTool,
+  "custo-mensal-carro": CustoMensalCarroTool,
   "quanto-guardar-por-mes": SavingsGoalTool,
   "salario-liquido": NetSalaryTool,
   "calculadora-ferias": VacationTool,
