@@ -23,6 +23,7 @@ function emptyDay(dayOfWeek: DayOfWeek): DayFormState {
     manualCaption: "",
     visualText: "",
     templateId: null,
+    overlayOpacity: null,
     publishTime: "09:00",
     imageMediaId: null,
     videoMediaId: null,
@@ -160,6 +161,7 @@ export function AutomationWizard({ userId, accounts }: { userId: string; account
             manualCaption: day.manualCaption,
             visualText: day.visualText,
             templateId: day.templateId,
+            overlayOpacity: day.overlayOpacity,
             publishTime: day.publishTime,
             imageMediaId: day.imageMediaId,
             videoMediaId: day.videoMediaId,
@@ -391,7 +393,14 @@ export function AutomationWizard({ userId, accounts }: { userId: string; account
 
           <div className="space-y-3">
             {days.map((day) => (
-              <WeekDayEditor key={day.dayOfWeek} userId={userId} day={day} imageMode={imageMode} onChange={(patch) => updateDay(day.dayOfWeek, patch)} />
+              <WeekDayEditor
+                key={day.dayOfWeek}
+                userId={userId}
+                day={day}
+                imageMode={imageMode}
+                defaultImageMediaId={fixedImageMediaId}
+                onChange={(patch) => updateDay(day.dayOfWeek, patch)}
+              />
             ))}
           </div>
         </section>

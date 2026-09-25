@@ -68,6 +68,8 @@ const MAX_PROMPT_LENGTH = 800;
 const MAX_MANUAL_CAPTION_LENGTH = 2200;
 /** Texto curto desenhado sobre a imagem (modo AUTO_TEMPLATE) — bem menor que a legenda, para não ficar ilegível no template. */
 const MAX_VISUAL_TEXT_LENGTH = 120;
+/** Mesmos níveis de AUTO_TEMPLATE_OVERLAY_LEVELS (template-render-service.ts) — duplicado aqui só como literal para não puxar @napi-rs/canvas nesta camada de validação. */
+const ALLOWED_OVERLAY_OPACITY_LEVELS = [0, 0.1, 0.2, 0.3, 0.4];
 const PUBLISH_TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
 
 function assertName(name: string): string {
@@ -220,6 +222,8 @@ export interface UpdateDayServiceInput {
   templateId?: string | null;
   /** Estado serializado do editor (mesmo formato de serializeEditorState) — cores/fontes do template; o texto visual é sempre injetado por cima na hora de renderizar. */
   styleConfig?: Record<string, unknown> | null;
+  /** Véu (0/0.1/0.2/0.3/0.4) sobre a foto quando imageMode = "AUTO_TEMPLATE". null usa o padrão (20%). */
+  overlayOpacity?: number | null;
   imageMediaId?: string | null;
   videoMediaId?: string | null;
 }
@@ -268,6 +272,12 @@ export async function updateAutomationDay(
       throw new AutomationValidationError("Configuração de estilo inválida.");
     }
     patch.styleConfig = input.styleConfig;
+  }
+  if (input.overlayOpacity !== undefined) {
+    if (input.overlayOpacity !== null && !ALLOWED_OVERLAY_OPACITY_LEVELS.includes(input.overlayOpacity)) {
+      throw new AutomationValidationError("Nível de véu sobre a imagem inválido.");
+    }
+    patch.overlayOpacity = input.overlayOpacity;
   }
   if (input.publishTime !== undefined) {
     if (!PUBLISH_TIME_RE.test(input.publishTime)) throw new AutomationValidationError("Horário inválido (use HH:mm).");

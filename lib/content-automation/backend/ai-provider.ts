@@ -13,6 +13,22 @@ export interface GeneratePostContentInput {
   brandContext: string;
   /** Prompt específico do dia (seção 8). */
   dayPrompt: string;
+  /**
+   * Rótulo em português do dia da semana CONFIGURADO para esta execução
+   * (ex.: "Quinta-feira") — NUNCA o dia atual do servidor. Corrige o bug
+   * relatado de a IA "falar" um dia diferente do dia configurado (ex.:
+   * gerar "segunda-feira" para uma automação de quinta): o prompt sempre
+   * precisa dizer explicitamente qual dia é, já que o modelo não tem
+   * acesso à data real. Ver content-generation-service.ts (única fonte:
+   * AutomationDayRecord.dayOfWeek) e anthropic-content-provider.ts (onde
+   * isso entra no texto enviado à IA).
+   *
+   * Opcional só para a chamada avulsa do compositor manual do Agendador
+   * (/api/instagram/ai-caption — sem automação nem dia configurado por
+   * trás); toda chamada do Piloto Automático (content-generation-service.ts)
+   * sempre informa este campo.
+   */
+  dayOfWeekLabel?: string;
   /** Assuntos/legendas recentes a evitar repetir (seção 21). */
   avoidTopics: string[];
   /**
@@ -42,6 +58,8 @@ export interface GeneratedPostContent {
 export interface GenerateReelContentInput {
   brandContext: string;
   dayPrompt: string;
+  /** Ver GeneratePostContentInput.dayOfWeekLabel — mesma regra, mesma razão, mesma opcionalidade. */
+  dayOfWeekLabel?: string;
   avoidTopics: string[];
 }
 

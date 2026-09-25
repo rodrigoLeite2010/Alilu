@@ -363,6 +363,10 @@ describe("modo AUTO_TEMPLATE (IA/manual desenha o texto sobre a imagem)", () => 
     expect(fakeProvider.generatePost).toHaveBeenCalledTimes(1);
     const [[callArgs]] = fakeProvider.generatePost.mock.calls;
     expect(callArgs.includeVisualText).toBe(true);
+    // Correção do bug "a IA fala segunda-feira numa automação de quarta":
+    // o dia REALMENTE configurado (o dia do teste é sempre WEDNESDAY) tem
+    // que chegar explicitamente no prompt, nunca um valor fixo/ausente.
+    expect(callArgs.dayOfWeekLabel).toBe("Quarta-feira");
 
     expect(fakeRenderAndStoreAutomationArt).toHaveBeenCalledTimes(1);
     const [renderArgs] = fakeRenderAndStoreAutomationArt.mock.calls[0];
@@ -372,6 +376,7 @@ describe("modo AUTO_TEMPLATE (IA/manual desenha o texto sobre a imagem)", () => 
       sourceImageUrl: "https://blob.example.com/1.jpg",
       sourceMediaId: seed.mediaId,
       visualText: "Frase curta pra imagem",
+      overlayOpacity: null, // dia não configurou véu explícito — template-render-service aplica o padrão (20%).
     });
     expect(renderArgs.automationRunId).toEqual(expect.any(String));
 
@@ -442,6 +447,86 @@ describe("modo AUTO_TEMPLATE (IA/manual desenha o texto sobre a imagem)", () => 
     });
 
     await expect(service.activateAutomation(automationId, seed.userId)).rejects.toThrow(/texto.*imagem/i);
+  });
+
+  it("usa o dia da semana configurado (quinta-feira) no prompt, mesmo quando o cron roda em outro dia real do calendário", async () => {
+    const seed = await seedUserWithAccount(db);
+    const [renderedMedia] = await db.sql`
+      insert into instagram_media (user_id, storage_url, media_type)
+      values (${seed.userId}, 'https://blob.example.com/quinta.jpg', 'image') returning id
+    `;
+    fakeRenderAndStoreAutomationArt.mockResolvedValue(renderedMedia.id);
+    happyPost({ caption: "Legenda de quinta", cta: "", hashtags: [], visualText: "Frase de quinta" });
+
+    const automationId = await repo.createAutomation({
+      userId: seed.userId,
+      instagramAccountId: seed.accountId,
+      name: "Automação de quinta-feira",
+      description: "",
+      timezone: "America/Sao_Paulo",
+      brandContext: "",
+      autoPublish: false,
+      requireApproval: true,
+      generationLeadMinutes: 120,
+      imageMode: "AUTO_TEMPLATE",
+      fixedImageMediaId: seed.mediaId,
+      videoSelection: "FIXED",
+      fixedVideoMediaId: seed.videoId,
+    });
+    await repo.updateAutomationDay(automationId, seed.userId, "THURSDAY" as never, {
+      enabled: true,
+      contentType: "POST",
+      prompt: "Crie uma frase motivacional para quinta-feira, com tom inspirador, humano e simples.",
+      publishTime: "07:00",
+    });
+    await repo.setAutomationStatus(automationId, seed.userId, "ACTIVE");
+
+    // 2026-09-24 é uma quinta-feira — o cron "hoje" bate com o dia
+    // configurado, exatamente o cenário de teste manual pedido no
+    // briefing (conta @alilu.tec, quinta-feira, 07:00).
+    const now = () => new Date("2026-09-24T10:05:00.000Z");
+    const [result] = await cron.runContentAutomationCron({ now });
+    expect(result.status).toBe("WAITING_APPROVAL");
+
+    const [[callArgs]] = fakeProvider.generatePost.mock.calls;
+    expect(callArgs.dayOfWeekLabel).toBe("Quinta-feira");
+    expect(callArgs.dayOfWeekLabel).not.toBe("Segunda-feira");
+  });
+
+  it("guarda e aplica o véu (overlayOpacity) configurado por dia, e rejeita valores fora dos níveis permitidos", async () => {
+    const seed = await seedUserWithAccount(db);
+    const automationId = await repo.createAutomation({
+      userId: seed.userId,
+      instagramAccountId: seed.accountId,
+      name: "Automação com véu customizado",
+      description: "",
+      timezone: "America/Sao_Paulo",
+      brandContext: "",
+      autoPublish: false,
+      requireApproval: true,
+      generationLeadMinutes: 120,
+      imageMode: "AUTO_TEMPLATE",
+      fixedImageMediaId: seed.mediaId,
+      videoSelection: "FIXED",
+      fixedVideoMediaId: seed.videoId,
+    });
+
+    await service.updateAutomationDay(automationId, seed.userId, "FRIDAY", {
+      enabled: true,
+      contentType: "POST",
+      contentMode: "MANUAL",
+      manualCaption: "Legenda de sexta",
+      visualText: "Frase de sexta",
+      overlayOpacity: 0.3,
+    });
+
+    const details = await service.getAutomationDetails(automationId, seed.userId);
+    const friday = details.days.find((day) => day.dayOfWeek === "FRIDAY");
+    expect(friday?.overlayOpacity).toBe(0.3);
+
+    await expect(
+      service.updateAutomationDay(automationId, seed.userId, "FRIDAY", { overlayOpacity: 0.15 }),
+    ).rejects.toThrow(/véu/i);
   });
 });
 

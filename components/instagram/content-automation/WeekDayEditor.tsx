@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useState } from "react";
+import { useId, useRef, useState } from "react";
 import { DAY_OF_WEEK_LABEL, type AutomationContentMode, type AutomationContentType, type DayOfWeek, type ImageMode } from "@/lib/content-automation/backend/automation-types";
 import { POST_TEMPLATES } from "@/lib/instagram/templates";
 import { MediaPicker } from "./MediaPicker";
@@ -17,9 +17,20 @@ export interface DayFormState {
   visualText: string;
   /** Template do compositor (lib/instagram/templates.ts) usado quando imageMode = "AUTO_TEMPLATE". null usa o padrão. */
   templateId: string | null;
+  /** Véu (0/0.1/0.2/0.3/0.4) sobre a foto quando imageMode = "AUTO_TEMPLATE". null usa o padrão (20%). */
+  overlayOpacity: number | null;
   publishTime: string;
   imageMediaId: string | null;
   videoMediaId: string | null;
+}
+
+const OVERLAY_LEVELS = [0, 0.1, 0.2, 0.3, 0.4] as const;
+
+/** Textarea que cresce sozinha com o conteúdo (Parte 6: "não cortar visualmente o conteúdo"), sem depender de libs externas. */
+function autoResize(el: HTMLTextAreaElement | null): void {
+  if (!el) return;
+  el.style.height = "auto";
+  el.style.height = `${el.scrollHeight}px`;
 }
 
 /**
@@ -32,22 +43,59 @@ export function WeekDayEditor({
   userId,
   day,
   imageMode,
+  defaultImageMediaId = null,
   onChange,
 }: {
   userId: string;
   day: DayFormState;
   /** Modo de imagem da automação (não do dia) — controla se aparece o seletor de template/texto visual. */
   imageMode: ImageMode;
+  /** Imagem padrão da automação (usada quando o dia não tem uma própria) — só para a prévia da arte saber qual foto usar. */
+  defaultImageMediaId?: string | null;
   onChange: (patch: Partial<DayFormState>) => void;
 }) {
   const [overrideMedia, setOverrideMedia] = useState(Boolean(day.imageMediaId || day.videoMediaId));
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewError, setPreviewError] = useState<string | null>(null);
+  const promptRef = useRef<HTMLTextAreaElement | null>(null);
+  const visualTextRef = useRef<HTMLTextAreaElement | null>(null);
   const checkboxId = useId();
   const promptId = useId();
   const manualCaptionId = useId();
   const visualTextId = useId();
   const templateId = useId();
+  const overlayId = useId();
   const timeId = useId();
   const isAutoTemplatePost = imageMode === "AUTO_TEMPLATE" && day.contentType === "POST";
+  const previewImageMediaId = day.imageMediaId ?? defaultImageMediaId;
+
+  async function handlePreview() {
+    if (!previewImageMediaId || !day.visualText.trim()) return;
+    setPreviewLoading(true);
+    setPreviewError(null);
+    try {
+      const response = await fetch("/api/content-automation/media/preview-art", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          imageMediaId: previewImageMediaId,
+          templateId: day.templateId,
+          visualText: day.visualText,
+          overlayOpacity: day.overlayOpacity,
+        }),
+      });
+      const payload = (await response.json()) as { dataUrl?: string; error?: string };
+      if (!response.ok || !payload.dataUrl) {
+        throw new Error(payload.error || "Não foi possível gerar a prévia.");
+      }
+      setPreviewUrl(payload.dataUrl);
+    } catch (error) {
+      setPreviewError(error instanceof Error ? error.message : "Não foi possível gerar a prévia.");
+    } finally {
+      setPreviewLoading(false);
+    }
+  }
 
   return (
     <fieldset className={`rounded-lg border p-4 transition-colors ${day.enabled ? "border-teal-300 bg-teal-50/30" : "border-zinc-200"}`}>
@@ -146,21 +194,29 @@ export function WeekDayEditor({
           ) : (
             <div>
               <label htmlFor={promptId} className="mb-1 block text-xs font-medium text-zinc-700">
-                O que publicar
+                O que publicar em {DAY_OF_WEEK_LABEL[day.dayOfWeek]}
               </label>
               <textarea
                 id={promptId}
+                ref={promptRef}
                 value={day.prompt}
-                onChange={(event) => onChange({ prompt: event.target.value })}
-                rows={3}
+                onChange={(event) => {
+                  onChange({ prompt: event.target.value });
+                  autoResize(event.target);
+                }}
+                onFocus={(event) => autoResize(event.target)}
+                rows={6}
                 maxLength={800}
                 placeholder={
                   day.contentType === "POST"
-                    ? "Ex.: Crie uma dica curta de produtividade para pequenos empresários, tom profissional, com uma chamada para ação."
-                    : "Ex.: Crie um Reel curto mostrando uma dica sobre ferramentas online."
+                    ? `Descreva o conteúdo que deve ser criado para este dia. Ex.: Crie uma frase motivacional para ${DAY_OF_WEEK_LABEL[day.dayOfWeek].toLowerCase()} com tom leve, inspirador e humano.`
+                    : `Descreva o Reel que deve ser criado para este dia. Ex.: Crie um Reel curto mostrando uma dica sobre ferramentas online, com tom leve e direto.`
                 }
-                className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm"
+                className="w-full min-h-[144px] resize-y rounded-md border border-zinc-300 px-3 py-2 text-sm leading-relaxed"
               />
+              <p className="mt-1 text-xs text-zinc-500">
+                {day.prompt.length}/800 — a IA usa exatamente {DAY_OF_WEEK_LABEL[day.dayOfWeek]} como o dia deste conteúdo, nunca outro dia.
+              </p>
             </div>
           )}
 
@@ -176,7 +232,7 @@ export function WeekDayEditor({
                   onChange={(event) => onChange({ templateId: event.target.value || null })}
                   className="w-full min-h-11 rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm"
                 >
-                  <option value="">Padrão (Promoção)</option>
+                  <option value="">Padrão (Motivação Clean — foto inteira + frase central)</option>
                   {POST_TEMPLATES.map((template) => (
                     <option key={template.id} value={template.id}>
                       {template.name}
@@ -184,6 +240,29 @@ export function WeekDayEditor({
                   ))}
                 </select>
               </div>
+
+              <div>
+                <label htmlFor={overlayId} className="mb-1 block text-xs font-medium text-zinc-700">
+                  Véu sobre a foto (legibilidade do texto)
+                </label>
+                <select
+                  id={overlayId}
+                  value={day.overlayOpacity === null ? "" : String(day.overlayOpacity)}
+                  onChange={(event) => onChange({ overlayOpacity: event.target.value === "" ? null : Number(event.target.value) })}
+                  className="w-full min-h-11 rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm"
+                >
+                  <option value="">Padrão (20%)</option>
+                  {OVERLAY_LEVELS.map((level) => (
+                    <option key={level} value={level}>
+                      {Math.round(level * 100)}%{level === 0.2 ? " (recomendado)" : ""}
+                    </option>
+                  ))}
+                </select>
+                <p className="mt-1 text-xs text-zinc-500">
+                  Um véu escuro leve sobre a foto, só para o texto ficar legível — não escurece a imagem em si. 0% mostra a foto sem nenhum véu.
+                </p>
+              </div>
+
               {day.contentMode === "MANUAL" ? (
                 <div>
                   <label htmlFor={visualTextId} className="mb-1 block text-xs font-medium text-zinc-700">
@@ -191,17 +270,45 @@ export function WeekDayEditor({
                   </label>
                   <textarea
                     id={visualTextId}
+                    ref={visualTextRef}
                     value={day.visualText}
-                    onChange={(event) => onChange({ visualText: event.target.value })}
-                    rows={2}
+                    onChange={(event) => {
+                      onChange({ visualText: event.target.value });
+                      autoResize(event.target);
+                    }}
+                    onFocus={(event) => autoResize(event.target)}
+                    rows={3}
                     maxLength={120}
                     placeholder="Frase curta desenhada sobre a foto — diferente da legenda."
-                    className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm"
+                    className="w-full min-h-[96px] resize-y rounded-md border border-zinc-300 px-3 py-2 text-sm leading-relaxed"
                   />
                   <p className="mt-1 text-xs text-zinc-500">{day.visualText.length}/120</p>
+
+                  <div className="mt-2">
+                    <button
+                      type="button"
+                      onClick={handlePreview}
+                      disabled={previewLoading || !previewImageMediaId || !day.visualText.trim()}
+                      className="min-h-9 rounded-md border border-teal-300 bg-white px-3 py-1.5 text-xs font-medium text-teal-800 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {previewLoading ? "Gerando prévia…" : "Visualizar arte"}
+                    </button>
+                    {!previewImageMediaId ? (
+                      <span className="ml-2 text-xs text-zinc-500">Selecione uma imagem (padrão da automação ou deste dia) para visualizar.</span>
+                    ) : null}
+                    {previewError ? <p className="mt-1 text-xs text-red-600">{previewError}</p> : null}
+                    {previewUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element -- prévia é um data: URL gerado no servidor, nunca uma imagem otimizável pelo next/image.
+                      <img
+                        src={previewUrl}
+                        alt={`Prévia da arte de ${DAY_OF_WEEK_LABEL[day.dayOfWeek]}`}
+                        className="mt-2 max-w-[220px] rounded-md border border-zinc-200 shadow-sm"
+                      />
+                    ) : null}
+                  </div>
                 </div>
               ) : (
-                <p className="text-xs text-zinc-600">A IA também gera o texto curto desenhado sobre a imagem, a partir do prompt acima.</p>
+                <p className="text-xs text-zinc-600">A IA também gera o texto curto desenhado sobre a imagem, a partir do prompt acima. A prévia exata aparece depois da primeira geração.</p>
               )}
             </div>
           ) : null}

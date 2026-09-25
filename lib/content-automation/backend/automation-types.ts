@@ -82,6 +82,13 @@ export interface AutomationDayRecord {
   publishTime: string; // "HH:mm"
   templateId: string | null;
   styleConfig: Record<string, unknown> | null;
+  /**
+   * Opacidade (0..1) do véu escuro sobre a foto de fundo quando imageMode
+   * = "AUTO_TEMPLATE" — só para legibilidade do texto, nunca para
+   * escurecer a imagem por padrão (ver template-render-service.ts).
+   * `null` usa o padrão (20%).
+   */
+  overlayOpacity: number | null;
   imageMediaId: string | null;
   videoMediaId: string | null;
 }

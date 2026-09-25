@@ -129,6 +129,7 @@ export function AutomationEditor({
             manualCaption: day.manualCaption,
             visualText: day.visualText,
             templateId: day.templateId,
+            overlayOpacity: day.overlayOpacity,
             publishTime: day.publishTime,
             imageMediaId: day.imageMediaId,
             videoMediaId: day.videoMediaId,
@@ -362,7 +363,16 @@ export function AutomationEditor({
           {DAYS_OF_WEEK.map((dow) => {
             const day = days.find((candidate) => candidate.dayOfWeek === dow);
             if (!day) return null;
-            return <WeekDayEditor key={dow} userId={userId} day={day} imageMode={imageMode} onChange={(patch) => updateDay(dow, patch)} />;
+            return (
+              <WeekDayEditor
+                key={dow}
+                userId={userId}
+                day={day}
+                imageMode={imageMode}
+                defaultImageMediaId={fixedImageMediaId}
+                onChange={(patch) => updateDay(dow, patch)}
+              />
+            );
           })}
         </div>
         <Button onClick={saveDays} disabled={savingDays}>

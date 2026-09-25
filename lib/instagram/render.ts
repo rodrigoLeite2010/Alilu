@@ -92,6 +92,17 @@ export interface SlotBoundingBox {
 
 export type SlotBoundingBoxMap = Partial<Record<TextSlotId, SlotBoundingBox>>;
 
+/**
+ * Limites do ajuste dinâmico de tamanho de fonte (Piloto Automático, Parte
+ * 5 — "nunca deixar o texto vazar da arte"): um bloco de texto nunca pode
+ * ocupar mais que esta fração da altura do canvas — quando o texto (curto
+ * da IA ou escrito manualmente) não couber no tamanho padrão do template,
+ * a fonte encolhe automaticamente até este piso mínimo antes de desenhar.
+ */
+const TEXT_SLOT_MAX_BLOCK_HEIGHT_FRAC = 0.62;
+/** Piso de legibilidade — a fonte nunca encolhe além disto, em fração da menor dimensão do canvas. */
+const TEXT_SLOT_MIN_FONT_SIZE_FRAC = 0.022;
+
 function roundedRectPath(
   ctx: RenderingContext2DLike,
   x: number,
@@ -191,6 +202,40 @@ function drawPlaceholderIcon(ctx: RenderingContext2DLike, cx: number, cy: number
   ctx.restore();
 }
 
+/**
+ * Véu escuro sobre a foto de fundo, só para legibilidade do texto — nunca
+ * para escurecer/esconder a imagem (Piloto Automático: corrige o problema
+ * de imagem "escura"/"borrada" reportado — o degradê antigo chegava a 74%
+ * de preto no rodapé, fixo, sem nenhum controle).
+ *
+ * `overlayOpacity` (0..1) explícito manda SEMPRE — vem da configuração do
+ * dia no Piloto Automático (0/10/20/30/40%, padrão 20%) ou de um ajuste
+ * manual no compositor. `null` (rascunho antigo, nunca configurado) cai
+ * no comportamento histórico: o degradê fixo do template quando
+ * `scrimOverBackgroundImage` for true, ou nenhum véu quando não for —
+ * nenhuma arte já publicada muda de aparência.
+ */
+function drawBackgroundOverlay(
+  ctx: RenderingContext2DLike,
+  format: PostFormat,
+  template: PostTemplate,
+  overlayOpacity: number | null
+): void {
+  if (overlayOpacity !== null) {
+    if (overlayOpacity <= 0) return;
+    ctx.fillStyle = `rgba(0, 0, 0, ${clamp(overlayOpacity, 0, 1)})`;
+    ctx.fillRect(0, 0, format.width, format.height);
+    return;
+  }
+  if (!template.scrimOverBackgroundImage) return;
+  const gradient = ctx.createLinearGradient(0, 0, 0, format.height);
+  gradient.addColorStop(0, "rgba(0, 0, 0, 0.18)");
+  gradient.addColorStop(0.55, "rgba(0, 0, 0, 0.38)");
+  gradient.addColorStop(1, "rgba(0, 0, 0, 0.74)");
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, format.width, format.height);
+}
+
 function drawBackground(
   ctx: RenderingContext2DLike,
   state: PostEditorState,
@@ -236,14 +281,7 @@ function drawBackground(
       );
     }
 
-    if (template.scrimOverBackgroundImage) {
-      const gradient = ctx.createLinearGradient(0, 0, 0, format.height);
-      gradient.addColorStop(0, "rgba(0, 0, 0, 0.18)");
-      gradient.addColorStop(0.55, "rgba(0, 0, 0, 0.38)");
-      gradient.addColorStop(1, "rgba(0, 0, 0, 0.74)");
-      ctx.fillStyle = gradient;
-      ctx.fillRect(0, 0, format.width, format.height);
-    }
+    drawBackgroundOverlay(ctx, format, template, state.backgroundImage.overlayOpacity);
     return;
   }
 
@@ -409,18 +447,49 @@ function drawTextSlots(
     const slot = template.slots[slotId];
     const layout = slot.layout;
     const font = getFontById(text.fontId);
-    const fontSizePx = resolveFontSizePx(layout.fontSizeFrac, text.fontSizeScale, format.width, format.height);
-    const lineHeightPx = Math.round(fontSizePx * layout.lineHeight);
     const bold = text.bold || layout.fontWeight === "bold";
     const displayValue = layout.uppercase ? value.toUpperCase() : value;
+    const maxWidthPx = layout.maxWidthFrac * format.width;
 
-    ctx.font = `${bold ? "bold " : ""}${fontSizePx}px ${font.family}`;
     ctx.textAlign = text.align;
     ctx.textBaseline = "middle";
 
-    const maxWidthPx = layout.maxWidthFrac * format.width;
-    const fitsOneLine = ctx.measureText(displayValue).width <= maxWidthPx && !displayValue.includes("\n");
-    const lines = slot.multiline || !fitsOneLine ? wrapLines(ctx, displayValue, maxWidthPx) : [displayValue];
+    const setFont = (sizePx: number) => {
+      ctx.font = `${bold ? "bold " : ""}${sizePx}px ${font.family}`;
+    };
+    const computeLines = (): string[] => {
+      const fitsOneLine = ctx.measureText(displayValue).width <= maxWidthPx && !displayValue.includes("\n");
+      return slot.multiline || !fitsOneLine ? wrapLines(ctx, displayValue, maxWidthPx) : [displayValue];
+    };
+
+    let fontSizePx = resolveFontSizePx(layout.fontSizeFrac, text.fontSizeScale, format.width, format.height);
+    let lineHeightPx = Math.round(fontSizePx * layout.lineHeight);
+    setFont(fontSizePx);
+    let lines = computeLines();
+
+    // Ajuste dinâmico de tamanho de fonte: encolhe até caber no bloco
+    // máximo permitido (ou até o piso de legibilidade), em vez de deixar
+    // o texto vazar por cima/baixo da arte.
+    const maxBlockHeightPx = format.height * TEXT_SLOT_MAX_BLOCK_HEIGHT_FRAC;
+    const minFontSizePx = Math.max(8, Math.round(Math.min(format.width, format.height) * TEXT_SLOT_MIN_FONT_SIZE_FRAC));
+    while (lines.length * lineHeightPx > maxBlockHeightPx && fontSizePx > minFontSizePx) {
+      fontSizePx = Math.max(minFontSizePx, Math.round(fontSizePx * 0.92));
+      lineHeightPx = Math.round(fontSizePx * layout.lineHeight);
+      setFont(fontSizePx);
+      lines = computeLines();
+    }
+
+    // Último recurso: mesmo no piso mínimo o texto não coube inteiro no
+    // espaço reservado — corta com reticências (nunca silenciosamente: o
+    // "…" sinaliza visualmente o corte) em vez de deixar o texto vazar
+    // para fora da arte.
+    if (lines.length * lineHeightPx > maxBlockHeightPx) {
+      const maxLines = Math.max(1, Math.floor(maxBlockHeightPx / lineHeightPx));
+      if (lines.length > maxLines) {
+        lines = lines.slice(0, maxLines);
+        lines[maxLines - 1] = `${lines[maxLines - 1].replace(/[.,;:!?…]*$/, "")}…`;
+      }
+    }
 
     const centerX = clamp((layout.xFrac + text.offsetXFrac) * format.width, format.width * 0.02, format.width * 0.98);
     const centerY = clamp((layout.yFrac + text.offsetYFrac) * format.height, format.height * 0.04, format.height * 0.96);

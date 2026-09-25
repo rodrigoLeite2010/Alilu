@@ -60,6 +60,17 @@ export interface BackgroundImageState {
    * existir — tratado como "cover" em deserializeEditorState.
    */
   fitMode: ImageFitMode;
+  /**
+   * Opacidade (0..1) de um véu escuro plano desenhado sobre a imagem de
+   * fundo, só para legibilidade do texto — NUNCA para escurecer/esconder
+   * a foto (Piloto Automático, "Corrija o problema do texto sobre a
+   * imagem"). `null` preserva o comportamento histórico: usa o degradê
+   * fixo do template (`scrimOverBackgroundImage`) quando ele existir, ou
+   * nenhum véu quando não existir — nenhum post/rascunho já salvo muda de
+   * aparência. Valores permitidos na UI: 0 / 0.1 / 0.2 / 0.3 / 0.4
+   * (padrão 0.2 para o Piloto Automático — ver template-render-service.ts).
+   */
+  overlayOpacity: number | null;
 }
 
 export type ImageFitMode = "cover" | "contain";
@@ -92,6 +103,7 @@ function createEmptyBackgroundImage(): BackgroundImageState {
     zoom: 1,
     storageUrl: null,
     fitMode: "cover",
+    overlayOpacity: null,
   };
 }
 
@@ -325,6 +337,18 @@ export function setBackgroundImageFitMode(state: PostEditorState, fitMode: Image
   };
 }
 
+/**
+ * Define o véu escuro plano sobre a foto de fundo (0 a 1) — `null` volta a
+ * usar o comportamento padrão do template (ver overlayOpacity acima).
+ */
+export function setBackgroundImageOverlayOpacity(state: PostEditorState, overlayOpacity: number | null): PostEditorState {
+  const safe = overlayOpacity === null ? null : Math.min(1, Math.max(0, Number(overlayOpacity) || 0));
+  return {
+    ...state,
+    backgroundImage: { ...state.backgroundImage, overlayOpacity: safe },
+  };
+}
+
 /** Guarda a URL persistente da imagem original (depois do upload ao storage). */
 export function setBackgroundImageStorageUrl(state: PostEditorState, storageUrl: string | null): PostEditorState {
   return { ...state, backgroundImage: { ...state.backgroundImage, storageUrl } };
@@ -396,6 +420,9 @@ export function deserializeEditorState(data: unknown, localImageUrl: string | nu
       zoom: Math.min(MAX_IMAGE_ZOOM, Math.max(MIN_IMAGE_ZOOM, Number(image.zoom ?? 1) || 1)),
       storageUrl: typeof image.storageUrl === "string" ? image.storageUrl : null,
       fitMode: image.fitMode === "contain" ? "contain" : "cover",
+      overlayOpacity: typeof image.overlayOpacity === "number" && Number.isFinite(image.overlayOpacity)
+        ? Math.min(1, Math.max(0, image.overlayOpacity))
+        : null,
     },
   };
 }

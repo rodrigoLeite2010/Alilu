@@ -3,7 +3,7 @@ import { getContentAIProvider } from "./provider-factory";
 import { recordGenerationUsage } from "./generation-usage-repository";
 import { listRecentGenerationsForAutomation } from "./automation-run-repository";
 import { composeCaption } from "./compose-caption";
-import type { AutomationDayRecord, AutomationRecord } from "./automation-types";
+import { DAY_OF_WEEK_LABEL, type AutomationDayRecord, type AutomationRecord } from "./automation-types";
 
 /**
  * Combina contexto geral da marca + prompt do dia + tipo de conteúdo +
@@ -45,6 +45,10 @@ export async function generatePostContentForRun(
   const { content, usage } = await provider.generatePost({
     brandContext: automation.brandContext,
     dayPrompt: day.prompt,
+    // Dia REALMENTE configurado/agendado para esta execução — nunca o dia
+    // atual do servidor (ver AIContentProvider.dayOfWeekLabel). É este
+    // campo, e só ele, que decide qual dia a IA "acha" que é.
+    dayOfWeekLabel: DAY_OF_WEEK_LABEL[day.dayOfWeek],
     avoidTopics,
     includeVisualText: options.includeVisualText,
   });
@@ -71,6 +75,7 @@ export async function generateReelContentForRun(
   const { content, usage } = await provider.generateReel({
     brandContext: automation.brandContext,
     dayPrompt: day.prompt,
+    dayOfWeekLabel: DAY_OF_WEEK_LABEL[day.dayOfWeek],
     avoidTopics,
   });
   await recordGenerationUsage(automation.id, runId, usage);

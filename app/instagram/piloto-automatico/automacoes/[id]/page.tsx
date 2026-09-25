@@ -76,6 +76,7 @@ export default async function AutomationDetailPage({ params }: PageProps) {
             manualCaption: day.manualCaption ?? "",
             visualText: day.visualText ?? "",
             templateId: day.templateId,
+            overlayOpacity: day.overlayOpacity,
             publishTime: day.publishTime,
             imageMediaId: day.imageMediaId,
             videoMediaId: day.videoMediaId,

@@ -16,6 +16,7 @@ export function serializeDay(day: AutomationDayRecord) {
     publishTime: day.publishTime,
     templateId: day.templateId,
     styleConfig: day.styleConfig,
+    overlayOpacity: day.overlayOpacity,
     imageMediaId: day.imageMediaId,
     videoMediaId: day.videoMediaId,
   };

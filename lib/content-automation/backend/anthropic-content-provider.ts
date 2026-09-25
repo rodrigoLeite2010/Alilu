@@ -30,6 +30,21 @@ export interface AnthropicProviderConfig {
   model: string;
 }
 
+/**
+ * Linhas de contexto do dia da semana, só quando o chamador informou um
+ * (Piloto Automático — content-generation-service.ts). Corrige o bug
+ * relatado de a IA "falar" um dia diferente do configurado (ex.: gerar
+ * "segunda-feira" para uma automação de quinta): sem isto, o modelo não
+ * tinha NENHUM sinal de qual dia é, e podia inventar qualquer um.
+ */
+function dayOfWeekPromptLines(dayOfWeekLabel: string | undefined): string[] {
+  if (!dayOfWeekLabel) return [];
+  return [
+    `Dia da semana desta publicação: ${dayOfWeekLabel}.`,
+    `Use exatamente esse dia da semana (${dayOfWeekLabel}) em qualquer menção a dia no texto — nunca cite ou implique um dia diferente, mesmo que hoje seja outro dia.`,
+  ];
+}
+
 function systemPrompt(): string {
   return [
     "Você é o gerador de conteúdo do ALILU, uma plataforma brasileira de ferramentas online gratuitas.",
@@ -142,8 +157,9 @@ export class AnthropicContentProvider implements AIContentProvider {
       ? ', "visualText": string (frase BEM curta e de impacto, até 80 caracteres, sem hashtags e sem emojis, para ser desenhada em cima da imagem — diferente da legenda)'
       : "";
     const prompt = [
+      ...dayOfWeekPromptLines(input.dayOfWeekLabel),
       `Contexto da marca: ${input.brandContext || "(sem contexto adicional)"}`,
-      `O que publicar hoje: ${input.dayPrompt}`,
+      input.dayOfWeekLabel ? `O que publicar em ${input.dayOfWeekLabel}: ${input.dayPrompt}` : `O que publicar hoje: ${input.dayPrompt}`,
       buildAvoidTopicsInstruction(input.avoidTopics),
       "",
       "Gere o conteúdo de UM post para Instagram (imagem única) com este formato JSON exato:",
@@ -176,8 +192,9 @@ export class AnthropicContentProvider implements AIContentProvider {
     input: GenerateReelContentInput,
   ): Promise<{ content: GeneratedReelContent; usage: AIGenerationUsage }> {
     const prompt = [
+      ...dayOfWeekPromptLines(input.dayOfWeekLabel),
       `Contexto da marca: ${input.brandContext || "(sem contexto adicional)"}`,
-      `O que publicar hoje: ${input.dayPrompt}`,
+      input.dayOfWeekLabel ? `O que publicar em ${input.dayOfWeekLabel}: ${input.dayPrompt}` : `O que publicar hoje: ${input.dayPrompt}`,
       buildAvoidTopicsInstruction(input.avoidTopics),
       "",
       "Gere o conteúdo de UM Reel para Instagram com este formato JSON exato (o vídeo em si já existe — reutilizado da biblioteca de mídia do usuário; gere só o texto):",

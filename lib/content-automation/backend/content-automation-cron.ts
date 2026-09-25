@@ -164,6 +164,22 @@ async function generateAndCreatePublication(
     const needsVisualText = automation.imageMode === "AUTO_TEMPLATE";
     const { caption, visualText } = await resolveCaptionForRun(automation, day, runId, "POST", needsVisualText);
 
+    // Debug (Parte 11 do briefing) — nunca loga tokens/segredos/API keys,
+    // só os identificadores e metadados necessários para diagnosticar
+    // "dia errado"/"texto não apareceu na imagem" em produção.
+    console.info("[content-automation-cron] conteúdo resolvido para a execução", {
+      automationId: automation.id,
+      automationDayId: day.id,
+      runId,
+      dayOfWeek: day.dayOfWeek,
+      publishDateUtc: publishAtUtc.toISOString(),
+      imageMode: automation.imageMode,
+      templateId: day.templateId,
+      contentMode: day.contentMode,
+      visualTextReceived: Boolean(visualText),
+      captionReceived: Boolean(caption),
+    });
+
     let mediaId = sourceMedia.id;
     if (needsVisualText) {
       if (!visualText) {
@@ -176,6 +192,7 @@ async function generateAndCreatePublication(
         sourceImageUrl: sourceMedia.storageUrl,
         sourceMediaId: sourceMedia.id,
         visualText,
+        overlayOpacity: day.overlayOpacity,
         automationRunId: runId,
       });
     }
