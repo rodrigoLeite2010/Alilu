@@ -7,6 +7,7 @@ import { getBrowserTimeZone } from "@/lib/instagram/schedule-time";
 import { DAYS_OF_WEEK, DAY_OF_WEEK_LABEL, type DayOfWeek, type ImageMode, type VideoSelection } from "@/lib/content-automation/backend/automation-types";
 import { WeekDayEditor, type DayFormState } from "./WeekDayEditor";
 import { MediaPicker } from "./MediaPicker";
+import { autoResizeTextarea } from "./textarea-utils";
 
 export interface AccountOption {
   id: string;
@@ -268,14 +269,19 @@ export function AutomationWizard({ userId, accounts }: { userId: string; account
             </label>
             <textarea
               id={contextId}
+              ref={autoResizeTextarea}
               value={brandContext}
-              onChange={(event) => setBrandContext(event.target.value)}
-              rows={4}
+              onChange={(event) => {
+                setBrandContext(event.target.value);
+                autoResizeTextarea(event.target);
+              }}
+              onFocus={(event) => autoResizeTextarea(event.target)}
+              rows={6}
               maxLength={2000}
               placeholder="Ex.: O Alilu é um site de ferramentas online gratuitas. O público principal são profissionais e pessoas que buscam produtividade. Use linguagem simples, prática e confiável."
-              className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm"
+              className="w-full min-h-[144px] resize-y rounded-md border border-zinc-300 px-3 py-2 text-sm leading-relaxed"
             />
-            <p className="mt-1 text-xs text-zinc-500">Combinado com o prompt de cada dia em toda geração.</p>
+            <p className="mt-1 text-xs text-zinc-500">{brandContext.length}/2000 — combinado com o prompt de cada dia em toda geração.</p>
           </div>
           <fieldset className="rounded-md border border-zinc-200 p-3">
             <legend className="px-1 text-sm font-medium text-zinc-800">Modo de publicação</legend>

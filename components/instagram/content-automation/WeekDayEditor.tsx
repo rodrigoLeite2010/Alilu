@@ -1,9 +1,10 @@
 "use client";
 
-import { useId, useRef, useState } from "react";
+import { useId, useState } from "react";
 import { DAY_OF_WEEK_LABEL, type AutomationContentMode, type AutomationContentType, type DayOfWeek, type ImageMode } from "@/lib/content-automation/backend/automation-types";
 import { POST_TEMPLATES } from "@/lib/instagram/templates";
 import { MediaPicker } from "./MediaPicker";
+import { autoResizeTextarea } from "./textarea-utils";
 
 export interface DayFormState {
   dayOfWeek: DayOfWeek;
@@ -25,13 +26,6 @@ export interface DayFormState {
 }
 
 const OVERLAY_LEVELS = [0, 0.1, 0.2, 0.3, 0.4] as const;
-
-/** Textarea que cresce sozinha com o conteúdo (Parte 6: "não cortar visualmente o conteúdo"), sem depender de libs externas. */
-function autoResize(el: HTMLTextAreaElement | null): void {
-  if (!el) return;
-  el.style.height = "auto";
-  el.style.height = `${el.scrollHeight}px`;
-}
 
 /**
  * Um card por dia da semana (seção 6 do briefing): liga/desliga, formato
@@ -58,8 +52,6 @@ export function WeekDayEditor({
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewError, setPreviewError] = useState<string | null>(null);
-  const promptRef = useRef<HTMLTextAreaElement | null>(null);
-  const visualTextRef = useRef<HTMLTextAreaElement | null>(null);
   const checkboxId = useId();
   const promptId = useId();
   const manualCaptionId = useId();
@@ -198,13 +190,13 @@ export function WeekDayEditor({
               </label>
               <textarea
                 id={promptId}
-                ref={promptRef}
+                ref={autoResizeTextarea}
                 value={day.prompt}
                 onChange={(event) => {
                   onChange({ prompt: event.target.value });
-                  autoResize(event.target);
+                  autoResizeTextarea(event.target);
                 }}
-                onFocus={(event) => autoResize(event.target)}
+                onFocus={(event) => autoResizeTextarea(event.target)}
                 rows={6}
                 maxLength={800}
                 placeholder={
@@ -270,13 +262,13 @@ export function WeekDayEditor({
                   </label>
                   <textarea
                     id={visualTextId}
-                    ref={visualTextRef}
+                    ref={autoResizeTextarea}
                     value={day.visualText}
                     onChange={(event) => {
                       onChange({ visualText: event.target.value });
-                      autoResize(event.target);
+                      autoResizeTextarea(event.target);
                     }}
-                    onFocus={(event) => autoResize(event.target)}
+                    onFocus={(event) => autoResizeTextarea(event.target)}
                     rows={3}
                     maxLength={120}
                     placeholder="Frase curta desenhada sobre a foto — diferente da legenda."

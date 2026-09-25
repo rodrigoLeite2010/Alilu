@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { MediaPicker } from "./MediaPicker";
 import { WeekDayEditor, type DayFormState } from "./WeekDayEditor";
+import { autoResizeTextarea } from "./textarea-utils";
 import { DAYS_OF_WEEK, type AutomationStatus, type DayOfWeek, type ImageMode } from "@/lib/content-automation/backend/automation-types";
 
 export interface AutomationDetailDto {
@@ -250,12 +251,18 @@ export function AutomationEditor({
           </label>
           <textarea
             id={contextId}
+            ref={autoResizeTextarea}
             value={brandContext}
-            onChange={(event) => setBrandContext(event.target.value)}
-            rows={4}
+            onChange={(event) => {
+              setBrandContext(event.target.value);
+              autoResizeTextarea(event.target);
+            }}
+            onFocus={(event) => autoResizeTextarea(event.target)}
+            rows={6}
             maxLength={2000}
-            className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm"
+            className="w-full min-h-[144px] resize-y rounded-md border border-zinc-300 px-3 py-2 text-sm leading-relaxed"
           />
+          <p className="mt-1 text-xs text-zinc-500">{brandContext.length}/2000</p>
         </div>
         <fieldset className="rounded-md border border-zinc-200 p-3">
           <legend className="px-1 text-sm font-medium text-zinc-800">Modo de publicação</legend>
