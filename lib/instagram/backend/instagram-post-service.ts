@@ -77,6 +77,11 @@ function extraFields(input: PostExtraFields): PostExtraFields {
     templateId: input.templateId ?? null,
     templateData: input.templateData ?? null,
     timezone: normalizeTimezone(input.timezone),
+    // Sem musicMode informado, o post nasce ACCOUNT_DEFAULT (mesmo default
+    // da coluna no banco) — herda a música padrão da conta automaticamente,
+    // sem a pessoa precisar escolher isso em toda publicação.
+    musicMode: input.musicMode ?? "ACCOUNT_DEFAULT",
+    musicSelection: input.musicSelection ?? null,
   };
 }
 
@@ -372,6 +377,10 @@ export interface UpdatePostInput {
   templateData?: unknown;
   /** URLs de blobs recém-enviados que substituem TODAS as mídias do post, na ordem. */
   mediaUrls?: string[];
+  /** `undefined` = mantém a música atual do post. */
+  musicMode?: PostExtraFields["musicMode"];
+  /** Só considerado quando `musicMode` também é enviado como "CUSTOM". */
+  musicSelection?: PostExtraFields["musicSelection"];
 }
 
 /**
@@ -421,6 +430,8 @@ export async function updatePost(input: UpdatePostInput): Promise<{ status: stri
     templateId: input.templateId,
     templateData: input.templateData,
     mediaIds,
+    musicMode: input.musicMode,
+    musicSelection: input.musicSelection,
   });
   if (!updated) {
     throw new InstagramPostValidationError(

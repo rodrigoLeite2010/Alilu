@@ -153,6 +153,18 @@ describe("getPostForPublish", () => {
       items: [
         { mediaId: "media-1", storageUrl: "https://blob.example.com/img.jpg", mediaType: "image", position: 0 },
       ],
+      musicMode: "ACCOUNT_DEFAULT",
+      musicSelection: null,
+      accountDefaultMusic: {
+        enabled: false,
+        type: "None",
+        name: null,
+        artist: null,
+        externalId: null,
+        url: null,
+        audioFileUrl: null,
+        audioFileName: null,
+      },
     });
   });
 

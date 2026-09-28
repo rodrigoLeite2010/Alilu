@@ -100,6 +100,8 @@ describe("createImagePost", () => {
       templateId: null,
       templateData: null,
       timezone: null,
+      musicMode: "ACCOUNT_DEFAULT",
+      musicSelection: null,
     });
   });
 });
@@ -261,6 +263,8 @@ describe("createCarouselPost", () => {
       templateId: null,
       templateData: null,
       timezone: null,
+      musicMode: "ACCOUNT_DEFAULT",
+      musicSelection: null,
     });
   });
 

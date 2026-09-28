@@ -3,6 +3,7 @@
 import { uploadPresigned } from "@vercel/blob/client";
 import { buildMediaPathnamePrefix } from "@/lib/instagram/backend/media-service";
 import { buildPostFileName } from "@/lib/instagram/layout-math";
+import type { AccountDefaultMusic, MusicMode, MusicType } from "@/lib/instagram/backend/music-support";
 
 /**
  * Chamadas do navegador para a API de publicações do Instagram. Nenhum
@@ -106,6 +107,16 @@ export async function uploadInstagramMedia(
   return uploaded.url;
 }
 
+export interface PostMusicSelectionBody {
+  type: MusicType;
+  name?: string | null;
+  artist?: string | null;
+  externalId?: string | null;
+  url?: string | null;
+  audioFileUrl?: string | null;
+  audioFileName?: string | null;
+}
+
 export interface CreatePublicationBody {
   postType?: "image" | "carousel" | "reels";
   mediaUrl?: string;
@@ -116,6 +127,10 @@ export interface CreatePublicationBody {
   source?: "MANUAL" | "VIRAL_POST";
   templateId?: string | null;
   templateData?: unknown;
+  /** "Música padrão para publicações" — ver music-support.ts. Omitido = ACCOUNT_DEFAULT (regra padrão). */
+  musicMode?: MusicMode;
+  /** Só usado (e só gravado) quando musicMode === "CUSTOM". */
+  musicSelection?: PostMusicSelectionBody | null;
 }
 
 export async function createPublication(body: CreatePublicationBody): Promise<string> {
@@ -135,6 +150,8 @@ export interface UpdatePublicationBody {
   mediaUrls?: string[];
   templateId?: string | null;
   templateData?: unknown;
+  musicMode?: MusicMode;
+  musicSelection?: PostMusicSelectionBody | null;
 }
 
 export async function updatePublication(postId: string, body: UpdatePublicationBody): Promise<{ status: string }> {
@@ -189,10 +206,56 @@ export interface AccountStatus {
   connected: boolean;
   username: string | null;
   needsReconnect?: boolean;
+  /** Resumo da música padrão da conta — usado para pré-selecionar "Usar música padrão da conta". */
+  defaultMusic?: { enabled: boolean; name: string | null; artist: string | null };
 }
 
 export async function fetchAccountStatus(): Promise<AccountStatus> {
   const response = await fetch("/api/instagram/account", { cache: "no-store" });
   if (!response.ok) return { authenticated: false, connected: false, username: null, userId: null };
   return (await response.json()) as AccountStatus;
+}
+
+export interface UpdateAccountDefaultMusicBody {
+  enabled: boolean;
+  type: MusicType;
+  name?: string | null;
+  artist?: string | null;
+  externalId?: string | null;
+  url?: string | null;
+  audioFileUrl?: string | null;
+  audioFileName?: string | null;
+}
+
+/** Configuração de "Música padrão para publicações" da conta — tela de contas conectadas. */
+export async function fetchAccountDefaultMusic(): Promise<AccountDefaultMusic> {
+  const response = await fetch("/api/instagram/account/music", { cache: "no-store" });
+  const { defaultMusic } = await jsonOrThrow<{ defaultMusic: AccountDefaultMusic }>(
+    response,
+    "Não foi possível carregar a música padrão da conta.",
+  );
+  return defaultMusic;
+}
+
+export async function updateAccountDefaultMusic(body: UpdateAccountDefaultMusicBody): Promise<AccountDefaultMusic> {
+  const response = await fetch("/api/instagram/account/music", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const { defaultMusic } = await jsonOrThrow<{ defaultMusic: AccountDefaultMusic }>(
+    response,
+    "Não foi possível salvar a música padrão da conta.",
+  );
+  return defaultMusic;
+}
+
+/** Botão "Remover música padrão". */
+export async function removeAccountDefaultMusic(): Promise<AccountDefaultMusic> {
+  const response = await fetch("/api/instagram/account/music", { method: "DELETE" });
+  const { defaultMusic } = await jsonOrThrow<{ defaultMusic: AccountDefaultMusic }>(
+    response,
+    "Não foi possível remover a música padrão da conta.",
+  );
+  return defaultMusic;
 }

@@ -83,6 +83,9 @@ describe("CarouselPublishPanel", () => {
       .mockResolvedValueOnce({ url: "https://blob.example.com/slide-03.jpg" });
 
     const fetchMock = vi.fn().mockImplementation((url: string) => {
+      if (url === "/api/instagram/account") {
+        return Promise.resolve(new Response(JSON.stringify({ authenticated: true, connected: true, username: "alilu" }), { status: 200 }));
+      }
       if (url === "/api/instagram/posts") {
         return Promise.resolve(new Response(JSON.stringify({ postId: "post-1" }), { status: 201 }));
       }
@@ -116,6 +119,8 @@ describe("CarouselPublishPanel", () => {
       caption: "Minha legenda",
       scheduledAt: null,
       timezone: expect.any(String),
+      musicMode: "ACCOUNT_DEFAULT",
+      musicSelection: null,
     });
   });
 
@@ -125,6 +130,9 @@ describe("CarouselPublishPanel", () => {
     uploadPresignedMock.mockResolvedValue({ url: "https://blob.example.com/slide.jpg" });
 
     const fetchMock = vi.fn().mockImplementation((url: string) => {
+      if (url === "/api/instagram/account") {
+        return Promise.resolve(new Response(JSON.stringify({ authenticated: true, connected: true, username: "alilu" }), { status: 200 }));
+      }
       if (url === "/api/instagram/posts") {
         return Promise.resolve(new Response(JSON.stringify({ postId: "post-1" }), { status: 201 }));
       }
@@ -140,7 +148,8 @@ describe("CarouselPublishPanel", () => {
 
     await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent("Publicação agendada com sucesso"));
 
-    expect(fetchMock).toHaveBeenCalledTimes(1); // só criou o post, nunca chamou /publish
+    // só criou o post, nunca chamou /publish (a busca de status da conta, em paralelo, é esperada)
+    expect(fetchMock.mock.calls.some(([url]) => url === "/api/instagram/posts/post-1/publish")).toBe(false);
   });
 
   it("mostra a mensagem de erro do servidor quando a criação do post falha", async () => {

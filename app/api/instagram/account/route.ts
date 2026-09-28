@@ -25,6 +25,12 @@ export async function GET(): Promise<NextResponse> {
       connected: Boolean(account && account.status === "connected"),
       username: account?.igUsername ?? null,
       needsReconnect: Boolean(account && account.status !== "connected"),
+      // Resumo da "música padrão para publicações" (ver music-support.ts) — só o
+      // necessário para a tela de criação pré-selecionar "Usar música padrão da
+      // conta" e mostrar o nome; nunca usado para decidir se a API aceita aplicar.
+      defaultMusic: account?.defaultMusic.enabled
+        ? { enabled: true, name: account.defaultMusic.name, artist: account.defaultMusic.artist }
+        : { enabled: false, name: null, artist: null },
     });
   } catch {
     return NextResponse.json({ authenticated: true, userId, connected: false, username: null, unavailable: true });

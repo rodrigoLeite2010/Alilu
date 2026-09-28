@@ -6,9 +6,16 @@ import { uploadPresigned } from "@vercel/blob/client";
 import { Button } from "@/components/ui/Button";
 import { getBrowserTimeZone } from "@/lib/instagram/schedule-time";
 import { loadLocalValue, saveLocalValue } from "@/lib/instagram/draft-store";
-import { describePublishOutcome, type PublishOutcome } from "@/lib/instagram/client/publication-api";
+import {
+  describePublishOutcome,
+  fetchAccountStatus,
+  type PublishOutcome,
+  type PostMusicSelectionBody,
+} from "@/lib/instagram/client/publication-api";
 import { ConnectInstagramDialog, buildConnectTarget } from "./ConnectInstagramDialog";
 import { buildMediaPathnamePrefix, MAX_VIDEO_UPLOAD_BYTES, VIDEO_MEDIA_CONTENT_TYPES } from "@/lib/instagram/backend/media-service";
+import type { MusicMode } from "@/lib/instagram/backend/music-support";
+import { MusicSelector, type MusicSelectorAccountDefault } from "./MusicSelector";
 
 type Stage = "idle" | "validando" | "enviando" | "salvando" | "publicando" | "sucesso" | "erro";
 type ActionMode = "draft" | "now" | "schedule";
@@ -83,6 +90,21 @@ export function ReelsComposer({
   const [stage, setStage] = useState<Stage>("idle");
   const [message, setMessage] = useState<string | null>(null);
   const [gateOpen, setGateOpen] = useState(false);
+  const [accountDefaultMusic, setAccountDefaultMusic] = useState<MusicSelectorAccountDefault | undefined>(undefined);
+  const [musicMode, setMusicMode] = useState<MusicMode>("ACCOUNT_DEFAULT");
+  const [musicSelection, setMusicSelection] = useState<PostMusicSelectionBody | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchAccountStatus()
+      .then((status) => {
+        if (!cancelled && status.defaultMusic) setAccountDefaultMusic(status.defaultMusic);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // Volta do login/conexão: restaura o vídeo guardado no navegador (a legenda
   // já volta pelo rascunho da aba).
@@ -204,6 +226,8 @@ export function ReelsComposer({
           caption: fullCaption,
           scheduledAt: scheduledAtIso,
           timezone: getBrowserTimeZone(),
+          musicMode,
+          musicSelection,
         }),
       });
       if (!createResponse.ok) {
@@ -324,6 +348,15 @@ export function ReelsComposer({
           disabled={busy}
           onChange={(event) => setScheduledAt(event.target.value)}
           className="h-11 w-full rounded-md border border-zinc-300 px-3 text-sm"
+        />
+
+        <MusicSelector
+          accountDefaultMusic={accountDefaultMusic}
+          musicMode={musicMode}
+          onMusicModeChange={setMusicMode}
+          musicSelection={musicSelection}
+          onMusicSelectionChange={setMusicSelection}
+          disabled={busy}
         />
 
         <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-1">

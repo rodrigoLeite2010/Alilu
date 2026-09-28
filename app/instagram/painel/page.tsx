@@ -3,6 +3,7 @@ import { auth } from "@/auth";
 import { getInstagramAccountForUser } from "@/lib/instagram/backend/instagram-account-repository";
 import { LinkButton } from "@/components/ui/Button";
 import { SchedulingIntro } from "@/components/instagram/SchedulingIntro";
+import { DefaultMusicSettings } from "@/components/instagram/DefaultMusicSettings";
 
 export const metadata: Metadata = {
   robots: { index: false, follow: false },
@@ -69,6 +70,7 @@ export default async function InstagramPainelPage({ searchParams }: PainelPagePr
           <LinkButton href="/instagram/posts-virais" variant="secondary" className="w-full justify-center">
             Criar Post Viral
           </LinkButton>
+          <DefaultMusicSettings initialDefaultMusic={account.defaultMusic} />
         </>
       ) : (
         <a

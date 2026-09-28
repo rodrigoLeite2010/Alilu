@@ -1,5 +1,6 @@
 import "server-only";
 import { getDb } from "@/lib/db/client";
+import type { MusicMode, MusicType } from "@/lib/instagram/backend/music-support";
 
 /**
  * Acesso ao banco para posts do Instagram (instagram_posts,
@@ -28,7 +29,24 @@ export type InstagramPostSource = "MANUAL" | "VIRAL_POST" | "AUTOMATION";
 // lib/content-automation/backend/content-automation-cron.ts e a migração
 // 0004_content_automation.sql, que estende o CHECK de `source`).
 
-/** Campos opcionais comuns a todo post criado (origem, template, fuso). */
+/**
+ * Música escolhida SÓ para este post (instagram_posts.music_*) — só tem
+ * efeito quando `musicMode` (PostExtraFields) é "CUSTOM"; para os outros
+ * modos, gravamos tudo null (nada a lembrar: ACCOUNT_DEFAULT sempre lê a
+ * conta na hora de publicar, NONE nunca pede música). Ver
+ * lib/instagram/backend/music-support.ts.
+ */
+export interface PostMusicSelection {
+  type: MusicType;
+  name: string | null;
+  artist: string | null;
+  externalId: string | null;
+  url: string | null;
+  audioFileUrl: string | null;
+  audioFileName: string | null;
+}
+
+/** Campos opcionais comuns a todo post criado (origem, template, fuso, música). */
 export interface PostExtraFields {
   /** Origem: editor/compositor manual ou o módulo Posts Virais. Padrão: MANUAL. */
   source?: InstagramPostSource;
@@ -37,6 +55,10 @@ export interface PostExtraFields {
   templateData?: unknown;
   /** Fuso IANA do usuário no momento do agendamento (ex.: America/Sao_Paulo). */
   timezone?: string | null;
+  /** "Música": ACCOUNT_DEFAULT (padrão, herda a música da conta na hora de publicar), NONE ou CUSTOM. */
+  musicMode?: MusicMode;
+  /** Só usado quando musicMode === "CUSTOM" — ignorado (gravado como null) nos outros modos. */
+  musicSelection?: PostMusicSelection | null;
 }
 
 export interface CreateDraftImagePostInput extends PostExtraFields {
@@ -93,15 +115,25 @@ async function insertPostWithItems(
   const scheduledAtIso = base.scheduledAtUtc ? base.scheduledAtUtc.toISOString() : null;
   const source = base.source ?? "MANUAL";
   const timezone = base.timezone || DEFAULT_TIMEZONE;
+  const musicMode = base.musicMode ?? "ACCOUNT_DEFAULT";
+  // CUSTOM guarda a escolha própria do post; qualquer outro modo grava tudo
+  // null (nada a reaproveitar: ACCOUNT_DEFAULT sempre lê a conta na hora de
+  // publicar, NONE nunca pede música — ver music-support.ts).
+  const musicSelection = musicMode === "CUSTOM" ? (base.musicSelection ?? null) : null;
 
   const postRows = await db`
     insert into instagram_posts (
       user_id, instagram_account_id, post_type, caption, status, scheduled_at_utc,
-      timezone_original, source, template_id, template_data
+      timezone_original, source, template_id, template_data,
+      music_mode, music_type, music_name, music_artist, music_external_id, music_url,
+      audio_file_url, audio_file_name
     )
     values (
       ${base.userId}, ${base.instagramAccountId}, ${postType}, ${base.caption}, ${status}, ${scheduledAtIso},
-      ${timezone}, ${source}, ${base.templateId ?? null}, ${serializeTemplateData(base.templateData)}
+      ${timezone}, ${source}, ${base.templateId ?? null}, ${serializeTemplateData(base.templateData)},
+      ${musicMode}, ${musicSelection?.type ?? null}, ${musicSelection?.name ?? null}, ${musicSelection?.artist ?? null},
+      ${musicSelection?.externalId ?? null}, ${musicSelection?.url ?? null},
+      ${musicSelection?.audioFileUrl ?? null}, ${musicSelection?.audioFileName ?? null}
     )
     returning id
   `;
@@ -149,22 +181,46 @@ export interface PostForPublish {
   accessTokenEncrypted: string;
   /** Todos os itens do post, ordenados por posição (1 para imagem única; 2 a 10 para carrossel). */
   items: PostForPublishItem[];
+  /** "Música", como gravada neste post no momento da criação/agendamento. */
+  musicMode: MusicMode;
+  /** Só preenchido quando musicMode === "CUSTOM" (ver PostMusicSelection). */
+  musicSelection: PostMusicSelection | null;
+  /**
+   * Música padrão da conta LIDA AGORA (não uma cópia congelada) — é o que
+   * musicMode === "ACCOUNT_DEFAULT" efetivamente usa; se a pessoa mudou a
+   * música padrão da conta depois de agendar este post, é a nova música
+   * que vale (ver comentário da migração 0011).
+   */
+  accountDefaultMusic: {
+    enabled: boolean;
+    type: MusicType;
+    name: string | null;
+    artist: string | null;
+    externalId: string | null;
+    url: string | null;
+    audioFileUrl: string | null;
+    audioFileName: string | null;
+  };
 }
 
 /**
  * Carrega tudo que a publicação precisa numa consulta só: o post, a conta
- * do Instagram associada (token cifrado) e TODOS os itens de mídia, na
- * ordem de exibição — usado pela camada única de publicação
- * (instagram-publish-service.ts) para imagem, carrossel e Reel.
- * Sempre restrito ao dono (`userId`) — nunca deixa um usuário
- * publicar/consultar o post de outro.
+ * do Instagram associada (token cifrado, e a música padrão em vigor
+ * agora) e TODOS os itens de mídia, na ordem de exibição — usado pela
+ * camada única de publicação (instagram-publish-service.ts) para imagem,
+ * carrossel e Reel. Sempre restrito ao dono (`userId`) — nunca deixa um
+ * usuário publicar/consultar o post de outro.
  */
 export async function getPostForPublish(postId: string, userId: string): Promise<PostForPublish | null> {
   const db = getDb();
   const rows = await db`
     select
       p.id, p.post_type, p.status, p.caption, p.meta_container_id,
+      p.music_mode, p.music_type, p.music_name, p.music_artist, p.music_external_id, p.music_url,
+      p.audio_file_url, p.audio_file_name,
       a.ig_user_id, a.access_token_encrypted,
+      a.default_music_enabled, a.default_music_type, a.default_music_name, a.default_music_artist,
+      a.default_music_external_id, a.default_music_url, a.default_audio_file_url, a.default_audio_file_name,
       pi.media_id, pi.position, m.storage_url as media_storage_url, m.media_type
     from instagram_posts p
     join instagram_accounts a on a.id = p.instagram_account_id
@@ -176,6 +232,7 @@ export async function getPostForPublish(postId: string, userId: string): Promise
   if (rows.length === 0) return null;
 
   const first = rows[0];
+  const musicMode = (first.music_mode as MusicMode | null) ?? "ACCOUNT_DEFAULT";
   return {
     id: first.id as string,
     postType: first.post_type as InstagramPostType,
@@ -190,6 +247,29 @@ export async function getPostForPublish(postId: string, userId: string): Promise
       mediaType: row.media_type as "image" | "video",
       position: row.position as number,
     })),
+    musicMode,
+    musicSelection:
+      musicMode === "CUSTOM" && first.music_type
+        ? {
+            type: first.music_type as MusicType,
+            name: (first.music_name as string | null) ?? null,
+            artist: (first.music_artist as string | null) ?? null,
+            externalId: (first.music_external_id as string | null) ?? null,
+            url: (first.music_url as string | null) ?? null,
+            audioFileUrl: (first.audio_file_url as string | null) ?? null,
+            audioFileName: (first.audio_file_name as string | null) ?? null,
+          }
+        : null,
+    accountDefaultMusic: {
+      enabled: Boolean(first.default_music_enabled),
+      type: (first.default_music_type as MusicType | null) ?? "None",
+      name: (first.default_music_name as string | null) ?? null,
+      artist: (first.default_music_artist as string | null) ?? null,
+      externalId: (first.default_music_external_id as string | null) ?? null,
+      url: (first.default_music_url as string | null) ?? null,
+      audioFileUrl: (first.default_audio_file_url as string | null) ?? null,
+      audioFileName: (first.default_audio_file_name as string | null) ?? null,
+    },
   };
 }
 
@@ -545,6 +625,10 @@ export interface UpdatePostContentInput {
   templateData?: unknown;
   /** Substitui TODAS as mídias do post (mesma ordem). Posse/tipo já validados no service. */
   mediaIds?: string[];
+  /** `undefined` = mantém a música atual do post. */
+  musicMode?: MusicMode;
+  /** Só considerado quando `musicMode` também é enviado como "CUSTOM"; `undefined` = mantém. */
+  musicSelection?: PostMusicSelection | null;
 }
 
 /**
@@ -572,7 +656,9 @@ export async function updatePostContent(
     update instagram_posts
     set status = 'DRAFT', updated_at = now()
     where id = ${postId} and user_id = ${userId} and status in ('DRAFT', 'SCHEDULED', 'FAILED')
-    returning scheduled_at_utc, caption, template_id, template_data, timezone_original
+    returning scheduled_at_utc, caption, template_id, template_data, timezone_original,
+      music_mode, music_type, music_name, music_artist, music_external_id, music_url,
+      audio_file_url, audio_file_name
   `;
   const current = parked[0];
   if (!current) return null;
@@ -611,10 +697,30 @@ export async function updatePostContent(
       : serializeTemplateData(input.templateData);
   const timezone = input.timezone || (current.timezone_original as string | null) || DEFAULT_TIMEZONE;
 
+  const musicMode = input.musicMode ?? ((current.music_mode as MusicMode | null) ?? "ACCOUNT_DEFAULT");
+  const musicSelection =
+    musicMode !== "CUSTOM"
+      ? null
+      : input.musicMode === "CUSTOM"
+        ? (input.musicSelection ?? null)
+        : ({
+            type: current.music_type as MusicType | null,
+            name: current.music_name as string | null,
+            artist: current.music_artist as string | null,
+            externalId: current.music_external_id as string | null,
+            url: current.music_url as string | null,
+            audioFileUrl: current.audio_file_url as string | null,
+            audioFileName: current.audio_file_name as string | null,
+          } as PostMusicSelection | null);
+
   await db`
     update instagram_posts
     set caption = ${caption}, scheduled_at_utc = ${status === "SCHEDULED" ? scheduledAtIso : null}, status = ${status},
         template_id = ${templateId}, template_data = ${templateData}, timezone_original = ${timezone},
+        music_mode = ${musicMode}, music_type = ${musicSelection?.type ?? null},
+        music_name = ${musicSelection?.name ?? null}, music_artist = ${musicSelection?.artist ?? null},
+        music_external_id = ${musicSelection?.externalId ?? null}, music_url = ${musicSelection?.url ?? null},
+        audio_file_url = ${musicSelection?.audioFileUrl ?? null}, audio_file_name = ${musicSelection?.audioFileName ?? null},
         meta_container_id = null, last_error_sanitized = null, attempts_count = 0, next_attempt_at = null,
         updated_at = now()
     where id = ${postId} and user_id = ${userId} and status = 'DRAFT'
@@ -634,6 +740,8 @@ export interface PostDetails {
   templateData: unknown;
   igUsername: string | null;
   items: Array<{ mediaId: string; storageUrl: string; mediaType: "image" | "video"; position: number }>;
+  musicMode: MusicMode;
+  musicSelection: PostMusicSelection | null;
 }
 
 /** Detalhes para a tela de edição — restrito ao dono, nunca inclui token. */
@@ -643,6 +751,8 @@ export async function getPostDetailsForUser(postId: string, userId: string): Pro
     select
       p.id, p.post_type, p.status, p.caption, p.scheduled_at_utc, p.timezone_original, p.source,
       p.template_id, p.template_data, a.ig_username,
+      p.music_mode, p.music_type, p.music_name, p.music_artist, p.music_external_id, p.music_url,
+      p.audio_file_url, p.audio_file_name,
       pi.media_id, pi.position, m.storage_url, m.media_type
     from instagram_posts p
     join instagram_accounts a on a.id = p.instagram_account_id
@@ -654,6 +764,7 @@ export async function getPostDetailsForUser(postId: string, userId: string): Pro
   const first = rows[0];
   if (!first) return null;
   const rawTemplateData = first.template_data;
+  const musicMode = (first.music_mode as MusicMode | null) ?? "ACCOUNT_DEFAULT";
   return {
     id: first.id as string,
     postType: first.post_type as InstagramPostType,
@@ -673,5 +784,18 @@ export async function getPostDetailsForUser(postId: string, userId: string): Pro
         mediaType: row.media_type as "image" | "video",
         position: row.position as number,
       })),
+    musicMode,
+    musicSelection:
+      musicMode === "CUSTOM" && first.music_type
+        ? {
+            type: first.music_type as MusicType,
+            name: (first.music_name as string | null) ?? null,
+            artist: (first.music_artist as string | null) ?? null,
+            externalId: (first.music_external_id as string | null) ?? null,
+            url: (first.music_url as string | null) ?? null,
+            audioFileUrl: (first.audio_file_url as string | null) ?? null,
+            audioFileName: (first.audio_file_name as string | null) ?? null,
+          }
+        : null,
   };
 }

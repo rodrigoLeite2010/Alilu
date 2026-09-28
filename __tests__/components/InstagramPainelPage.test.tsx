@@ -66,6 +66,16 @@ describe("InstagramPainelPage", () => {
       scopes: null,
       connectedAt: new Date(),
       updatedAt: new Date(),
+      defaultMusic: {
+        enabled: false,
+        type: "None",
+        name: null,
+        artist: null,
+        externalId: null,
+        url: null,
+        audioFileUrl: null,
+        audioFileName: null,
+      },
     });
 
     const jsx = await InstagramPainelPage({ searchParams: Promise.resolve({}) });

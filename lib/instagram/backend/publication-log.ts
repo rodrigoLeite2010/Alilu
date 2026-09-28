@@ -20,6 +20,12 @@ export interface PublicationLogEvent {
   metaCode?: number | null;
   claimed?: number;
   durationMs?: number;
+  /** "Música": o que a publicação pediu (ACCOUNT_DEFAULT/NONE/CUSTOM) — nunca o nome/artista, que é conteúdo do usuário. */
+  musicMode?: string;
+  /** true quando a música pedida foi de fato aplicada na publicação (hoje, sempre false — ver music-support.ts). */
+  musicApplied?: boolean;
+  /** Motivo FIXO (nunca conteúdo do usuário) de por que a música não foi aplicada — ver resolveMusicApplication. */
+  musicReason?: string;
 }
 
 const ALLOWED_KEYS: ReadonlyArray<keyof PublicationLogEvent> = [
@@ -37,6 +43,9 @@ const ALLOWED_KEYS: ReadonlyArray<keyof PublicationLogEvent> = [
   "metaCode",
   "claimed",
   "durationMs",
+  "musicMode",
+  "musicApplied",
+  "musicReason",
 ];
 
 export function buildPublicationLogLine(event: PublicationLogEvent): string {

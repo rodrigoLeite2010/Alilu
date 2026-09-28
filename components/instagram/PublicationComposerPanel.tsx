@@ -15,7 +15,10 @@ import {
   updatePublication,
   uploadInstagramMedia,
   type AccountStatus,
+  type PostMusicSelectionBody,
 } from "@/lib/instagram/client/publication-api";
+import type { MusicMode } from "@/lib/instagram/backend/music-support";
+import { MusicSelector } from "./MusicSelector";
 import {
   formatScheduleConfirmation,
   getBrowserTimeZone,
@@ -44,6 +47,8 @@ export interface ComposerInitialValues {
   caption?: string;
   mode?: Mode;
   schedule?: ScheduleValue;
+  musicMode?: MusicMode;
+  musicSelection?: PostMusicSelectionBody | null;
 }
 
 export interface ComposerLocalDraft {
@@ -131,6 +136,10 @@ export function PublicationComposerPanel({
   const [aiError, setAiError] = useState<string | null>(null);
   const [mode, setMode] = useState<Mode>(initialValues?.mode ?? "now");
   const [schedule, setSchedule] = useState<ScheduleValue>(initialValues?.schedule ?? { date: "", time: "" });
+  const [musicMode, setMusicMode] = useState<MusicMode>(initialValues?.musicMode ?? "ACCOUNT_DEFAULT");
+  const [musicSelection, setMusicSelection] = useState<PostMusicSelectionBody | null>(
+    initialValues?.musicSelection ?? null,
+  );
   const [previewOpen, setPreviewOpen] = useState(false);
   const [gateOpen, setGateOpen] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -301,6 +310,8 @@ export function PublicationComposerPanel({
           mediaUrls: [artUrl],
           templateId: state.templateId,
           templateData,
+          musicMode,
+          musicSelection,
         });
       } else {
         postId = await createPublication({
@@ -312,6 +323,8 @@ export function PublicationComposerPanel({
           source,
           templateId: state.templateId,
           templateData,
+          musicMode,
+          musicSelection,
         });
         setSavedPostId(postId);
       }
@@ -511,6 +524,15 @@ export function PublicationComposerPanel({
         {mode === "schedule" ? (
           <ScheduleFields value={schedule} onChange={setSchedule} timeZone={timeZone} disabled={busy} />
         ) : null}
+
+        <MusicSelector
+          accountDefaultMusic={account?.defaultMusic}
+          musicMode={musicMode}
+          onMusicModeChange={setMusicMode}
+          musicSelection={musicSelection}
+          onMusicSelectionChange={setMusicSelection}
+          disabled={busy}
+        />
 
         {error ? (
           <p role="alert" className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">

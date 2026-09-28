@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { uploadPresigned } from "@vercel/blob/client";
 import { Button } from "@/components/ui/Button";
 import { formatScheduleConfirmation, getBrowserTimeZone } from "@/lib/instagram/schedule-time";
@@ -15,6 +15,9 @@ import {
   type CarouselFormatId,
   type CarouselSlide,
 } from "@/lib/instagram/carousel/carousel-state";
+import { fetchAccountStatus, type PostMusicSelectionBody } from "@/lib/instagram/client/publication-api";
+import type { MusicMode } from "@/lib/instagram/backend/music-support";
+import { MusicSelector, type MusicSelectorAccountDefault } from "./MusicSelector";
 
 type Stage = "idle" | "gerando" | "enviando" | "criando-post" | "publicando" | "sucesso" | "erro";
 
@@ -63,8 +66,23 @@ export function CarouselPublishPanel({ slides, formatId, userId }: CarouselPubli
   const [stage, setStage] = useState<Stage>("idle");
   const [progress, setProgress] = useState<{ completed: number; total: number } | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [accountDefaultMusic, setAccountDefaultMusic] = useState<MusicSelectorAccountDefault | undefined>(undefined);
+  const [musicMode, setMusicMode] = useState<MusicMode>("ACCOUNT_DEFAULT");
+  const [musicSelection, setMusicSelection] = useState<PostMusicSelectionBody | null>(null);
 
   const busy = stage !== "idle" && stage !== "sucesso" && stage !== "erro";
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchAccountStatus()
+      .then((status) => {
+        if (!cancelled && status.defaultMusic) setAccountDefaultMusic(status.defaultMusic);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   async function runFlow(mode: "now" | "schedule"): Promise<void> {
     if (busy) return;
@@ -129,7 +147,14 @@ export function CarouselPublishPanel({ slides, formatId, userId }: CarouselPubli
       const createResponse = await fetch("/api/instagram/posts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mediaUrls, caption, scheduledAt: scheduledAtIso, timezone: getBrowserTimeZone() }),
+        body: JSON.stringify({
+          mediaUrls,
+          caption,
+          scheduledAt: scheduledAtIso,
+          timezone: getBrowserTimeZone(),
+          musicMode,
+          musicSelection,
+        }),
       });
       if (!createResponse.ok) {
         throw new Error(await readErrorMessage(createResponse, "Não foi possível salvar o carrossel."));
@@ -220,6 +245,15 @@ export function CarouselPublishPanel({ slides, formatId, userId }: CarouselPubli
           className="rounded-md border border-zinc-300 px-2 py-1.5 text-sm text-zinc-900"
         />
       </div>
+
+      <MusicSelector
+        accountDefaultMusic={accountDefaultMusic}
+        musicMode={musicMode}
+        onMusicModeChange={setMusicMode}
+        musicSelection={musicSelection}
+        onMusicSelectionChange={setMusicSelection}
+        disabled={busy}
+      />
 
       <div className="flex flex-wrap gap-2">
         <Button

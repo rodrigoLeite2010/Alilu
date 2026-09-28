@@ -119,6 +119,8 @@ export async function PATCH(request: Request, { params }: RouteParams): Promise<
         timezone: extra.fields.timezone,
         templateId: extra.fields.templateId,
         templateData: extra.fields.templateData,
+        musicMode: extra.fields.musicMode,
+        musicSelection: extra.fields.musicSelection,
       });
       return NextResponse.json(result);
     }

@@ -109,9 +109,32 @@ describe("GET /api/instagram/posts/[id]", () => {
 describe("GET /api/instagram/account", () => {
   it("nunca devolve token nem id do Instagram", async () => {
     authMock.mockResolvedValue({ user: { id: "user-1" } });
-    getAccountMock.mockResolvedValue({ id: "acc", igUserId: "ig-123", igUsername: "alilu.tec", status: "connected", accessTokenEncrypted: "segredo" });
+    getAccountMock.mockResolvedValue({
+      id: "acc",
+      igUserId: "ig-123",
+      igUsername: "alilu.tec",
+      status: "connected",
+      accessTokenEncrypted: "segredo",
+      defaultMusic: {
+        enabled: false,
+        type: "None",
+        name: null,
+        artist: null,
+        externalId: null,
+        url: null,
+        audioFileUrl: null,
+        audioFileName: null,
+      },
+    });
     const body = await (await account.GET()).json();
-    expect(body).toEqual({ authenticated: true, userId: "user-1", connected: true, username: "alilu.tec", needsReconnect: false });
+    expect(body).toEqual({
+      authenticated: true,
+      userId: "user-1",
+      connected: true,
+      username: "alilu.tec",
+      needsReconnect: false,
+      defaultMusic: { enabled: false, name: null, artist: null },
+    });
     expect(JSON.stringify(body)).not.toMatch(/segredo|ig-123/);
   });
 

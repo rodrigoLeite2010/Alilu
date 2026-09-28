@@ -1,5 +1,6 @@
 import "server-only";
 import { getDb } from "@/lib/db/client";
+import type { AccountDefaultMusic, MusicType } from "@/lib/instagram/backend/music-support";
 
 /**
  * Acesso ao banco para contas do Instagram conectadas (instagram_accounts).
@@ -14,6 +15,11 @@ import { getDb } from "@/lib/db/client";
  */
 
 export type InstagramAccountStatus = "connected" | "expired" | "revoked" | "error";
+
+const MUSIC_COLUMNS =
+  "default_music_enabled, default_music_type, default_music_name, default_music_artist, " +
+  "default_music_external_id, default_music_url, default_audio_file_url, default_audio_file_name";
+
 
 export interface UpsertInstagramAccountInput {
   userId: string;
@@ -34,6 +40,8 @@ export interface InstagramAccountRecord {
   status: InstagramAccountStatus;
   connectedAt: Date;
   updatedAt: Date;
+  /** Música padrão da conta ("Música padrão para publicações") — ver lib/instagram/backend/music-support.ts. */
+  defaultMusic: AccountDefaultMusic;
 }
 
 function mapRow(row: Record<string, unknown>): InstagramAccountRecord {
@@ -47,6 +55,16 @@ function mapRow(row: Record<string, unknown>): InstagramAccountRecord {
     status: row.status as InstagramAccountStatus,
     connectedAt: new Date(row.connected_at as string),
     updatedAt: new Date(row.updated_at as string),
+    defaultMusic: {
+      enabled: Boolean(row.default_music_enabled),
+      type: (row.default_music_type as MusicType | null) ?? "None",
+      name: (row.default_music_name as string | null) ?? null,
+      artist: (row.default_music_artist as string | null) ?? null,
+      externalId: (row.default_music_external_id as string | null) ?? null,
+      url: (row.default_music_url as string | null) ?? null,
+      audioFileUrl: (row.default_audio_file_url as string | null) ?? null,
+      audioFileName: (row.default_audio_file_name as string | null) ?? null,
+    },
   };
 }
 
@@ -76,7 +94,9 @@ export async function upsertInstagramAccount(
       scopes = excluded.scopes,
       status = 'connected',
       updated_at = now()
-    returning id, user_id, ig_user_id, ig_username, token_expires_at, scopes, status, connected_at, updated_at
+    returning id, user_id, ig_user_id, ig_username, token_expires_at, scopes, status, connected_at, updated_at,
+      default_music_enabled, default_music_type, default_music_name, default_music_artist,
+      default_music_external_id, default_music_url, default_audio_file_url, default_audio_file_name
   `;
   return mapRow(rows[0]);
 }
@@ -93,7 +113,9 @@ export async function upsertInstagramAccount(
 export async function listInstagramAccountsForUser(userId: string): Promise<InstagramAccountRecord[]> {
   const db = getDb();
   const rows = await db`
-    select id, user_id, ig_user_id, ig_username, token_expires_at, scopes, status, connected_at, updated_at
+    select id, user_id, ig_user_id, ig_username, token_expires_at, scopes, status, connected_at, updated_at,
+      default_music_enabled, default_music_type, default_music_name, default_music_artist,
+      default_music_external_id, default_music_url, default_audio_file_url, default_audio_file_name
     from instagram_accounts
     where user_id = ${userId}
     order by connected_at desc
@@ -105,7 +127,9 @@ export async function listInstagramAccountsForUser(userId: string): Promise<Inst
 export async function getInstagramAccountByIdForUser(id: string, userId: string): Promise<InstagramAccountRecord | null> {
   const db = getDb();
   const rows = await db`
-    select id, user_id, ig_user_id, ig_username, token_expires_at, scopes, status, connected_at, updated_at
+    select id, user_id, ig_user_id, ig_username, token_expires_at, scopes, status, connected_at, updated_at,
+      default_music_enabled, default_music_type, default_music_name, default_music_artist,
+      default_music_external_id, default_music_url, default_audio_file_url, default_audio_file_name
     from instagram_accounts
     where id = ${id} and user_id = ${userId}
   `;
@@ -117,7 +141,9 @@ export async function getInstagramAccountByIdForUser(id: string, userId: string)
 export async function getInstagramAccountForUser(userId: string): Promise<InstagramAccountRecord | null> {
   const db = getDb();
   const rows = await db`
-    select id, user_id, ig_user_id, ig_username, token_expires_at, scopes, status, connected_at, updated_at
+    select id, user_id, ig_user_id, ig_username, token_expires_at, scopes, status, connected_at, updated_at,
+      default_music_enabled, default_music_type, default_music_name, default_music_artist,
+      default_music_external_id, default_music_url, default_audio_file_url, default_audio_file_name
     from instagram_accounts
     where user_id = ${userId}
     order by connected_at desc
@@ -125,4 +151,65 @@ export async function getInstagramAccountForUser(userId: string): Promise<Instag
   `;
   const row = rows[0];
   return row ? mapRow(row) : null;
+}
+
+export interface UpdateAccountDefaultMusicInput {
+  enabled: boolean;
+  type: MusicType;
+  name: string | null;
+  artist: string | null;
+  externalId: string | null;
+  url: string | null;
+  audioFileUrl: string | null;
+  audioFileName: string | null;
+}
+
+/**
+ * Grava a configuração de "Música padrão para publicações" da conta —
+ * restrito ao dono (`userId`), igual às demais funções deste arquivo.
+ * Passar `enabled: false` (ou `type: "None"`) não apaga os outros campos
+ * sozinho — quem quer limpar tudo usa `removeInstagramAccountDefaultMusic`
+ * (botão "Remover música padrão" da tela de contas).
+ */
+export async function updateInstagramAccountDefaultMusic(
+  accountId: string,
+  userId: string,
+  input: UpdateAccountDefaultMusicInput,
+): Promise<InstagramAccountRecord | null> {
+  const db = getDb();
+  const rows = await db`
+    update instagram_accounts
+    set default_music_enabled = ${input.enabled},
+        default_music_type = ${input.type},
+        default_music_name = ${input.name},
+        default_music_artist = ${input.artist},
+        default_music_external_id = ${input.externalId},
+        default_music_url = ${input.url},
+        default_audio_file_url = ${input.audioFileUrl},
+        default_audio_file_name = ${input.audioFileName},
+        updated_at = now()
+    where id = ${accountId} and user_id = ${userId}
+    returning id, user_id, ig_user_id, ig_username, token_expires_at, scopes, status, connected_at, updated_at,
+      default_music_enabled, default_music_type, default_music_name, default_music_artist,
+      default_music_external_id, default_music_url, default_audio_file_url, default_audio_file_name
+  `;
+  const row = rows[0];
+  return row ? mapRow(row) : null;
+}
+
+/** "Remover música padrão": volta a conta para o estado sem nenhuma música configurada. */
+export async function removeInstagramAccountDefaultMusic(
+  accountId: string,
+  userId: string,
+): Promise<InstagramAccountRecord | null> {
+  return updateInstagramAccountDefaultMusic(accountId, userId, {
+    enabled: false,
+    type: "None",
+    name: null,
+    artist: null,
+    externalId: null,
+    url: null,
+    audioFileUrl: null,
+    audioFileName: null,
+  });
 }

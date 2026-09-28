@@ -19,6 +19,49 @@ describe("campos extras da publicação", () => {
   });
 });
 
+describe("música da publicação", () => {
+  it("aceita musicMode ACCOUNT_DEFAULT, NONE ou CUSTOM", () => {
+    expect(readPostExtraFields({ musicMode: "ACCOUNT_DEFAULT" })).toEqual({ fields: { musicMode: "ACCOUNT_DEFAULT" } });
+    expect(readPostExtraFields({ musicMode: "NONE" })).toEqual({ fields: { musicMode: "NONE" } });
+  });
+
+  it("recusa um musicMode desconhecido", () => {
+    expect(readPostExtraFields({ musicMode: "SOMETHING_ELSE" })).toHaveProperty("error");
+  });
+
+  it("aceita musicSelection CUSTOM com todos os campos, gravando null nos campos ausentes", () => {
+    const result = readPostExtraFields({
+      musicMode: "CUSTOM",
+      musicSelection: { type: "InstagramCatalog", name: "Beautiful Day", artist: "U2" },
+    });
+    expect(result).toEqual({
+      fields: {
+        musicMode: "CUSTOM",
+        musicSelection: {
+          type: "InstagramCatalog",
+          name: "Beautiful Day",
+          artist: "U2",
+          externalId: null,
+          url: null,
+          audioFileUrl: null,
+          audioFileName: null,
+        },
+      },
+    });
+  });
+
+  it("recusa musicSelection com type inválido ou campos que não são texto", () => {
+    expect(readPostExtraFields({ musicSelection: { type: "Spotify" } })).toHaveProperty("error");
+    expect(readPostExtraFields({ musicSelection: { type: "None", name: 123 } })).toHaveProperty("error");
+  });
+
+  it("musicSelection ausente/nulo não é um erro (musicMode ACCOUNT_DEFAULT/NONE não precisa dele)", () => {
+    expect(readPostExtraFields({ musicMode: "NONE", musicSelection: null })).toEqual({
+      fields: { musicMode: "NONE", musicSelection: null },
+    });
+  });
+});
+
 describe("retorno depois da conexão com o Instagram", () => {
   it("só aceita caminhos internos da área Instagram", () => {
     expect(sanitizeOAuthReturnPath("/instagram/posts-virais?editar=1")).toBe("/instagram/posts-virais?editar=1");

@@ -30,6 +30,7 @@ import {
   computeNextRetryAt,
 } from "@/lib/instagram/backend/publish-errors";
 import { logPublicationEvent } from "@/lib/instagram/backend/publication-log";
+import { resolveMusicApplication, resolveRequestedMusic } from "@/lib/instagram/backend/music-support";
 import { notifyPublicationResult } from "@/lib/instagram/backend/publication-notifier";
 
 /**
@@ -233,6 +234,26 @@ export async function publishInstagramPublication(
   try {
     post = await getPostForPublish(postId, userId);
     if (!post) throw new PublishValidationError("A publicação está sem mídia associada.");
+
+    // "Música": resolvida (e registrada no log) uma única vez, no momento
+    // em que o container é de fato criado — nunca a cada retomada de
+    // polling do mesmo container. A API atualmente usada pelo projeto não
+    // tem como aplicar música a nenhum tipo de post (ver music-support.ts
+    // para o porquê) — isso NUNCA bloqueia a publicação, só é registrado
+    // para quem for investigar depois por que a música não apareceu.
+    if (!post.metaContainerId) {
+      const requestedMusic = resolveRequestedMusic(post.musicMode, post.accountDefaultMusic, post.musicSelection);
+      const musicApplication = resolveMusicApplication(post.postType, requestedMusic);
+      if (musicApplication.requestedType !== "None") {
+        logPublicationEvent({
+          ...logBase,
+          event: "music.resolved",
+          musicMode: post.musicMode,
+          musicApplied: musicApplication.applied,
+          musicReason: musicApplication.reason ?? undefined,
+        });
+      }
+    }
 
     const accessToken = decryptSecret(post.accessTokenEncrypted);
     const result = await executePublish({
