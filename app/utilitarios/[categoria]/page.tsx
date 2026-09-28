@@ -6,8 +6,9 @@ import { Breadcrumbs } from "@/components/navigation/Breadcrumbs";
 import { ToolGrid } from "@/components/tools/ToolGrid";
 import { Base64CategoryTools } from "@/components/tools/base64/Base64CategoryTools";
 import { categories, getCategoryById } from "@/data/categories";
-import { getToolsByCategory } from "@/data/tools";
+import { getToolsByCategory, getToolsByIds } from "@/data/tools";
 import { buildPageMetadata } from "@/lib/seo/metadata";
+import { categoryContent } from "@/components/categories/category-content";
 
 type CategoryPageProps = {
   params: Promise<{ categoria: string }>;
@@ -43,6 +44,8 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
   }
 
   const toolsInCategory = getToolsByCategory(category.id);
+  const content = categoryContent[category.id];
+  const highlightTools = getToolsByIds(content.highlights.map((h) => h.toolId));
 
   return (
     <Container className="py-8 sm:py-10">
@@ -59,6 +62,27 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
       <p className="mt-2 max-w-2xl text-base text-zinc-600">
         {category.description}
       </p>
+      <p className="mt-3 max-w-3xl text-sm leading-relaxed text-zinc-600">
+        {content.intro}
+      </p>
+
+      {highlightTools.length > 0 ? (
+        <div className="mt-4 grid gap-3 sm:grid-cols-3">
+          {highlightTools.map((tool) => {
+            const highlight = content.highlights.find((h) => h.toolId === tool.id);
+            return (
+              <Link
+                key={tool.id}
+                href={`/utilitarios/${category.id}/${tool.slug}`}
+                className="rounded-lg border border-zinc-200 p-3 text-sm transition-colors hover:border-zinc-300 hover:bg-zinc-50"
+              >
+                <span className="block font-medium text-zinc-900">{tool.shortName}</span>
+                <span className="mt-1 block text-zinc-600">{highlight?.reason}</span>
+              </Link>
+            );
+          })}
+        </div>
+      ) : null}
 
       {category.id === "financeiro" ? (
         // Central de Educação Financeira: controle mensal, calendário de

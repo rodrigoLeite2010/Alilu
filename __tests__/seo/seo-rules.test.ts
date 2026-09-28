@@ -9,6 +9,7 @@ import { SITE_URL } from "@/lib/seo/site";
 import { toolComponents } from "@/components/tools/tool-registry";
 import { toolContent } from "@/components/tools/tool-content";
 import nextConfig from "@/next.config";
+import { buildFaqJsonLd } from "@/lib/seo/faq";
 
 /**
  * Testes de comportamento da regra central de SEO "em-breve" x "ativo"
@@ -353,6 +354,24 @@ describe("J) toda ferramenta ativa tem componente e conteúdo registrados por to
     "%s possui conteúdo/FAQ registrado em tool-content.tsx pela chave tool.id",
     (id) => {
       expect(toolContent[id]).toBeDefined();
+    }
+  );
+});
+
+describe("L) FAQPage schema — toda ferramenta ativa com conteúdo tem um FAQ publicável", () => {
+  const activeTools = tools.filter((tool) => tool.status === "ativo");
+
+  it.each(activeTools.map((tool) => [tool.id, tool] as const))(
+    "%s: buildFaqJsonLd(toolContent[id].faq) gera um FAQPage não vazio",
+    (id) => {
+      const content = toolContent[id];
+      expect(content).toBeDefined();
+      expect(content.faq.length).toBeGreaterThan(0);
+
+      const json = buildFaqJsonLd(content.faq);
+      expect(json).not.toBeNull();
+      expect(json?.["@type"]).toBe("FAQPage");
+      expect(json?.mainEntity.length).toBe(content.faq.length);
     }
   );
 });

@@ -387,6 +387,14 @@ export const toolContent: Record<
         answer: "Não. Elas ajudam a organizar o orçamento e comparar cenários antes de negociar, mas a simulação oficial — com todas as taxas, tarifas e o CET — só a instituição financeira pode fornecer.",
       },
       {
+        question: "Quantas calculadoras tem o cluster?",
+        answer: "Mais de dez, cobrindo desde o orçamento inicial (quanto cabe no bolso, entrada necessária) até a comparação de propostas, prazos, financiamento x consórcio, financiamento x à vista, antecipação de parcelas e o custo mensal de manter o carro.",
+      },
+      {
+        question: "Serve para carro novo e usado?",
+        answer: "Sim. As fórmulas usam apenas o valor do veículo, a entrada, a taxa e o prazo informados — funcionam do mesmo jeito para carro novo, seminovo ou usado financiado em banco ou financeira.",
+      },
+      {
         question: "Os meus dados ficam armazenados?",
         answer: "Não. Todo o cálculo acontece no seu navegador.",
       },
@@ -403,6 +411,10 @@ export const toolContent: Record<
         title: "Por que o valor é \"aproximado\"?",
         body: "A taxa de juros real de uma proposta específica só é conhecida quando o banco a informa. Este cálculo usa a taxa que você estimar como referência — quanto mais próxima da taxa real oferecida, mais preciso fica o resultado.",
       },
+      {
+        title: "Exemplo prático",
+        body: "Com R$ 5.000,00 de entrada, parcela máxima de R$ 1.200,00 por mês, taxa de 1,5% ao mês e prazo de 48 meses, a calculadora mostra que dá para financiar até R$ 40.851,06 — ou seja, um carro de até aproximadamente R$ 45.851,06 (entrada mais valor financiado), pagando R$ 16.748,94 de juros ao longo do contrato.",
+      },
     ],
     faq: [
       {
@@ -412,6 +424,10 @@ export const toolContent: Record<
       {
         question: "E se eu não souber a taxa de juros?",
         answer: "Use uma taxa estimada com base em propostas recentes do mercado, ou consulte a ferramenta \"Descobrir taxa de juros\" quando já tiver uma proposta concreta em mãos.",
+      },
+      {
+        question: "O valor mostrado inclui IPVA, seguro e outros custos de ter o carro?",
+        answer: "Não. É só o valor máximo do veículo financiado. Custos como IPVA, seguro e manutenção entram no orçamento mensal à parte — a Calculadora de Custo Mensal de Ter um Carro ajuda a somar esses valores.",
       },
       {
         question: "Os meus dados ficam armazenados?",
@@ -430,11 +446,19 @@ export const toolContent: Record<
         title: "E se a parcela desejada já cobrir o veículo inteiro?",
         body: "Quando a parcela informada é suficiente para financiar o preço total do veículo (sem entrada) nesse prazo e taxa, a calculadora mostra que nenhuma entrada é necessária e recalcula a parcela real correspondente ao valor cheio — que fica menor que a parcela máxima informada.",
       },
+      {
+        title: "Exemplo prático",
+        body: "Um carro de R$ 60.000,00, parcela desejada de R$ 1.200,00, taxa de 1,5% ao mês e 48 meses de prazo: a calculadora indica uma entrada necessária de R$ 19.148,94 (cerca de 31,9% do valor do veículo), financiando os R$ 40.851,06 restantes.",
+      },
     ],
     faq: [
       {
         question: "Esse resultado é uma aprovação de crédito?",
         answer: "Não. É uma simulação matemática. A aprovação e as condições finais dependem de análise da instituição financeira.",
+      },
+      {
+        question: "O que acontece se eu não tiver a entrada calculada?",
+        answer: "Você pode reduzir a parcela desejada (aumentando o prazo, se possível) para diminuir a entrada necessária, ou comparar com a ferramenta \"Qual carro cabe no meu bolso?\" para ver que preço de veículo cabe na entrada que você já tem.",
       },
       {
         question: "Os meus dados ficam armazenados?",
@@ -453,11 +477,19 @@ export const toolContent: Record<
         title: "Prazo mais longo sempre é pior?",
         body: "Prazos mais longos reduzem o valor da parcela mensal, mas aumentam o total de juros pagos ao longo do financiamento, porque o saldo devedor demora mais para diminuir. A tabela comparativa deixa esse trade-off visível lado a lado, para você decidir com base no seu orçamento mensal e no custo total que está disposto a pagar.",
       },
+      {
+        title: "Exemplo prático",
+        body: "Um financiamento de R$ 50.000,00 a 1,5% ao mês: em 24x a parcela é R$ 2.496,21 (total R$ 59.908,92); em 36x cai para R$ 1.807,62 (total R$ 65.074,31); em 48x fica em R$ 1.468,75 (total R$ 70.500,00); e em 60x chega a R$ 1.269,67 (total R$ 76.180,28). Entre o prazo mais curto e o mais longo, a diferença no total pago é de mais de R$ 16.000,00.",
+      },
     ],
     faq: [
       {
         question: "Qual prazo é o melhor?",
         answer: "Depende do seu orçamento: não existe um prazo \"melhor\" em termos absolutos. Parcelas menores (prazos longos) aliviam o orçamento mensal, mas custam mais caro no total; parcelas maiores (prazos curtos) custam menos juros no total, mas exigem mais folga mensal.",
+      },
+      {
+        question: "Posso comparar um prazo que não seja 24, 36, 48 ou 60 meses?",
+        answer: "Sim. Além dos quatro prazos mais comuns, você pode adicionar um prazo personalizado (por exemplo, 42 ou 72 meses) e ele entra na mesma tabela comparativa.",
       },
       {
         question: "Os meus dados ficam armazenados?",
@@ -476,11 +508,19 @@ export const toolContent: Record<
         title: "Vale a pena dar mais entrada?",
         body: "Dar mais entrada reduz o valor financiado e, consequentemente, a parcela mensal e o total de juros pagos. A decisão depende de quanto dinheiro disponível você tem hoje e se comprometer mais recursos agora compensa a economia de juros no total — a calculadora mostra a diferença exata para essa comparação.",
       },
+      {
+        title: "Exemplo prático",
+        body: "Um carro de R$ 60.000,00 em 48x a 1,5% ao mês: com R$ 5.000,00 de entrada, a parcela fica em R$ 1.615,62 (total R$ 77.550,00); com R$ 15.000,00 de entrada, a parcela cai para R$ 1.321,87 (total R$ 63.450,00) — uma economia de R$ 14.100,00 no total pago, ao custo de comprometer R$ 10.000,00 a mais logo no início.",
+      },
     ],
     faq: [
       {
         question: "É sempre melhor dar a entrada maior?",
         answer: "Em termos de juros pagos, sim — quanto maior a entrada, menor o total de juros. Mas isso depende de você ter esse dinheiro disponível sem comprometer sua reserva de emergência ou outros compromissos financeiros.",
+      },
+      {
+        question: "A calculadora recomenda qual entrada eu devo dar?",
+        answer: "Não. Ela só mostra os números de cada cenário lado a lado — a decisão de comprometer mais ou menos dinheiro na entrada é sua, considerando sua reserva financeira e outros compromissos.",
       },
       {
         question: "Os meus dados ficam armazenados?",
@@ -499,11 +539,19 @@ export const toolContent: Record<
         title: "Por que não existe uma fórmula direta para isso?",
         body: "Na Tabela Price, a taxa de juros aparece dos dois lados da equação (multiplicando e dentro de uma potência), o que impede isolá-la algebricamente. Por isso o cálculo é iterativo: a calculadora testa taxas sucessivas, cada vez mais próximas da taxa real, até convergir com alta precisão — não é uma aproximação grosseira.",
       },
+      {
+        title: "Exemplo prático",
+        body: "Um financiamento de R$ 50.000,00 em 48 parcelas de R$ 1.300,00: a calculadora encontra uma taxa implícita de 0,94% ao mês (11,92% ao ano), com um total pago de R$ 62.400,00 — R$ 12.400,00 de juros no total do contrato.",
+      },
     ],
     faq: [
       {
         question: "Esse valor é a taxa exata cobrada pelo banco?",
         answer: "É a taxa de juros pura embutida na relação entre valor financiado, parcela e prazo informados. Ela não inclui tarifas, seguros e outros custos que compõem o CET — por isso pode ser ligeiramente diferente da taxa de juros anunciada oficialmente pela instituição financeira.",
+      },
+      {
+        question: "Para que serve saber essa taxa?",
+        answer: "Para comparar com outras propostas de financiamento ou com a taxa média anunciada pelo mercado — se a taxa implícita da sua proposta estiver bem acima da média, vale negociar ou procurar outra instituição.",
       },
       {
         question: "Os meus dados ficam armazenados?",
@@ -522,11 +570,23 @@ export const toolContent: Record<
         title: "Essa calculadora diz qual opção é melhor?",
         body: "Não. Ela mostra os números de cada cenário, mas a decisão depende de fatores que a calculadora não conhece — por exemplo, se você tem o valor à vista disponível sem comprometer sua reserva financeira, ou o que faria com esse dinheiro caso optasse por financiar em vez de usá-lo à vista.",
       },
+      {
+        title: "Exemplo prático",
+        body: "Um carro de R$ 60.000,00, com 5% de desconto à vista (R$ 57.000,00), comparado a um financiamento com R$ 10.000 de entrada, 48 parcelas e taxa de 1,5% ao mês: a parcela fica em R$ 1.468,75, o total pago no financiamento (entrada + parcelas) chega a R$ 80.500,00 — R$ 23.500,00 a mais do que pagar à vista com desconto.",
+      },
     ],
     faq: [
       {
         question: "A calculadora considera o rendimento do dinheiro se eu investir em vez de pagar à vista?",
         answer: "Não nesta versão. Ela compara apenas o preço à vista e o total pago no financiamento — o possível rendimento de investir o valor à vista é um fator a mais para você considerar por conta própria.",
+      },
+      {
+        question: "O desconto à vista é obrigatório para usar a calculadora?",
+        answer: "Não. Se a loja não oferecer desconto para pagamento à vista, deixe o campo em 0% — a calculadora compara o preço de tabela com o total do financiamento normalmente.",
+      },
+      {
+        question: "Por que o total do financiamento inclui a entrada?",
+        answer: "Porque a entrada sai do seu bolso da mesma forma que as parcelas — para comparar de forma justa com o pagamento à vista, o total do financiamento precisa somar tudo que você efetivamente paga, entrada incluída.",
       },
       {
         question: "Os meus dados ficam armazenados?",

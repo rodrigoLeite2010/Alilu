@@ -2,6 +2,7 @@ import { Breadcrumbs } from "@/components/navigation/Breadcrumbs";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import { AdSlot } from "@/components/ui/AdSlot";
 import { ComingSoonNotice } from "@/components/tools/ComingSoonNotice";
+import { FaqJsonLd } from "@/components/seo/FaqJsonLd";
 import { ToolGrid } from "@/components/tools/ToolGrid";
 import type { Category } from "@/data/categories";
 import { getRelatedTools, type Tool } from "@/data/tools";
@@ -64,10 +65,29 @@ export function ToolPageTemplate({
   relatedToolsLimit?: number;
 }) {
   const relatedTools = getRelatedTools(tool, relatedToolsLimit);
+  const faqItems =
+    faq ?? [
+      {
+        question: "Quando esta ferramenta estará disponível?",
+        answer:
+          "Estamos organizando o catálogo do ALILU Utilitários e implementando as ferramentas por etapas. Volte em breve para conferir.",
+      },
+      {
+        question: "Vai ser gratuita?",
+        answer:
+          "Sim. Todas as ferramentas do ALILU Utilitários são e continuarão sendo gratuitas para uso.",
+      },
+      {
+        question: "Preciso me cadastrar para usar?",
+        answer:
+          "Não. As calculadoras do ALILU Utilitários são feitas para uso imediato, sem necessidade de cadastro.",
+      },
+    ];
 
   return (
     <div className="py-8 sm:py-10">
       <div className="print:hidden">
+        <FaqJsonLd faq={faqItems} />
         <Breadcrumbs
           items={[
             { name: "Início", path: "/" },
@@ -120,25 +140,7 @@ export function ToolPageTemplate({
         <section className="mt-8">
           <SectionHeading title="Perguntas frequentes" />
           <dl className="space-y-4">
-            {(
-              faq ?? [
-                {
-                  question: "Quando esta ferramenta estará disponível?",
-                  answer:
-                    "Estamos organizando o catálogo do ALILU Utilitários e implementando as ferramentas por etapas. Volte em breve para conferir.",
-                },
-                {
-                  question: "Vai ser gratuita?",
-                  answer:
-                    "Sim. Todas as ferramentas do ALILU Utilitários são e continuarão sendo gratuitas para uso.",
-                },
-                {
-                  question: "Preciso me cadastrar para usar?",
-                  answer:
-                    "Não. As calculadoras do ALILU Utilitários são feitas para uso imediato, sem necessidade de cadastro.",
-                },
-              ]
-            ).map((item) => (
+            {faqItems.map((item) => (
               <div key={item.question}>
                 <dt className="font-medium text-zinc-900">{item.question}</dt>
                 <dd className="mt-1 text-sm text-zinc-600">{item.answer}</dd>
