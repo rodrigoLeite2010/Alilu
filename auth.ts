@@ -83,12 +83,20 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             : undefined,
         );
         token.userId = appUser.id;
+        // Sempre a partir do registro no banco (não do token bruto do
+        // provider) — é o mesmo valor que o resto do site (ex.: header,
+        // /minha-conta) vê ao consultar getUserById, e cobre também o
+        // login por código de e-mail, que não tem nome/foto do provider.
+        token.name = appUser.name ?? undefined;
+        token.picture = appUser.avatarUrl ?? undefined;
       }
       return token;
     },
     async session({ session, token }) {
       if (session.user && token.userId) {
         session.user.id = token.userId;
+        session.user.name = token.name ?? null;
+        session.user.image = token.picture ?? null;
       }
       return session;
     },

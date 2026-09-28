@@ -77,6 +77,10 @@ export default function LoginPage() {
         <p className="mt-1 text-sm text-zinc-600">
           Entre com sua conta Google ou receba um código de 6 dígitos por e-mail.
         </p>
+        <p className="mt-2 text-xs text-zinc-500">
+          As calculadoras e ferramentas do ALILU continuam gratuitas e sem exigir conta — entrar aqui é só para
+          Controle financeiro, automações do Instagram e outras áreas que guardam dados salvos por conta.
+        </p>
       </div>
 
       <button

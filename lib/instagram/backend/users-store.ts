@@ -7,6 +7,8 @@ export interface AppUser {
   email: string;
   name: string | null;
   avatarUrl: string | null;
+  /** Presente quando a conta tem login com Google vinculado (mesmo que o login mais recente tenha sido por código). */
+  googleId?: string | null;
 }
 
 export interface UpsertUserPatch {
@@ -42,7 +44,7 @@ export async function upsertUserByEmail(rawEmail: string, patch?: UpsertUserPatc
 export async function getUserById(id: string): Promise<AppUser | null> {
   const db = getDb();
   const rows = await db`
-    select id, email, name, avatar_url as "avatarUrl"
+    select id, email, name, avatar_url as "avatarUrl", google_id as "googleId"
     from users
     where id = ${id}
   `;

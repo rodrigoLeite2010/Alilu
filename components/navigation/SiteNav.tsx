@@ -4,9 +4,11 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { signOut } from "next-auth/react";
 import { Icon } from "@/components/ui/Icon";
 import { categories } from "@/data/categories";
 import { INSTAGRAM_CATEGORY, instagramMenuLinks } from "@/data/instagram";
+import type { HeaderAuthState } from "@/components/layout/auth-state";
 
 type NavigationLink = {
   href: string;
@@ -116,15 +118,87 @@ function InstagramSubLinks({ pathname, onNavigate }: { pathname: string; onNavig
   );
 }
 
+/**
+ * Seção de conta no topo do menu mobile — mesmo estado (auth) do menu de
+ * desktop (components/layout/UserMenu.tsx), só que sempre expandida (sem
+ * popover) porque já está dentro do painel deslizante.
+ */
+function MobileAccountSection({ auth, onNavigate }: { auth: HeaderAuthState; onNavigate?: () => void }) {
+  if (auth.status === "loading") {
+    return <div aria-hidden className="h-16 animate-pulse rounded-md bg-zinc-100" />;
+  }
+
+  if (auth.status === "signed-out") {
+    return (
+      <Link
+        href="/entrar"
+        onClick={onNavigate}
+        className="flex min-h-11 items-center gap-3 rounded-md bg-zinc-100 px-3 py-2 text-sm font-medium text-zinc-900 hover:bg-zinc-200"
+      >
+        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white text-zinc-500">
+          <Icon name="user" className="h-4 w-4" />
+        </span>
+        Entrar
+      </Link>
+    );
+  }
+
+  const { user } = auth;
+  const displayName = user.name?.trim() || user.email;
+
+  return (
+    <div className="rounded-md bg-zinc-100 p-3">
+      <div className="flex items-center gap-3">
+        {user.image ? (
+          // eslint-disable-next-line @next/next/no-img-element -- avatar externo (Google), mesmo padrão do UserMenu.
+          <img src={user.image} alt="" width={32} height={32} className="h-8 w-8 shrink-0 rounded-full" referrerPolicy="no-referrer" />
+        ) : (
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white text-zinc-500">
+            <Icon name="user" className="h-4 w-4" />
+          </span>
+        )}
+        <div className="min-w-0">
+          <p className="truncate text-sm font-medium text-zinc-900">{displayName}</p>
+          <p className="truncate text-xs text-zinc-500">{user.email}</p>
+        </div>
+      </div>
+      <div className="mt-2 flex flex-col">
+        <Link href="/minha-conta" onClick={onNavigate} className="flex min-h-9 items-center rounded px-2 text-sm text-zinc-700 hover:bg-white">
+          Minha conta
+        </Link>
+        <button
+          type="button"
+          onClick={() => {
+            onNavigate?.();
+            void signOut({ callbackUrl: "/?saiu=1" });
+          }}
+          className="flex min-h-9 items-center gap-2 rounded px-2 text-left text-sm text-zinc-700 hover:bg-white"
+        >
+          <Icon name="log-out" className="h-4 w-4" />
+          Sair
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function NavigationList({
   pathname,
   onNavigate,
+  auth,
 }: {
   pathname: string;
   onNavigate?: () => void;
+  auth?: HeaderAuthState;
 }) {
   return (
     <>
+      {auth ? (
+        <>
+          <MobileAccountSection auth={auth} onNavigate={onNavigate} />
+          <div className="my-5 border-t border-zinc-200" />
+        </>
+      ) : null}
       <ul className="space-y-1">
         {catalogLinks.map((link) => (
           <NavigationItem
@@ -175,7 +249,7 @@ export function SiteSidebar() {
   );
 }
 
-export function MobileNavigation() {
+export function MobileNavigation({ auth }: { auth: HeaderAuthState }) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -278,7 +352,7 @@ export function MobileNavigation() {
                   </button>
                 </div>
                 <div className="mt-5">
-                  <NavigationList pathname={pathname} onNavigate={closeNavigation} />
+                  <NavigationList pathname={pathname} onNavigate={closeNavigation} auth={auth} />
                 </div>
               </nav>
             </div>,

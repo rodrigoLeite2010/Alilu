@@ -1,8 +1,19 @@
 import Link from "next/link";
 import { Container } from "@/components/ui/Container";
-import { MobileNavigation } from "@/components/navigation/SiteNav";
 import { SITE_NAME } from "@/lib/seo/site";
+import { HeaderAuthArea } from "@/components/layout/HeaderAuthArea";
 
+/**
+ * O estado de login (Entrar / avatar+nome / menu mobile) vive inteiramente
+ * dentro de HeaderAuthArea — um componente client que busca a sessão via
+ * GET /api/auth/session no navegador. Propositalmente NÃO lemos `auth()`
+ * aqui no Header (Server Component): isso obrigaria o layout raiz inteiro
+ * a virar dinâmico (qualquer leitura de cookies() no caminho de render
+ * tira a rota da geração estática), o que quebraria a pré-renderização
+ * estática das +150 páginas públicas do catálogo. O pequeno custo é um
+ * estado de carregamento breve no cabeçalho (ver HeaderAuthArea) — o
+ * conteúdo da página em si nunca depende disso.
+ */
 export function Header() {
   return (
     <header className="sticky top-0 z-30 border-b border-zinc-200 bg-white/95 backdrop-blur print:hidden">
@@ -32,7 +43,7 @@ export function Header() {
           >
             Catálogo completo
           </Link>
-          <MobileNavigation />
+          <HeaderAuthArea />
         </div>
       </Container>
     </header>

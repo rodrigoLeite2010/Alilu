@@ -12,6 +12,7 @@ export default function robots(): MetadataRoute.Robots {
       // pessoais").
       disallow: [
         "/entrar",
+        "/minha-conta",
         "/api/",
         "/instagram/painel",
         // Área privada de Educação Financeira (dados pessoais do usuário).

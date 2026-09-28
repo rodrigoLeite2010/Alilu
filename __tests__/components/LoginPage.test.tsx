@@ -41,6 +41,12 @@ describe("LoginPage", () => {
     expect(screen.queryByLabelText("Código")).not.toBeInTheDocument();
   });
 
+  it("garante que as ferramentas continuam gratuitas e sem exigir conta (FASE 15)", () => {
+    render(<LoginPage />);
+
+    expect(screen.getByText(/continuam gratuitas e sem exigir conta/)).toBeInTheDocument();
+  });
+
   it('clicar em "Continuar com Google" chama signIn("google", ...) com o callbackUrl do painel', () => {
     render(<LoginPage />);
 

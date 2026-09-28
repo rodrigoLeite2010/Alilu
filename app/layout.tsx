@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { Geist, Geist_Mono } from "next/font/google";
 import Script from "next/script";
 import "./globals.css";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
+import { LogoutNotice } from "@/components/layout/LogoutNotice";
 import { SuggestionPrompt } from "@/components/layout/SuggestionPrompt";
 import { SiteSidebar } from "@/components/navigation/SiteNav";
 import { SITE_DESCRIPTION, SITE_NAME, SITE_TITLE_TEMPLATE, SITE_URL } from "@/lib/seo/site";
@@ -48,6 +50,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="flex min-h-full flex-col bg-white text-zinc-900">
+        <Suspense fallback={null}>
+          <LogoutNotice />
+        </Suspense>
         {/*
           Script oficial de verificação do Google AdSense. `strategy="beforeInteractive"`
           garante que o Next.js injete esta tag dentro do <head> do HTML

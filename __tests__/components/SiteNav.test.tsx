@@ -1,6 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { SiteSidebar, MobileNavigation } from "@/components/navigation/SiteNav";
+import type { HeaderAuthState } from "@/components/layout/auth-state";
+
+const signedOut: HeaderAuthState = { status: "signed-out" };
 
 vi.mock("next/navigation", () => ({
   usePathname: () => "/",
@@ -21,7 +24,7 @@ describe("SiteSidebar (desktop) — ordem das categorias", () => {
 
 describe("MobileNavigation — ordem das categorias e correção do bug de abertura no celular", () => {
   it('a categoria "Instagram e Redes Sociais" aparece primeiro na lista de categorias', () => {
-    render(<MobileNavigation />);
+    render(<MobileNavigation auth={signedOut} />);
 
     fireEvent.click(screen.getByRole("button", { name: /abrir menu de navegação/i }));
 
@@ -40,7 +43,7 @@ describe("MobileNavigation — ordem das categorias e correção do bug de abert
       "elementos position:fixed — sem o portal, o painel ficava preso à altura do " +
       "header e as categorias pareciam não abrir no celular)",
     () => {
-      const { container } = render(<MobileNavigation />);
+      const { container } = render(<MobileNavigation auth={signedOut} />);
 
       fireEvent.click(screen.getByRole("button", { name: /abrir menu de navegação/i }));
 
@@ -51,7 +54,7 @@ describe("MobileNavigation — ordem das categorias e correção do bug de abert
   );
 
   it("fechar o menu remove o painel do body (sem vazar entre testes)", () => {
-    render(<MobileNavigation />);
+    render(<MobileNavigation auth={signedOut} />);
 
     fireEvent.click(screen.getByRole("button", { name: /abrir menu de navegação/i }));
     const dialog = screen.getByRole("dialog");
@@ -64,14 +67,16 @@ describe("MobileNavigation — ordem das categorias e correção do bug de abert
   });
 
   it("clicar em um link da categoria fecha o menu (permite navegar de fato no celular)", () => {
-    render(<MobileNavigation />);
+    render(<MobileNavigation auth={signedOut} />);
 
     fireEvent.click(screen.getByRole("button", { name: /abrir menu de navegação/i }));
     const dialog = screen.getByRole("dialog");
-    const instagramLink = within(dialog).getAllByRole("link")[2];
-    expect(instagramLink).toHaveAttribute("href", "/instagram");
+    const instagramLink = within(dialog)
+      .getAllByRole("link")
+      .find((link) => link.getAttribute("href") === "/instagram");
+    expect(instagramLink).toBeDefined();
 
-    fireEvent.click(instagramLink);
+    fireEvent.click(instagramLink!);
 
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
