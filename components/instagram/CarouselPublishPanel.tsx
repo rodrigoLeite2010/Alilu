@@ -9,13 +9,14 @@ import { waitForFonts } from "@/lib/instagram/export";
 import { renderSlideToBlob } from "@/lib/instagram/carousel/carousel-export";
 import { buildCarouselSlideFileName } from "@/lib/instagram/layout-math";
 import { getFormatById } from "@/lib/instagram/formats";
-import type { CarouselFormatId, CarouselSlide } from "@/lib/instagram/carousel/carousel-state";
+import {
+  MAX_CAROUSEL_PUBLISH_ITEMS,
+  MIN_CAROUSEL_PUBLISH_ITEMS,
+  type CarouselFormatId,
+  type CarouselSlide,
+} from "@/lib/instagram/carousel/carousel-state";
 
 type Stage = "idle" | "gerando" | "enviando" | "criando-post" | "publicando" | "sucesso" | "erro";
-
-/** Mesmos limites de instagram-post-service.ts (2 a 10 imagens por carrossel — o mínimo é uma decisão do ALILU, o máximo é da própria Meta). Validados aqui também para dar um erro amigável antes de gastar tempo gerando/subindo imagens que a criação do post rejeitaria de qualquer forma. */
-const MIN_CAROUSEL_ITEMS = 2;
-const MAX_CAROUSEL_ITEMS = 10;
 
 async function readErrorMessage(response: Response, fallback: string): Promise<string> {
   try {
@@ -70,15 +71,15 @@ export function CarouselPublishPanel({ slides, formatId, userId }: CarouselPubli
     setMessage(null);
     setProgress(null);
 
-    if (slides.length < MIN_CAROUSEL_ITEMS) {
+    if (slides.length < MIN_CAROUSEL_PUBLISH_ITEMS) {
       setStage("erro");
-      setMessage(`Um carrossel para publicar precisa de pelo menos ${MIN_CAROUSEL_ITEMS} slides.`);
+      setMessage(`Um carrossel para publicar precisa de pelo menos ${MIN_CAROUSEL_PUBLISH_ITEMS} slides.`);
       return;
     }
-    if (slides.length > MAX_CAROUSEL_ITEMS) {
+    if (slides.length > MAX_CAROUSEL_PUBLISH_ITEMS) {
       setStage("erro");
       setMessage(
-        `O Instagram só aceita até ${MAX_CAROUSEL_ITEMS} imagens por carrossel (este tem ${slides.length}). Remova slides antes de publicar.`,
+        `O Instagram só aceita até ${MAX_CAROUSEL_PUBLISH_ITEMS} imagens por carrossel (este tem ${slides.length}). Remova slides antes de publicar.`,
       );
       return;
     }
@@ -187,8 +188,8 @@ export function CarouselPublishPanel({ slides, formatId, userId }: CarouselPubli
         <p className="text-sm font-medium text-teal-900">Publicar carrossel no Instagram</p>
         <p className="mt-1 text-xs text-teal-800">
           Publica de verdade os {slides.length} slides na sua conta conectada, ou agenda para uma data futura (
-          {format.width} × {format.height}px cada). O Instagram aceita de {MIN_CAROUSEL_ITEMS} a{" "}
-          {MAX_CAROUSEL_ITEMS} imagens por carrossel.
+          {format.width} × {format.height}px cada). O Instagram aceita de {MIN_CAROUSEL_PUBLISH_ITEMS} a{" "}
+          {MAX_CAROUSEL_PUBLISH_ITEMS} imagens por carrossel.
         </p>
       </div>
 

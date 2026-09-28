@@ -92,7 +92,8 @@ export interface PostEditorState {
   texts: Record<TextSlotId, TextLayerState>;
 }
 
-function createEmptyBackgroundImage(): BackgroundImageState {
+/** Exportada para o "Carrossel automático" (lib/instagram/carousel/auto-carousel.ts) montar um BackgroundImageState completo a partir só dos campos que vêm de um upload novo (url/fileName/naturalWidth/naturalHeight), sem duplicar os valores padrão aqui. */
+export function createEmptyBackgroundImage(): BackgroundImageState {
   return {
     url: null,
     fileName: null,

@@ -1,11 +1,18 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type ComponentType } from "react";
+import { useCallback, useEffect, useRef, useState, type ChangeEvent, type ComponentType } from "react";
 import Link from "next/link";
-import { ChevronDown, RotateCcw, Redo2, Undo2 } from "lucide-react";
+import { AlertTriangle, ChevronDown, ChevronLeft, ChevronRight, RotateCcw, Redo2, Undo2 } from "lucide-react";
 import { Button, LinkButton } from "@/components/ui/Button";
 import { getFormatById } from "@/lib/instagram/formats";
 import type { PostTemplateId, TextSlotId } from "@/lib/instagram/templates";
+import {
+  ACCEPTED_IMAGE_INPUT_ACCEPT,
+  createImageObjectUrl,
+  loadImageElement,
+  revokeImageObjectUrl,
+  validateImageFile,
+} from "@/lib/instagram/image-utils";
 import {
   applyColorComboToState,
   applyTemplateToState,
@@ -22,13 +29,17 @@ import {
 } from "@/lib/instagram/editor-state";
 import {
   addSlide,
+  applyImageToAllSlides,
   buildDuplicatedSlide,
   canAddSlide,
   canRemoveSlide,
+  cloneBackgroundImage,
   cloneSlideState,
   createInitialCarouselState,
+  GENERATED_CAROUSEL_TEXT_SLOT,
   getSelectedSlide,
   insertSlideAfter,
+  MAX_CAROUSEL_PUBLISH_ITEMS,
   MAX_CAROUSEL_SLIDES,
   moveSlideDown,
   moveSlideUp,
@@ -43,6 +54,7 @@ import {
   type CarouselFormatId,
   type CarouselSlide,
 } from "@/lib/instagram/carousel/carousel-state";
+import { buildCarouselFromPastedText, buildSeedBackgroundImage, type AutoCarouselResult } from "@/lib/instagram/carousel/auto-carousel";
 import { buildSlidesFromPreset, getCarouselPresetById } from "@/lib/instagram/carousel/carousel-presets";
 import { useEditorHistory } from "@/components/tools/instagram-post-creator/useEditorHistory";
 import { EditorPreviewCanvas } from "@/components/tools/instagram-post-creator/EditorPreviewCanvas";
@@ -51,15 +63,23 @@ import { BackgroundControls } from "@/components/tools/instagram-post-creator/Ba
 import { SlidesPanel } from "./SlidesPanel";
 import { CarouselStructureControls } from "./CarouselStructureControls";
 import { CarouselExportPanel } from "./CarouselExportPanel";
+import { CarouselQuickCreate, type CarouselQuickCreateImage } from "./CarouselQuickCreate";
 
 /**
- * Componente principal do Criador de Carrosséis (Fase 2, ETAPA 2). Reutiliza
- * praticamente todo o Criador de Posts — a única coisa nova de verdade é o
- * "porta-slides" ao redor dele (lib/instagram/carousel/carousel-state.ts):
- * cada slide é um `PostEditorState` completo, e toda a edição de texto,
+ * Componente principal do Criador de Carrosséis (Fase 2, ETAPA 2; Carrossel
+ * automático, ETAPA 8/9). Reutiliza praticamente todo o Criador de Posts —
+ * cada slide é um `PostEditorState` completo — e toda a edição de texto,
  * cor e imagem passa pelas mesmíssimas funções puras do editor original,
- * só que aplicadas apenas ao slide selecionado
- * (`updateSelectedSlideState`). Tudo roda 100% no navegador.
+ * só que aplicadas apenas ao slide selecionado (`updateSelectedSlideState`).
+ * Tudo roda 100% no navegador.
+ *
+ * Dois estados de tela, não dois componentes separados por rota: "Criação"
+ * (CarouselQuickCreate — imagem + texto completo + "Gerar carrossel", sem
+ * nenhum outro controle) e "Revisão" (o editor completo de sempre, com o
+ * "Editando: Slide X de Y" e todos os controles). Começa em "Criação" só
+ * quando não existe `initialState` (primeira visita) — um carrossel
+ * restaurado de um rascunho (ver PublicCarouselCreator.tsx) sempre chega
+ * pronto na "Revisão", exatamente como antes desta mudança.
  */
 export interface CarouselPublishPanelSlotProps {
   slides: CarouselSlide[];
@@ -81,6 +101,28 @@ export interface CarouselEditorToolProps {
   initialState?: CarouselEditorState;
   /** Notificado a cada mudança (ex.: guardar rascunho local antes de sair para o login). */
   onStateChange?: (state: CarouselEditorState) => void;
+}
+
+interface OverflowNotice {
+  /** "hardCap": o próprio texto não coube nem nos MAX_CAROUSEL_SLIDES do editor. "publishLimit": coube no editor, mas passa do limite de publicação do Instagram. */
+  kind: "hardCap" | "publishLimit";
+  slideCount: number;
+  /** Texto que ainda não virou slide nenhum (kind "hardCap") ou texto dos slides além do limite de publicação (kind "publishLimit") — nunca descartado, sempre disponível para "Criar outro carrossel com o restante". */
+  leftoverText: string;
+}
+
+function buildOverflowNotice(result: AutoCarouselResult): OverflowNotice | null {
+  if (result.overflowText) {
+    return { kind: "hardCap", slideCount: result.state.slides.length, leftoverText: result.overflowText };
+  }
+  if (result.state.slides.length > MAX_CAROUSEL_PUBLISH_ITEMS) {
+    const leftoverText = result.state.slides
+      .slice(MAX_CAROUSEL_PUBLISH_ITEMS)
+      .map((slide) => slide.state.texts[GENERATED_CAROUSEL_TEXT_SLOT].value)
+      .join("\n\n");
+    return { kind: "publishLimit", slideCount: result.state.slides.length, leftoverText };
+  }
+  return null;
 }
 
 export function CarouselEditorTool({
@@ -112,6 +154,18 @@ export function CarouselEditorTool({
   useEffect(() => {
     stateRef.current = state;
   }, [state]);
+
+  // Estado 1 ("Criação") por padrão só na primeira visita — um carrossel
+  // restaurado de rascunho (initialState presente) sempre abre direto no
+  // Estado 2 ("Revisão"), como antes desta mudança.
+  const [mode, setMode] = useState<"create" | "review">(initialState ? "review" : "create");
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [generateError, setGenerateError] = useState<string | null>(null);
+  const [overflowNotice, setOverflowNotice] = useState<OverflowNotice | null>(null);
+  // Só usado por "Criar outro carrossel com o restante" (ETAPA 9): sobrescreve o texto herdado de state.originalText UMA vez, ao voltar para o Estado 1 com um carrossel novo/vazio.
+  const [pendingCreateText, setPendingCreateText] = useState<string | null>(null);
+  const [isChangingImage, setIsChangingImage] = useState(false);
+  const changeImageInputRef = useRef<HTMLInputElement>(null);
 
   // Libera a imagem de TODOS os slides ao desmontar o editor (ex.: usuário
   // sai da página) — cada slide é dono exclusivo da própria URL (ver
@@ -217,6 +271,18 @@ export function CarouselEditorTool({
     [setStateWithoutHistory]
   );
 
+  const handlePreviousSlide = useCallback(() => {
+    const index = stateRef.current.slides.findIndex((slide) => slide.id === stateRef.current.selectedSlideId);
+    if (index <= 0) return;
+    handleSelectSlide(stateRef.current.slides[index - 1].id);
+  }, [handleSelectSlide]);
+
+  const handleNextSlide = useCallback(() => {
+    const index = stateRef.current.slides.findIndex((slide) => slide.id === stateRef.current.selectedSlideId);
+    if (index === -1 || index >= stateRef.current.slides.length - 1) return;
+    handleSelectSlide(stateRef.current.slides[index + 1].id);
+  }, [handleSelectSlide]);
+
   const handleAddSlide = useCallback(() => commit((prev) => addSlide(prev)), [commit]);
 
   const handleDuplicateSlide = useCallback(
@@ -280,7 +346,148 @@ export function CarouselEditorTool({
     if (!confirmed) return;
     releaseAllSlideImages(stateRef.current);
     resetHistory(createInitialCarouselState(stateRef.current.formatId));
+    setOverflowNotice(null);
+    setGenerateError(null);
+    setPendingCreateText(null);
+    setMode("create");
   }
+
+  // Carrossel automático (Fase 2, ETAPA 8/9): "Gerar carrossel" (Estado 1
+  // → Estado 2) e "Redistribuir texto" (Estado 2, no lugar) passam pelo
+  // mesmo caminho — ver buildCarouselFromPastedText em auto-carousel.ts.
+  const runAutoGenerate = useCallback(
+    async (text: string, seedImage: BackgroundImageState) => {
+      setIsGenerating(true);
+      setGenerateError(null);
+      try {
+        const result = await buildCarouselFromPastedText({
+          text,
+          seedImage,
+          formatId: stateRef.current.formatId,
+        });
+        // Nenhuma imagem do carrossel anterior é mais usada a partir daqui.
+        // Sempre seguro: `seedImage` é sempre uma URL nova e exclusiva (de
+        // um upload novo, ou já clonada por quem chamou esta função) —
+        // nunca a mesma URL que um slide antigo ainda está usando.
+        releaseAllSlideImages(stateRef.current);
+        resetHistory(result.state);
+        setOverflowNotice(buildOverflowNotice(result));
+        setPendingCreateText(null);
+        setMode("review");
+      } catch (err) {
+        setGenerateError(
+          err instanceof Error ? err.message : "Não foi possível gerar o carrossel agora. Tente novamente."
+        );
+      } finally {
+        setIsGenerating(false);
+      }
+    },
+    [resetHistory]
+  );
+
+  const handleGenerate = useCallback(
+    async (text: string, image: CarouselQuickCreateImage | null) => {
+      if (image) {
+        await runAutoGenerate(text, buildSeedBackgroundImage(image));
+        return;
+      }
+
+      // Usuário não trocou a imagem mostrada (herdada do carrossel atual,
+      // ex.: veio de "Editar texto original") — clona em vez de reaproveitar
+      // a mesma URL: cada estado precisa continuar dono exclusivo da
+      // própria imagem (ver cloneBackgroundImage em carousel-state.ts).
+      const currentImage = stateRef.current.slides[0]?.state.backgroundImage;
+      if (!currentImage?.url) {
+        setGenerateError("Escolha uma imagem antes de gerar o carrossel.");
+        return;
+      }
+      setIsGenerating(true);
+      try {
+        const clonedSeed = await cloneBackgroundImage(currentImage);
+        await runAutoGenerate(text, clonedSeed);
+      } finally {
+        setIsGenerating(false);
+      }
+    },
+    [runAutoGenerate]
+  );
+
+  const handleEditOriginalText = useCallback(() => {
+    setGenerateError(null);
+    setOverflowNotice(null);
+    setMode("create");
+  }, []);
+
+  const handleRedistributeText = useCallback(async () => {
+    const current = stateRef.current;
+    if (current.originalText === undefined) return;
+    const currentImage = current.slides[0]?.state.backgroundImage;
+    if (!currentImage?.url) {
+      setGenerateError("Este carrossel não tem imagem de fundo para redistribuir o texto.");
+      return;
+    }
+    setIsGenerating(true);
+    setGenerateError(null);
+    try {
+      const clonedSeed = await cloneBackgroundImage(currentImage);
+      await runAutoGenerate(current.originalText, clonedSeed);
+    } finally {
+      setIsGenerating(false);
+    }
+  }, [runAutoGenerate]);
+
+  const handleChangeBackgroundImageFile = useCallback(
+    async (event: ChangeEvent<HTMLInputElement>) => {
+      const file = event.target.files?.[0] ?? null;
+      event.target.value = "";
+      if (!file) return;
+
+      const validation = validateImageFile(file);
+      if (!validation.valid) {
+        setGenerateError(validation.error ?? "Não foi possível usar essa imagem.");
+        return;
+      }
+
+      setIsChangingImage(true);
+      setGenerateError(null);
+      const url = createImageObjectUrl(file);
+      try {
+        const loaded = await loadImageElement(url);
+        const seedImage = buildSeedBackgroundImage({
+          url,
+          fileName: file.name,
+          naturalWidth: loaded.naturalWidth,
+          naturalHeight: loaded.naturalHeight,
+        });
+        const previous = stateRef.current;
+        const next = await applyImageToAllSlides(previous, seedImage);
+        releaseAllSlideImages(previous);
+        commit(() => next);
+      } catch {
+        revokeImageObjectUrl(url);
+        setGenerateError("Não foi possível trocar a imagem agora. Tente outro arquivo.");
+      } finally {
+        setIsChangingImage(false);
+      }
+    },
+    [commit]
+  );
+
+  const handleCreateAnotherWithLeftover = useCallback(
+    (leftoverText: string) => {
+      const confirmed = window.confirm(
+        "Isso começa um carrossel novo com o texto que sobrou, e libera as imagens do carrossel atual. Deseja continuar?"
+      );
+      if (!confirmed) return;
+      releaseAllSlideImages(stateRef.current);
+      resetHistory(createInitialCarouselState(stateRef.current.formatId));
+      setPendingCreateText(leftoverText);
+      setOverflowNotice(null);
+      setGenerateError(null);
+      setMode("create");
+    },
+    [resetHistory]
+  );
 
   // Sugestão de assunto para o Gerador de Legendas (ETAPA 12), a partir do
   // primeiro título não vazio entre os slides — nunca dado pessoal, apenas
@@ -292,13 +499,90 @@ export function CarouselEditorTool({
     ? `/instagram/legendas?assunto=${encodeURIComponent(suggestedSubject)}`
     : "/instagram/legendas";
 
+  if (mode === "create") {
+    const currentImage = state.slides[0]?.state.backgroundImage;
+    const initialImagePreview: CarouselQuickCreateImage | null = currentImage?.url
+      ? {
+          url: currentImage.url,
+          fileName: currentImage.fileName,
+          naturalWidth: currentImage.naturalWidth,
+          naturalHeight: currentImage.naturalHeight,
+        }
+      : null;
+
+    return (
+      <CarouselQuickCreate
+        formatId={state.formatId}
+        onFormatChange={handleFormatChange}
+        initialText={pendingCreateText ?? state.originalText ?? ""}
+        initialImagePreview={initialImagePreview}
+        busy={isGenerating}
+        error={generateError}
+        onGenerate={(text, image) => void handleGenerate(text, image)}
+      />
+    );
+  }
+
   return (
     <div className="grid grid-cols-1 gap-8 lg:grid-cols-[20rem_minmax(0,1fr)_19rem] lg:items-start">
+      {overflowNotice ? (
+        <div className="order-0 rounded-lg border border-amber-300 bg-amber-50 p-4 lg:col-span-3">
+          <div className="flex items-start gap-2">
+            <AlertTriangle className="mt-0.5 h-5 w-5 flex-shrink-0 text-amber-600" aria-hidden />
+            <div className="flex-1 space-y-2">
+              <p className="text-sm font-medium text-amber-900">
+                {overflowNotice.kind === "hardCap"
+                  ? `Seu conteúdo gerou mais slides do que o editor comporta (o máximo é ${MAX_CAROUSEL_SLIDES}). O texto que sobrou ainda não virou slide nenhum — nada foi perdido.`
+                  : `Seu conteúdo gerou ${overflowNotice.slideCount} slides. O Instagram permite até ${MAX_CAROUSEL_PUBLISH_ITEMS} imagens por carrossel.`}
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <Button type="button" variant="secondary" onClick={handleEditOriginalText} className="min-h-9 px-3 py-1.5 text-xs">
+                  Reduzir conteúdo
+                </Button>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => handleCreateAnotherWithLeftover(overflowNotice.leftoverText)}
+                  className="min-h-9 px-3 py-1.5 text-xs"
+                >
+                  Criar outro carrossel com o restante
+                </Button>
+                <Button type="button" variant="ghost" onClick={() => setOverflowNotice(null)} className="min-h-9 px-3 py-1.5 text-xs">
+                  Dispensar
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       {/* Área B — Visualização do slide selecionado: em destaque no celular, ao centro no desktop. */}
       <div className="order-1 lg:order-2 lg:sticky lg:top-20">
-        <p className="mb-2 text-center text-sm font-medium text-zinc-600 lg:text-left">
-          Editando: Slide {selectedIndex + 1} de {state.slides.length}
-        </p>
+        <div className="mb-2 flex items-center justify-center gap-2 lg:justify-start">
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={handlePreviousSlide}
+            disabled={selectedIndex <= 0}
+            aria-label="Slide anterior"
+            className="min-h-8 px-2"
+          >
+            <ChevronLeft className="h-4 w-4" aria-hidden />
+          </Button>
+          <p className="text-center text-sm font-medium text-zinc-600">
+            Editando: Slide {selectedIndex + 1} de {state.slides.length}
+          </p>
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={handleNextSlide}
+            disabled={selectedIndex >= state.slides.length - 1}
+            aria-label="Próximo slide"
+            className="min-h-8 px-2"
+          >
+            <ChevronRight className="h-4 w-4" aria-hidden />
+          </Button>
+        </div>
         <EditorPreviewCanvas
           format={format}
           state={selectedSlide.state}
@@ -320,6 +604,50 @@ export function CarouselEditorTool({
             Refazer
           </Button>
         </div>
+
+        {state.originalText !== undefined ? (
+          <div className="space-y-2 rounded-lg border border-zinc-200 p-4">
+            <p className="text-sm font-medium text-zinc-700">Carrossel automático</p>
+            <div className="flex flex-col gap-2">
+              <Button type="button" variant="secondary" onClick={handleEditOriginalText} className="w-full justify-center">
+                Editar texto original
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => void handleRedistributeText()}
+                disabled={isGenerating}
+                className="w-full justify-center"
+              >
+                {isGenerating ? "Redistribuindo..." : "Redistribuir texto"}
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => changeImageInputRef.current?.click()}
+                disabled={isChangingImage}
+                className="w-full justify-center"
+              >
+                {isChangingImage ? "Trocando imagem..." : "Trocar imagem de fundo"}
+              </Button>
+              <input
+                ref={changeImageInputRef}
+                type="file"
+                accept={ACCEPTED_IMAGE_INPUT_ACCEPT}
+                className="hidden"
+                aria-hidden="true"
+                tabIndex={-1}
+                data-testid="carousel-change-background-image"
+                onChange={(event) => void handleChangeBackgroundImageFile(event)}
+              />
+            </div>
+            {generateError ? (
+              <p role="alert" className="text-sm text-red-600">
+                {generateError}
+              </p>
+            ) : null}
+          </div>
+        ) : null}
 
         <CarouselExportPanel slides={state.slides} formatId={state.formatId} />
 

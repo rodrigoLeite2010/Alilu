@@ -13,6 +13,46 @@ const draftStore = {
 };
 vi.mock("@/lib/instagram/draft-store", () => draftStore);
 
+// Desde o Carrossel automático (ETAPA 8/9), o editor abre no Estado 1
+// ("Criação") quando não recebe um carrossel pronto — o teste abaixo passa
+// por ele antes de chegar aos botões de publicação (ver
+// InstagramCarouselEditorTool.test.tsx para a cobertura completa do Estado 1).
+vi.mock("@/lib/instagram/carousel/auto-carousel", async () => {
+  const actual = await vi.importActual<typeof import("@/lib/instagram/carousel/auto-carousel")>(
+    "@/lib/instagram/carousel/auto-carousel"
+  );
+  return {
+    ...actual,
+    buildCarouselFromPastedText: vi.fn(async () => {
+      const { createCarouselSlide, GENERATED_CAROUSEL_TEMPLATE_ID, GENERATED_CAROUSEL_TEXT_SLOT } = await import(
+        "@/lib/instagram/carousel/carousel-state"
+      );
+      const { updateTextValue } = await import("@/lib/instagram/editor-state");
+      const slide = createCarouselSlide("quadrado", GENERATED_CAROUSEL_TEMPLATE_ID);
+      const withImage = { ...slide.state, backgroundImage: { ...slide.state.backgroundImage, url: "blob:seed" } };
+      const withText = updateTextValue(withImage, GENERATED_CAROUSEL_TEXT_SLOT, "Slide gerado.");
+      return {
+        state: {
+          formatId: "quadrado",
+          slides: [{ ...slide, order: 0, state: withText }],
+          selectedSlideId: slide.id,
+          originalText: "Slide gerado.",
+        },
+        overflowText: null,
+      };
+    }),
+  };
+});
+vi.mock("@/lib/instagram/image-utils", async () => {
+  const actual = await vi.importActual<typeof import("@/lib/instagram/image-utils")>("@/lib/instagram/image-utils");
+  return {
+    ...actual,
+    createImageObjectUrl: () => "blob:nova",
+    revokeImageObjectUrl: vi.fn(),
+    loadImageElement: vi.fn().mockResolvedValue({ naturalWidth: 800, naturalHeight: 600 }),
+  };
+});
+
 const { default: InstagramCategoryPage } = await import("@/app/instagram/page");
 const { default: HomePage } = await import("@/app/page");
 const { SiteSidebar } = await import("@/components/navigation/SiteNav");
@@ -102,6 +142,16 @@ describe("Carrossel e Reels públicos", () => {
   it("carrossel sem conta: Publicar/Agendar visíveis e levam à conexão guardando os slides", async () => {
     stubAccount({ authenticated: false, connected: false, username: null });
     render(<PublicCarouselCreator />);
+
+    // Estado 1 (Criação) é o ponto de partida, com ou sem conta conectada.
+    expect(screen.getByText("Crie seu carrossel")).toBeInTheDocument();
+    fireEvent.change(screen.getByTestId("carousel-quick-create-image"), {
+      target: { files: [new File(["png"], "foto.jpg", { type: "image/png" })] },
+    });
+    await screen.findByText("foto.jpg");
+    fireEvent.change(screen.getByLabelText("Texto completo"), { target: { value: "Slide gerado." } });
+    fireEvent.click(screen.getByRole("button", { name: /gerar carrossel/i }));
+
     await waitFor(() => expect(screen.getByRole("button", { name: "Publicar no Instagram" })).toBeEnabled());
     fireEvent.click(screen.getByRole("button", { name: "Publicar no Instagram" }));
     const gate = await screen.findByRole("dialog", { name: "Conecte seu Instagram para continuar" });

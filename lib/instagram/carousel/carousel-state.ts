@@ -19,10 +19,11 @@ import {
   clearBackgroundImage,
   createInitialEditorState,
   setFormat as setPostFormat,
+  updateTextValue,
   type BackgroundImageState,
   type PostEditorState,
 } from "../editor-state";
-import type { PostTemplateId } from "../templates";
+import type { PostTemplateId, TextSlotId } from "../templates";
 import type { PostFormatId } from "../formats";
 import { revokeImageObjectUrl } from "../image-utils";
 
@@ -38,6 +39,35 @@ export const MIN_CAROUSEL_SLIDES = 1;
 export const INITIAL_CAROUSEL_SLIDES = 5;
 export const MAX_CAROUSEL_SLIDES = 20;
 
+/**
+ * Limites de publicação de verdade no Instagram (2 a 10 imagens por
+ * carrossel — o mínimo é uma decisão do ALILU, o máximo é da própria
+ * Meta). O editor em si permite montar até MAX_CAROUSEL_SLIDES (20)
+ * slides — bem mais que o publicável — porque também serve para baixar
+ * em ZIP. Fonte única para o lado do cliente: components/instagram/
+ * CarouselPublishPanel.tsx importa daqui em vez de ter sua própria
+ * cópia, e o "Carrossel automático" (generate-slides-from-text.ts) usa
+ * os mesmos números para avisar sobre o limite já na tela de geração,
+ * antes de gastar tempo desenhando/publicando. Os mesmos dois números
+ * também existem no lado do servidor, em lib/instagram/backend/
+ * instagram-post-service.ts — duplicados ali por necessidade (código
+ * "server-only" não pode ser importado por um Client Component).
+ */
+export const MIN_CAROUSEL_PUBLISH_ITEMS = 2;
+export const MAX_CAROUSEL_PUBLISH_ITEMS = 10;
+
+/**
+ * Template usado pelos slides do "Carrossel automático" (texto colado →
+ * slides gerados sozinhos): "Frase motivacional" é o único dos cinco
+ * templates cujo rótulo e rodapé já nascem vazios por padrão — um bloco
+ * de texto grande e centralizado, sem nenhuma marca/rótulo fixo
+ * competindo com o conteúdo colado pelo usuário (ver lib/instagram/
+ * templates.ts). O texto gerado vai sempre no slot "heading" (o único
+ * slot multilinha e generoso o bastante deste template).
+ */
+export const GENERATED_CAROUSEL_TEMPLATE_ID: PostTemplateId = "frase-motivacional";
+export const GENERATED_CAROUSEL_TEXT_SLOT: TextSlotId = "heading";
+
 export interface CarouselSlide {
   id: string;
   order: number;
@@ -48,6 +78,17 @@ export interface CarouselEditorState {
   formatId: CarouselFormatId;
   slides: CarouselSlide[];
   selectedSlideId: string;
+  /**
+   * Texto completo colado pelo usuário no "Carrossel automático", ANTES de
+   * ser dividido em slides — preservado à parte do conteúdo dos slides
+   * (nunca reconstruído juntando de volta `slide.state.texts[...]`, o que
+   * perderia parágrafos/formatação). Usado por "Redistribuir texto" (refaz
+   * a divisão do zero) e por "Editar texto original" (volta para o Estado
+   * 1 com a textarea pré-preenchida). `undefined` para carrosséis montados
+   * manualmente slide a slide (fluxo antigo), que não têm um texto de
+   * origem único.
+   */
+  originalText?: string;
 }
 
 let slideIdCounter = 0;
@@ -307,6 +348,98 @@ export function releaseSlideImage(slide: CarouselSlide | undefined): void {
 /** Usado só pelo botão "Começar novamente": libera a imagem de todos os slides de uma vez. */
 export function releaseAllSlideImages(state: CarouselEditorState): void {
   state.slides.forEach((slide) => revokeImageObjectUrl(slide.state.backgroundImage.url));
+}
+
+/**
+ * Constrói N cópias independentes de `seedImage` para popular os slides
+ * de um carrossel (Carrossel automático — ETAPA 8/9), reaproveitando o
+ * mesmo padrão "clona em vez de compartilhar URL" de `cloneBackgroundImage`
+ * acima. A primeira posição da lista devolvida é sempre a própria
+ * `seedImage`, sem clonar — preserva a URL original que o usuário acabou
+ * de escolher em vez de descartá-la e criar N cópias novas.
+ */
+export async function buildBackgroundImagesForSlides(
+  seedImage: BackgroundImageState,
+  count: number
+): Promise<BackgroundImageState[]> {
+  const images: BackgroundImageState[] = [seedImage];
+  for (let i = 1; i < count; i += 1) {
+    images.push(await cloneBackgroundImage(seedImage));
+  }
+  return images;
+}
+
+/**
+ * Constrói um CarouselEditorState inteiro a partir dos pedaços de texto já
+ * calculados por `generateSlidesFromText`
+ * (lib/instagram/carousel/generate-slides-from-text.ts) — um slide por
+ * pedaço, todos com o template "frase motivacional"
+ * (GENERATED_CAROUSEL_TEMPLATE_ID) e o texto no slot "heading"
+ * (GENERATED_CAROUSEL_TEXT_SLOT), cada um com sua própria cópia
+ * independente da imagem de fundo escolhida (ver
+ * `buildBackgroundImagesForSlides`). Guarda `originalText` à parte — é o
+ * que permite "Redistribuir texto" recalcular a divisão do zero sem
+ * nunca reconstruir o texto original juntando de volta os slides.
+ *
+ * Atribui a imagem clonada diretamente ao campo `backgroundImage` do
+ * estado do slide, em vez de usar `setBackgroundImage` de
+ * editor-state.ts: aquela função foi desenhada para receber só os campos
+ * vindos de um upload novo (url/fileName/naturalWidth/naturalHeight) e
+ * reconstrói o resto a partir de um estado vazio — aqui a imagem já vem
+ * pronta (clonada de uma escolhida pelo usuário), então atribuímos o
+ * objeto inteiro como está, sem passar por essa reconstrução.
+ */
+export async function createCarouselStateFromTextChunks(
+  chunks: string[],
+  formatId: CarouselFormatId,
+  seedImage: BackgroundImageState,
+  originalText: string
+): Promise<CarouselEditorState> {
+  if (chunks.length === 0) {
+    throw new Error("createCarouselStateFromTextChunks: nenhum slide para gerar (texto vazio).");
+  }
+
+  const images = await buildBackgroundImagesForSlides(seedImage, chunks.length);
+
+  const slides = reindex(
+    chunks.map((chunk, index) => {
+      const slide = createCarouselSlide(formatId, GENERATED_CAROUSEL_TEMPLATE_ID);
+      const stateWithImage: PostEditorState = { ...slide.state, backgroundImage: images[index] };
+      const stateWithText = updateTextValue(stateWithImage, GENERATED_CAROUSEL_TEXT_SLOT, chunk);
+      return { ...slide, state: stateWithText };
+    })
+  );
+
+  return {
+    formatId,
+    slides,
+    selectedSlideId: slides[0].id,
+    originalText,
+  };
+}
+
+/**
+ * Ação "Trocar imagem de fundo" do Estado 2 (revisão): substitui a imagem
+ * de fundo de TODOS os slides do carrossel por cópias independentes de
+ * `seedImage` de uma só vez — mesmo padrão de clonagem de
+ * `buildBackgroundImagesForSlides`, aplicado a um carrossel já existente
+ * (gerado automaticamente ou montado manualmente) em vez de a uma lista de
+ * textos nova. Como em `removeSlide`/`releaseSlideImage`, revogar as URLs
+ * antigas das imagens substituídas é responsabilidade de quem chama esta
+ * função — cada slide continua dono exclusivo da própria URL.
+ */
+export async function applyImageToAllSlides(
+  state: CarouselEditorState,
+  seedImage: BackgroundImageState
+): Promise<CarouselEditorState> {
+  const images = await buildBackgroundImagesForSlides(seedImage, state.slides.length);
+  return {
+    ...state,
+    slides: state.slides.map((slide, index) => ({
+      ...slide,
+      state: { ...slide.state, backgroundImage: images[index] },
+    })),
+  };
 }
 
 /** Slide "limpo", usado por `clearBackgroundImage` reexportado para conveniência dos componentes de carrossel. */

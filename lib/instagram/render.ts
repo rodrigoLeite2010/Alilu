@@ -17,7 +17,15 @@
 
 import type { PostFormat } from "./formats";
 import { getFontById } from "./fonts";
-import { clamp, computeCoverRect, computeContainRect, resolveFontSizePx, shadeHexColor } from "./layout-math";
+import {
+  clamp,
+  computeCoverRect,
+  computeContainRect,
+  resolveFontSizePx,
+  shadeHexColor,
+  TEXT_SLOT_MAX_BLOCK_HEIGHT_FRAC,
+  TEXT_SLOT_MIN_FONT_SIZE_FRAC,
+} from "./layout-math";
 import { getTemplateById, TEXT_SLOT_IDS, type PostTemplate, type TextSlotId } from "./templates";
 import type { PostEditorState } from "./editor-state";
 
@@ -92,16 +100,13 @@ export interface SlotBoundingBox {
 
 export type SlotBoundingBoxMap = Partial<Record<TextSlotId, SlotBoundingBox>>;
 
-/**
- * Limites do ajuste dinâmico de tamanho de fonte (Piloto Automático, Parte
- * 5 — "nunca deixar o texto vazar da arte"): um bloco de texto nunca pode
- * ocupar mais que esta fração da altura do canvas — quando o texto (curto
- * da IA ou escrito manualmente) não couber no tamanho padrão do template,
- * a fonte encolhe automaticamente até este piso mínimo antes de desenhar.
- */
-const TEXT_SLOT_MAX_BLOCK_HEIGHT_FRAC = 0.62;
-/** Piso de legibilidade — a fonte nunca encolhe além disto, em fração da menor dimensão do canvas. */
-const TEXT_SLOT_MIN_FONT_SIZE_FRAC = 0.022;
+// Os limites do ajuste dinâmico de tamanho de fonte (Piloto Automático,
+// Parte 5 — "nunca deixar o texto vazar da arte") agora moram em
+// layout-math.ts (TEXT_SLOT_MAX_BLOCK_HEIGHT_FRAC / TEXT_SLOT_MIN_FONT_SIZE_FRAC,
+// importados acima) — são as MESMAS duas constantes usadas pelo
+// planejamento automático de slides do carrossel
+// (lib/instagram/carousel/text-fit.ts), para o que ele decide que "cabe"
+// nunca divergir do que este arquivo de fato desenha.
 
 function roundedRectPath(
   ctx: RenderingContext2DLike,

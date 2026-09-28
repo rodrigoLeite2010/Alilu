@@ -7,6 +7,21 @@
  * placeholder-image-generator.ts).
  */
 
+/**
+ * Limites do ajuste dinâmico de tamanho de fonte (Piloto Automático, Parte
+ * 5 — "nunca deixar o texto vazar da arte"): um bloco de texto nunca pode
+ * ocupar mais que esta fração da altura do canvas — quando o texto (curto
+ * da IA ou escrito manualmente) não couber no tamanho padrão do template,
+ * a fonte encolhe automaticamente até o piso mínimo antes de desenhar.
+ * Usadas tanto pelo motor de desenho (render.ts, drawTextSlots) quanto
+ * pelo planejamento automático de slides do carrossel
+ * (carousel/text-fit.ts) — um único lugar garante que os dois nunca
+ * divirjam sobre o que "cabe".
+ */
+export const TEXT_SLOT_MAX_BLOCK_HEIGHT_FRAC = 0.62;
+/** Piso de legibilidade — a fonte nunca encolhe além disto, em fração da menor dimensão do canvas. */
+export const TEXT_SLOT_MIN_FONT_SIZE_FRAC = 0.022;
+
 export interface CoverRect {
   sx: number;
   sy: number;
