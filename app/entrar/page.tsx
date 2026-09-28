@@ -75,7 +75,7 @@ export default function LoginPage() {
       <div>
         <h1 className="text-xl font-semibold text-zinc-900">Entrar</h1>
         <p className="mt-1 text-sm text-zinc-600">
-          Entre para conectar seu Instagram e publicar pelo ALILU.
+          Entre com sua conta Google ou receba um código de 6 dígitos por e-mail.
         </p>
       </div>
 

@@ -61,6 +61,9 @@ export default function EducacaoFinanceiraPage() {
       </p>
       <div className="mt-5">
         <LinkButton href="/financeiro/meu-orcamento">Abrir meu orçamento</LinkButton>
+        <p className="mt-2 text-xs text-zinc-500">
+          Grátis. Entre com sua conta Google ou receba um código por e-mail — sem cartão, sem senha de banco.
+        </p>
       </div>
 
       <ul className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

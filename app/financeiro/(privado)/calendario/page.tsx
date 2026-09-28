@@ -1,17 +1,14 @@
 import type { Metadata } from "next";
 import { FinanceCalendar } from "@/components/financas/Calendar";
+import { FinancePage } from "@/components/financas/FinancePage";
 
-export const metadata: Metadata = {
-  title: "Calendário financeiro",
-  robots: { index: false, follow: false },
-};
+export const metadata: Metadata = { title: "Calendário financeiro", robots: { index: false, follow: false } };
 
-export default function Page() {
-  return (
-    <>
-      <h1 className="text-2xl font-semibold text-zinc-900">Calendário financeiro</h1>
-      <p className="mb-6 mt-1 text-sm text-zinc-600">Veja o que entra e o que vence em cada dia do mês.</p>
-      <FinanceCalendar />
-    </>
-  );
+export default async function Page() {
+  return FinancePage({
+    returnPath: "/financeiro/calendario",
+    title: "Calendário financeiro",
+    subtitle: "Veja o que entra e o que vence em cada dia do mês.",
+    children: <FinanceCalendar />,
+  });
 }
