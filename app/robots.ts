@@ -10,7 +10,16 @@ export default function robots(): MetadataRoute.Robots {
       // Instagram nunca devem ser indexados (ETAPA 17 do PROMPT: "nunca
       // indexar páginas privadas, callbacks de OAuth ou telas com dados
       // pessoais").
-      disallow: ["/entrar", "/api/", "/instagram/painel"],
+      disallow: [
+        "/entrar",
+        "/api/",
+        "/instagram/painel",
+        // Área privada de Educação Financeira (dados pessoais do usuário).
+        "/financeiro/meu-orcamento",
+        "/financeiro/calendario",
+        "/financeiro/receitas",
+        "/financeiro/despesas",
+      ],
     },
     sitemap: `${SITE_URL}/sitemap.xml`,
   };
