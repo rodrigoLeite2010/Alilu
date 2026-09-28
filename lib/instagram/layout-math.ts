@@ -22,6 +22,26 @@ export const TEXT_SLOT_MAX_BLOCK_HEIGHT_FRAC = 0.62;
 /** Piso de legibilidade — a fonte nunca encolhe além disto, em fração da menor dimensão do canvas. */
 export const TEXT_SLOT_MIN_FONT_SIZE_FRAC = 0.022;
 
+/**
+ * Piso de legibilidade "confortável" — usado apenas pelo PLANEJAMENTO do
+ * Carrossel automático (carousel/text-fit.ts), nunca pelo desenho ao vivo
+ * (render.ts continua usando só TEXT_SLOT_MIN_FONT_SIZE_FRAC como piso de
+ * segurança para texto digitado manualmente).
+ *
+ * Motivo: o piso de segurança absoluto (TEXT_SLOT_MIN_FONT_SIZE_FRAC) é
+ * bem menor que o tamanho padrão de quase todos os templates — permitir
+ * que o empacotamento guloso encolha até lá faz o texto de praticamente
+ * todo slide gerado sair pequeno demais para leitura confortável (era
+ * possível encolher até ~35% do tamanho padrão de um heading, por
+ * exemplo). Este segundo piso, expresso como fração do tamanho PREFERIDO
+ * do slot (não da dimensão do canvas), limita o quanto o planejamento
+ * encolhe antes de preferir abrir um slide novo — troca alguns slides a
+ * mais por texto sempre legível, como pedido depois de ver o resultado
+ * em uso real. 0.85 ≈ dois passos do fator de encolhimento de 0.92 usado
+ * tanto aqui quanto em drawTextSlots.
+ */
+export const TEXT_SLOT_GENERATED_MIN_SHRINK_RATIO = 0.85;
+
 export interface CoverRect {
   sx: number;
   sy: number;

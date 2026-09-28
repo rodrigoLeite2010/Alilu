@@ -70,7 +70,7 @@ describe("buildCarouselFromPastedText", () => {
 
   it("gera um CarouselEditorState com um slide por pedaço, todos com a imagem de fundo aplicada", async () => {
     const text = Array.from(
-      { length: 25 },
+      { length: 8 },
       (_, i) =>
         `Parágrafo número ${i}, bem mais longo, com várias frases dentro dele. ` +
         "Isso garante que o texto todo não caiba sozinho em um único slide, mesmo usando o tamanho real do template. " +

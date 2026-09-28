@@ -20,6 +20,7 @@
  */
 
 import {
+  TEXT_SLOT_GENERATED_MIN_SHRINK_RATIO,
   TEXT_SLOT_MAX_BLOCK_HEIGHT_FRAC,
   TEXT_SLOT_MIN_FONT_SIZE_FRAC,
   resolveFontSizePx,
@@ -137,13 +138,25 @@ export function resolveTextBlockBox(params: {
   canvasHeight: number;
 }): TextBlockBox {
   const { canvasWidth, canvasHeight } = params;
+  const preferredFontSizePx = resolveFontSizePx(params.fontSizeFrac, 1, canvasWidth, canvasHeight);
+  // Piso absoluto de segurança (o mesmo que render.ts usa) — nunca é isto
+  // sozinho que decide o piso de PLANEJAMENTO, ver comentário abaixo.
+  const absoluteMinFontSizePx = Math.max(8, Math.round(Math.min(canvasWidth, canvasHeight) * TEXT_SLOT_MIN_FONT_SIZE_FRAC));
+  // Piso de planejamento: o maior entre o piso absoluto e ~85% do tamanho
+  // preferido do slot — evita empacotar um slide até o piso de segurança
+  // só para economizar um slide; prefere abrir um slide novo antes disso
+  // (TEXT_SLOT_GENERATED_MIN_SHRINK_RATIO, layout-math.ts).
+  const minFontSizePx = Math.max(
+    absoluteMinFontSizePx,
+    Math.round(preferredFontSizePx * TEXT_SLOT_GENERATED_MIN_SHRINK_RATIO)
+  );
   return {
     maxWidthPx: params.maxWidthFrac * canvasWidth,
     maxBlockHeightPx: canvasHeight * TEXT_SLOT_MAX_BLOCK_HEIGHT_FRAC,
     fontFamily: params.fontFamily,
     bold: params.fontWeight === "bold",
-    preferredFontSizePx: resolveFontSizePx(params.fontSizeFrac, 1, canvasWidth, canvasHeight),
-    minFontSizePx: Math.max(8, Math.round(Math.min(canvasWidth, canvasHeight) * TEXT_SLOT_MIN_FONT_SIZE_FRAC)),
+    preferredFontSizePx,
+    minFontSizePx,
     lineHeight: params.lineHeight,
   };
 }
