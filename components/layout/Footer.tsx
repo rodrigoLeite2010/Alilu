@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Container } from "@/components/ui/Container";
+import { DonationCard } from "@/components/donation/DonationCard";
 import { categories } from "@/data/categories";
 import { INSTAGRAM_CATEGORY } from "@/data/instagram";
 import { SITE_NAME } from "@/lib/seo/site";
@@ -79,6 +80,12 @@ export function Footer() {
           </ul>
         </div>
       </Container>
+
+      <div className="border-t border-zinc-200 py-6">
+        <Container>
+          <DonationCard />
+        </Container>
+      </div>
 
       <div className="border-t border-zinc-200 py-4">
         <Container>

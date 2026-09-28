@@ -61,7 +61,11 @@ export function SuggestionPrompt() {
   if (state === "hidden") return null;
 
   return (
-    <aside className="fixed bottom-4 right-4 z-40 w-[calc(100vw-2rem)] max-w-sm rounded-lg border border-zinc-200 bg-white p-4 shadow-lg print:hidden">
+    // Posicionamento (fixed/z-index/print:hidden) fica a cargo do
+    // contêiner comum em app/layout.tsx, junto com o botão flutuante de
+    // doação — assim os dois nunca ficam sobrepostos, cada um empilhado
+    // no espaço do outro em vez de ocupar o mesmo canto da tela.
+    <aside className="w-[calc(100vw-2rem)] max-w-sm rounded-lg border border-zinc-200 bg-white p-4 shadow-lg">
       {state === "asking" ? (
         <div className="space-y-3">
           <div>

@@ -8,6 +8,8 @@ import { Footer } from "@/components/layout/Footer";
 import { LogoutNotice } from "@/components/layout/LogoutNotice";
 import { SuggestionPrompt } from "@/components/layout/SuggestionPrompt";
 import { SiteSidebar } from "@/components/navigation/SiteNav";
+import { DonationProvider } from "@/components/donation/DonationProvider";
+import { DonationFloatingButton } from "@/components/donation/DonationFloatingButton";
 import { SITE_DESCRIPTION, SITE_NAME, SITE_TITLE_TEMPLATE, SITE_URL } from "@/lib/seo/site";
 
 /**
@@ -70,13 +72,24 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           crossOrigin="anonymous"
           strategy="beforeInteractive"
         />
-        <Header />
-        <div className="flex min-h-0 flex-1">
-          <SiteSidebar />
-          <main className="min-w-0 flex-1">{children}</main>
-        </div>
-        <SuggestionPrompt />
-        <Footer />
+        <DonationProvider>
+          <Header />
+          <div className="flex min-h-0 flex-1">
+            <SiteSidebar />
+            <main className="min-w-0 flex-1">{children}</main>
+          </div>
+          {/*
+            Pilha de widgets flutuantes do canto inferior direito: cada um
+            empurra o outro para cima em vez de se sobrepor (ver nota em
+            SuggestionPrompt.tsx). DonationFloatingButton some sozinho
+            quando a doação está desabilitada (DonationButton -> useDonation).
+          */}
+          <div className="fixed bottom-4 right-4 z-40 flex flex-col items-end gap-3 print:hidden">
+            <DonationFloatingButton />
+            <SuggestionPrompt />
+          </div>
+          <Footer />
+        </DonationProvider>
       </body>
     </html>
   );
