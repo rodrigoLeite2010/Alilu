@@ -144,3 +144,48 @@ export function reaisTextToCents(text: string): number | null {
   if (!Number.isFinite(number)) return null;
   return Math.round(number * 100);
 }
+
+export interface GoalInput {
+  name: string;
+  targetCents: number;
+  currentCents: number;
+  targetDate: string | null;
+}
+
+const MAX_GOAL_CENTS = 100_000_000_00;
+
+export function parseGoalInput(body: unknown): ParseResult<GoalInput> {
+  if (typeof body !== "object" || body === null) return { ok: false, error: "Dados inválidos." };
+  const raw = body as Record<string, unknown>;
+
+  const name = typeof raw.name === "string" ? raw.name.trim() : "";
+  if (name.length < 1 || name.length > 80) return { ok: false, error: "Informe um nome de até 80 caracteres." };
+
+  const targetCents = raw.targetCents;
+  if (typeof targetCents !== "number" || !Number.isInteger(targetCents) || targetCents <= 0 || targetCents > MAX_GOAL_CENTS) {
+    return { ok: false, error: "Informe um valor alvo maior que zero." };
+  }
+
+  const currentCents = raw.currentCents ?? 0;
+  if (typeof currentCents !== "number" || !Number.isInteger(currentCents) || currentCents < 0 || currentCents > MAX_GOAL_CENTS) {
+    return { ok: false, error: "Valor atual inválido." };
+  }
+
+  let targetDate: string | null = null;
+  if (raw.targetDate !== undefined && raw.targetDate !== null && raw.targetDate !== "") {
+    if (!isValidISODate(raw.targetDate)) return { ok: false, error: "Data desejada inválida." };
+    targetDate = raw.targetDate;
+  }
+
+  return { ok: true, value: { name, targetCents, currentCents, targetDate } };
+}
+
+export function parseDelta(body: unknown): ParseResult<{ deltaCents: number }> {
+  if (typeof body !== "object" || body === null) return { ok: false, error: "Dados inválidos." };
+  const raw = body as Record<string, unknown>;
+  const deltaCents = raw.deltaCents;
+  if (typeof deltaCents !== "number" || !Number.isInteger(deltaCents) || deltaCents === 0 || Math.abs(deltaCents) > MAX_GOAL_CENTS) {
+    return { ok: false, error: "Valor inválido." };
+  }
+  return { ok: true, value: { deltaCents } };
+}

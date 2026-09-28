@@ -10,6 +10,9 @@ const TABS = [
   { href: "/financeiro/calendario", label: "Calendário" },
   { href: "/financeiro/receitas", label: "Receitas" },
   { href: "/financeiro/despesas", label: "Despesas" },
+  { href: "/financeiro/metas", label: "Metas" },
+  { href: "/financeiro/reserva-de-emergencia", label: "Reserva" },
+  { href: "/financeiro/metodo-50-30-20", label: "50/30/20" },
 ];
 
 /** Moldura da área privada: abas + botão fixo "+ Adicionar gasto" (mobile first). */

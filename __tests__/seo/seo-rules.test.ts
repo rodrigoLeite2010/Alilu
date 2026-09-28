@@ -121,12 +121,23 @@ describe("D) metadata de ferramenta ativo permite indexação", () => {
 });
 
 describe("E) robots.txt continua correto", () => {
-  it("permite todos os agentes, aponta para o sitemap correto e nunca indexa login/API/painel", () => {
+  it("permite todos os agentes, aponta para o sitemap correto e nunca indexa login/API/painel/área financeira privada", () => {
     const result = robots();
     expect(result.rules).toEqual({
       userAgent: "*",
       allow: "/",
-      disallow: ["/entrar", "/api/", "/instagram/painel"],
+      disallow: [
+        "/entrar",
+        "/api/",
+        "/instagram/painel",
+        "/financeiro/meu-orcamento",
+        "/financeiro/calendario",
+        "/financeiro/receitas",
+        "/financeiro/despesas",
+        "/financeiro/metas",
+        "/financeiro/reserva-de-emergencia",
+        "/financeiro/metodo-50-30-20",
+      ],
     });
     expect(result.sitemap).toBe(`${SITE_URL}/sitemap.xml`);
   });

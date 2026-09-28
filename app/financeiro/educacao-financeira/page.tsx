@@ -23,13 +23,13 @@ const CARDS: HubCard[] = [
   { title: "Calendário financeiro", description: "Cada dia do mês com o que entra e o que vence, para não ser pego de surpresa.", href: "/financeiro/calendario" },
   { title: "Controle de gastos", description: "Cadastre despesas fixas e variáveis, únicas ou recorrentes.", href: "/financeiro/despesas" },
   { title: "Contas a pagar", description: "Próximas contas por dia, com botão para marcar como paga.", href: "/financeiro/meu-orcamento" },
-  { title: "Metas financeiras", description: "Quanto guardar por mês para chegar lá." },
+  { title: "Metas financeiras", description: "Quanto guardar por mês para chegar lá.", href: "/financeiro/metas" },
   { title: "Controle de dívidas", description: "Saldo devedor, parcelas e previsão de término." },
   { title: "Assinaturas mensais", description: "Quanto você paga por mês e por ano em assinaturas." },
   { title: "Planejamento anual", description: "Receitas, despesas e saldo mês a mês." },
-  { title: "Método 50/30/20", description: "Referência de divisão da renda entre necessidades, desejos e economia." },
+  { title: "Método 50/30/20", description: "Referência de divisão da renda entre necessidades, desejos e economia.", href: "/financeiro/metodo-50-30-20" },
   { title: "Método dos envelopes", description: "Limites por categoria com barra de progresso." },
-  { title: "Reserva de emergência", description: "Quanto guardar para 3, 6, 9 ou 12 meses de despesas essenciais." },
+  { title: "Reserva de emergência", description: "Quanto guardar para 3, 6, 9 ou 12 meses de despesas essenciais.", href: "/financeiro/reserva-de-emergencia" },
   { title: "Planilhas financeiras", description: "Modelos para baixar em CSV e XLSX." },
 ];
 

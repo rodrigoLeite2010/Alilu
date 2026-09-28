@@ -192,3 +192,84 @@ export async function setOpeningBalance(userId: string, month: string, cents: nu
     on conflict (user_id, month) do update set opening_balance_cents = excluded.opening_balance_cents, updated_at = now()
   `;
 }
+
+export interface GoalRow {
+  id: string;
+  name: string;
+  targetCents: number;
+  currentCents: number;
+  targetDate: string | null;
+}
+
+function toGoal(row: Record<string, unknown>): GoalRow {
+  return {
+    id: row.id as string,
+    name: row.name as string,
+    targetCents: Number(row.targetCents),
+    currentCents: Number(row.currentCents),
+    targetDate: (row.targetDate as string | null) ?? null,
+  };
+}
+
+export async function listGoals(userId: string): Promise<GoalRow[]> {
+  const db = getDb();
+  const rows = await db`
+    select id, name, target_cents::float8 as "targetCents", current_cents::float8 as "currentCents",
+      to_char(target_date, 'YYYY-MM-DD') as "targetDate"
+    from fin_goals where user_id = ${userId} order by created_at
+  `;
+  return rows.map((row) => toGoal(row as Record<string, unknown>));
+}
+
+export async function getGoal(userId: string, id: string): Promise<GoalRow | null> {
+  const db = getDb();
+  const rows = await db`
+    select id, name, target_cents::float8 as "targetCents", current_cents::float8 as "currentCents",
+      to_char(target_date, 'YYYY-MM-DD') as "targetDate"
+    from fin_goals where id = ${id} and user_id = ${userId}
+  `;
+  return rows[0] ? toGoal(rows[0] as Record<string, unknown>) : null;
+}
+
+export async function createGoal(
+  userId: string,
+  input: { name: string; targetCents: number; currentCents: number; targetDate: string | null },
+): Promise<string> {
+  const db = getDb();
+  const rows = await db`
+    insert into fin_goals (user_id, name, target_cents, current_cents, target_date)
+    values (${userId}, ${input.name}, ${input.targetCents}, ${input.currentCents}, ${input.targetDate}::date)
+    returning id
+  `;
+  return rows[0].id as string;
+}
+
+export async function updateGoal(
+  userId: string,
+  id: string,
+  input: { name: string; targetCents: number; currentCents: number; targetDate: string | null },
+): Promise<boolean> {
+  const db = getDb();
+  const rows = await db`
+    update fin_goals set name = ${input.name}, target_cents = ${input.targetCents},
+      current_cents = ${input.currentCents}, target_date = ${input.targetDate}::date, updated_at = now()
+    where id = ${id} and user_id = ${userId} returning id
+  `;
+  return rows.length > 0;
+}
+
+/** Soma (ou subtrai, com valor negativo) ao valor atual da meta; nunca deixa negativo. */
+export async function addToGoal(userId: string, id: string, deltaCents: number): Promise<boolean> {
+  const db = getDb();
+  const rows = await db`
+    update fin_goals set current_cents = greatest(current_cents + ${deltaCents}, 0), updated_at = now()
+    where id = ${id} and user_id = ${userId} returning id
+  `;
+  return rows.length > 0;
+}
+
+export async function deleteGoal(userId: string, id: string): Promise<boolean> {
+  const db = getDb();
+  const rows = await db`delete from fin_goals where id = ${id} and user_id = ${userId} returning id`;
+  return rows.length > 0;
+}

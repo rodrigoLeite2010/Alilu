@@ -10,7 +10,9 @@ import {
   projectCashFlow,
   summarizeMonth,
 } from "@/lib/financas/summary";
-import { parseEntryInput, parseSettingsInput, reaisTextToCents } from "@/lib/financas/validation";
+import { parseDelta, parseEntryInput, parseGoalInput, parseSettingsInput, reaisTextToCents } from "@/lib/financas/validation";
+import { goalProgress, suggestedReserveCents } from "@/lib/financas/goals";
+import { actualSplit, split503020 } from "@/lib/financas/budget-method";
 import type { FinEntry } from "@/lib/financas/types";
 
 function entry(partial: Partial<FinEntry> & Pick<FinEntry, "id" | "kind" | "amountCents" | "date">): FinEntry {
@@ -273,5 +275,81 @@ describe("validação", () => {
     expect(reaisTextToCents("12,5")).toBe(1250);
     expect(reaisTextToCents("")).toBeNull();
     expect(reaisTextToCents("abc")).toBeNull();
+  });
+});
+
+describe("metas financeiras", () => {
+  it("calcula progresso, faltante e quanto guardar por mês", () => {
+    const g = goalProgress(
+      { id: "1", name: "Viagem", targetCents: 800000, currentCents: 200000, targetDate: "2026-12-25" },
+      "2026-09-25",
+    );
+    expect(g.percentComplete).toBe(25);
+    expect(g.missingCents).toBe(600000);
+    expect(g.monthsRemaining).toBe(3); // out, nov, dez
+    expect(g.monthlyNeededCents).toBe(200000);
+    expect(g.reached).toBe(false);
+  });
+
+  it("sem data, não calcula por mês; meta atingida fica marcada", () => {
+    const noDate = goalProgress({ id: "1", name: "X", targetCents: 1000, currentCents: 500, targetDate: null }, "2026-09-25");
+    expect(noDate.monthsRemaining).toBeNull();
+    expect(noDate.monthlyNeededCents).toBeNull();
+
+    const done = goalProgress({ id: "2", name: "Y", targetCents: 1000, currentCents: 1200, targetDate: "2026-01-01" }, "2026-09-25");
+    expect(done.reached).toBe(true);
+    expect(done.missingCents).toBe(0);
+  });
+
+  it("data no mesmo mês de hoje conta como 1 mês restante", () => {
+    const g = goalProgress({ id: "3", name: "Z", targetCents: 1000, currentCents: 0, targetDate: "2026-09-30" }, "2026-09-25");
+    expect(g.monthsRemaining).toBe(1);
+  });
+});
+
+describe("reserva de emergência", () => {
+  it("multiplica despesas essenciais pelos meses escolhidos", () => {
+    expect(suggestedReserveCents(400000, 6)).toBe(2400000);
+    expect(suggestedReserveCents(400000, 3)).toBe(1200000);
+    expect(suggestedReserveCents(-100, 6)).toBe(0);
+  });
+});
+
+describe("método 50/30/20", () => {
+  it("divide a renda em 50/30/20", () => {
+    expect(split503020(500000)).toEqual({ needsCents: 250000, wantsCents: 150000, savingsCents: 100000 });
+    expect(split503020(0)).toEqual({ needsCents: 0, wantsCents: 0, savingsCents: 0 });
+  });
+
+  it("compara com os gastos reais (fixa = necessidade, variável = desejo)", () => {
+    const occ = expandOccurrences(
+      [
+        entry({ id: "a", kind: "expense", amountCents: 200000, date: "2026-09-05", nature: "fixed" }),
+        entry({ id: "b", kind: "expense", amountCents: 90000, date: "2026-09-06", nature: "variable" }),
+      ],
+      [],
+      "2026-09-01",
+      "2026-09-30",
+    );
+    expect(actualSplit(occ, 500000)).toEqual({ needsCents: 200000, wantsCents: 90000, savingsCents: 210000 });
+  });
+});
+
+describe("validação de metas", () => {
+  it("aceita meta válida e usa 0 como padrão do valor atual", () => {
+    const r = parseGoalInput({ name: " Viagem ", targetCents: 800000 });
+    expect(r.ok && r.value).toMatchObject({ name: "Viagem", targetCents: 800000, currentCents: 0, targetDate: null });
+  });
+  it("rejeita nome vazio, valor alvo inválido e data inválida", () => {
+    expect(parseGoalInput({ name: "", targetCents: 1000 }).ok).toBe(false);
+    expect(parseGoalInput({ name: "X", targetCents: 0 }).ok).toBe(false);
+    expect(parseGoalInput({ name: "X", targetCents: 1000, targetDate: "2026-02-30" }).ok).toBe(false);
+    expect(parseGoalInput(null).ok).toBe(false);
+  });
+  it("valida o valor de depósito/retirada", () => {
+    expect(parseDelta({ deltaCents: 5000 }).ok).toBe(true);
+    expect(parseDelta({ deltaCents: -5000 }).ok).toBe(true);
+    expect(parseDelta({ deltaCents: 0 }).ok).toBe(false);
+    expect(parseDelta({ deltaCents: 1.5 }).ok).toBe(false);
   });
 });

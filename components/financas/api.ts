@@ -1,5 +1,6 @@
 import type { FinEntry, Occurrence } from "@/lib/financas/types";
-import type { EntryInput } from "@/lib/financas/validation";
+import type { EntryInput, GoalInput } from "@/lib/financas/validation";
+import type { Goal } from "@/lib/financas/goals";
 
 /** Evento global: qualquer tela recarrega seus dados quando algo é salvo. */
 export const FINANCE_CHANGED_EVENT = "alilu:financas-changed";
@@ -42,4 +43,11 @@ export const financeApi = {
     }),
   saveSettings: (settings: { savingsGoalCents?: number; month?: string; openingBalanceCents?: number }) =>
     request<{ ok: true }>("/api/financas/settings", { method: "PUT", body: JSON.stringify(settings) }),
+  listGoals: () => request<{ goals: Goal[] }>("/api/financas/goals").then((r) => r.goals),
+  createGoal: (input: GoalInput) => request<{ id: string }>("/api/financas/goals", { method: "POST", body: JSON.stringify(input) }),
+  updateGoal: (id: string, input: GoalInput) =>
+    request<{ ok: true }>(`/api/financas/goals/${id}`, { method: "PATCH", body: JSON.stringify(input) }),
+  deleteGoal: (id: string) => request<{ ok: true }>(`/api/financas/goals/${id}`, { method: "DELETE" }),
+  depositToGoal: (id: string, deltaCents: number) =>
+    request<{ ok: true }>(`/api/financas/goals/${id}/deposit`, { method: "POST", body: JSON.stringify({ deltaCents }) }),
 };
