@@ -8,6 +8,7 @@ import { signOut } from "next-auth/react";
 import { Icon } from "@/components/ui/Icon";
 import { categories } from "@/data/categories";
 import { INSTAGRAM_CATEGORY, instagramMenuLinks } from "@/data/instagram";
+import { LOTTERIES_CATEGORY } from "@/data/lotteries";
 import type { HeaderAuthState } from "@/components/layout/auth-state";
 
 type NavigationLink = {
@@ -34,6 +35,15 @@ const instagramCategoryLink: NavigationLink = {
   href: INSTAGRAM_CATEGORY.path,
   label: INSTAGRAM_CATEGORY.shortName,
   icon: INSTAGRAM_CATEGORY.icon,
+};
+
+// Categoria "Loterias": mesmo padrão de "Instagram e Redes Sociais" acima —
+// vive em /loterias (fora de /utilitarios/[categoria], ver
+// data/lotteries.ts) mas aparece no menu como as demais categorias.
+const lotteriesCategoryLink: NavigationLink = {
+  href: LOTTERIES_CATEGORY.path,
+  label: LOTTERIES_CATEGORY.shortName,
+  icon: LOTTERIES_CATEGORY.icon,
 };
 
 function isActiveLink(pathname: string, href: string) {
@@ -216,6 +226,7 @@ function NavigationList({
       <ul className="mt-2 space-y-1">
         <NavigationItem link={instagramCategoryLink} pathname={pathname} onNavigate={onNavigate} />
         <InstagramSubLinks pathname={pathname} onNavigate={onNavigate} />
+        <NavigationItem link={lotteriesCategoryLink} pathname={pathname} onNavigate={onNavigate} />
         {categoryLinks.map((link) => (
           <NavigationItem
             key={link.href}

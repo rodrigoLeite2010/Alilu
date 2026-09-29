@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { getSiteSearchIndex } from "@/data/site-search";
 import { tools } from "@/data/tools";
 import { instagramTools } from "@/data/instagram";
+import { lotteryModalities } from "@/data/lotteries";
 
 /**
  * Testes de integridade do índice de busca da Home (components/home/HomeSearch.tsx):
@@ -9,12 +10,13 @@ import { instagramTools } from "@/data/instagram";
  * crescer.
  */
 describe("índice de busca da Home", () => {
-  it("combina o catálogo de ferramentas com o catálogo de Instagram", () => {
+  it("combina o catálogo de ferramentas com o catálogo de Instagram e de Loterias", () => {
     const index = getSiteSearchIndex();
     const activeTools = tools.filter((tool) => tool.status === "ativo");
     const activeInstagramTools = instagramTools.filter((tool) => tool.status === "ativo");
+    const activeLotteryModalities = lotteryModalities.filter((modality) => modality.status === "ativo");
 
-    expect(index).toHaveLength(activeTools.length + activeInstagramTools.length);
+    expect(index).toHaveLength(activeTools.length + activeInstagramTools.length + activeLotteryModalities.length);
   });
 
   it("cada item tem um id único no índice", () => {
@@ -35,6 +37,15 @@ describe("índice de busca da Home", () => {
     for (const item of instagramItems) {
       expect(item.href.startsWith("/instagram")).toBe(true);
       expect(item.categoryLabel).toBe("Instagram");
+    }
+  });
+
+  it("todo item de Loterias aponta para uma rota dentro de /loterias", () => {
+    const lotteryItems = getSiteSearchIndex().filter((item) => item.id.startsWith("lottery:"));
+    expect(lotteryItems.length).toBeGreaterThan(0);
+    for (const item of lotteryItems) {
+      expect(item.href.startsWith("/loterias")).toBe(true);
+      expect(item.categoryLabel).toBe("Loterias");
     }
   });
 

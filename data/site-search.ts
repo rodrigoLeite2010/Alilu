@@ -1,5 +1,6 @@
 import { tools } from "./tools";
 import { instagramTools } from "./instagram";
+import { lotteryModalities } from "./lotteries";
 import { getCategoryById } from "./categories";
 
 /**
@@ -59,6 +60,19 @@ export function getSiteSearchIndex(): SiteSearchItem[] {
       categoryLabel: "Instagram",
     }));
 
-  cachedIndex = [...fromTools, ...fromInstagram];
+  const fromLotteries: SiteSearchItem[] = lotteryModalities
+    .filter((modality) => modality.status === "ativo")
+    .map((modality) => ({
+      id: `lottery:${modality.id}`,
+      name: modality.name,
+      shortName: modality.shortName,
+      description: modality.description,
+      keywords: [modality.shortName.toLowerCase(), "loteria", "loterias", "jogo", "gerador de jogos"],
+      icon: modality.icon,
+      href: modality.path,
+      categoryLabel: "Loterias",
+    }));
+
+  cachedIndex = [...fromTools, ...fromInstagram, ...fromLotteries];
   return cachedIndex;
 }

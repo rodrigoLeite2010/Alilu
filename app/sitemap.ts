@@ -4,12 +4,14 @@ import { tools } from "@/data/tools";
 import { SITE_URL } from "@/lib/seo/site";
 import { getPublishedTools } from "@/lib/seo/publish";
 import { INSTAGRAM_CATEGORY, instagramTools } from "@/data/instagram";
+import { LOTTERIES_CATEGORY, lotteryModalities } from "@/data/lotteries";
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const staticRoutes: MetadataRoute.Sitemap = [
     { url: SITE_URL, changeFrequency: "weekly", priority: 1 },
     { url: `${SITE_URL}/utilitarios`, changeFrequency: "weekly", priority: 0.9 },
     { url: `${SITE_URL}${INSTAGRAM_CATEGORY.path}`, changeFrequency: "weekly", priority: 0.9 },
+    { url: `${SITE_URL}${LOTTERIES_CATEGORY.path}`, changeFrequency: "weekly", priority: 0.8 },
     { url: `${SITE_URL}/financeiro/educacao-financeira`, changeFrequency: "monthly", priority: 0.7 },
     { url: `${SITE_URL}/sobre`, changeFrequency: "yearly", priority: 0.3 },
     { url: `${SITE_URL}/contato`, changeFrequency: "yearly", priority: 0.3 },
@@ -25,6 +27,17 @@ export default function sitemap(): MetadataRoute.Sitemap {
     .filter((tool) => tool.status === "ativo")
     .map((tool) => ({
       url: `${SITE_URL}${tool.path}`,
+      changeFrequency: "monthly",
+      priority: 0.7,
+    }));
+
+  // Modalidades da categoria Loterias (data/lotteries.ts) — mesma regra do
+  // Instagram acima: só entram aqui as que já têm página de verdade
+  // ("ativo"); "em-breve" fica de fora do sitemap.
+  const lotteryRoutes: MetadataRoute.Sitemap = lotteryModalities
+    .filter((modality) => modality.status === "ativo")
+    .map((modality) => ({
+      url: `${SITE_URL}${modality.path}`,
       changeFrequency: "monthly",
       priority: 0.7,
     }));
@@ -46,5 +59,5 @@ export default function sitemap(): MetadataRoute.Sitemap {
     })
   );
 
-  return [...staticRoutes, ...instagramRoutes, ...categoryRoutes, ...toolRoutes];
+  return [...staticRoutes, ...instagramRoutes, ...lotteryRoutes, ...categoryRoutes, ...toolRoutes];
 }
