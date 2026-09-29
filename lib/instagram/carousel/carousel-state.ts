@@ -419,6 +419,69 @@ export async function createCarouselStateFromTextChunks(
 }
 
 /**
+ * Item de entrada para `createCarouselStateFromImages`: uma imagem já
+ * pronta (já validada e já transformada em BackgroundImageState por
+ * `buildSeedBackgroundImage`, ver lib/instagram/carousel/auto-carousel.ts)
+ * mais uma legenda opcional para o slide correspondente. `caption` vazia
+ * ("") significa slide só-imagem, sem nenhum texto desenhado por cima.
+ */
+export interface CarouselImageSlideInput {
+  image: BackgroundImageState;
+  caption: string;
+}
+
+/**
+ * Constrói um CarouselEditorState inteiro a partir de uma lista de imagens
+ * já enviadas pelo usuário — o modo "Várias imagens" do Criador de
+ * Carrosséis (uma imagem = um slide, cada slide dono exclusivo da própria
+ * imagem). Ao contrário de `createCarouselStateFromTextChunks`, aqui NÃO
+ * existe uma `seedImage` única clonada para todos os slides: cada entrada
+ * de `inputs` já é a sua própria imagem independente (cada uma já veio de
+ * um upload distinto do usuário), então não há nenhuma clonagem/
+ * compartilhamento de URL entre slides — já nascem desacoplados.
+ *
+ * Reaproveita o mesmo template/slot de texto do Carrossel automático
+ * (GENERATED_CAROUSEL_TEMPLATE_ID/GENERATED_CAROUSEL_TEXT_SLOT) por ser o
+ * único cujos slots de badge/rodapé já nascem vazios — mas, diferente do
+ * Carrossel automático, o slot de texto aqui é sempre sobrescrito
+ * explicitamente com `caption` (mesmo quando `caption` é uma string
+ * vazia), porque o valor padrão desse template
+ * ("Feito é melhor que perfeito.") não pode aparecer sozinho em slides
+ * pensados para serem só-imagem.
+ *
+ * `originalText` fica deliberadamente `undefined`: o painel "Carrossel
+ * automático" do Estado 2 (Editar texto original / Redistribuir texto /
+ * Trocar imagem de fundo) só faz sentido para um carrossel nascido de um
+ * único bloco de texto dividido automaticamente — nenhuma dessas três
+ * ações se aplica a um carrossel de imagens independentes, e deixar
+ * `originalText` indefinido já esconde esse painel sem nenhum código
+ * extra (ver a condição que o renderiza em CarouselEditorTool.tsx).
+ */
+export function createCarouselStateFromImages(
+  inputs: CarouselImageSlideInput[],
+  formatId: CarouselFormatId
+): CarouselEditorState {
+  if (inputs.length === 0) {
+    throw new Error("createCarouselStateFromImages: nenhuma imagem para gerar slides.");
+  }
+
+  const slides = reindex(
+    inputs.map(({ image, caption }) => {
+      const slide = createCarouselSlide(formatId, GENERATED_CAROUSEL_TEMPLATE_ID);
+      const stateWithImage: PostEditorState = { ...slide.state, backgroundImage: image };
+      const stateWithText = updateTextValue(stateWithImage, GENERATED_CAROUSEL_TEXT_SLOT, caption);
+      return { ...slide, state: stateWithText };
+    })
+  );
+
+  return {
+    formatId,
+    slides,
+    selectedSlideId: slides[0].id,
+  };
+}
+
+/**
  * Ação "Trocar imagem de fundo" do Estado 2 (revisão): substitui a imagem
  * de fundo de TODOS os slides do carrossel por cópias independentes de
  * `seedImage` de uma só vez — mesmo padrão de clonagem de

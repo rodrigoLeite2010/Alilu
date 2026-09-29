@@ -35,6 +35,7 @@ import {
   canRemoveSlide,
   cloneBackgroundImage,
   cloneSlideState,
+  createCarouselStateFromImages,
   createInitialCarouselState,
   GENERATED_CAROUSEL_TEXT_SLOT,
   getSelectedSlide,
@@ -412,6 +413,41 @@ export function CarouselEditorTool({
     [runAutoGenerate]
   );
 
+  // Modo "Várias imagens" (novo): uma imagem por slide, sem nenhuma imagem
+  // global/compartilhada — cada BackgroundImageState já vem de um upload
+  // independente (buildSeedBackgroundImage), então createCarouselStateFromImages
+  // não precisa clonar nada (ao contrário de runAutoGenerate/buildCarouselFromPastedText,
+  // que clonam UMA imagem semente para todos os slides).
+  const runGenerateFromImages = useCallback(
+    (images: CarouselQuickCreateImage[]) => {
+      if (images.length === 0) {
+        setGenerateError("Adicione pelo menos uma imagem antes de gerar o carrossel.");
+        return;
+      }
+      setGenerateError(null);
+      try {
+        const state = createCarouselStateFromImages(
+          images.map((image) => ({ image: buildSeedBackgroundImage(image), caption: "" })),
+          stateRef.current.formatId
+        );
+        // Nenhuma imagem do carrossel anterior é mais usada a partir daqui
+        // (mesmo raciocínio de runAutoGenerate: as novas imagens já são
+        // uploads novos e exclusivos, nunca URLs que um slide antigo ainda
+        // usa).
+        releaseAllSlideImages(stateRef.current);
+        resetHistory(state);
+        setOverflowNotice(null);
+        setPendingCreateText(null);
+        setMode("review");
+      } catch (err) {
+        setGenerateError(
+          err instanceof Error ? err.message : "Não foi possível gerar o carrossel agora. Tente novamente."
+        );
+      }
+    },
+    [resetHistory]
+  );
+
   const handleEditOriginalText = useCallback(() => {
     setGenerateError(null);
     setOverflowNotice(null);
@@ -519,6 +555,7 @@ export function CarouselEditorTool({
         busy={isGenerating}
         error={generateError}
         onGenerate={(text, image) => void handleGenerate(text, image)}
+        onGenerateFromImages={runGenerateFromImages}
       />
     );
   }
