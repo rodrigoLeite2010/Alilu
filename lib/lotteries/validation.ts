@@ -11,6 +11,16 @@ export interface SaveGameInput {
   mode: LotteryMode;
   /** Preenchido pela própria validação (parseGameInput) a partir do `config.id` da rota — opcional para quem monta o objeto antes de validar (ex.: o gerador no cliente, antes de enviar para a API). */
   modality?: string;
+  /**
+   * Mês da Sorte (1-12) escolhido para este jogo — só existe/é exigido
+   * quando `config.hasMonthPick` (só o Dia de Sorte, por enquanto).
+   * Opcional pelo mesmo motivo de `modality`: quem monta o objeto antes
+   * de validar (o gerador no cliente) simplesmente não inclui o campo
+   * para as outras quatro modalidades. Depois de validado por
+   * parseGameInput, sempre vem preenchido (com o mês escolhido, ou
+   * `null` fora do Dia de Sorte).
+   */
+  month?: number | null;
 }
 
 export interface SaveBetInput {
@@ -62,6 +72,20 @@ function parseGameInput(raw: unknown, config: LotteryApiConfig): ParseResult<Sav
     return { ok: false, error: "Modo de geração inválido." };
   }
 
+  // Mês da Sorte: só exigido/validado quando a modalidade tem essa segunda
+  // dimensão (Dia de Sorte) — em toda outra modalidade, força null mesmo
+  // que o cliente tenha enviado algo em `month` (defensivo: um bug em
+  // outra parte do código não consegue "vazar" um mês para uma modalidade
+  // que não tem essa noção).
+  let month: number | null = null;
+  if (config.hasMonthPick) {
+    const rawMonth = value.month;
+    if (typeof rawMonth !== "number" || !Number.isInteger(rawMonth) || rawMonth < 1 || rawMonth > 12) {
+      return { ok: false, error: "Escolha um mês da sorte entre 1 e 12." };
+    }
+    month = rawMonth;
+  }
+
   return {
     ok: true,
     value: {
@@ -69,6 +93,7 @@ function parseGameInput(raw: unknown, config: LotteryApiConfig): ParseResult<Sav
       betSize,
       mode: mode as LotteryMode,
       modality: config.id,
+      month,
     },
   };
 }
@@ -148,10 +173,17 @@ export function parseUpdateBetInput(body: unknown): ParseResult<UpdateBetInput> 
   return parseBetHeaderInput(body as Record<string, unknown>);
 }
 
-/** Valida o corpo de POST /api/loterias/apostas/[id]/conferir — números realmente sorteados, informados manualmente. `config` já resolvido pela rota a partir de `modality`. */
-export function parseDrawnNumbersInput(body: unknown, config: LotteryApiConfig): ParseResult<number[]> {
+export interface DrawnNumbersInput {
+  drawnNumbers: number[];
+  /** Mês REALMENTE sorteado, informado manualmente — só exigido/aceito quando `config.hasMonthPick` (Dia de Sorte); `null` em toda outra modalidade, mesmo que enviado no corpo. */
+  drawnMonth: number | null;
+}
+
+/** Valida o corpo de POST /api/loterias/apostas/[id]/conferir — números (e, no Dia de Sorte, o mês) realmente sorteados, informados manualmente. `config` já resolvido pela rota a partir de `modality`. */
+export function parseDrawnNumbersInput(body: unknown, config: LotteryApiConfig): ParseResult<DrawnNumbersInput> {
   if (typeof body !== "object" || body === null) return { ok: false, error: "Dados inválidos." };
-  const raw = (body as Record<string, unknown>).drawnNumbers;
+  const rawBody = body as Record<string, unknown>;
+  const raw = rawBody.drawnNumbers;
   if (!Array.isArray(raw) || raw.length !== config.drawnNumbers) {
     return { ok: false, error: `Informe exatamente ${config.drawnNumbers} números sorteados.` };
   }
@@ -163,7 +195,17 @@ export function parseDrawnNumbersInput(body: unknown, config: LotteryApiConfig):
     set.add(n);
   }
   if (set.size !== raw.length) return { ok: false, error: "Números sorteados repetidos." };
-  return { ok: true, value: [...(raw as number[])].sort((a, b) => a - b) };
+
+  let drawnMonth: number | null = null;
+  if (config.hasMonthPick) {
+    const rawMonth = rawBody.drawnMonth;
+    if (typeof rawMonth !== "number" || !Number.isInteger(rawMonth) || rawMonth < 1 || rawMonth > 12) {
+      return { ok: false, error: "Informe o mês sorteado, entre 1 e 12." };
+    }
+    drawnMonth = rawMonth;
+  }
+
+  return { ok: true, value: { drawnNumbers: [...(raw as number[])].sort((a, b) => a - b), drawnMonth } };
 }
 
 /** Valida o corpo de PUT /api/loterias/configuracoes — limite mensal opcional, só para acompanhamento. */

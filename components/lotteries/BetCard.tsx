@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/Button";
 import { money } from "@/components/financas/format";
 import { reaisTextToCents } from "@/lib/financas/validation";
 import { LotteryNumberGrid } from "./LotteryNumberGrid";
+import { MONTH_LABELS } from "@/lib/lotteries/dia-de-sorte-generator";
 import type { LotteryBet, LotteryGame } from "@/lib/lotteries/types";
 
 function formatNumbers(numbers: readonly number[]): string {
@@ -16,11 +17,14 @@ function formatNumbers(numbers: readonly number[]): string {
 function GameRow({
   game,
   reusePath,
+  /** Mês da Sorte REALMENTE sorteado (bet.drawnMonth) — null enquanto a aposta não foi conferida, ou em toda modalidade que não é o Dia de Sorte. Só usado para mostrar se o mês deste jogo bateu (comparação inline, nunca persistida — ver comentário de db/migrations/0013_dia_de_sorte_mes_da_sorte.sql). */
+  drawnMonth,
   onToggleFavorite,
   onDelete,
 }: {
   game: LotteryGame;
   reusePath: string;
+  drawnMonth: number | null;
   onToggleFavorite: (gameId: string, isFavorite: boolean) => void;
   onDelete: (gameId: string) => void;
 }) {
@@ -47,6 +51,16 @@ function GameRow({
           {game.mode === "diversificado" && "Diversificado"}
           {game.hits !== null ? ` · ${game.hits} acerto${game.hits === 1 ? "" : "s"}` : ""}
         </p>
+        {game.month !== null ? (
+          <p className="text-xs text-zinc-500">
+            Mês: <span className="font-medium text-zinc-700">{MONTH_LABELS[game.month - 1]}</span>
+            {drawnMonth !== null
+              ? game.month === drawnMonth
+                ? " · mês bateu"
+                : " · mês não bateu"
+              : ""}
+          </p>
+        ) : null}
       </div>
       <div className="flex flex-wrap items-center gap-1">
         <button
@@ -257,7 +271,14 @@ export function BetCard({
 
       <ul className="mt-3 space-y-2">
         {bet.games.map((game) => (
-          <GameRow key={game.id} game={game} reusePath={reusePath} onToggleFavorite={onToggleFavorite} onDelete={onDeleteGame} />
+          <GameRow
+            key={game.id}
+            game={game}
+            reusePath={reusePath}
+            drawnMonth={bet.drawnMonth}
+            onToggleFavorite={onToggleFavorite}
+            onDelete={onDeleteGame}
+          />
         ))}
       </ul>
     </li>

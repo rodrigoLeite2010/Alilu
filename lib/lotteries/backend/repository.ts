@@ -36,6 +36,7 @@ function toGame(row: Record<string, unknown>): LotteryGame {
     mode: row.mode as LotteryGame["mode"],
     isFavorite: row.isFavorite as boolean,
     hits: row.hits === null || row.hits === undefined ? null : Number(row.hits),
+    month: row.month === null || row.month === undefined ? null : Number(row.month),
     createdAt: row.createdAt as string,
   };
 }
@@ -49,6 +50,7 @@ function toBet(row: Record<string, unknown>): Omit<LotteryBet, "games"> {
     amountCents: Number(row.amountCents),
     note: (row.note as string | null) ?? null,
     drawnNumbers: (row.drawnNumbers as number[] | null) ?? null,
+    drawnMonth: row.drawnMonth === null || row.drawnMonth === undefined ? null : Number(row.drawnMonth),
     checkedAt: (row.checkedAt as string | null) ?? null,
     createdAt: row.createdAt as string,
   };
@@ -96,7 +98,7 @@ export async function createBetWithGames(
     insert into lottery_bets (user_id, modality, contest_number, draw_date, amount_cents, note)
     values (${userId}, ${modality}, ${header.contestNumber}, ${header.drawDate}::date, ${header.amountCents}, ${header.note})
     returning id, modality, contest_number as "contestNumber", to_char(draw_date, 'YYYY-MM-DD') as "drawDate",
-      amount_cents::float8 as "amountCents", note, drawn_numbers as "drawnNumbers",
+      amount_cents::float8 as "amountCents", note, drawn_numbers as "drawnNumbers", drawn_month as "drawnMonth",
       checked_at::text as "checkedAt", created_at::text as "createdAt"
   `;
   const bet = toBet(betRows[0] as Record<string, unknown>);
@@ -104,10 +106,10 @@ export async function createBetWithGames(
   const gameRowLists = await Promise.all(
     games.map(
       (game) => db`
-        insert into lottery_games (bet_id, user_id, modality, numbers, bet_size, mode)
-        values (${bet.id}, ${userId}, ${modality}, ${game.numbers}, ${game.betSize}, ${game.mode})
+        insert into lottery_games (bet_id, user_id, modality, numbers, bet_size, mode, month)
+        values (${bet.id}, ${userId}, ${modality}, ${game.numbers}, ${game.betSize}, ${game.mode}, ${game.month ?? null})
         returning id, bet_id as "betId", modality, numbers, bet_size as "betSize", mode,
-          is_favorite as "isFavorite", hits, created_at::text as "createdAt"
+          is_favorite as "isFavorite", hits, month, created_at::text as "createdAt"
       `
     )
   );
@@ -121,7 +123,7 @@ export async function listBets(userId: string, modality: string, limit = 100): P
   const db = getDb();
   const betRows = await db`
     select id, modality, contest_number as "contestNumber", to_char(draw_date, 'YYYY-MM-DD') as "drawDate",
-      amount_cents::float8 as "amountCents", note, drawn_numbers as "drawnNumbers",
+      amount_cents::float8 as "amountCents", note, drawn_numbers as "drawnNumbers", drawn_month as "drawnMonth",
       checked_at::text as "checkedAt", created_at::text as "createdAt"
     from lottery_bets
     where user_id = ${userId} and modality = ${modality}
@@ -133,7 +135,7 @@ export async function listBets(userId: string, modality: string, limit = 100): P
   const betIds = betRows.map((row) => row.id as string);
   const gameRows = await db`
     select id, bet_id as "betId", modality, numbers, bet_size as "betSize", mode,
-      is_favorite as "isFavorite", hits, created_at::text as "createdAt"
+      is_favorite as "isFavorite", hits, month, created_at::text as "createdAt"
     from lottery_games
     where bet_id = any(${betIds}) and user_id = ${userId}
     order by created_at
@@ -217,20 +219,25 @@ export async function setGameFavorite(userId: string, gameId: string, isFavorite
  * Conferência manual (Seção "conferência de resultado" da Fase 2): grava
  * os números REALMENTE sorteados (informados pelo próprio usuário — nunca
  * de nenhuma fonte automática) na aposta, e calcula/grava os acertos de
- * cada jogo dela. Retorna a aposta atualizada com os jogos já conferidos,
- * ou null se a aposta não existe/não é do usuário.
+ * cada jogo dela. `drawnMonth` (Fase B) é o Mês da Sorte REALMENTE
+ * sorteado, também informado manualmente — só usado pelo Dia de Sorte; o
+ * valor padrão `null` mantém toda chamada existente (Lotofácil/Mega-Sena/
+ * Quina/Lotomania, que nunca passam esse quarto argumento) idêntica a
+ * antes. Retorna a aposta atualizada com os jogos já conferidos, ou null
+ * se a aposta não existe/não é do usuário.
  */
 export async function recordDrawnNumbers(
   userId: string,
   betId: string,
-  drawnNumbers: readonly number[]
+  drawnNumbers: readonly number[],
+  drawnMonth: number | null = null
 ): Promise<LotteryBet | null> {
   const db = getDb();
   const betRows = await db`
-    update lottery_bets set drawn_numbers = ${drawnNumbers}, checked_at = now(), updated_at = now()
+    update lottery_bets set drawn_numbers = ${drawnNumbers}, drawn_month = ${drawnMonth}, checked_at = now(), updated_at = now()
     where id = ${betId} and user_id = ${userId}
     returning id, modality, contest_number as "contestNumber", to_char(draw_date, 'YYYY-MM-DD') as "drawDate",
-      amount_cents::float8 as "amountCents", note, drawn_numbers as "drawnNumbers",
+      amount_cents::float8 as "amountCents", note, drawn_numbers as "drawnNumbers", drawn_month as "drawnMonth",
       checked_at::text as "checkedAt", created_at::text as "createdAt"
   `;
   if (betRows.length === 0) return null;
@@ -238,7 +245,7 @@ export async function recordDrawnNumbers(
 
   const gameRows = await db`
     select id, bet_id as "betId", modality, numbers, bet_size as "betSize", mode,
-      is_favorite as "isFavorite", hits, created_at::text as "createdAt"
+      is_favorite as "isFavorite", hits, month, created_at::text as "createdAt"
     from lottery_games where bet_id = ${betId} and user_id = ${userId}
   `;
   const drawnSet = new Set(drawnNumbers);

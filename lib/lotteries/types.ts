@@ -14,6 +14,8 @@ export interface LotteryGame {
   isFavorite: boolean;
   /** Acertos contra `LotteryBet.drawnNumbers` — null enquanto não conferido. */
   hits: number | null;
+  /** Mês da Sorte (1-12) escolhido para este jogo — só o Dia de Sorte usa; toda outra modalidade sempre grava null (ver db/migrations/0013_dia_de_sorte_mes_da_sorte.sql). */
+  month: number | null;
   createdAt: string;
 }
 
@@ -26,6 +28,8 @@ export interface LotteryBet {
   note: string | null;
   /** Números realmente sorteados, informados manualmente na conferência. */
   drawnNumbers: number[] | null;
+  /** Mês da Sorte REALMENTE sorteado, informado manualmente na conferência — só o Dia de Sorte usa; toda outra modalidade sempre grava null. */
+  drawnMonth: number | null;
   checkedAt: string | null;
   createdAt: string;
   games: LotteryGame[];

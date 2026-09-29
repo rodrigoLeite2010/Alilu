@@ -133,12 +133,15 @@ export function MeusJogos({
   maxNumber,
   drawnNumbers,
   reusePath,
+  hasMonthPick = false,
 }: {
   modality: string;
   minNumber: number;
   maxNumber: number;
   drawnNumbers: number;
   reusePath: string;
+  /** Fase B — só true para o Dia de Sorte: liga o seletor de Mês da Sorte na conferência (ConferirDialog). Opcional/default false para as outras quatro modalidades não precisarem mudar nada. */
+  hasMonthPick?: boolean;
 }) {
   const [bets, setBets] = useState<LotteryBet[] | null>(null);
   const [frequency, setFrequency] = useState<LotteryFrequencyStats | null>(null);
@@ -211,9 +214,9 @@ export function MeusJogos({
     await refreshBetsAndStats();
   }
 
-  async function handleConferir(newDrawnNumbers: number[]) {
+  async function handleConferir(newDrawnNumbers: number[], drawnMonth: number | null) {
     if (!conferirBetId) return;
-    await lotteryApi.conferirBet(modality, conferirBetId, newDrawnNumbers);
+    await lotteryApi.conferirBet(modality, conferirBetId, newDrawnNumbers, drawnMonth);
     await refreshBetsAndStats();
   }
 
@@ -296,6 +299,7 @@ export function MeusJogos({
         minNumber={minNumber}
         maxNumber={maxNumber}
         drawnNumbers={drawnNumbers}
+        hasMonthPick={hasMonthPick}
         onClose={() => setConferirBetId(null)}
         onConfirm={handleConferir}
       />

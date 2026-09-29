@@ -10,6 +10,7 @@ import {
 
 const LOTOFACIL = getLotteryApiConfig("lotofacil")!;
 const MEGASENA = getLotteryApiConfig("mega-sena")!;
+const DIA_DE_SORTE = getLotteryApiConfig("dia-de-sorte")!;
 
 const VALID_GAME = { numbers: Array.from({ length: 15 }, (_, i) => i + 1), betSize: 15, mode: "aleatorio" as const };
 
@@ -104,6 +105,70 @@ describe("lotteries/validation — parseSaveBetInput com config da Mega-Sena (Fa
   });
 });
 
+describe("lotteries/validation — parseSaveBetInput com config do Dia de Sorte (Fase B: Mês da Sorte, segunda dimensão exclusiva desta modalidade)", () => {
+  const VALID_DIA_DE_SORTE_GAME = { numbers: [1, 2, 3, 4, 5, 6, 7], betSize: 7, mode: "aleatorio" as const, month: 5 };
+
+  it("aceita um jogo com month entre 1 e 12 sob a config do Dia de Sorte", () => {
+    const result = parseSaveBetInput({ games: [VALID_DIA_DE_SORTE_GAME] }, DIA_DE_SORTE);
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.modality).toBe("dia-de-sorte");
+      expect(result.value.games[0].month).toBe(5);
+    }
+  });
+
+  it("rejeita quando month está ausente sob a config do Dia de Sorte", () => {
+    const withoutMonth = { numbers: VALID_DIA_DE_SORTE_GAME.numbers, betSize: VALID_DIA_DE_SORTE_GAME.betSize, mode: VALID_DIA_DE_SORTE_GAME.mode };
+    expect(parseSaveBetInput({ games: [withoutMonth] }, DIA_DE_SORTE).ok).toBe(false);
+  });
+
+  it("rejeita month fora da faixa 1-12 (0, 13 ou não inteiro) sob a config do Dia de Sorte", () => {
+    expect(parseSaveBetInput({ games: [{ ...VALID_DIA_DE_SORTE_GAME, month: 0 }] }, DIA_DE_SORTE).ok).toBe(false);
+    expect(parseSaveBetInput({ games: [{ ...VALID_DIA_DE_SORTE_GAME, month: 13 }] }, DIA_DE_SORTE).ok).toBe(false);
+    expect(parseSaveBetInput({ games: [{ ...VALID_DIA_DE_SORTE_GAME, month: 5.5 }] }, DIA_DE_SORTE).ok).toBe(false);
+  });
+
+  it("outras modalidades (sem hasMonthPick) nunca exigem month, e qualquer month enviado é silenciosamente ignorado (força null)", () => {
+    const gameWithStrayMonth = { ...VALID_GAME, month: 7 };
+    const result = parseSaveBetInput({ games: [gameWithStrayMonth] }, LOTOFACIL);
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.value.games[0].month).toBeNull();
+
+    const withoutMonth = parseSaveBetInput({ games: [VALID_GAME] }, LOTOFACIL);
+    expect(withoutMonth.ok).toBe(true);
+    if (withoutMonth.ok) expect(withoutMonth.value.games[0].month).toBeNull();
+  });
+});
+
+describe("lotteries/validation — parseDrawnNumbersInput com config do Dia de Sorte (drawnMonth)", () => {
+  it("aceita exatamente 7 números e um drawnMonth entre 1 e 12 sob a config do Dia de Sorte", () => {
+    const result = parseDrawnNumbersInput({ drawnNumbers: [7, 1, 2, 3, 4, 5, 6], drawnMonth: 9 }, DIA_DE_SORTE);
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.drawnNumbers).toEqual([1, 2, 3, 4, 5, 6, 7]);
+      expect(result.value.drawnMonth).toBe(9);
+    }
+  });
+
+  it("rejeita quando drawnMonth está ausente ou fora da faixa sob a config do Dia de Sorte", () => {
+    const numbers = [1, 2, 3, 4, 5, 6, 7];
+    expect(parseDrawnNumbersInput({ drawnNumbers: numbers }, DIA_DE_SORTE).ok).toBe(false);
+    expect(parseDrawnNumbersInput({ drawnNumbers: numbers, drawnMonth: 0 }, DIA_DE_SORTE).ok).toBe(false);
+    expect(parseDrawnNumbersInput({ drawnNumbers: numbers, drawnMonth: 13 }, DIA_DE_SORTE).ok).toBe(false);
+  });
+
+  it("outras modalidades (sem hasMonthPick) nunca exigem drawnMonth, e qualquer drawnMonth enviado é silenciosamente ignorado (força null)", () => {
+    const numbers = Array.from({ length: 15 }, (_, i) => i + 1);
+    const withStrayMonth = parseDrawnNumbersInput({ drawnNumbers: numbers, drawnMonth: 4 }, LOTOFACIL);
+    expect(withStrayMonth.ok).toBe(true);
+    if (withStrayMonth.ok) expect(withStrayMonth.value.drawnMonth).toBeNull();
+
+    const withoutMonth = parseDrawnNumbersInput({ drawnNumbers: numbers }, LOTOFACIL);
+    expect(withoutMonth.ok).toBe(true);
+    if (withoutMonth.ok) expect(withoutMonth.value.drawnMonth).toBeNull();
+  });
+});
+
 describe("lotteries/validation — parseUpdateBetInput", () => {
   it("valida os mesmos campos de cabeçalho, sem exigir jogos", () => {
     const result = parseUpdateBetInput({ contestNumber: 3200, drawDate: "2026-10-01", amountCents: 500, note: "ok" });
@@ -125,10 +190,13 @@ describe("lotteries/validation — parseUpdateBetInput", () => {
 });
 
 describe("lotteries/validation — parseDrawnNumbersInput", () => {
-  it("aceita exatamente 15 números válidos e devolve ordenado (config da Lotofácil)", () => {
+  it("aceita exatamente 15 números válidos e devolve ordenado, com drawnMonth null (config da Lotofácil)", () => {
     const result = parseDrawnNumbersInput({ drawnNumbers: [15, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14] }, LOTOFACIL);
     expect(result.ok).toBe(true);
-    if (result.ok) expect(result.value).toEqual(Array.from({ length: 15 }, (_, i) => i + 1));
+    if (result.ok) {
+      expect(result.value.drawnNumbers).toEqual(Array.from({ length: 15 }, (_, i) => i + 1));
+      expect(result.value.drawnMonth).toBeNull();
+    }
   });
 
   it("rejeita quantidade diferente de 15 (config da Lotofácil)", () => {
@@ -145,7 +213,10 @@ describe("lotteries/validation — parseDrawnNumbersInput", () => {
   it("aceita exatamente 6 números válidos entre 1 e 60 sob a config da Mega-Sena", () => {
     const result = parseDrawnNumbersInput({ drawnNumbers: [60, 1, 30, 2, 45, 6] }, MEGASENA);
     expect(result.ok).toBe(true);
-    if (result.ok) expect(result.value).toEqual([1, 2, 6, 30, 45, 60]);
+    if (result.ok) {
+      expect(result.value.drawnNumbers).toEqual([1, 2, 6, 30, 45, 60]);
+      expect(result.value.drawnMonth).toBeNull();
+    }
   });
 
   it("rejeita 15 números sob a config da Mega-Sena (que exige exatamente 6)", () => {

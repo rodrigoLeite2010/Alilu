@@ -11,6 +11,7 @@ function bet(overrides: Partial<LotteryBet> = {}): LotteryBet {
     amountCents: 250,
     note: null,
     drawnNumbers: null,
+    drawnMonth: null,
     checkedAt: null,
     createdAt: "2026-09-29T00:00:00.000Z",
     games: [
@@ -23,6 +24,7 @@ function bet(overrides: Partial<LotteryBet> = {}): LotteryBet {
         mode: "aleatorio",
         isFavorite: false,
         hits: null,
+        month: null,
         createdAt: "2026-09-29T00:00:00.000Z",
       },
     ],

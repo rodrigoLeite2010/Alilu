@@ -37,7 +37,7 @@ export async function POST(request: Request, { params }: Context): Promise<NextR
   if (!parsed.ok) return NextResponse.json({ error: parsed.error }, { status: 400 });
 
   try {
-    const bet = await recordDrawnNumbers(authResult.userId, id, parsed.value);
+    const bet = await recordDrawnNumbers(authResult.userId, id, parsed.value.drawnNumbers, parsed.value.drawnMonth);
     if (!bet) return NextResponse.json({ error: "Aposta não encontrada." }, { status: 404 });
     return NextResponse.json({ bet });
   } catch {

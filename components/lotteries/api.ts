@@ -37,10 +37,10 @@ export const lotteryApi = {
   updateBet: (id: string, input: Omit<SaveBetInput, "games" | "modality">) =>
     request<{ ok: true }>(`/api/loterias/apostas/${id}`, { method: "PATCH", body: JSON.stringify(input) }),
   deleteBet: (id: string) => request<{ ok: true }>(`/api/loterias/apostas/${id}`, { method: "DELETE" }),
-  conferirBet: (modality: string, id: string, drawnNumbers: number[]) =>
+  conferirBet: (modality: string, id: string, drawnNumbers: number[], drawnMonth?: number | null) =>
     request<{ bet: LotteryBet }>(`/api/loterias/apostas/${id}/conferir`, {
       method: "POST",
-      body: JSON.stringify({ modality, drawnNumbers }),
+      body: JSON.stringify({ modality, drawnNumbers, drawnMonth }),
     }).then((r) => r.bet),
   setFavorite: (gameId: string, isFavorite: boolean) =>
     request<{ ok: true }>(`/api/loterias/jogos/${gameId}`, { method: "PATCH", body: JSON.stringify({ isFavorite }) }),

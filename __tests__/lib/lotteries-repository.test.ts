@@ -30,13 +30,22 @@ afterEach(async () => {
   await db.close();
 });
 
-function game(numbers: number[], overrides: Partial<{ betSize: number; mode: "aleatorio" | "equilibrado" | "personalizado" | "diversificado" }> = {}) {
-  return { numbers, betSize: overrides.betSize ?? numbers.length, mode: overrides.mode ?? ("aleatorio" as const) };
+function game(
+  numbers: number[],
+  overrides: Partial<{ betSize: number; mode: "aleatorio" | "equilibrado" | "personalizado" | "diversificado"; month: number | null }> = {}
+) {
+  return {
+    numbers,
+    betSize: overrides.betSize ?? numbers.length,
+    mode: overrides.mode ?? ("aleatorio" as const),
+    month: overrides.month,
+  };
 }
 
 const GAME_A = Array.from({ length: 15 }, (_, i) => i + 1); // 1..15
 const GAME_B = Array.from({ length: 15 }, (_, i) => i + 6); // 6..20
 const GAME_MEGASENA = [1, 2, 3, 4, 5, 6];
+const GAME_DIA_DE_SORTE = [1, 2, 3, 4, 5, 6, 7];
 
 describe("lotteries repository", () => {
   it("cria uma aposta com vários jogos e devolve tudo já persistido", async () => {
@@ -238,5 +247,75 @@ describe("lotteries repository — isolamento entre modalidades (Fase B: Mega-Se
     expect(await repo.deleteGame(userA, megasenaBet.games[0].id)).toBe(true);
     expect(await repo.deleteBet(userA, megasenaBet.id)).toBe(true);
     expect(await repo.listBets(userA, "mega-sena")).toHaveLength(0);
+  });
+});
+
+describe("lotteries repository — Dia de Sorte (Fase B: Mês da Sorte, segunda dimensão exclusiva desta modalidade)", () => {
+  it("salva um jogo com month e lê de volta corretamente", async () => {
+    const bet = await repo.createBetWithGames(
+      userA,
+      "dia-de-sorte",
+      { contestNumber: null, drawDate: null, amountCents: 0, note: null },
+      [game(GAME_DIA_DE_SORTE, { betSize: 7, month: 5 })]
+    );
+
+    expect(bet.modality).toBe("dia-de-sorte");
+    expect(bet.games[0].month).toBe(5);
+    expect(bet.drawnMonth).toBeNull();
+
+    const [reloaded] = await repo.listBets(userA, "dia-de-sorte");
+    expect(reloaded.games[0].month).toBe(5);
+  });
+
+  it("confere com drawnMonth e lê de volta corretamente", async () => {
+    const bet = await repo.createBetWithGames(
+      userA,
+      "dia-de-sorte",
+      { contestNumber: null, drawDate: null, amountCents: 0, note: null },
+      [game(GAME_DIA_DE_SORTE, { betSize: 7, month: 5 })]
+    );
+
+    const conferido = await repo.recordDrawnNumbers(userA, bet.id, GAME_DIA_DE_SORTE, 5);
+
+    expect(conferido).not.toBeNull();
+    expect(conferido!.drawnMonth).toBe(5);
+    expect(conferido!.games[0].hits).toBe(7);
+    expect(conferido!.games[0].month).toBe(5);
+
+    const [reloaded] = await repo.listBets(userA, "dia-de-sorte");
+    expect(reloaded.drawnMonth).toBe(5);
+  });
+
+  it("confere sem informar drawnMonth (default) grava drawn_month null, mesmo para uma aposta do Dia de Sorte", async () => {
+    const bet = await repo.createBetWithGames(
+      userA,
+      "dia-de-sorte",
+      { contestNumber: null, drawDate: null, amountCents: 0, note: null },
+      [game(GAME_DIA_DE_SORTE, { betSize: 7, month: 5 })]
+    );
+
+    const conferido = await repo.recordDrawnNumbers(userA, bet.id, GAME_DIA_DE_SORTE);
+    expect(conferido!.drawnMonth).toBeNull();
+  });
+
+  it("um fluxo Lotofácil-style (sem month/drawnMonth) continua devolvendo month/drawnMonth null e 100% inalterado (regressão)", async () => {
+    const bet = await repo.createBetWithGames(
+      userA,
+      "lotofacil",
+      { contestNumber: 3200, drawDate: "2026-10-01", amountCents: 500, note: "teste" },
+      [game(GAME_A)]
+    );
+
+    expect(bet.games[0].month).toBeNull();
+    expect(bet.drawnMonth).toBeNull();
+
+    const conferido = await repo.recordDrawnNumbers(userA, bet.id, GAME_A);
+    expect(conferido!.drawnMonth).toBeNull();
+    expect(conferido!.drawnNumbers).toEqual(GAME_A);
+    expect(conferido!.games[0].hits).toBe(15);
+
+    const [reloaded] = await repo.listBets(userA, "lotofacil");
+    expect(reloaded.games[0].month).toBeNull();
+    expect(reloaded.drawnMonth).toBeNull();
   });
 });

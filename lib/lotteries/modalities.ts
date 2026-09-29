@@ -13,6 +13,7 @@ import { LOTOFACIL_CONFIG } from "./lotofacil-config";
 import { MEGASENA_CONFIG } from "./megasena-config";
 import { QUINA_CONFIG } from "./quina-config";
 import { LOTOMANIA_CONFIG } from "./lotomania-config";
+import { DIA_DE_SORTE_CONFIG } from "./dia-de-sorte-config";
 
 export interface LotteryApiConfig {
   id: string;
@@ -21,6 +22,15 @@ export interface LotteryApiConfig {
   drawnNumbers: number;
   minBetNumbers: number;
   maxBetNumbers: number;
+  /**
+   * Só true para o Dia de Sorte: além dos números, toda aposta também
+   * exige escolher 1 "Mês da Sorte" (1-12), uma segunda dimensão de
+   * sorteio independente (ver lib/lotteries/dia-de-sorte-config.ts).
+   * undefined/false em toda outra modalidade — nunca exige nem valida
+   * `month`/`drawnMonth`, mesmo que o cliente envie algo nesses campos
+   * (ver parseGameInput/parseDrawnNumbersInput em validation.ts).
+   */
+  hasMonthPick?: boolean;
 }
 
 const LOTTERY_API_CONFIGS: Record<string, LotteryApiConfig> = {
@@ -28,6 +38,7 @@ const LOTTERY_API_CONFIGS: Record<string, LotteryApiConfig> = {
   "mega-sena": { id: "mega-sena", ...MEGASENA_CONFIG },
   quina: { id: "quina", ...QUINA_CONFIG },
   lotomania: { id: "lotomania", ...LOTOMANIA_CONFIG },
+  "dia-de-sorte": { id: "dia-de-sorte", ...DIA_DE_SORTE_CONFIG, hasMonthPick: true },
 };
 
 /** Resolve uma modalidade a partir de uma string qualquer (query string ou corpo JSON) — undefined se não reconhecida. */

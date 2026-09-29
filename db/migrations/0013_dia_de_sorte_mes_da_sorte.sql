@@ -1,0 +1,32 @@
+-- Dia de Sorte — "Mês da Sorte" (Fase B): a única modalidade de loteria
+-- deste projeto em que uma aposta tem uma segunda dimensão de sorteio,
+-- completamente independente dos números (ver o comentário de
+-- lib/lotteries/dia-de-sorte-config.ts). Toda aposta real do Dia de Sorte
+-- exige escolher exatamente 1 mês entre os 12 do calendário, além dos
+-- números de 1 a 31 — então "Meus Jogos" (0012_loterias.sql) também
+-- precisa guardar esse mês, tanto o escolhido pela pessoa ao salvar um
+-- jogo quanto o sorteado de verdade, informado manualmente na
+-- conferência.
+--
+-- As duas colunas são NULAS DE PROPÓSITO: Lotofácil, Mega-Sena, Quina e
+-- Lotomania nunca preenchem nenhuma das duas (não têm essa segunda
+-- dimensão), então as linhas existentes e as outras quatro modalidades
+-- ficam completamente inalteradas — só o Dia de Sorte passa a usá-las.
+--
+-- lottery_games.month: o mês (1 a 12) que a pessoa escolheu para AQUELE
+-- jogo salvo (cada jogo pode ter o seu próprio mês — ver
+-- DiaDeSorteGenerator.tsx).
+--
+-- lottery_bets.drawn_month: o mês REALMENTE sorteado, informado
+-- manualmente pela própria pessoa na conferência — nunca buscado de
+-- nenhuma fonte automática, mesmo princípio de `drawn_numbers`
+-- (0012_loterias.sql): este projeto não tem integração com nenhum
+-- resultado oficial.
+--
+-- Não existe (e não deve ser criada) nenhuma coluna "acertou o mês":
+-- comparar `lottery_games.month` com `lottery_bets.drawn_month` é
+-- trivial e barato de calcular na hora, sempre que um jogo é exibido
+-- junto da aposta dele (os dois valores já estão disponíveis ali) — não
+-- há motivo para persistir esse resultado derivado.
+alter table lottery_bets add column if not exists drawn_month integer check (drawn_month between 1 and 12);
+alter table lottery_games add column if not exists month integer check (month between 1 and 12);
