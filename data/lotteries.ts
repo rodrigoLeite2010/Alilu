@@ -34,11 +34,11 @@ export interface LotteryModality {
 }
 
 /**
- * Modalidades da categoria. Lotofácil, Mega-Sena, Quina e Lotomania já estão
- * implementadas (status "ativo") — as demais aparecem no catálogo/menu como
- * "Em breve", seguindo o mesmo padrão de ferramenta "em-breve" já usado no
- * resto do site (acessível, mas sem link para uma página que ainda não
- * existe).
+ * Modalidades da categoria. Lotofácil, Mega-Sena, Quina, Lotomania e Dia de
+ * Sorte — as cinco modalidades originalmente planejadas — já estão todas
+ * implementadas (status "ativo"). O padrão "em-breve" (acessível, mas sem
+ * link para uma página que ainda não existe) continua aqui pronto para
+ * qualquer modalidade futura que venha a ser adicionada.
  */
 export const lotteryModalities: LotteryModality[] = [
   {
@@ -86,9 +86,10 @@ export const lotteryModalities: LotteryModality[] = [
     name: "Gerador Estatístico do Dia de Sorte",
     shortName: "Dia de Sorte",
     path: "/loterias/dia-de-sorte",
-    description: "Em breve: gerador estatístico de jogos do Dia de Sorte.",
+    description:
+      "Monte jogos de 7 a 15 números (1 a 31) mais o Mês da Sorte, com filtros de pares/ímpares, primos e distribuição no volante — grátis e sem cadastro.",
     icon: "ticket",
-    status: "em-breve",
+    status: "ativo",
   },
 ];
 
