@@ -39,3 +39,35 @@ export function calculateOddsOneIn(params: { maxNumber: number; drawnNumbers: nu
   if (winningCombinations === 0) return totalCombinations;
   return totalCombinations / winningCombinations;
 }
+
+export interface HitProbability {
+  hits: number;
+  probability: number;
+}
+
+/**
+ * Distribuição EXATA (hipergeométrica) da quantidade de acertos ao
+ * sortear `drawnNumbers` dentre `maxNumber`, tendo apostado em `betSize`
+ * deles: P(acertos = h) = C(betSize, h) · C(maxNumber-betSize, drawnNumbers-h) / C(maxNumber, drawnNumbers).
+ * Nunca por simulação — usada como referência para comparar com a
+ * simulação de Monte Carlo (lib/lotteries/monte-carlo.ts) e para a tabela
+ * de probabilidades por faixa de acertos.
+ */
+export function calculateHitDistribution(params: {
+  maxNumber: number;
+  drawnNumbers: number;
+  betSize: number;
+}): HitProbability[] {
+  const { maxNumber, drawnNumbers, betSize } = params;
+  const total = calculateCombination(maxNumber, drawnNumbers);
+  if (total === 0) return [];
+
+  const minHits = Math.max(0, drawnNumbers - (maxNumber - betSize));
+  const maxHits = Math.min(betSize, drawnNumbers);
+  const result: HitProbability[] = [];
+  for (let hits = minHits; hits <= maxHits; hits += 1) {
+    const ways = calculateCombination(betSize, hits) * calculateCombination(maxNumber - betSize, drawnNumbers - hits);
+    result.push({ hits, probability: ways / total });
+  }
+  return result;
+}

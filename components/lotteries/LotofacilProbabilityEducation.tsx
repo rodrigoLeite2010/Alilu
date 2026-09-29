@@ -1,5 +1,7 @@
 import { LOTOFACIL_BET_SIZES, LOTOFACIL_CONFIG } from "@/lib/lotteries/lotofacil-config";
 import { calculateCombination, calculateOddsOneIn } from "@/lib/lotteries/combinatorics";
+import { LotofacilMonteCarloSimulation } from "./LotofacilMonteCarloSimulation";
+import { LotofacilVideo } from "./LotofacilVideo";
 
 function formatInt(value: number): string {
   return Math.round(value).toLocaleString("pt-BR");
@@ -84,6 +86,29 @@ export function LotofacilProbabilityEducation() {
               })}
             </tbody>
           </table>
+        </div>
+      </section>
+
+      <section>
+        <h2 className="text-xl font-semibold tracking-tight text-zinc-900 sm:text-2xl">Veja em vídeo</h2>
+        <p className="mt-2 text-sm leading-relaxed text-zinc-700">
+          Uma explicação em vídeo sobre a probabilidade da Lotofácil, cobrindo a mesma matemática desta seção.
+        </p>
+        <div className="mt-3">
+          <LotofacilVideo />
+        </div>
+      </section>
+
+      <section>
+        <h2 className="text-xl font-semibold tracking-tight text-zinc-900 sm:text-2xl">
+          Rode sua própria simulação
+        </h2>
+        <p className="mt-2 text-sm leading-relaxed text-zinc-700">
+          Não precisa confiar só na conta: sorteie você mesmo, agora, vários resultados aleatórios e veja a
+          frequência bater com a tabela acima.
+        </p>
+        <div className="mt-3">
+          <LotofacilMonteCarloSimulation />
         </div>
       </section>
 

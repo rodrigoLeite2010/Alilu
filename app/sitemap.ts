@@ -12,6 +12,10 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${SITE_URL}/utilitarios`, changeFrequency: "weekly", priority: 0.9 },
     { url: `${SITE_URL}${INSTAGRAM_CATEGORY.path}`, changeFrequency: "weekly", priority: 0.9 },
     { url: `${SITE_URL}${LOTTERIES_CATEGORY.path}`, changeFrequency: "weekly", priority: 0.8 },
+    // Desdobramento/fechamento é uma sub-ferramenta da Lotofácil, não uma
+    // modalidade própria (data/lotteries.ts) — por isso entra direto aqui,
+    // igual a /financeiro/educacao-financeira logo abaixo.
+    { url: `${SITE_URL}/loterias/lotofacil/fechamento`, changeFrequency: "monthly", priority: 0.6 },
     { url: `${SITE_URL}/financeiro/educacao-financeira`, changeFrequency: "monthly", priority: 0.7 },
     { url: `${SITE_URL}/sobre`, changeFrequency: "yearly", priority: 0.3 },
     { url: `${SITE_URL}/contato`, changeFrequency: "yearly", priority: 0.3 },

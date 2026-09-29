@@ -42,15 +42,26 @@ export function secureRandomInt(maxExclusive: number): number {
   return Math.floor(Math.random() * maxExclusive);
 }
 
-/** Sorteia `count` números distintos de `pool` (Fisher-Yates parcial), já ordenados crescentemente. */
-function pickRandomSubset(pool: readonly number[], count: number): number[] {
+/**
+ * Sorteia `count` números distintos de `pool` (Fisher-Yates parcial), já
+ * ordenados crescentemente. `randomInt` é injetável (padrão
+ * `secureRandomInt`) para permitir reaproveitar este mesmo sorteio em
+ * lib/lotteries/monte-carlo.ts com um gerador mais rápido (Math.random) —
+ * ali não é uma aposta de verdade, só uma simulação estatística, então não
+ * precisa da garantia criptográfica.
+ */
+export function pickRandomSubset(
+  pool: readonly number[],
+  count: number,
+  randomInt: (maxExclusive: number) => number = secureRandomInt
+): number[] {
   const working = [...pool];
   const take = Math.min(count, working.length);
   const picked: number[] = [];
 
   for (let i = 0; i < take; i += 1) {
     const remaining = working.length - i;
-    const index = secureRandomInt(remaining);
+    const index = randomInt(remaining);
     const lastIndex = remaining - 1;
     const chosen = working[index];
     working[index] = working[lastIndex];
@@ -61,7 +72,7 @@ function pickRandomSubset(pool: readonly number[], count: number): number[] {
   return picked.sort((a, b) => a - b);
 }
 
-function fullPool(): number[] {
+export function fullPool(): number[] {
   const pool: number[] = [];
   for (let n = LOTOFACIL_CONFIG.minNumber; n <= LOTOFACIL_CONFIG.maxNumber; n += 1) pool.push(n);
   return pool;

@@ -136,7 +136,11 @@ export default function LotofacilGeneratorPage() {
         <section className="mt-10">
           <SectionHeading title="Continue explorando" as="h2" />
           <p className="text-sm text-zinc-600">
-            Veja também as{" "}
+            Quer apostar em mais de 15 números? Veja o{" "}
+            <Link href={`${modality.path}/fechamento`} className="font-medium text-teal-800 hover:underline">
+              desdobramento completo e o fechamento reduzido com garantia matemática
+            </Link>
+            . Veja também as{" "}
             <Link href={LOTTERIES_CATEGORY.path} className="font-medium text-teal-800 hover:underline">
               outras modalidades de loteria
             </Link>{" "}

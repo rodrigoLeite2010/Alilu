@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { calculateCombination, calculateOddsOneIn } from "@/lib/lotteries/combinatorics";
+import { calculateCombination, calculateHitDistribution, calculateOddsOneIn } from "@/lib/lotteries/combinatorics";
 
 describe("lotteries/combinatorics — calculateCombination", () => {
   it("C(25,15) = 3.268.760 (total de combinações possíveis da Lotofácil, Seção 37)", () => {
@@ -52,5 +52,32 @@ describe("lotteries/combinatorics — calculateOddsOneIn", () => {
   it("aposta de 17 números dá exatamente 1 em 24.035", () => {
     const odds = calculateOddsOneIn({ maxNumber: 25, drawnNumbers: 15, betSize: 17 });
     expect(odds).toBeCloseTo(24035, 0);
+  });
+});
+
+describe("lotteries/combinatorics — calculateHitDistribution", () => {
+  it("aposta de 15: a faixa vai de 5 a 15 acertos (mínimo 5, já que só 10 números ficam de fora da aposta), e a chance de 15 acertos bate com C(25,15)", () => {
+    const dist = calculateHitDistribution({ maxNumber: 25, drawnNumbers: 15, betSize: 15 });
+    const fifteen = dist.find((entry) => entry.hits === 15);
+    expect(fifteen?.probability).toBeCloseTo(1 / 3268760, 12);
+    expect(dist[0].hits).toBe(5);
+    expect(dist[dist.length - 1].hits).toBe(15);
+  });
+
+  it("as probabilidades de todas as faixas de acerto somam 1 (distribuição completa)", () => {
+    const dist = calculateHitDistribution({ maxNumber: 25, drawnNumbers: 15, betSize: 18 });
+    const total = dist.reduce((sum, entry) => sum + entry.probability, 0);
+    expect(total).toBeCloseTo(1, 9);
+  });
+
+  it("o mínimo de acertos possível respeita quantos números ficaram de fora da aposta", () => {
+    // Com 20 apostados (sobram 5 de fora de 25) e 15 sorteados, o mínimo de
+    // acertos é 15 - 5 = 10 (na pior hipótese, todos os 5 "de fora" saem).
+    const dist = calculateHitDistribution({ maxNumber: 25, drawnNumbers: 15, betSize: 20 });
+    expect(dist[0].hits).toBe(10);
+  });
+
+  it("retorna lista vazia quando não há combinações possíveis", () => {
+    expect(calculateHitDistribution({ maxNumber: 5, drawnNumbers: 15, betSize: 5 })).toEqual([]);
   });
 });
