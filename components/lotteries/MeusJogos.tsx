@@ -10,7 +10,15 @@ import { lotteryApi } from "./api";
 import { BetCard } from "./BetCard";
 import { ConferirDialog } from "./ConferirDialog";
 
-function FrequencyPanel({ stats, maxNumber }: { stats: LotteryFrequencyStats; maxNumber: number }) {
+function FrequencyPanel({
+  stats,
+  minNumber,
+  maxNumber,
+}: {
+  stats: LotteryFrequencyStats;
+  minNumber: number;
+  maxNumber: number;
+}) {
   if (stats.totalGames === 0) {
     return (
       <p className="text-sm text-zinc-600">
@@ -20,7 +28,7 @@ function FrequencyPanel({ stats, maxNumber }: { stats: LotteryFrequencyStats; ma
     );
   }
 
-  const numbers = Array.from({ length: maxNumber }, (_, i) => i + 1);
+  const numbers = Array.from({ length: maxNumber - minNumber + 1 }, (_, i) => minNumber + i);
   const maxCount = Math.max(1, ...numbers.map((n) => stats.frequency[n] ?? 0));
 
   return (
@@ -235,7 +243,7 @@ export function MeusJogos({
 
       <section>
         <h2 className="mb-3 text-lg font-semibold text-zinc-900">Frequência nos seus jogos</h2>
-        <FrequencyPanel stats={frequency} maxNumber={maxNumber} />
+        <FrequencyPanel stats={frequency} minNumber={minNumber} maxNumber={maxNumber} />
       </section>
 
       <section>

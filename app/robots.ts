@@ -19,6 +19,7 @@ export default function robots(): MetadataRoute.Robots {
         "/loterias/lotofacil/meus-jogos",
         "/loterias/mega-sena/meus-jogos",
         "/loterias/quina/meus-jogos",
+        "/loterias/lotomania/meus-jogos",
         // Área privada de Educação Financeira (dados pessoais do usuário).
         "/financeiro/meu-orcamento",
         "/financeiro/calendario",

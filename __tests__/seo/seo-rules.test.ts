@@ -135,6 +135,7 @@ describe("E) robots.txt continua correto", () => {
         "/loterias/lotofacil/meus-jogos",
         "/loterias/mega-sena/meus-jogos",
         "/loterias/quina/meus-jogos",
+        "/loterias/lotomania/meus-jogos",
         "/financeiro/meu-orcamento",
         "/financeiro/calendario",
         "/financeiro/receitas",

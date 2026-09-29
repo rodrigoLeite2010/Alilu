@@ -95,6 +95,21 @@ describe("shared — análise de jogo", () => {
     expect(getUsedGroups([1, 5, 9], 10)).toBe(1); // grupo 0
     expect(getUsedGroups([1, 15, 25, 35, 45, 55], 10)).toBe(6); // uma dezena por linha
   });
+
+  it("getUsedGroups aceita minNumber explícito (Lotomania: pool começa em 0, não em 1)", () => {
+    // Sem o terceiro argumento, o padrão é minNumber = 1 — comportamento
+    // idêntico ao já coberto acima (Lotofácil/Mega-Sena/Quina).
+    expect(getUsedGroups([1, 2, 3], 5)).toBe(getUsedGroups([1, 2, 3], 5, 1));
+
+    // Lotomania: minNumber = 0, groupSize = 10 (10 linhas de 10: 00-09, 10-19, ..., 90-99).
+    expect(getUsedGroups([0], 10, 0)).toBe(1); // 0 cai no grupo 0, não em -1.
+    expect(getUsedGroups([9], 10, 0)).toBe(1); // último número do grupo 0.
+    expect(getUsedGroups([10], 10, 0)).toBe(1); // primeiro número do grupo 1.
+    expect(getUsedGroups([0, 9], 10, 0)).toBe(1); // 0 e 9 no mesmo grupo (0).
+    expect(getUsedGroups([0, 10], 10, 0)).toBe(2); // 0 no grupo 0, 10 no grupo 1.
+    expect(getUsedGroups([5, 0, 3, 2, 99], 10, 0)).toBe(2); // grupo 0 (0,2,3,5) e grupo 9 (99).
+    expect(getUsedGroups([0, 10, 20, 30, 40, 50, 60, 70, 80, 90], 10, 0)).toBe(10); // uma dezena por linha, cobrindo as 10 linhas.
+  });
 });
 
 describe("shared — buildLotteryCsv", () => {

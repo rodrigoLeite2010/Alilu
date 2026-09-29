@@ -35,3 +35,25 @@ describe("lotteries/stats — frequência PESSOAL (nunca probabilidade)", () => 
     expect(stats.frequency[25]).toBe(1);
   });
 });
+
+describe("lotteries/stats — minNumber explícito (Lotomania, que começa em 0)", () => {
+  it("com minNumber: 0, conta o número 0 normalmente (bug real que existia antes: n >= 1 excluía o 0)", () => {
+    const stats = calculatePersonalFrequency([[0, 1, 2]], 99, 0);
+    expect(stats.frequency[0]).toBe(1);
+    expect(Object.keys(stats.frequency)).toHaveLength(100); // 0 a 99
+  });
+
+  it("com minNumber: 0, preenche com zero todo número de 0 até maxNumber que nunca apareceu", () => {
+    const stats = calculatePersonalFrequency([[5]], 9, 0);
+    expect(stats.frequency[0]).toBe(0);
+    expect(stats.frequency[9]).toBe(0);
+    expect(stats.frequency[5]).toBe(1);
+    expect(Object.keys(stats.frequency)).toHaveLength(10); // 0 a 9
+  });
+
+  it("omitir minNumber continua produzindo o mesmo resultado de antes (compatibilidade retroativa)", () => {
+    const withDefault = calculatePersonalFrequency([[1, 2, 3]], 5);
+    const withExplicit1 = calculatePersonalFrequency([[1, 2, 3]], 5, 1);
+    expect(withDefault).toEqual(withExplicit1);
+  });
+});

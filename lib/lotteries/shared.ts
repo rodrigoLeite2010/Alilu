@@ -122,13 +122,20 @@ export function getLongestSequence(numbers: readonly number[]): number {
 
 /**
  * Quantos grupos consecutivos de `groupSize` números (as "linhas" do
- * volante oficial de cada modalidade — 5 na Lotofácil, 10 na Mega-Sena)
- * têm pelo menos um número escolhido. O grupo de um número N é sempre
- * `Math.floor((N - 1) / groupSize)` — sem precisar percorrer nenhuma
- * tabela de linhas do volante.
+ * volante oficial de cada modalidade — 5 na Lotofácil, 10 na Mega-Sena, 10
+ * na Lotomania) têm pelo menos um número escolhido. O grupo de um número N
+ * é sempre `Math.floor((N - minNumber) / groupSize)` — sem precisar
+ * percorrer nenhuma tabela de linhas do volante. `minNumber` tem padrão 1
+ * porque Lotofácil, Mega-Sena e Quina começam em 1 (todo chamador
+ * existente não passa esse terceiro argumento, então o comportamento
+ * delas fica idêntico a antes); a Lotomania é a única modalidade que
+ * começa em 0 (`minNumber: 0`) e por isso PRECISA passar esse argumento —
+ * sem ele, `Math.floor((0 - 1) / groupSize)` daria -1, um índice de grupo
+ * inválido, corrompendo a pontuação de distribuição do modo "Equilibrado"
+ * para o número 0 (e deslocando o grupo de todos os outros números).
  */
-export function getUsedGroups(numbers: readonly number[], groupSize: number): number {
-  const groups = new Set(numbers.map((n) => Math.floor((n - 1) / groupSize)));
+export function getUsedGroups(numbers: readonly number[], groupSize: number, minNumber: number = 1): number {
+  const groups = new Set(numbers.map((n) => Math.floor((n - minNumber) / groupSize)));
   return groups.size;
 }
 

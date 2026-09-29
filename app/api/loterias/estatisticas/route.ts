@@ -24,7 +24,10 @@ export async function GET(request: Request): Promise<NextResponse> {
       listAllSavedGameNumbers(authResult.userId, config.id),
       getInvestmentSummary(authResult.userId, config.id),
     ]);
-    return NextResponse.json({ frequency: calculatePersonalFrequency(savedNumbers, config.maxNumber), investment });
+    return NextResponse.json({
+      frequency: calculatePersonalFrequency(savedNumbers, config.maxNumber, config.minNumber),
+      investment,
+    });
   } catch {
     console.error("[loterias/estatisticas] falha ao calcular");
     return NextResponse.json({ error: "Não foi possível carregar suas estatísticas." }, { status: 500 });
