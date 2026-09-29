@@ -151,6 +151,7 @@ export const tools: Tool[] = [
       "Simule as parcelas de um financiamento de veículo e o custo total do financiamento.",
     keywords: ["financiamento", "financiamento de veículo", "parcelas", "simulador"],
     icon: "car",
+    featureRank: 6,
     // Cluster "Financiamento de Veículos" (ver comentário mais abaixo, antes
     // de "// EMPRESA"): esta ferramenta é a porta de entrada do cluster, por
     // isso relatedTools aqui aponta para o hub e para a lista completa
@@ -604,6 +605,7 @@ export const tools: Tool[] = [
       "Gere um QR Code gratuito a partir de um link, texto ou informação de contato.",
     keywords: ["qr code", "gerador de qr code", "código qr"],
     icon: "qr-code",
+    featureRank: 3,
     relatedTools: ["gerador-recibo"],
     status: "ativo",
   },
@@ -630,6 +632,7 @@ export const tools: Tool[] = [
       "Divida contas e despesas entre um grupo de pessoas de forma justa e simples.",
     keywords: ["divisão de despesas", "rachar conta", "despesas em grupo"],
     icon: "users-round",
+    featureRank: 4,
     relatedTools: ["quanto-guardar-por-mes", "porcentagem"],
     status: "ativo",
   },
@@ -668,6 +671,7 @@ export const tools: Tool[] = [
       "unir arquivos pdf online",
     ],
     icon: "file-pdf",
+    featureRank: 5,
     relatedTools: [],
     status: "ativo",
   },

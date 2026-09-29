@@ -51,9 +51,16 @@ describe("catálogo de categorias e ferramentas", () => {
   });
 
   it("mantém os destaques editoriais na ordem definida", () => {
+    // Lista ampliada para alimentar a seção "Ferramentas populares" da Home
+    // (ver app/page.tsx e components/home/FeaturedTools.tsx): cobre
+    // geradores, Utilidades, PDF e Financeiro, nessa ordem editorial.
     expect(getFeaturedTools().map((tool) => tool.id)).toEqual([
       "gerador-cpf",
       "gerador-cnpj",
+      "qr-code",
+      "divisao-de-despesas",
+      "unir-pdf",
+      "financiamento-veiculo",
     ]);
   });
 
