@@ -292,17 +292,7 @@ export function generateCustomGame(betSize: number, options: LotofacilCustomOpti
 // Modos combinados + geração múltipla sem duplicatas
 // --------------------------------------------------------------------------
 
-export type LotofacilMode = "aleatorio" | "equilibrado" | "personalizado";
-
-export function generateGameByMode(
-  mode: LotofacilMode,
-  betSize: number,
-  options: LotofacilCustomOptions = {}
-): number[] {
-  if (mode === "aleatorio") return generateRandomGame(betSize);
-  if (mode === "equilibrado") return generateBalancedGame(betSize);
-  return generateCustomGame(betSize, options);
-}
+export type LotofacilMode = "aleatorio" | "equilibrado" | "personalizado" | "diversificado";
 
 function gameKey(numbers: readonly number[]): string {
   return numbers.join("-");
@@ -317,6 +307,48 @@ export function calculateGameSimilarity(gameA: readonly number[], gameB: readonl
   return intersectionSize / unionSize;
 }
 
+const DIVERSIFY_CANDIDATE_ATTEMPTS = 30; // mesmo espírito de COMPOSITION_CANDIDATE_ATTEMPTS (pickBestComposition).
+
+/**
+ * Modo "Diversificar meus jogos" (a funcionalidade favorita do pedido —
+ * Fase 2): gera várias composições Equilibradas candidatas e escolhe a que
+ * tem MENOR semelhança máxima (Jaccard, calculateGameSimilarity) com o
+ * histórico de jogos já salvos pelo usuário. Isto NÃO aumenta a chance
+ * matemática de acertar nenhum jogo — é só uma ferramenta de organização
+ * para a pessoa perceber que está repetindo praticamente as mesmas
+ * combinações entre apostas. Sem histórico (`pastGames` vazio), não há o
+ * que diversificar: cai para o próprio modo Equilibrado.
+ */
+export function generateDiversifiedGame(betSize: number, pastGames: readonly (readonly number[])[]): number[] {
+  if (pastGames.length === 0) return generateBalancedGame(betSize);
+
+  let best: number[] = generateBalancedGame(betSize);
+  let bestMaxSimilarity = Math.max(...pastGames.map((game) => calculateGameSimilarity(best, game)));
+
+  for (let attempt = 1; attempt < DIVERSIFY_CANDIDATE_ATTEMPTS; attempt += 1) {
+    const candidate = generateBalancedGame(betSize);
+    const maxSimilarity = Math.max(...pastGames.map((game) => calculateGameSimilarity(candidate, game)));
+    if (maxSimilarity < bestMaxSimilarity) {
+      bestMaxSimilarity = maxSimilarity;
+      best = candidate;
+    }
+  }
+
+  return best;
+}
+
+export function generateGameByMode(
+  mode: LotofacilMode,
+  betSize: number,
+  options: LotofacilCustomOptions = {},
+  pastGames: readonly (readonly number[])[] = []
+): number[] {
+  if (mode === "aleatorio") return generateRandomGame(betSize);
+  if (mode === "equilibrado") return generateBalancedGame(betSize);
+  if (mode === "diversificado") return generateDiversifiedGame(betSize, pastGames);
+  return generateCustomGame(betSize, options);
+}
+
 /**
  * Gera `quantity` jogos distintos entre si (Seção 15: "Evitar duplicação
  * dentro da mesma geração"). `maxAttempts` é uma rede de segurança para
@@ -327,7 +359,8 @@ export function generateMultipleGames(
   mode: LotofacilMode,
   betSize: number,
   quantity: number,
-  options: LotofacilCustomOptions = {}
+  options: LotofacilCustomOptions = {},
+  pastGames: readonly (readonly number[])[] = []
 ): number[][] {
   const games: number[][] = [];
   const seen = new Set<string>();
@@ -336,7 +369,7 @@ export function generateMultipleGames(
 
   while (games.length < quantity && attempts < maxAttempts) {
     attempts += 1;
-    const game = generateGameByMode(mode, betSize, options);
+    const game = generateGameByMode(mode, betSize, options, pastGames);
     const key = gameKey(game);
     if (seen.has(key)) continue;
     seen.add(key);

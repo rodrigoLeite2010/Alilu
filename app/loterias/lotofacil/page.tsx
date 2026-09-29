@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { Suspense } from "react";
 import { Container } from "@/components/ui/Container";
 import { Breadcrumbs } from "@/components/navigation/Breadcrumbs";
 import { SectionHeading } from "@/components/ui/SectionHeading";
@@ -98,7 +99,9 @@ export default function LotofacilGeneratorPage() {
       </div>
 
       <div className="mt-6">
-        <LotofacilGenerator />
+        <Suspense fallback={<p className="text-sm text-zinc-500">Carregando gerador...</p>}>
+          <LotofacilGenerator />
+        </Suspense>
       </div>
 
       <div className="mt-8 print:hidden">

@@ -9,6 +9,7 @@ import {
   countPrimes,
   generateBalancedGame,
   generateCustomGame,
+  generateDiversifiedGame,
   generateGameByMode,
   generateMultipleGames,
   generateRandomGame,
@@ -184,5 +185,39 @@ describe("lotteries/lotofacil-generator — similaridade e CSV", () => {
     expect(lines).toHaveLength(3);
     expect(lines[1]).toBe('1,"1 2 3"');
     expect(lines[2]).toBe('2,"4 5 6"');
+  });
+});
+
+describe("lotteries/lotofacil-generator — diversificar meus jogos (Fase 2)", () => {
+  it("sem histórico, cai para o modo Equilibrado (jogo válido de qualquer forma)", () => {
+    const game = generateDiversifiedGame(15, []);
+    expect(game).toHaveLength(15);
+    expect(new Set(game).size).toBe(15);
+  });
+
+  it("prefere um candidato com menor semelhança máxima em relação ao histórico", () => {
+    // Histórico = quase o pool inteiro dividido em dois jogos idênticos entre
+    // si de propósito, para o candidato ter, obrigatoriamente, uma semelhança
+    // menor do que 1 com pelo menos um deles (não pode repetir os 15 mesmos
+    // números duas vezes seguidas).
+    const pastGame = Array.from({ length: 15 }, (_, i) => i + 1); // 1..15
+    const diversified = generateDiversifiedGame(15, [pastGame, pastGame]);
+
+    expect(diversified).toHaveLength(15);
+    expect(calculateGameSimilarity(diversified, pastGame)).toBeLessThan(1);
+  });
+
+  it("generateGameByMode despacha 'diversificado' para generateDiversifiedGame", () => {
+    const pastGame = Array.from({ length: 15 }, (_, i) => i + 1);
+    const game = generateGameByMode("diversificado", 15, {}, [pastGame]);
+    expect(game).toHaveLength(15);
+  });
+
+  it("generateMultipleGames também aceita o histórico para o modo 'diversificado'", () => {
+    const pastGame = Array.from({ length: 15 }, (_, i) => i + 1);
+    const games = generateMultipleGames("diversificado", 15, 5, {}, [pastGame]);
+    expect(games).toHaveLength(5);
+    const keys = games.map((game) => game.join("-"));
+    expect(new Set(keys).size).toBe(5);
   });
 });

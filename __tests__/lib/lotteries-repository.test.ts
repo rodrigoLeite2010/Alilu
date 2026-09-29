@@ -1,0 +1,167 @@
+// @vitest-environment node
+//
+// Repositório de "Meus Jogos" contra Postgres real em memória (PGlite,
+// mesmas migrações do projeto — inclui 0012_loterias.sql): isolamento
+// entre usuários, arrays de números (numbers/drawn_numbers), duplicidade,
+// conferência de resultado e configurações.
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { createTestDb, type TestDb } from "../helpers/pglite-db";
+
+let db: TestDb;
+vi.mock("@/lib/db/client", () => ({
+  getDb: () => db.sql,
+  assertDatabaseConfigured: () => undefined,
+}));
+
+const repo = await import("@/lib/lotteries/backend/repository");
+
+let userA: string;
+let userB: string;
+
+beforeEach(async () => {
+  db = await createTestDb();
+  [{ id: userA }, { id: userB }] = (await Promise.all([
+    db.sql`insert into users (email) values ('a@example.com') returning id`,
+    db.sql`insert into users (email) values ('b@example.com') returning id`,
+  ])).map((rows) => rows[0]) as [{ id: string }, { id: string }];
+});
+afterEach(async () => {
+  await db.close();
+});
+
+function game(numbers: number[], overrides: Partial<{ betSize: number; mode: "aleatorio" | "equilibrado" | "personalizado" | "diversificado" }> = {}) {
+  return { numbers, betSize: overrides.betSize ?? numbers.length, mode: overrides.mode ?? ("aleatorio" as const) };
+}
+
+const GAME_A = Array.from({ length: 15 }, (_, i) => i + 1); // 1..15
+const GAME_B = Array.from({ length: 15 }, (_, i) => i + 6); // 6..20
+
+describe("lotteries repository", () => {
+  it("cria uma aposta com vários jogos e devolve tudo já persistido", async () => {
+    const bet = await repo.createBetWithGames(
+      userA,
+      { contestNumber: 3200, drawDate: "2026-10-01", amountCents: 500, note: "teste" },
+      [game(GAME_A), game(GAME_B)]
+    );
+
+    expect(bet.contestNumber).toBe(3200);
+    expect(bet.drawDate).toBe("2026-10-01");
+    expect(bet.amountCents).toBe(500);
+    expect(bet.games).toHaveLength(2);
+    expect(bet.games[0].numbers).toEqual(GAME_A);
+    expect(bet.games[1].numbers).toEqual(GAME_B);
+    expect(bet.games[0].isFavorite).toBe(false);
+    expect(bet.games[0].hits).toBeNull();
+  });
+
+  it("lista apenas as apostas do próprio usuário, com os jogos aninhados", async () => {
+    await repo.createBetWithGames(userA, { contestNumber: null, drawDate: null, amountCents: 0, note: null }, [game(GAME_A)]);
+    await repo.createBetWithGames(userB, { contestNumber: null, drawDate: null, amountCents: 0, note: null }, [game(GAME_B)]);
+
+    const betsA = await repo.listBets(userA);
+    const betsB = await repo.listBets(userB);
+
+    expect(betsA).toHaveLength(1);
+    expect(betsA[0].games[0].numbers).toEqual(GAME_A);
+    expect(betsB).toHaveLength(1);
+    expect(betsB[0].games[0].numbers).toEqual(GAME_B);
+  });
+
+  it("detecta duplicidade contra o histórico do próprio usuário, mas não entre usuários diferentes", async () => {
+    await repo.createBetWithGames(userA, { contestNumber: null, drawDate: null, amountCents: 0, note: null }, [game(GAME_A)]);
+
+    const duplicatesForA = await repo.findDuplicateGameKeys(userA, [GAME_A, GAME_B]);
+    const duplicatesForB = await repo.findDuplicateGameKeys(userB, [GAME_A]);
+
+    expect(duplicatesForA.has(GAME_A.join("-"))).toBe(true);
+    expect(duplicatesForA.has(GAME_B.join("-"))).toBe(false);
+    expect(duplicatesForB.size).toBe(0);
+  });
+
+  it("atualiza o cabeçalho da aposta só se ela for do usuário", async () => {
+    const bet = await repo.createBetWithGames(userA, { contestNumber: null, drawDate: null, amountCents: 0, note: null }, [game(GAME_A)]);
+
+    const updatedByOwner = await repo.updateBetHeader(userA, bet.id, {
+      contestNumber: 3201,
+      drawDate: "2026-10-08",
+      amountCents: 750,
+      note: "atualizado",
+    });
+    const updatedByOther = await repo.updateBetHeader(userB, bet.id, {
+      contestNumber: 1,
+      drawDate: null,
+      amountCents: 0,
+      note: null,
+    });
+
+    expect(updatedByOwner).toBe(true);
+    expect(updatedByOther).toBe(false);
+
+    const [reloaded] = await repo.listBets(userA);
+    expect(reloaded.contestNumber).toBe(3201);
+    expect(reloaded.note).toBe("atualizado");
+  });
+
+  it("confere o resultado manualmente e calcula os acertos de cada jogo", async () => {
+    const bet = await repo.createBetWithGames(userA, { contestNumber: 3200, drawDate: "2026-10-01", amountCents: 0, note: null }, [
+      game(GAME_A),
+      game(GAME_B),
+    ]);
+
+    // Sorteio "oficial" (informado manualmente) = exatamente GAME_A: 15
+    // acertos para o jogo A, e a interseção para o jogo B.
+    const conferido = await repo.recordDrawnNumbers(userA, bet.id, GAME_A);
+
+    expect(conferido).not.toBeNull();
+    expect(conferido!.drawnNumbers).toEqual(GAME_A);
+    expect(conferido!.checkedAt).not.toBeNull();
+    const gameAResult = conferido!.games.find((g) => g.numbers.join(",") === GAME_A.join(","));
+    const gameBResult = conferido!.games.find((g) => g.numbers.join(",") === GAME_B.join(","));
+    expect(gameAResult?.hits).toBe(15);
+    // GAME_A = 1..15, GAME_B = 6..20 → interseção = 6..15 = 10 números.
+    expect(gameBResult?.hits).toBe(10);
+  });
+
+  it("favorita, exclui um jogo e exclui uma aposta inteira, sempre restrito ao dono", async () => {
+    const bet = await repo.createBetWithGames(userA, { contestNumber: null, drawDate: null, amountCents: 0, note: null }, [
+      game(GAME_A),
+      game(GAME_B),
+    ]);
+    const [gameA, gameB] = bet.games;
+
+    expect(await repo.setGameFavorite(userB, gameA.id, true)).toBe(false);
+    expect(await repo.setGameFavorite(userA, gameA.id, true)).toBe(true);
+
+    expect(await repo.deleteGame(userB, gameB.id)).toBe(false);
+    expect(await repo.deleteGame(userA, gameB.id)).toBe(true);
+
+    const [reloaded] = await repo.listBets(userA);
+    expect(reloaded.games).toHaveLength(1);
+    expect(reloaded.games[0].isFavorite).toBe(true);
+
+    expect(await repo.deleteBet(userB, bet.id)).toBe(false);
+    expect(await repo.deleteBet(userA, bet.id)).toBe(true);
+    expect(await repo.listBets(userA)).toHaveLength(0);
+  });
+
+  it("lista só os números dos jogos salvos, para estatística/diversificação", async () => {
+    await repo.createBetWithGames(userA, { contestNumber: null, drawDate: null, amountCents: 0, note: null }, [game(GAME_A), game(GAME_B)]);
+    const numbers = await repo.listAllSavedGameNumbers(userA);
+    expect(numbers).toHaveLength(2);
+    expect(numbers).toContainEqual(GAME_A);
+    expect(numbers).toContainEqual(GAME_B);
+  });
+
+  it("salva e lê o limite mensal de investimento, e calcula o total investido", async () => {
+    expect((await repo.getSettings(userA)).monthlyBudgetCents).toBeNull();
+    await repo.saveSettings(userA, { monthlyBudgetCents: 10000 });
+    expect((await repo.getSettings(userA)).monthlyBudgetCents).toBe(10000);
+
+    await repo.createBetWithGames(userA, { contestNumber: null, drawDate: null, amountCents: 300, note: null }, [game(GAME_A)]);
+    await repo.createBetWithGames(userA, { contestNumber: null, drawDate: null, amountCents: 200, note: null }, [game(GAME_B)]);
+
+    const investment = await repo.getInvestmentSummary(userA);
+    expect(investment.totalCents).toBe(500);
+    expect(investment.currentMonthCents).toBe(500);
+  });
+});

@@ -129,8 +129,10 @@ describe("E) robots.txt continua correto", () => {
       allow: "/",
       disallow: [
         "/entrar",
+        "/minha-conta",
         "/api/",
         "/instagram/painel",
+        "/loterias/lotofacil/meus-jogos",
         "/financeiro/meu-orcamento",
         "/financeiro/calendario",
         "/financeiro/receitas",

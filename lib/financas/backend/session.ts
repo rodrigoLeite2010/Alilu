@@ -1,18 +1,8 @@
-import "server-only";
-import { NextResponse } from "next/server";
-import { auth } from "@/auth";
-
-/** Retorna o id do usuário logado ou uma resposta 401 pronta para devolver. */
-export async function requireUserId(): Promise<{ userId: string } | { response: NextResponse }> {
-  const session = await auth();
-  const userId = session?.user?.id;
-  if (!userId) {
-    return { response: NextResponse.json({ error: "Não autenticado." }, { status: 401 }) };
-  }
-  return { userId };
-}
-
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-export function isUuid(value: string): boolean {
-  return UUID_RE.test(value);
-}
+/**
+ * Reexporta o helper de sessão compartilhado (lib/auth/session.ts) — a
+ * lógica de autenticação em si vive lá, para não duplicar entre módulos
+ * (Financeiro e Loterias, hoje). Mantido como arquivo próprio só para não
+ * quebrar os imports já existentes de "@/lib/financas/backend/session" no
+ * resto do módulo financeiro.
+ */
+export { requireUserId, isUuid } from "@/lib/auth/session";
