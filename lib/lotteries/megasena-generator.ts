@@ -1,27 +1,27 @@
 /**
- * Núcleo puro do "Gerador Estatístico da Lotofácil" — nenhuma função aqui
+ * Núcleo puro do "Gerador Estatístico da Mega-Sena" — nenhuma função aqui
  * toca DOM/React, só números. Isso permite testar tudo diretamente (ver
- * __tests__/lib/lotteries-lotofacil-generator.test.ts) e reaproveitar as
+ * __tests__/lib/lotteries-megasena-generator.test.ts) e reaproveitar as
  * mesmas funções tanto no modo de um jogo quanto na geração de vários.
  *
- * A parte agnóstica de modalidade (aleatoriedade, similaridade, contagem
- * de pares/primos/soma/sequência, grupos do volante e CSV) mora em
- * lib/lotteries/shared.ts e é reaproveitada aqui — este arquivo só faz o
- * que é específico da Lotofácil (pool 1-25, PRIME_SET, alvos de
- * composição calibrados para 15 dezenas, linhas do volante = 5). Todo
- * export abaixo mantém o mesmo nome/assinatura/comportamento de antes do
- * extraction (Fase A da Mega-Sena), para não quebrar nenhum código nem
- * teste existente.
+ * Mesma arquitetura da Lotofácil (lib/lotteries/lotofacil-generator.ts):
+ * a parte agnóstica de modalidade mora em lib/lotteries/shared.ts, e este
+ * arquivo só faz o que é específico da Mega-Sena (pool 1-60, PRIME_SET
+ * com 17 primos, alvos de composição calculados por valor esperado sobre
+ * o pool, linhas do volante = 6 de 10 em 10). Fase A (MVP público, sem
+ * login): só os modos Aleatório, Equilibrado e Personalizado — o modo
+ * "Diversificar" depende do histórico salvo de "Meus Jogos" (Fase B),
+ * ainda não implementado para a Mega-Sena.
  *
- * IMPORTANTE (mesmo aviso da página): nada aqui prevê resultado de sorteio.
- * "Equilibrado" e "primos"/"distribuição" são só filtros de composição —
- * cada combinação de 15 a 20 números continua tendo a mesma chance
- * matemática de ser sorteada.
+ * IMPORTANTE (mesmo aviso da página): nada aqui prevê resultado de
+ * sorteio. "Equilibrado" e "primos"/"distribuição" são só filtros de
+ * composição — cada combinação de 6 a 20 números continua tendo a mesma
+ * chance matemática de ser sorteada.
  */
-import { LOTOFACIL_CONFIG, LOTOFACIL_PRIME_NUMBERS } from "./lotofacil-config";
+import { MEGASENA_CONFIG, MEGASENA_PRIME_NUMBERS } from "./megasena-config";
 import {
   buildLotteryCsv,
-  calculateGameSimilarity as sharedCalculateGameSimilarity,
+  calculateGameSimilarity,
   calculateSum,
   countEvenOdd,
   countPrimes as sharedCountPrimes,
@@ -31,17 +31,17 @@ import {
   secureRandomInt,
 } from "./shared";
 
-const PRIME_SET = new Set(LOTOFACIL_PRIME_NUMBERS);
+const PRIME_SET = new Set(MEGASENA_PRIME_NUMBERS);
 
 // --------------------------------------------------------------------------
-// Aleatoriedade (delegado a ./shared — reexportado com o mesmo nome)
+// Aleatoriedade (delegado a ./shared)
 // --------------------------------------------------------------------------
 
-export { secureRandomInt, pickRandomSubset };
+export { secureRandomInt, pickRandomSubset, calculateGameSimilarity };
 
 export function fullPool(): number[] {
   const pool: number[] = [];
-  for (let n = LOTOFACIL_CONFIG.minNumber; n <= LOTOFACIL_CONFIG.maxNumber; n += 1) pool.push(n);
+  for (let n = MEGASENA_CONFIG.minNumber; n <= MEGASENA_CONFIG.maxNumber; n += 1) pool.push(n);
   return pool;
 }
 
@@ -49,7 +49,7 @@ export function fullPool(): number[] {
 // Análise de um jogo
 // --------------------------------------------------------------------------
 
-export interface LotofacilGameAnalysis {
+export interface MegaSenaGameAnalysis {
   numbers: number[];
   count: number;
   even: number;
@@ -63,22 +63,21 @@ export interface LotofacilGameAnalysis {
 
 export { countEvenOdd, calculateSum, getLongestSequence };
 
-/** Quantos primos (entre os 9 primos de 1-25 — PRIME_SET) aparecem em `numbers`. Assinatura preservada: PRIME_SET agora vem de LOTOFACIL_PRIME_NUMBERS, mas continua fixo/fechado aqui, não um parâmetro. */
+/** Quantos primos (entre os 17 primos de 1-60 — PRIME_SET) aparecem em `numbers`. */
 export function countPrimes(numbers: readonly number[]): number {
   return sharedCountPrimes(numbers, PRIME_SET);
 }
 
 /**
- * Quantas das 5 linhas do volante (Seção 7) têm pelo menos um número
- * escolhido. Como as linhas são blocos consecutivos de 5, a linha de um
- * número N é sempre `Math.floor((N - 1) / 5)` — sem precisar percorrer a
- * tabela LOTOFACIL_BOARD_ROWS.
+ * Quantas das 6 linhas do volante têm pelo menos um número escolhido. Como
+ * as linhas são blocos consecutivos de 10, a linha de um número N é
+ * sempre `Math.floor((N - 1) / 10)`.
  */
 export function getUsedBoardRows(numbers: readonly number[]): number {
-  return getUsedGroups(numbers, 5);
+  return getUsedGroups(numbers, 10);
 }
 
-export function analyzeGame(numbers: readonly number[]): LotofacilGameAnalysis {
+export function analyzeGame(numbers: readonly number[]): MegaSenaGameAnalysis {
   const sorted = [...numbers].sort((a, b) => a - b);
   const { even, odd } = countEvenOdd(sorted);
 
@@ -91,7 +90,7 @@ export function analyzeGame(numbers: readonly number[]): LotofacilGameAnalysis {
     sum: calculateSum(sorted),
     longestSequence: getLongestSequence(sorted),
     usedRows: getUsedBoardRows(sorted),
-    totalRows: 5,
+    totalRows: 6,
   };
 }
 
@@ -113,14 +112,19 @@ interface CompositionTargets {
 }
 
 /**
- * Alvos de composição escalados a partir da referência pedida para 15
- * dezenas (~7/8 pares-ímpares e 5-6 primos — Seções 5 e 6), proporcionais
- * para 16-20. Isso é só um filtro de como os números se distribuem, nunca
- * uma alegação de chance maior para a combinação específica gerada.
+ * Alvos de composição calculados por valor esperado sobre o próprio pool
+ * (diferente da Lotofácil, que usa constantes calibradas manualmente para
+ * 15 dezenas): se o pool de 1 a 60 tem 30 números pares e 17 primos,
+ * espera-se que uma amostra de `betSize` números tenha, em média,
+ * `betSize * 30/60` pares e `betSize * 17/60` primos. Isso é só um filtro
+ * de como os números se distribuem, nunca uma alegação de chance maior
+ * para a combinação específica gerada.
  */
 function getCompositionTargets(betSize: number): CompositionTargets {
-  const evenTarget = Math.round(betSize * (12 / 25));
-  const primeTarget = Math.round(betSize * (5.5 / 15));
+  const poolSize = MEGASENA_CONFIG.maxNumber - MEGASENA_CONFIG.minNumber + 1;
+  const evensInPool = Math.floor(poolSize / 2);
+  const evenTarget = Math.round((betSize * evensInPool) / poolSize);
+  const primeTarget = Math.round((betSize * MEGASENA_PRIME_NUMBERS.length) / poolSize);
   return { evenTarget, primeTarget };
 }
 
@@ -160,25 +164,25 @@ export function generateBalancedGame(betSize: number): number[] {
 // Geração — modo Personalizado
 // --------------------------------------------------------------------------
 
-export interface LotofacilCustomOptions {
+export interface MegaSenaCustomOptions {
   mustInclude?: number[];
   mustExclude?: number[];
   /** Aplica o mesmo filtro de composição do modo Equilibrado ao preencher as dezenas que sobrarem. */
   balanced?: boolean;
 }
 
-export interface LotofacilValidationResult {
+export interface MegaSenaValidationResult {
   valid: boolean;
   error?: string;
 }
 
-/** Valida a seleção do modo Personalizado — nunca lança, só relata o que está errado (Seção 12: "Validar conflitos"). */
+/** Valida a seleção do modo Personalizado — nunca lança, só relata o que está errado. */
 export function validateCustomSelection(
   betSize: number,
   mustInclude: readonly number[] = [],
   mustExclude: readonly number[] = []
-): LotofacilValidationResult {
-  const { minNumber, maxNumber, minBetNumbers, maxBetNumbers } = LOTOFACIL_CONFIG;
+): MegaSenaValidationResult {
+  const { minNumber, maxNumber, minBetNumbers, maxBetNumbers } = MEGASENA_CONFIG;
 
   if (!Number.isInteger(betSize) || betSize < minBetNumbers || betSize > maxBetNumbers) {
     return { valid: false, error: `Escolha entre ${minBetNumbers} e ${maxBetNumbers} números.` };
@@ -221,7 +225,7 @@ export function validateCustomSelection(
   return { valid: true };
 }
 
-export function generateCustomGame(betSize: number, options: LotofacilCustomOptions = {}): number[] {
+export function generateCustomGame(betSize: number, options: MegaSenaCustomOptions = {}): number[] {
   const mustInclude = options.mustInclude ?? [];
   const mustExclude = options.mustExclude ?? [];
 
@@ -248,69 +252,33 @@ export function generateCustomGame(betSize: number, options: LotofacilCustomOpti
 // Modos combinados + geração múltipla sem duplicatas
 // --------------------------------------------------------------------------
 
-export type LotofacilMode = "aleatorio" | "equilibrado" | "personalizado" | "diversificado";
+/** Fase A: só os 3 modos que não dependem de histórico salvo. "diversificado" chega na Fase B (Meus Jogos). */
+export type MegaSenaMode = "aleatorio" | "equilibrado" | "personalizado";
 
 function gameKey(numbers: readonly number[]): string {
   return numbers.join("-");
 }
 
-/** Compara dois jogos (mesmo tamanho ou não) — usado para "esta combinação já existe" e para medir semelhança. */
-export { sharedCalculateGameSimilarity as calculateGameSimilarity };
-
-const DIVERSIFY_CANDIDATE_ATTEMPTS = 30; // mesmo espírito de COMPOSITION_CANDIDATE_ATTEMPTS (pickBestComposition).
-
-/**
- * Modo "Diversificar meus jogos" (a funcionalidade favorita do pedido —
- * Fase 2): gera várias composições Equilibradas candidatas e escolhe a que
- * tem MENOR semelhança máxima (Jaccard, calculateGameSimilarity) com o
- * histórico de jogos já salvos pelo usuário. Isto NÃO aumenta a chance
- * matemática de acertar nenhum jogo — é só uma ferramenta de organização
- * para a pessoa perceber que está repetindo praticamente as mesmas
- * combinações entre apostas. Sem histórico (`pastGames` vazio), não há o
- * que diversificar: cai para o próprio modo Equilibrado.
- */
-export function generateDiversifiedGame(betSize: number, pastGames: readonly (readonly number[])[]): number[] {
-  if (pastGames.length === 0) return generateBalancedGame(betSize);
-
-  let best: number[] = generateBalancedGame(betSize);
-  let bestMaxSimilarity = Math.max(...pastGames.map((game) => sharedCalculateGameSimilarity(best, game)));
-
-  for (let attempt = 1; attempt < DIVERSIFY_CANDIDATE_ATTEMPTS; attempt += 1) {
-    const candidate = generateBalancedGame(betSize);
-    const maxSimilarity = Math.max(...pastGames.map((game) => sharedCalculateGameSimilarity(candidate, game)));
-    if (maxSimilarity < bestMaxSimilarity) {
-      bestMaxSimilarity = maxSimilarity;
-      best = candidate;
-    }
-  }
-
-  return best;
-}
-
 export function generateGameByMode(
-  mode: LotofacilMode,
+  mode: MegaSenaMode,
   betSize: number,
-  options: LotofacilCustomOptions = {},
-  pastGames: readonly (readonly number[])[] = []
+  options: MegaSenaCustomOptions = {}
 ): number[] {
   if (mode === "aleatorio") return generateRandomGame(betSize);
   if (mode === "equilibrado") return generateBalancedGame(betSize);
-  if (mode === "diversificado") return generateDiversifiedGame(betSize, pastGames);
   return generateCustomGame(betSize, options);
 }
 
 /**
- * Gera `quantity` jogos distintos entre si (Seção 15: "Evitar duplicação
- * dentro da mesma geração"). `maxAttempts` é uma rede de segurança para
- * nunca travar o navegador caso `quantity` seja maior do que o espaço de
- * combinações possíveis permitiria gerar sem repetir.
+ * Gera `quantity` jogos distintos entre si. `maxAttempts` é uma rede de
+ * segurança para nunca travar o navegador caso `quantity` seja maior do
+ * que o espaço de combinações possíveis permitiria gerar sem repetir.
  */
 export function generateMultipleGames(
-  mode: LotofacilMode,
+  mode: MegaSenaMode,
   betSize: number,
   quantity: number,
-  options: LotofacilCustomOptions = {},
-  pastGames: readonly (readonly number[])[] = []
+  options: MegaSenaCustomOptions = {}
 ): number[][] {
   const games: number[][] = [];
   const seen = new Set<string>();
@@ -319,7 +287,7 @@ export function generateMultipleGames(
 
   while (games.length < quantity && attempts < maxAttempts) {
     attempts += 1;
-    const game = generateGameByMode(mode, betSize, options, pastGames);
+    const game = generateGameByMode(mode, betSize, options);
     const key = gameKey(game);
     if (seen.has(key)) continue;
     seen.add(key);
@@ -333,7 +301,7 @@ export function generateMultipleGames(
 // Exportação
 // --------------------------------------------------------------------------
 
-/** CSV simples (uma linha por jogo) para "Baixar CSV" (Seção 15). */
-export function buildLotofacilCsv(games: readonly (readonly number[])[]): string {
+/** CSV simples (uma linha por jogo) para "Baixar CSV". */
+export function buildMegaSenaCsv(games: readonly (readonly number[])[]): string {
   return buildLotteryCsv(games);
 }
