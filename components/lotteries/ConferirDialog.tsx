@@ -4,21 +4,29 @@ import { useState } from "react";
 import { Dialog } from "@/components/instagram/Dialog";
 import { Button } from "@/components/ui/Button";
 import { LotteryNumberGrid } from "./LotteryNumberGrid";
-import { LOTOFACIL_CONFIG } from "@/lib/lotteries/lotofacil-config";
 
 /**
  * Conferência manual do resultado (Fase 2): a pessoa marca no volante os
  * números que realmente saíram no sorteio oficial — nunca buscados
  * automaticamente por este site, que não tem integração com nenhuma fonte
  * de resultado — e confirma. O cálculo de acertos de cada jogo acontece no
- * servidor (ver /api/loterias/apostas/[id]/conferir).
+ * servidor (ver /api/loterias/apostas/[id]/conferir). `minNumber`,
+ * `maxNumber` e `drawnNumbers` vêm de fora (Fase B: cada modalidade tem a
+ * própria faixa/quantidade — ver MeusJogos.tsx), em vez de importar
+ * LOTOFACIL_CONFIG diretamente.
  */
 export function ConferirDialog({
   open,
+  minNumber,
+  maxNumber,
+  drawnNumbers,
   onClose,
   onConfirm,
 }: {
   open: boolean;
+  minNumber: number;
+  maxNumber: number;
+  drawnNumbers: number;
   onClose: () => void;
   onConfirm: (drawnNumbers: number[]) => Promise<void>;
 }) {
@@ -31,8 +39,8 @@ export function ConferirDialog({
   }
 
   async function handleConfirm() {
-    if (selected.length !== LOTOFACIL_CONFIG.drawnNumbers) {
-      setError(`Marque exatamente ${LOTOFACIL_CONFIG.drawnNumbers} números.`);
+    if (selected.length !== drawnNumbers) {
+      setError(`Marque exatamente ${drawnNumbers} números.`);
       return;
     }
     setSaving(true);
@@ -65,14 +73,14 @@ export function ConferirDialog({
       }
     >
       <p className="text-sm text-zinc-600">
-        Marque os {LOTOFACIL_CONFIG.drawnNumbers} números que saíram no sorteio oficial da Caixa para este
-        concurso. Nada é buscado automaticamente — a conferência é sempre manual.
+        Marque os {drawnNumbers} números que saíram no sorteio oficial da Caixa para este concurso. Nada é buscado
+        automaticamente — a conferência é sempre manual.
       </p>
-      <p className="mt-2 text-xs text-zinc-500">{selected.length} de {LOTOFACIL_CONFIG.drawnNumbers} marcados</p>
+      <p className="mt-2 text-xs text-zinc-500">{selected.length} de {drawnNumbers} marcados</p>
       <div className="mt-3">
         <LotteryNumberGrid
-          minNumber={LOTOFACIL_CONFIG.minNumber}
-          maxNumber={LOTOFACIL_CONFIG.maxNumber}
+          minNumber={minNumber}
+          maxNumber={maxNumber}
           selected={selected}
           onToggle={toggle}
           ariaLabel="Números sorteados"

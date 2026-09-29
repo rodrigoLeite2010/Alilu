@@ -5,13 +5,12 @@ import { Download } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { money } from "@/components/financas/format";
 import { reaisTextToCents } from "@/lib/financas/validation";
-import { LOTOFACIL_CONFIG } from "@/lib/lotteries/lotofacil-config";
 import type { InvestmentSummary, LotteryBet, LotteryFrequencyStats } from "@/lib/lotteries/types";
 import { lotteryApi } from "./api";
 import { BetCard } from "./BetCard";
 import { ConferirDialog } from "./ConferirDialog";
 
-function FrequencyPanel({ stats }: { stats: LotteryFrequencyStats }) {
+function FrequencyPanel({ stats, maxNumber }: { stats: LotteryFrequencyStats; maxNumber: number }) {
   if (stats.totalGames === 0) {
     return (
       <p className="text-sm text-zinc-600">
@@ -21,7 +20,7 @@ function FrequencyPanel({ stats }: { stats: LotteryFrequencyStats }) {
     );
   }
 
-  const numbers = Array.from({ length: LOTOFACIL_CONFIG.maxNumber }, (_, i) => i + 1);
+  const numbers = Array.from({ length: maxNumber }, (_, i) => i + 1);
   const maxCount = Math.max(1, ...numbers.map((n) => stats.frequency[n] ?? 0));
 
   return (
@@ -112,7 +111,27 @@ function InvestmentPanel({
   );
 }
 
-export function MeusJogos() {
+/**
+ * Componente genérico de "Meus Jogos" (Fase 2, generalizado por
+ * modalidade na Fase B) — usado tanto por
+ * app/loterias/lotofacil/meus-jogos/page.tsx quanto por
+ * app/loterias/mega-sena/meus-jogos/page.tsx, cada um passando sua própria
+ * `modality` e faixa de números. Configurações (limite mensal) continuam
+ * globais, sem modalidade.
+ */
+export function MeusJogos({
+  modality,
+  minNumber,
+  maxNumber,
+  drawnNumbers,
+  reusePath,
+}: {
+  modality: string;
+  minNumber: number;
+  maxNumber: number;
+  drawnNumbers: number;
+  reusePath: string;
+}) {
   const [bets, setBets] = useState<LotteryBet[] | null>(null);
   const [frequency, setFrequency] = useState<LotteryFrequencyStats | null>(null);
   const [investment, setInvestment] = useState<InvestmentSummary | null>(null);
@@ -122,7 +141,7 @@ export function MeusJogos() {
 
   useEffect(() => {
     let cancelled = false;
-    Promise.all([lotteryApi.listBets(), lotteryApi.getStats(), lotteryApi.getSettings()])
+    Promise.all([lotteryApi.listBets(modality), lotteryApi.getStats(modality), lotteryApi.getSettings()])
       .then(([betList, stats, settings]) => {
         if (cancelled) return;
         setBets(betList);
@@ -136,10 +155,10 @@ export function MeusJogos() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [modality]);
 
   async function refreshBetsAndStats() {
-    const [betList, stats] = await Promise.all([lotteryApi.listBets(), lotteryApi.getStats()]);
+    const [betList, stats] = await Promise.all([lotteryApi.listBets(modality), lotteryApi.getStats(modality)]);
     setBets(betList);
     setFrequency(stats.frequency);
     setInvestment(stats.investment);
@@ -184,9 +203,9 @@ export function MeusJogos() {
     await refreshBetsAndStats();
   }
 
-  async function handleConferir(drawnNumbers: number[]) {
+  async function handleConferir(newDrawnNumbers: number[]) {
     if (!conferirBetId) return;
-    await lotteryApi.conferirBet(conferirBetId, drawnNumbers);
+    await lotteryApi.conferirBet(modality, conferirBetId, newDrawnNumbers);
     await refreshBetsAndStats();
   }
 
@@ -216,7 +235,7 @@ export function MeusJogos() {
 
       <section>
         <h2 className="mb-3 text-lg font-semibold text-zinc-900">Frequência nos seus jogos</h2>
-        <FrequencyPanel stats={frequency} />
+        <FrequencyPanel stats={frequency} maxNumber={maxNumber} />
       </section>
 
       <section>
@@ -224,7 +243,7 @@ export function MeusJogos() {
           <h2 className="text-lg font-semibold text-zinc-900">Jogos salvos</h2>
           {bets.length > 0 ? (
             <a
-              href="/api/loterias/exportar"
+              href={`/api/loterias/exportar?modalidade=${modality}`}
               download
               className="inline-flex min-h-9 items-center justify-center gap-2 rounded-md bg-white px-3 py-1.5 text-xs font-semibold text-zinc-900 ring-1 ring-inset ring-zinc-300 transition-colors hover:bg-zinc-50"
             >
@@ -244,6 +263,9 @@ export function MeusJogos() {
               <BetCard
                 key={bet.id}
                 bet={bet}
+                reusePath={reusePath}
+                minNumber={minNumber}
+                maxNumber={maxNumber}
                 onToggleFavorite={(gameId, isFavorite) => void handleToggleFavorite(gameId, isFavorite)}
                 onDeleteGame={(gameId) => void handleDeleteGame(gameId)}
                 onDeleteBet={(betId) => void handleDeleteBet(betId)}
@@ -261,7 +283,14 @@ export function MeusJogos() {
         </p>
       ) : null}
 
-      <ConferirDialog open={conferirBetId !== null} onClose={() => setConferirBetId(null)} onConfirm={handleConferir} />
+      <ConferirDialog
+        open={conferirBetId !== null}
+        minNumber={minNumber}
+        maxNumber={maxNumber}
+        drawnNumbers={drawnNumbers}
+        onClose={() => setConferirBetId(null)}
+        onConfirm={handleConferir}
+      />
     </div>
   );
 }

@@ -5,15 +5,16 @@ import { Breadcrumbs } from "@/components/navigation/Breadcrumbs";
 import { LotteryLoginGate } from "@/components/lotteries/LotteryLoginGate";
 import { MeusJogos } from "@/components/lotteries/MeusJogos";
 import { LOTTERIES_CATEGORY, lotteryModalities } from "@/data/lotteries";
-import { LOTOFACIL_CONFIG } from "@/lib/lotteries/lotofacil-config";
+import { MEGASENA_CONFIG } from "@/lib/lotteries/megasena-config";
 
-const modality = lotteryModalities.find((item) => item.id === "lotofacil")!;
+const modality = lotteryModalities.find((item) => item.id === "mega-sena")!;
 const RETURN_PATH = `${modality.path}/meus-jogos`;
 
 // Área privada (jogos e valores da própria pessoa): nunca indexar — mesmo
-// padrão de app/financeiro/(privado)/layout.tsx e app/robots.ts.
+// padrão de app/financeiro/(privado)/layout.tsx, app/robots.ts e do
+// equivalente da Lotofácil (app/loterias/lotofacil/meus-jogos/page.tsx).
 export const metadata: Metadata = {
-  title: "Meus jogos da Lotofácil",
+  title: "Meus jogos da Mega-Sena",
   robots: { index: false, follow: false },
 };
 
@@ -39,16 +40,16 @@ export default async function MeusJogosPage() {
         <>
           <h1 className="mt-4 text-2xl font-bold tracking-tight text-zinc-900 sm:text-3xl">Meus jogos</h1>
           <p className="mt-2 max-w-2xl text-base text-zinc-600">
-            Seu histórico de jogos salvos da Lotofácil: favoritos, conferência manual de resultado, estatística
+            Seu histórico de jogos salvos da Mega-Sena: favoritos, conferência manual de resultado, estatística
             pessoal e acompanhamento do quanto você já apostou.
           </p>
           <div className="mt-6">
             <MeusJogos
-              modality="lotofacil"
-              minNumber={LOTOFACIL_CONFIG.minNumber}
-              maxNumber={LOTOFACIL_CONFIG.maxNumber}
-              drawnNumbers={LOTOFACIL_CONFIG.drawnNumbers}
-              reusePath="/loterias/lotofacil"
+              modality="mega-sena"
+              minNumber={MEGASENA_CONFIG.minNumber}
+              maxNumber={MEGASENA_CONFIG.maxNumber}
+              drawnNumbers={MEGASENA_CONFIG.drawnNumbers}
+              reusePath="/loterias/mega-sena"
             />
           </div>
         </>

@@ -93,7 +93,7 @@ export function LotofacilGenerator() {
     if (!signedIn) return;
     let cancelled = false;
     lotteryApi
-      .listBets()
+      .listBets("lotofacil")
       .then((bets) => {
         if (cancelled) return;
         setPastGameNumbers(bets.flatMap((bet) => bet.games.map((game) => game.numbers)));
@@ -173,6 +173,7 @@ export function LotofacilGenerator() {
     try {
       const gamesToSave = games.map((numbers) => ({ numbers, betSize, mode }));
       const result = await lotteryApi.saveBet({
+        modality: "lotofacil",
         contestNumber: null,
         drawDate: null,
         amountCents: 0,

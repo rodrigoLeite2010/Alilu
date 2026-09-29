@@ -17,6 +17,7 @@ export default function robots(): MetadataRoute.Robots {
         "/instagram/painel",
         // Área privada de "Meus Jogos" (Loterias) — dados pessoais do usuário.
         "/loterias/lotofacil/meus-jogos",
+        "/loterias/mega-sena/meus-jogos",
         // Área privada de Educação Financeira (dados pessoais do usuário).
         "/financeiro/meu-orcamento",
         "/financeiro/calendario",

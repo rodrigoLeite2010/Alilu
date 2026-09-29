@@ -21,7 +21,7 @@
 import { MEGASENA_CONFIG, MEGASENA_PRIME_NUMBERS } from "./megasena-config";
 import {
   buildLotteryCsv,
-  calculateGameSimilarity,
+  calculateGameSimilarity as sharedCalculateGameSimilarity,
   calculateSum,
   countEvenOdd,
   countPrimes as sharedCountPrimes,
@@ -37,7 +37,10 @@ const PRIME_SET = new Set(MEGASENA_PRIME_NUMBERS);
 // Aleatoriedade (delegado a ./shared)
 // --------------------------------------------------------------------------
 
-export { secureRandomInt, pickRandomSubset, calculateGameSimilarity };
+export { secureRandomInt, pickRandomSubset };
+
+/** Compara dois jogos (mesmo tamanho ou não) — usado para "esta combinação já existe" e para medir semelhança. */
+export { sharedCalculateGameSimilarity as calculateGameSimilarity };
 
 export function fullPool(): number[] {
   const pool: number[] = [];
@@ -252,20 +255,53 @@ export function generateCustomGame(betSize: number, options: MegaSenaCustomOptio
 // Modos combinados + geração múltipla sem duplicatas
 // --------------------------------------------------------------------------
 
-/** Fase A: só os 3 modos que não dependem de histórico salvo. "diversificado" chega na Fase B (Meus Jogos). */
-export type MegaSenaMode = "aleatorio" | "equilibrado" | "personalizado";
+/** Fase B: os 4 modos, agora com "diversificado" (depende do histórico salvo de "Meus Jogos"). */
+export type MegaSenaMode = "aleatorio" | "equilibrado" | "personalizado" | "diversificado";
 
 function gameKey(numbers: readonly number[]): string {
   return numbers.join("-");
 }
 
+const DIVERSIFY_CANDIDATE_ATTEMPTS = 30; // mesmo espírito de COMPOSITION_CANDIDATE_ATTEMPTS (pickBestComposition).
+
+/**
+ * Modo "Diversificar meus jogos" (Fase B — mesma lógica de
+ * lotofacil-generator.ts): gera várias composições Equilibradas
+ * candidatas e escolhe a que tem MENOR semelhança máxima (Jaccard,
+ * calculateGameSimilarity) com o histórico de jogos já salvos pelo
+ * usuário. Isto NÃO aumenta a chance matemática de acertar nenhum jogo —
+ * é só uma ferramenta de organização para a pessoa perceber que está
+ * repetindo praticamente as mesmas combinações entre apostas. Sem
+ * histórico (`pastGames` vazio), não há o que diversificar: cai para o
+ * próprio modo Equilibrado.
+ */
+export function generateDiversifiedGame(betSize: number, pastGames: readonly (readonly number[])[]): number[] {
+  if (pastGames.length === 0) return generateBalancedGame(betSize);
+
+  let best: number[] = generateBalancedGame(betSize);
+  let bestMaxSimilarity = Math.max(...pastGames.map((game) => sharedCalculateGameSimilarity(best, game)));
+
+  for (let attempt = 1; attempt < DIVERSIFY_CANDIDATE_ATTEMPTS; attempt += 1) {
+    const candidate = generateBalancedGame(betSize);
+    const maxSimilarity = Math.max(...pastGames.map((game) => sharedCalculateGameSimilarity(candidate, game)));
+    if (maxSimilarity < bestMaxSimilarity) {
+      bestMaxSimilarity = maxSimilarity;
+      best = candidate;
+    }
+  }
+
+  return best;
+}
+
 export function generateGameByMode(
   mode: MegaSenaMode,
   betSize: number,
-  options: MegaSenaCustomOptions = {}
+  options: MegaSenaCustomOptions = {},
+  pastGames: readonly (readonly number[])[] = []
 ): number[] {
   if (mode === "aleatorio") return generateRandomGame(betSize);
   if (mode === "equilibrado") return generateBalancedGame(betSize);
+  if (mode === "diversificado") return generateDiversifiedGame(betSize, pastGames);
   return generateCustomGame(betSize, options);
 }
 
@@ -278,7 +314,8 @@ export function generateMultipleGames(
   mode: MegaSenaMode,
   betSize: number,
   quantity: number,
-  options: MegaSenaCustomOptions = {}
+  options: MegaSenaCustomOptions = {},
+  pastGames: readonly (readonly number[])[] = []
 ): number[][] {
   const games: number[][] = [];
   const seen = new Set<string>();
@@ -287,7 +324,7 @@ export function generateMultipleGames(
 
   while (games.length < quantity && attempts < maxAttempts) {
     attempts += 1;
-    const game = generateGameByMode(mode, betSize, options);
+    const game = generateGameByMode(mode, betSize, options, pastGames);
     const key = gameKey(game);
     if (seen.has(key)) continue;
     seen.add(key);

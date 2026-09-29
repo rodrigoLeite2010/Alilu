@@ -4,19 +4,27 @@ import type { SaveBetInput, SaveGameInput } from "../validation";
 import type { InvestmentSummary, LotteryBet, LotteryGame, LotterySettings } from "../types";
 
 /**
- * Acesso ao banco de "Meus Jogos" (histórico privado da Lotofácil — Fase
- * 2). TODA consulta filtra por user_id — o usuário nunca enxerga nem
- * altera aposta/jogo de outra pessoa. Mesmo padrão de
- * lib/financas/backend/repository.ts (fin_entries/fin_goals): sem ORM,
- * SQL direto via getDb(), valores monetários em centavos, datas como
- * "YYYY-MM-DD" (to_char). O driver HTTP (getDb()) não mantém transação
- * entre chamadas (ver lib/db/client.ts) — como o módulo financeiro, cada
- * insert/update é uma operação avulsa; para o volume aqui (no máximo 50
- * jogos por salvamento), o risco de uma falha parcial no meio de um
- * Promise.all é aceito, no mesmo espírito do resto do projeto.
+ * Acesso ao banco de "Meus Jogos" (histórico privado — Fase 2 da
+ * Lotofácil, generalizado na Fase B para qualquer modalidade, ver
+ * lib/lotteries/modalities.ts). TODA consulta filtra por user_id — o
+ * usuário nunca enxerga nem altera aposta/jogo de outra pessoa. Mesmo
+ * padrão de lib/financas/backend/repository.ts (fin_entries/fin_goals):
+ * sem ORM, SQL direto via getDb(), valores monetários em centavos, datas
+ * como "YYYY-MM-DD" (to_char). O driver HTTP (getDb()) não mantém
+ * transação entre chamadas (ver lib/db/client.ts) — como o módulo
+ * financeiro, cada insert/update é uma operação avulsa; para o volume
+ * aqui (no máximo 50 jogos por salvamento), o risco de uma falha parcial
+ * no meio de um Promise.all é aceito, no mesmo espírito do resto do
+ * projeto.
+ *
+ * As funções que agregam/listam por modalidade (findDuplicateGameKeys,
+ * createBetWithGames, listBets, listAllSavedGameNumbers,
+ * getInvestmentSummary) recebem `modality` como parâmetro explícito. As
+ * que operam sobre uma única linha pelo próprio `id` (updateBetHeader,
+ * deleteBet, deleteGame, setGameFavorite, recordDrawnNumbers) não
+ * precisam — o `id` (UUID) somado ao `user_id` já é uma checagem de posse
+ * suficiente e segura, então não filtram mais por modalidade.
  */
-
-const MODALITY = "lotofacil";
 
 function toGame(row: Record<string, unknown>): LotteryGame {
   return {
@@ -48,19 +56,20 @@ function toBet(row: Record<string, unknown>): Omit<LotteryBet, "games"> {
 
 /**
  * Quais dos conjuntos de números em `candidates` já existem salvos pelo
- * usuário (mesmo conjunto — a aplicação sempre grava `numbers` ordenado,
- * então compara igualdade de array direto). Usado para "detecção de
- * duplicidade" antes de salvar (Fase 2). A chave de cada conjunto é os
- * números unidos por "-" (ex.: "1-2-3-...").
+ * usuário NAQUELA MODALIDADE (mesmo conjunto — a aplicação sempre grava
+ * `numbers` ordenado, então compara igualdade de array direto). Usado
+ * para "detecção de duplicidade" antes de salvar (Fase 2). A chave de
+ * cada conjunto é os números unidos por "-" (ex.: "1-2-3-...").
  */
 export async function findDuplicateGameKeys(
   userId: string,
+  modality: string,
   candidates: readonly (readonly number[])[]
 ): Promise<Set<string>> {
   if (candidates.length === 0) return new Set();
   const db = getDb();
   const rows = await db`
-    select numbers from lottery_games where user_id = ${userId} and modality = ${MODALITY}
+    select numbers from lottery_games where user_id = ${userId} and modality = ${modality}
   `;
   const existingKeys = new Set(rows.map((row) => (row.numbers as number[]).join("-")));
   const duplicates = new Set<string>();
@@ -78,13 +87,14 @@ export async function findDuplicateGameKeys(
  */
 export async function createBetWithGames(
   userId: string,
+  modality: string,
   header: Pick<SaveBetInput, "contestNumber" | "drawDate" | "amountCents" | "note">,
   games: readonly SaveGameInput[]
 ): Promise<LotteryBet> {
   const db = getDb();
   const betRows = await db`
     insert into lottery_bets (user_id, modality, contest_number, draw_date, amount_cents, note)
-    values (${userId}, ${MODALITY}, ${header.contestNumber}, ${header.drawDate}::date, ${header.amountCents}, ${header.note})
+    values (${userId}, ${modality}, ${header.contestNumber}, ${header.drawDate}::date, ${header.amountCents}, ${header.note})
     returning id, modality, contest_number as "contestNumber", to_char(draw_date, 'YYYY-MM-DD') as "drawDate",
       amount_cents::float8 as "amountCents", note, drawn_numbers as "drawnNumbers",
       checked_at::text as "checkedAt", created_at::text as "createdAt"
@@ -95,7 +105,7 @@ export async function createBetWithGames(
     games.map(
       (game) => db`
         insert into lottery_games (bet_id, user_id, modality, numbers, bet_size, mode)
-        values (${bet.id}, ${userId}, ${MODALITY}, ${game.numbers}, ${game.betSize}, ${game.mode})
+        values (${bet.id}, ${userId}, ${modality}, ${game.numbers}, ${game.betSize}, ${game.mode})
         returning id, bet_id as "betId", modality, numbers, bet_size as "betSize", mode,
           is_favorite as "isFavorite", hits, created_at::text as "createdAt"
       `
@@ -106,15 +116,15 @@ export async function createBetWithGames(
   return { ...bet, games: createdGames };
 }
 
-/** Apostas do usuário, com seus jogos, mais recentes primeiro. */
-export async function listBets(userId: string, limit = 100): Promise<LotteryBet[]> {
+/** Apostas do usuário NAQUELA MODALIDADE, com seus jogos, mais recentes primeiro. */
+export async function listBets(userId: string, modality: string, limit = 100): Promise<LotteryBet[]> {
   const db = getDb();
   const betRows = await db`
     select id, modality, contest_number as "contestNumber", to_char(draw_date, 'YYYY-MM-DD') as "drawDate",
       amount_cents::float8 as "amountCents", note, drawn_numbers as "drawnNumbers",
       checked_at::text as "checkedAt", created_at::text as "createdAt"
     from lottery_bets
-    where user_id = ${userId} and modality = ${MODALITY}
+    where user_id = ${userId} and modality = ${modality}
     order by created_at desc
     limit ${limit}
   `;
@@ -143,11 +153,11 @@ export async function listBets(userId: string, limit = 100): Promise<LotteryBet[
   });
 }
 
-/** Só os números dos jogos salvos (sem metadado) — para estatística pessoal, diversificação e exportação. */
-export async function listAllSavedGameNumbers(userId: string, limit = 1000): Promise<number[][]> {
+/** Só os números dos jogos salvos NAQUELA MODALIDADE (sem metadado) — para estatística pessoal, diversificação e exportação. */
+export async function listAllSavedGameNumbers(userId: string, modality: string, limit = 1000): Promise<number[][]> {
   const db = getDb();
   const rows = await db`
-    select numbers from lottery_games where user_id = ${userId} and modality = ${MODALITY}
+    select numbers from lottery_games where user_id = ${userId} and modality = ${modality}
     order by created_at desc
     limit ${limit}
   `;
@@ -168,7 +178,7 @@ export async function updateBetHeader(userId: string, betId: string, input: BetH
     update lottery_bets set
       contest_number = ${input.contestNumber}, draw_date = ${input.drawDate}::date,
       amount_cents = ${input.amountCents}, note = ${input.note}, updated_at = now()
-    where id = ${betId} and user_id = ${userId} and modality = ${MODALITY}
+    where id = ${betId} and user_id = ${userId}
     returning id
   `;
   return rows.length > 0;
@@ -178,7 +188,7 @@ export async function updateBetHeader(userId: string, betId: string, input: BetH
 export async function deleteBet(userId: string, betId: string): Promise<boolean> {
   const db = getDb();
   const rows = await db`
-    delete from lottery_bets where id = ${betId} and user_id = ${userId} and modality = ${MODALITY} returning id
+    delete from lottery_bets where id = ${betId} and user_id = ${userId} returning id
   `;
   return rows.length > 0;
 }
@@ -187,7 +197,7 @@ export async function deleteBet(userId: string, betId: string): Promise<boolean>
 export async function deleteGame(userId: string, gameId: string): Promise<boolean> {
   const db = getDb();
   const rows = await db`
-    delete from lottery_games where id = ${gameId} and user_id = ${userId} and modality = ${MODALITY} returning id
+    delete from lottery_games where id = ${gameId} and user_id = ${userId} returning id
   `;
   return rows.length > 0;
 }
@@ -197,7 +207,7 @@ export async function setGameFavorite(userId: string, gameId: string, isFavorite
   const db = getDb();
   const rows = await db`
     update lottery_games set is_favorite = ${isFavorite}
-    where id = ${gameId} and user_id = ${userId} and modality = ${MODALITY}
+    where id = ${gameId} and user_id = ${userId}
     returning id
   `;
   return rows.length > 0;
@@ -218,7 +228,7 @@ export async function recordDrawnNumbers(
   const db = getDb();
   const betRows = await db`
     update lottery_bets set drawn_numbers = ${drawnNumbers}, checked_at = now(), updated_at = now()
-    where id = ${betId} and user_id = ${userId} and modality = ${MODALITY}
+    where id = ${betId} and user_id = ${userId}
     returning id, modality, contest_number as "contestNumber", to_char(draw_date, 'YYYY-MM-DD') as "drawDate",
       amount_cents::float8 as "amountCents", note, drawn_numbers as "drawnNumbers",
       checked_at::text as "checkedAt", created_at::text as "createdAt"
@@ -262,15 +272,15 @@ export async function saveSettings(userId: string, settings: LotterySettings): P
   `;
 }
 
-/** Total investido (soma de amount_cents de todas as apostas) e o total do mês corrente — só para acompanhamento, nunca alerta. */
-export async function getInvestmentSummary(userId: string): Promise<InvestmentSummary> {
+/** Total investido (soma de amount_cents de todas as apostas) NAQUELA MODALIDADE e o total do mês corrente — só para acompanhamento, nunca alerta. */
+export async function getInvestmentSummary(userId: string, modality: string): Promise<InvestmentSummary> {
   const db = getDb();
   const rows = await db`
     select
       coalesce(sum(amount_cents), 0)::float8 as "totalCents",
       coalesce(sum(amount_cents) filter (where date_trunc('month', created_at) = date_trunc('month', now())), 0)::float8 as "currentMonthCents"
     from lottery_bets
-    where user_id = ${userId} and modality = ${MODALITY}
+    where user_id = ${userId} and modality = ${modality}
   `;
   return {
     totalCents: Number(rows[0]?.totalCents ?? 0),

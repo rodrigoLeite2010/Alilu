@@ -87,7 +87,7 @@ afterEach(() => {
 
 describe("MeusJogos", () => {
   it("mostra estado de carregamento e depois a lista de apostas com seus jogos", async () => {
-    render(<MeusJogos />);
+    render(<MeusJogos modality="lotofacil" minNumber={1} maxNumber={25} drawnNumbers={15} reusePath="/loterias/lotofacil" />);
     expect(screen.getByText(/carregando/i)).toBeInTheDocument();
 
     expect(await screen.findByText("Concurso 3200 · 01/10/2026")).toBeInTheDocument();
@@ -97,14 +97,14 @@ describe("MeusJogos", () => {
   it("mostra estado vazio quando não há apostas salvas", async () => {
     listBets.mockResolvedValue([]);
     getStats.mockResolvedValue({ frequency: { totalGames: 0, frequency: {} }, investment: { totalCents: 0, currentMonthCents: 0 } });
-    render(<MeusJogos />);
+    render(<MeusJogos modality="lotofacil" minNumber={1} maxNumber={25} drawnNumbers={15} reusePath="/loterias/lotofacil" />);
 
     expect(await screen.findByText(/ainda não salvou nenhum jogo/i)).toBeInTheDocument();
     expect(screen.queryByText(/baixar csv/i)).not.toBeInTheDocument();
   });
 
   it("favorita um jogo", async () => {
-    render(<MeusJogos />);
+    render(<MeusJogos modality="lotofacil" minNumber={1} maxNumber={25} drawnNumbers={15} reusePath="/loterias/lotofacil" />);
     const favoriteButton = await screen.findByRole("button", { name: /marcar como favorito/i });
     fireEvent.click(favoriteButton);
 
@@ -112,7 +112,7 @@ describe("MeusJogos", () => {
   });
 
   it("exclui um jogo depois de confirmar", async () => {
-    render(<MeusJogos />);
+    render(<MeusJogos modality="lotofacil" minNumber={1} maxNumber={25} drawnNumbers={15} reusePath="/loterias/lotofacil" />);
     const deleteGameButton = await screen.findByRole("button", { name: /excluir jogo/i });
     fireEvent.click(deleteGameButton);
 
@@ -121,7 +121,7 @@ describe("MeusJogos", () => {
   });
 
   it("exclui uma aposta inteira depois de confirmar", async () => {
-    render(<MeusJogos />);
+    render(<MeusJogos modality="lotofacil" minNumber={1} maxNumber={25} drawnNumbers={15} reusePath="/loterias/lotofacil" />);
     const deleteBetButton = await screen.findByRole("button", { name: /^excluir$/i });
     fireEvent.click(deleteBetButton);
 
@@ -131,7 +131,7 @@ describe("MeusJogos", () => {
 
   it("não exclui quando a confirmação é cancelada", async () => {
     window.confirm = vi.fn(() => false);
-    render(<MeusJogos />);
+    render(<MeusJogos modality="lotofacil" minNumber={1} maxNumber={25} drawnNumbers={15} reusePath="/loterias/lotofacil" />);
     const deleteGameButton = await screen.findByRole("button", { name: /excluir jogo/i });
     fireEvent.click(deleteGameButton);
 
@@ -139,9 +139,9 @@ describe("MeusJogos", () => {
   });
 
   it("mostra o link de baixar CSV quando há jogos salvos", async () => {
-    render(<MeusJogos />);
+    render(<MeusJogos modality="lotofacil" minNumber={1} maxNumber={25} drawnNumbers={15} reusePath="/loterias/lotofacil" />);
     const link = await screen.findByRole("link", { name: /baixar csv/i });
-    expect(link).toHaveAttribute("href", "/api/loterias/exportar");
+    expect(link).toHaveAttribute("href", "/api/loterias/exportar?modalidade=lotofacil");
   });
 
   it("mostra o total investido e permite salvar um limite mensal", async () => {
@@ -149,7 +149,7 @@ describe("MeusJogos", () => {
       frequency: { totalGames: 1, frequency: { 1: 1 } },
       investment: { totalCents: 750, currentMonthCents: 250 },
     });
-    render(<MeusJogos />);
+    render(<MeusJogos modality="lotofacil" minNumber={1} maxNumber={25} drawnNumbers={15} reusePath="/loterias/lotofacil" />);
     expect(await screen.findByText("R$ 7,50")).toBeInTheDocument();
     expect(screen.getByText("R$ 2,50")).toBeInTheDocument();
 
@@ -161,7 +161,7 @@ describe("MeusJogos", () => {
   });
 
   it("confere o resultado de uma aposta ao marcar 15 números e confirmar", async () => {
-    render(<MeusJogos />);
+    render(<MeusJogos modality="lotofacil" minNumber={1} maxNumber={25} drawnNumbers={15} reusePath="/loterias/lotofacil" />);
     fireEvent.click(await screen.findByRole("button", { name: /conferir resultado/i }));
 
     expect(await screen.findByRole("dialog")).toBeInTheDocument();
@@ -171,11 +171,13 @@ describe("MeusJogos", () => {
     }
     fireEvent.click(screen.getByRole("button", { name: "Conferir" }));
 
-    await waitFor(() => expect(conferirBet).toHaveBeenCalledWith("bet-1", Array.from({ length: 15 }, (_, i) => i + 1)));
+    await waitFor(() =>
+      expect(conferirBet).toHaveBeenCalledWith("lotofacil", "bet-1", Array.from({ length: 15 }, (_, i) => i + 1))
+    );
   });
 
   it("abre o modo de edição do cabeçalho da aposta e salva as alterações", async () => {
-    render(<MeusJogos />);
+    render(<MeusJogos modality="lotofacil" minNumber={1} maxNumber={25} drawnNumbers={15} reusePath="/loterias/lotofacil" />);
     const editButton = await screen.findByRole("button", { name: /^editar$/i });
     const betCard = editButton.closest("li") as HTMLElement;
     fireEvent.click(editButton);

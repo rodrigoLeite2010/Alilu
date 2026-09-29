@@ -9,6 +9,7 @@ import {
   countPrimes,
   generateBalancedGame,
   generateCustomGame,
+  generateDiversifiedGame,
   generateGameByMode,
   generateMultipleGames,
   generateRandomGame,
@@ -197,5 +198,39 @@ describe("lotteries/megasena-generator — similaridade e CSV", () => {
     expect(lines).toHaveLength(3);
     expect(lines[1]).toBe('1,"1 2 3"');
     expect(lines[2]).toBe('2,"4 5 6"');
+  });
+});
+
+describe("lotteries/megasena-generator — diversificar meus jogos (Fase B)", () => {
+  it("sem histórico, cai para o modo Equilibrado (jogo válido de qualquer forma)", () => {
+    const game = generateDiversifiedGame(6, []);
+    expect(game).toHaveLength(6);
+    expect(new Set(game).size).toBe(6);
+  });
+
+  it("prefere um candidato com menor semelhança máxima em relação ao histórico", () => {
+    // Histórico = o mesmo jogo repetido duas vezes de propósito, para o
+    // candidato ter, obrigatoriamente, uma semelhança menor do que 1 com
+    // pelo menos um deles (não pode repetir os mesmos 6 números duas vezes
+    // seguidas neste teste, já que ele teria de "vencer" a si mesmo).
+    const pastGame = [1, 2, 3, 4, 5, 6];
+    const diversified = generateDiversifiedGame(6, [pastGame, pastGame]);
+
+    expect(diversified).toHaveLength(6);
+    expect(calculateGameSimilarity(diversified, pastGame)).toBeLessThan(1);
+  });
+
+  it("generateGameByMode despacha 'diversificado' para generateDiversifiedGame", () => {
+    const pastGame = [1, 2, 3, 4, 5, 6];
+    const game = generateGameByMode("diversificado", 6, {}, [pastGame]);
+    expect(game).toHaveLength(6);
+  });
+
+  it("generateMultipleGames também aceita o histórico para o modo 'diversificado'", () => {
+    const pastGame = [1, 2, 3, 4, 5, 6];
+    const games = generateMultipleGames("diversificado", 6, 5, {}, [pastGame]);
+    expect(games).toHaveLength(5);
+    const keys = games.map((game) => game.join("-"));
+    expect(new Set(keys).size).toBe(5);
   });
 });

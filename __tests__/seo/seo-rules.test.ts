@@ -133,6 +133,7 @@ describe("E) robots.txt continua correto", () => {
         "/api/",
         "/instagram/painel",
         "/loterias/lotofacil/meus-jogos",
+        "/loterias/mega-sena/meus-jogos",
         "/financeiro/meu-orcamento",
         "/financeiro/calendario",
         "/financeiro/receitas",

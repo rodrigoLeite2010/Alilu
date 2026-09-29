@@ -1,16 +1,16 @@
 import { isValidISODate } from "@/lib/financas/dates";
-import { LOTOFACIL_CONFIG } from "./lotofacil-config";
-import type { LotofacilMode } from "./lotofacil-generator";
+import { LOTTERY_MODES, type LotteryApiConfig, type LotteryMode } from "./modalities";
 
 export type ParseResult<T> = { ok: true; value: T } | { ok: false; error: string };
 
 const MAX_AMOUNT_CENTS = 100_000_000_00; // R$ 100 milhões — mesmo teto do módulo financeiro.
-const MODES: LotofacilMode[] = ["aleatorio", "equilibrado", "personalizado", "diversificado"];
 
 export interface SaveGameInput {
   numbers: number[];
   betSize: number;
-  mode: LotofacilMode;
+  mode: LotteryMode;
+  /** Preenchido pela própria validação (parseGameInput) a partir do `config.id` da rota — opcional para quem monta o objeto antes de validar (ex.: o gerador no cliente, antes de enviar para a API). */
+  modality?: string;
 }
 
 export interface SaveBetInput {
@@ -18,18 +18,19 @@ export interface SaveBetInput {
   drawDate: string | null;
   amountCents: number;
   note: string | null;
+  modality: string;
   games: SaveGameInput[];
 }
 
-function validGameNumbers(numbers: unknown, betSize: number): numbers is number[] {
+function validGameNumbers(numbers: unknown, betSize: number, config: LotteryApiConfig): numbers is number[] {
   if (!Array.isArray(numbers) || numbers.length !== betSize) return false;
   const set = new Set<number>();
   for (const n of numbers) {
     if (
       typeof n !== "number" ||
       !Number.isInteger(n) ||
-      n < LOTOFACIL_CONFIG.minNumber ||
-      n > LOTOFACIL_CONFIG.maxNumber
+      n < config.minNumber ||
+      n > config.maxNumber
     ) {
       return false;
     }
@@ -38,7 +39,7 @@ function validGameNumbers(numbers: unknown, betSize: number): numbers is number[
   return set.size === numbers.length;
 }
 
-function parseGameInput(raw: unknown): ParseResult<SaveGameInput> {
+function parseGameInput(raw: unknown, config: LotteryApiConfig): ParseResult<SaveGameInput> {
   if (typeof raw !== "object" || raw === null) return { ok: false, error: "Jogo inválido." };
   const value = raw as Record<string, unknown>;
 
@@ -46,18 +47,18 @@ function parseGameInput(raw: unknown): ParseResult<SaveGameInput> {
   if (
     typeof betSize !== "number" ||
     !Number.isInteger(betSize) ||
-    betSize < LOTOFACIL_CONFIG.minBetNumbers ||
-    betSize > LOTOFACIL_CONFIG.maxBetNumbers
+    betSize < config.minBetNumbers ||
+    betSize > config.maxBetNumbers
   ) {
-    return { ok: false, error: `Escolha entre ${LOTOFACIL_CONFIG.minBetNumbers} e ${LOTOFACIL_CONFIG.maxBetNumbers} números.` };
+    return { ok: false, error: `Escolha entre ${config.minBetNumbers} e ${config.maxBetNumbers} números.` };
   }
 
-  if (!validGameNumbers(value.numbers, betSize)) {
+  if (!validGameNumbers(value.numbers, betSize, config)) {
     return { ok: false, error: "Números do jogo inválidos ou repetidos." };
   }
 
   const mode = value.mode;
-  if (typeof mode !== "string" || !MODES.includes(mode as LotofacilMode)) {
+  if (typeof mode !== "string" || !LOTTERY_MODES.includes(mode as LotteryMode)) {
     return { ok: false, error: "Modo de geração inválido." };
   }
 
@@ -66,7 +67,8 @@ function parseGameInput(raw: unknown): ParseResult<SaveGameInput> {
     value: {
       numbers: [...(value.numbers as number[])].sort((a, b) => a - b),
       betSize,
-      mode: mode as LotofacilMode,
+      mode: mode as LotteryMode,
+      modality: config.id,
     },
   };
 }
@@ -116,8 +118,8 @@ function parseBetHeaderInput(raw: Record<string, unknown>): ParseResult<BetHeade
   return { ok: true, value: { contestNumber, drawDate, amountCents, note } };
 }
 
-/** Valida o corpo de POST /api/loterias/apostas — cria uma aposta com um ou mais jogos de uma vez. */
-export function parseSaveBetInput(body: unknown): ParseResult<SaveBetInput> {
+/** Valida o corpo de POST /api/loterias/apostas — cria uma aposta com um ou mais jogos de uma vez. `config` já resolvido pela rota a partir de `modality`. */
+export function parseSaveBetInput(body: unknown, config: LotteryApiConfig): ParseResult<SaveBetInput> {
   if (typeof body !== "object" || body === null) return { ok: false, error: "Dados inválidos." };
   const raw = body as Record<string, unknown>;
 
@@ -130,12 +132,12 @@ export function parseSaveBetInput(body: unknown): ParseResult<SaveBetInput> {
 
   const games: SaveGameInput[] = [];
   for (const rawGame of raw.games) {
-    const parsed = parseGameInput(rawGame);
+    const parsed = parseGameInput(rawGame, config);
     if (!parsed.ok) return parsed;
     games.push(parsed.value);
   }
 
-  return { ok: true, value: { ...header.value, games } };
+  return { ok: true, value: { ...header.value, modality: config.id, games } };
 }
 
 export type UpdateBetInput = BetHeaderInput;
@@ -146,16 +148,16 @@ export function parseUpdateBetInput(body: unknown): ParseResult<UpdateBetInput> 
   return parseBetHeaderInput(body as Record<string, unknown>);
 }
 
-/** Valida o corpo de POST /api/loterias/apostas/[id]/conferir — números realmente sorteados, informados manualmente. */
-export function parseDrawnNumbersInput(body: unknown): ParseResult<number[]> {
+/** Valida o corpo de POST /api/loterias/apostas/[id]/conferir — números realmente sorteados, informados manualmente. `config` já resolvido pela rota a partir de `modality`. */
+export function parseDrawnNumbersInput(body: unknown, config: LotteryApiConfig): ParseResult<number[]> {
   if (typeof body !== "object" || body === null) return { ok: false, error: "Dados inválidos." };
   const raw = (body as Record<string, unknown>).drawnNumbers;
-  if (!Array.isArray(raw) || raw.length !== LOTOFACIL_CONFIG.drawnNumbers) {
-    return { ok: false, error: `Informe exatamente ${LOTOFACIL_CONFIG.drawnNumbers} números sorteados.` };
+  if (!Array.isArray(raw) || raw.length !== config.drawnNumbers) {
+    return { ok: false, error: `Informe exatamente ${config.drawnNumbers} números sorteados.` };
   }
   const set = new Set<number>();
   for (const n of raw) {
-    if (typeof n !== "number" || !Number.isInteger(n) || n < LOTOFACIL_CONFIG.minNumber || n > LOTOFACIL_CONFIG.maxNumber) {
+    if (typeof n !== "number" || !Number.isInteger(n) || n < config.minNumber || n > config.maxNumber) {
       return { ok: false, error: "Números sorteados inválidos." };
     }
     set.add(n);

@@ -15,10 +15,12 @@ function formatNumbers(numbers: readonly number[]): string {
 
 function GameRow({
   game,
+  reusePath,
   onToggleFavorite,
   onDelete,
 }: {
   game: LotteryGame;
+  reusePath: string;
   onToggleFavorite: (gameId: string, isFavorite: boolean) => void;
   onDelete: (gameId: string) => void;
 }) {
@@ -67,7 +69,7 @@ function GameRow({
           <Copy className="h-4 w-4" aria-hidden />
         </button>
         <Link
-          href={`/loterias/lotofacil?reutilizar=${game.numbers.join(",")}`}
+          href={`${reusePath}?reutilizar=${game.numbers.join(",")}`}
           aria-label="Reutilizar este jogo no gerador"
           className="rounded p-1.5 text-zinc-500 hover:bg-zinc-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
         >
@@ -91,6 +93,9 @@ function GameRow({
 
 export function BetCard({
   bet,
+  reusePath,
+  minNumber,
+  maxNumber,
   onToggleFavorite,
   onDeleteGame,
   onDeleteBet,
@@ -98,6 +103,11 @@ export function BetCard({
   onOpenConferir,
 }: {
   bet: LotteryBet;
+  /** Caminho do gerador desta modalidade (ex.: "/loterias/lotofacil") — usado no link "Reutilizar este jogo". */
+  reusePath: string;
+  /** Faixa de números desta modalidade — usado para exibir os números sorteados (conferência manual). */
+  minNumber: number;
+  maxNumber: number;
   onToggleFavorite: (gameId: string, isFavorite: boolean) => void;
   onDeleteGame: (gameId: string) => void;
   onDeleteBet: (betId: string) => void;
@@ -236,8 +246,8 @@ export function BetCard({
         <div className="mt-3 rounded-md bg-zinc-50 p-3">
           <p className="mb-2 text-xs font-medium text-zinc-600">Números sorteados (conferência manual)</p>
           <LotteryNumberGrid
-            minNumber={1}
-            maxNumber={25}
+            minNumber={minNumber}
+            maxNumber={maxNumber}
             size="sm"
             selected={bet.drawnNumbers}
             ariaLabel="Números sorteados nesta aposta"
@@ -247,7 +257,7 @@ export function BetCard({
 
       <ul className="mt-3 space-y-2">
         {bet.games.map((game) => (
-          <GameRow key={game.id} game={game} onToggleFavorite={onToggleFavorite} onDelete={onDeleteGame} />
+          <GameRow key={game.id} game={game} reusePath={reusePath} onToggleFavorite={onToggleFavorite} onDelete={onDeleteGame} />
         ))}
       </ul>
     </li>
