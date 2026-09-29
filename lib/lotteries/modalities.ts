@@ -11,6 +11,7 @@
  */
 import { LOTOFACIL_CONFIG } from "./lotofacil-config";
 import { MEGASENA_CONFIG } from "./megasena-config";
+import { QUINA_CONFIG } from "./quina-config";
 
 export interface LotteryApiConfig {
   id: string;
@@ -24,6 +25,7 @@ export interface LotteryApiConfig {
 const LOTTERY_API_CONFIGS: Record<string, LotteryApiConfig> = {
   lotofacil: { id: "lotofacil", ...LOTOFACIL_CONFIG },
   "mega-sena": { id: "mega-sena", ...MEGASENA_CONFIG },
+  quina: { id: "quina", ...QUINA_CONFIG },
 };
 
 /** Resolve uma modalidade a partir de uma string qualquer (query string ou corpo JSON) — undefined se não reconhecida. */
@@ -32,6 +34,6 @@ export function getLotteryApiConfig(modality: unknown): LotteryApiConfig | undef
   return LOTTERY_API_CONFIGS[modality];
 }
 
-/** Modos de geração comuns a todas as modalidades (Lotofácil e Mega-Sena suportam os mesmos 4). */
+/** Modos de geração comuns a todas as modalidades (Lotofácil, Mega-Sena e Quina suportam os mesmos 4). */
 export const LOTTERY_MODES = ["aleatorio", "equilibrado", "personalizado", "diversificado"] as const;
 export type LotteryMode = (typeof LOTTERY_MODES)[number];

@@ -34,7 +34,7 @@ export interface LotteryModality {
 }
 
 /**
- * Modalidades da categoria. Lotofácil e Mega-Sena já estão implementadas
+ * Modalidades da categoria. Lotofácil, Mega-Sena e Quina já estão implementadas
  * (status "ativo") — as demais aparecem no catálogo/menu como "Em breve",
  * seguindo o mesmo padrão de ferramenta "em-breve" já usado no resto do
  * site (acessível, mas sem link para uma página que ainda não existe).
@@ -65,9 +65,10 @@ export const lotteryModalities: LotteryModality[] = [
     name: "Gerador Estatístico da Quina",
     shortName: "Quina",
     path: "/loterias/quina",
-    description: "Em breve: gerador estatístico de jogos da Quina.",
+    description:
+      "Monte jogos de 5 a 15 números com filtros de pares/ímpares, primos e distribuição no volante — grátis e sem cadastro.",
     icon: "ticket",
-    status: "em-breve",
+    status: "ativo",
   },
   {
     id: "lotomania",

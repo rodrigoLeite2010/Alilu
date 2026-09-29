@@ -68,7 +68,7 @@ export default function LotteriesCategoryPage() {
       <section className="mt-10">
         <SectionHeading title="Como funciona" as="h2" />
         <ol className="list-decimal space-y-2 pl-5 text-sm leading-relaxed text-zinc-700">
-          <li>Escolha a modalidade de loteria — Lotofácil e Mega-Sena já estão disponíveis.</li>
+          <li>Escolha a modalidade de loteria — Lotofácil, Mega-Sena e Quina já estão disponíveis.</li>
           <li>
             Escolha um modo de geração (Aleatório, Equilibrado ou Personalizado), quantos números marcar na aposta
             e quantos jogos gerar de uma vez.
