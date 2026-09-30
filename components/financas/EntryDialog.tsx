@@ -29,21 +29,29 @@ export function EntryDialog({
   mode,
   kind: initialKind = "expense",
   entry,
+  defaultCategory,
+  defaultRecurrence,
 }: {
   open: boolean;
   onClose: () => void;
   mode: DialogMode;
   kind?: EntryKind;
   entry?: FinEntry | null;
+  /** Categoria pré-selecionada ao abrir para um lançamento novo (ex.: "Assinaturas"). */
+  defaultCategory?: string;
+  /** Periodicidade pré-selecionada ao abrir para um lançamento novo (ex.: "monthly"). */
+  defaultRecurrence?: Recurrence;
 }) {
   const quick = mode === "quick-expense";
   const [kind, setKind] = useState<EntryKind>(entry?.kind ?? initialKind);
   const [description, setDescription] = useState(entry?.description ?? "");
   const [amount, setAmount] = useState(entry ? centsToText(entry.amountCents) : "");
-  const [category, setCategory] = useState(entry?.category ?? (initialKind === "income" ? INCOME_CATEGORIES[0] : EXPENSE_CATEGORIES[0]));
+  const [category, setCategory] = useState(
+    entry?.category ?? defaultCategory ?? (initialKind === "income" ? INCOME_CATEGORIES[0] : EXPENSE_CATEGORIES[0]),
+  );
   const [nature, setNature] = useState<"fixed" | "variable">(entry?.nature ?? "variable");
   const [date, setDate] = useState(entry?.date ?? todayISO());
-  const [recurrence, setRecurrence] = useState<Recurrence>(entry?.recurrence ?? "none");
+  const [recurrence, setRecurrence] = useState<Recurrence>(entry?.recurrence ?? defaultRecurrence ?? "none");
   const [recurrenceEnd, setRecurrenceEnd] = useState(entry?.recurrenceEnd ?? "");
   const [paymentMethod, setPaymentMethod] = useState(entry?.paymentMethod ?? "");
   const [note, setNote] = useState(entry?.note ?? "");

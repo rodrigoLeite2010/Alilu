@@ -13,6 +13,7 @@ import {
 import { parseDelta, parseEntryInput, parseGoalInput, parseSettingsInput, reaisTextToCents } from "@/lib/financas/validation";
 import { goalProgress, suggestedReserveCents } from "@/lib/financas/goals";
 import { actualSplit, split503020 } from "@/lib/financas/budget-method";
+import { isActiveSubscription, monthlyEquivalentCents, summarizeSubscriptions } from "@/lib/financas/subscriptions";
 import type { FinEntry } from "@/lib/financas/types";
 
 function entry(partial: Partial<FinEntry> & Pick<FinEntry, "id" | "kind" | "amountCents" | "date">): FinEntry {
@@ -351,5 +352,62 @@ describe("validação de metas", () => {
     expect(parseDelta({ deltaCents: -5000 }).ok).toBe(true);
     expect(parseDelta({ deltaCents: 0 }).ok).toBe(false);
     expect(parseDelta({ deltaCents: 1.5 }).ok).toBe(false);
+  });
+});
+
+describe("assinaturas mensais", () => {
+  it("só conta como assinatura ativa despesa recorrente na categoria Assinaturas", () => {
+    const netflix = entry({ id: "1", kind: "expense", amountCents: 3990, date: "2026-01-05", category: "Assinaturas", recurrence: "monthly" });
+    expect(isActiveSubscription(netflix, "2026-09-25")).toBe(true);
+
+    const aluguel = entry({ id: "2", kind: "expense", amountCents: 150000, date: "2026-01-05", category: "Moradia", recurrence: "monthly" });
+    expect(isActiveSubscription(aluguel, "2026-09-25")).toBe(false);
+
+    const compraAvulsa = entry({ id: "3", kind: "expense", amountCents: 5000, date: "2026-09-01", category: "Assinaturas", recurrence: "none" });
+    expect(isActiveSubscription(compraAvulsa, "2026-09-25")).toBe(false);
+
+    const receita = entry({ id: "4", kind: "income", amountCents: 5000, date: "2026-01-05", category: "Assinaturas", recurrence: "monthly" });
+    expect(isActiveSubscription(receita, "2026-09-25")).toBe(false);
+  });
+
+  it("assinatura com recorrência já encerrada não conta mais como ativa", () => {
+    const cancelada = entry({
+      id: "1",
+      kind: "expense",
+      amountCents: 2990,
+      date: "2026-01-05",
+      category: "Assinaturas",
+      recurrence: "monthly",
+      recurrenceEnd: "2026-06-30",
+    });
+    expect(isActiveSubscription(cancelada, "2026-09-25")).toBe(false);
+    expect(isActiveSubscription(cancelada, "2026-05-25")).toBe(true);
+  });
+
+  it("calcula o equivalente mensal por periodicidade", () => {
+    expect(monthlyEquivalentCents({ amountCents: 3990, recurrence: "monthly" })).toBe(3990);
+    expect(monthlyEquivalentCents({ amountCents: 24000, recurrence: "yearly" })).toBe(2000);
+    expect(monthlyEquivalentCents({ amountCents: 1000, recurrence: "weekly" })).toBe(Math.round((1000 * 52) / 12));
+    expect(monthlyEquivalentCents({ amountCents: 1000, recurrence: "biweekly" })).toBe(Math.round((1000 * 26) / 12));
+    expect(monthlyEquivalentCents({ amountCents: 5000, recurrence: "none" })).toBe(5000);
+  });
+
+  it("resume assinaturas ativas, ordenadas da mais cara para a mais barata, com totais por mês e por ano", () => {
+    const entries = [
+      entry({ id: "netflix", kind: "expense", amountCents: 3990, date: "2026-01-05", category: "Assinaturas", recurrence: "monthly" }),
+      entry({ id: "academia", kind: "expense", amountCents: 12000, date: "2026-01-05", category: "Assinaturas", recurrence: "monthly" }),
+      entry({ id: "dominio", kind: "expense", amountCents: 6000, date: "2026-03-01", category: "Assinaturas", recurrence: "yearly" }),
+      entry({ id: "aluguel", kind: "expense", amountCents: 150000, date: "2026-01-05", category: "Moradia", recurrence: "monthly" }),
+    ];
+    const summary = summarizeSubscriptions(entries, "2026-09-25");
+    expect(summary.subscriptions.map((s) => s.entry.id)).toEqual(["academia", "netflix", "dominio"]);
+    expect(summary.subscriptions[2].monthlyCents).toBe(500); // 6000/12
+    expect(summary.monthlyTotalCents).toBe(12000 + 3990 + 500);
+    expect(summary.yearlyTotalCents).toBe(summary.monthlyTotalCents * 12);
+  });
+
+  it("sem assinaturas ativas, retorna lista vazia e totais zerados", () => {
+    const summary = summarizeSubscriptions([], "2026-09-25");
+    expect(summary).toEqual({ subscriptions: [], monthlyTotalCents: 0, yearlyTotalCents: 0 });
   });
 });

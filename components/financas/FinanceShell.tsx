@@ -11,6 +11,7 @@ const TABS = [
   { href: "/financeiro/receitas", label: "Receitas" },
   { href: "/financeiro/despesas", label: "Despesas" },
   { href: "/financeiro/metas", label: "Metas" },
+  { href: "/financeiro/assinaturas", label: "Assinaturas" },
   { href: "/financeiro/reserva-de-emergencia", label: "Reserva" },
   { href: "/financeiro/metodo-50-30-20", label: "50/30/20" },
 ];

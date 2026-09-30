@@ -25,7 +25,7 @@ const CARDS: HubCard[] = [
   { title: "Contas a pagar", description: "Próximas contas por dia, com botão para marcar como paga.", href: "/financeiro/meu-orcamento" },
   { title: "Metas financeiras", description: "Quanto guardar por mês para chegar lá.", href: "/financeiro/metas" },
   { title: "Controle de dívidas", description: "Saldo devedor, parcelas e previsão de término." },
-  { title: "Assinaturas mensais", description: "Quanto você paga por mês e por ano em assinaturas." },
+  { title: "Assinaturas mensais", description: "Quanto você paga por mês e por ano em assinaturas.", href: "/financeiro/assinaturas" },
   { title: "Planejamento anual", description: "Receitas, despesas e saldo mês a mês." },
   { title: "Método 50/30/20", description: "Referência de divisão da renda entre necessidades, desejos e economia.", href: "/financeiro/metodo-50-30-20" },
   { title: "Método dos envelopes", description: "Limites por categoria com barra de progresso." },

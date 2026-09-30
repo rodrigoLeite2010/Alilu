@@ -6,6 +6,7 @@ vi.mock("@/auth", () => ({ auth: (...args: unknown[]) => authMock(...args) }));
 
 const { default: DespesasPage } = await import("@/app/financeiro/(privado)/despesas/page");
 const { default: MeuOrcamentoPage } = await import("@/app/financeiro/(privado)/meu-orcamento/page");
+const { default: AssinaturasPage } = await import("@/app/financeiro/(privado)/assinaturas/page");
 
 describe("páginas privadas de Educação Financeira", () => {
   beforeEach(() => {
@@ -50,5 +51,14 @@ describe("páginas privadas de Educação Financeira", () => {
     expect(screen.getByRole("link", { name: "Metas" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "+ Adicionar gasto" })).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Entrar ou criar conta" })).not.toBeInTheDocument();
+  });
+
+  it("aba Assinaturas leva à página de assinaturas, e a página em si mostra o título certo", async () => {
+    authMock.mockResolvedValue({ user: { id: "user-1" } });
+    render(await DespesasPage());
+    expect(screen.getByRole("link", { name: "Assinaturas" })).toHaveAttribute("href", "/financeiro/assinaturas");
+
+    render(await AssinaturasPage());
+    expect(screen.getByRole("heading", { name: "Assinaturas mensais" })).toBeInTheDocument();
   });
 });
