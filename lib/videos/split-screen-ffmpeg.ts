@@ -176,10 +176,17 @@ export function buildSplitScreenFfmpegArgs(input: BuildSplitScreenFfmpegArgsInpu
   args.push(
     "-c:v",
     "libx264",
+    // "ultrafast" (não "veryfast"): trocado depois de um timeout real em
+    // produção ("Task timed out after 60 seconds") — a function tem só
+    // maxDuration=60s de orçamento total (download + probe + encode +
+    // upload), então velocidade de encode importa mais que eficiência de
+    // compressão aqui. CRF um pouco mais baixo (22) compensa parte da
+    // perda de qualidade do preset mais rápido, mantendo o arquivo final
+    // ainda pequeno o bastante para Reels/Shorts/TikTok.
     "-preset",
-    "veryfast",
+    "ultrafast",
     "-crf",
-    "23",
+    "22",
     "-pix_fmt",
     "yuv420p",
     "-c:a",

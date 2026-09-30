@@ -17,20 +17,28 @@ import type { VideoAudioSource, VideoDurationMode, VideoOutputFormat, VideoSplit
 export const MAX_VIDEO_INPUT_BYTES = 100 * 1024 * 1024;
 
 /**
- * 180 segundos (3 min) de duração final do resultado — o teto definido para
- * esta fase. RISCO CONHECIDO (documentado no relatório da Fase A, não
- * resolvido aqui): a rota que processa o vídeo roda com
- * `maxDuration = 60` (mesmo teto das demais rotas pesadas do projeto — ver
- * app/api/cron/content-automation/route.ts), e um resultado de 180s real
- * pode não caber nesse orçamento de 60s de parede (download dos 2 vídeos +
- * decode + encode libx264 veryfast + upload), dependendo da CPU disponível
- * na function — o que faria a Vercel encerrar a function antes do FFmpeg
- * terminar. Não há como validar isso de verdade fora da Vercel real. Se
- * esse timeout se confirmar em produção, a correção é baixar este valor
- * (a validação de duração abaixo passa a rejeitar cedo, sem custo de
- * FFmpeg) — não mudar o teto da function.
+ * 60 segundos de duração final do resultado.
+ *
+ * Já foi 180s nesta fase, mas um teste real em produção com um resultado
+ * de 149s (02:29) confirmou o risco que já estava documentado aqui: a
+ * rota roda com `maxDuration = 60` (mesmo teto das demais rotas pesadas
+ * do projeto — ver app/api/cron/content-automation/route.ts) e a Vercel
+ * matou a function no meio do processamento ("Task timed out after 60
+ * seconds") antes do FFmpeg terminar — download dos 2 vídeos + ffprobe +
+ * decode + encode + upload não coube no orçamento de parede.
+ *
+ * Baixado para 60s (bem abaixo do que causou o timeout) junto com a troca
+ * do preset do FFmpeg para "ultrafast" (ver split-screen-ffmpeg.ts) — as
+ * duas mudanças juntas dão bastante margem, mas o número exato ainda é
+ * uma estimativa: não há telemetria real de quanto tempo cada etapa leva
+ * na function da Vercel (os logs de tempo adicionados em
+ * lib/videos/backend/video-processing-service.ts vão revelar isso da
+ * próxima vez que alguém gerar um vídeo perto deste limite). Se um
+ * timeout voltar a acontecer mesmo com 60s, baixe este número de novo —
+ * nunca suba o `maxDuration` da rota (já está no teto usado pelo resto do
+ * projeto).
  */
-export const MAX_OUTPUT_DURATION_SECONDS = 180;
+export const MAX_OUTPUT_DURATION_SECONDS = 60;
 
 /**
  * Preset "Vídeo satisfatório": o único preset desta fase (ver relatório —

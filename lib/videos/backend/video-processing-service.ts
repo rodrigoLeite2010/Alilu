@@ -50,6 +50,19 @@ function logStructuredError(event: string, details: Record<string, unknown>): vo
   console.error(JSON.stringify({ scope: "videos", event, ...details }));
 }
 
+/**
+ * Log de tempo por etapa — adicionado depois de um timeout real em
+ * produção ("Task timed out after 60 seconds") sem nenhuma pista de qual
+ * etapa (download, probe, encode ou upload) consumiu o orçamento de 60s
+ * da function. Sem isso, calibrar MAX_OUTPUT_DURATION_SECONDS de novo
+ * seria só chute — com isso, os logs da Vercel mostram exatamente onde o
+ * tempo foi gasto (mesmo que a function seja morta no meio, os logs já
+ * emitidos até ali permanecem).
+ */
+function logStructuredTiming(event: string, startedAtMs: number, details: Record<string, unknown> = {}): void {
+  console.log(JSON.stringify({ scope: "videos", event, durationMs: Date.now() - startedAtMs, ...details }));
+}
+
 async function downloadToFile(url: string, destinationPath: string): Promise<void> {
   const response = await fetch(url);
   if (!response.ok || !response.body) {
@@ -140,15 +153,19 @@ export async function processSplitScreenVideo(request: SplitScreenRequestBody): 
 
   try {
     try {
+      const downloadStartedAt = Date.now();
       await Promise.all([
         downloadToFile(request.primaryBlobUrl, primaryInputPath),
         downloadToFile(request.secondaryBlobUrl, secondaryInputPath),
       ]);
+      logStructuredTiming("split-screen.download-done", downloadStartedAt);
 
+      const probeStartedAt = Date.now();
       const [primaryInfo, secondaryInfo] = await Promise.all([
         probeMedia(primaryInputPath),
         probeMedia(secondaryInputPath),
       ]);
+      logStructuredTiming("split-screen.probe-done", probeStartedAt);
 
       if (request.primaryTrim.endSeconds > primaryInfo.durationSeconds + TRIM_DURATION_TOLERANCE_SECONDS) {
         throw new VideoProcessingValidationError("O corte do vídeo principal vai além da duração real do arquivo enviado.");
@@ -178,6 +195,7 @@ export async function processSplitScreenVideo(request: SplitScreenRequestBody): 
         secondaryHasAudio: secondaryInfo.hasAudio,
       });
 
+      const ffmpegStartedAt = Date.now();
       try {
         await runProcess(ffmpegPath, args);
       } catch (error) {
@@ -186,13 +204,16 @@ export async function processSplitScreenVideo(request: SplitScreenRequestBody): 
         });
         throw new VideoProcessingError("Não foi possível gerar o vídeo.");
       }
+      logStructuredTiming("split-screen.ffmpeg-done", ffmpegStartedAt, { outputDurationSeconds: outputDuration });
 
+      const uploadStartedAt = Date.now();
       const outputBuffer = await readFile(outputPath);
       const blob = await put(`${VIDEO_OUTPUT_PATH_PREFIX}${randomUUID()}.mp4`, outputBuffer, {
         access: "public",
         contentType: "video/mp4",
         addRandomSuffix: false,
       });
+      logStructuredTiming("split-screen.upload-done", uploadStartedAt, { bytes: outputBuffer.byteLength });
 
       return { url: blob.url };
     } finally {

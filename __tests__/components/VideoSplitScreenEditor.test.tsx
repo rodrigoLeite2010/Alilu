@@ -155,7 +155,7 @@ describe("VideoSplitScreenEditor — limite de duração do resultado", () => {
 
     const primarySlot = screen.getByTestId("video-slot-primary");
     fireEvent.change(within(primarySlot).getByLabelText("Fim (mm:ss)"), {
-      target: { value: "04:00" }, // 240s > MAX_OUTPUT_DURATION_SECONDS (180s), modo padrão = loop
+      target: { value: "04:00" }, // 240s > MAX_OUTPUT_DURATION_SECONDS (60s), modo padrão = loop
     });
 
     expect(await screen.findByText(new RegExp(`acima do limite de ${MAX_OUTPUT_DURATION_SECONDS}s`))).toBeInTheDocument();

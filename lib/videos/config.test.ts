@@ -25,7 +25,7 @@ describe("MAX_VIDEO_INPUT_BYTES", () => {
 describe("MAX_OUTPUT_DURATION_SECONDS", () => {
   it("é um número positivo e razoável para um vídeo curto (Reels/Shorts/TikTok)", () => {
     expect(MAX_OUTPUT_DURATION_SECONDS).toBeGreaterThan(0);
-    expect(MAX_OUTPUT_DURATION_SECONDS).toBe(180);
+    expect(MAX_OUTPUT_DURATION_SECONDS).toBe(60);
   });
 });
 
