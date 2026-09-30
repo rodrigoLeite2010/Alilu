@@ -6,11 +6,12 @@ import {
   createInitialEditorState,
   deserializeEditorState,
   setBackgroundImageOverlayOpacity,
+  updateTextStyle,
   updateTextValue,
   EDITOR_STATE_SCHEMA_VERSION,
   type PostEditorState,
 } from "../editor-state";
-import { isPostTemplateId, TEXT_SLOT_IDS, type PostTemplateId, type TextSlotId } from "../templates";
+import { getTemplateById, isPostTemplateId, TEXT_SLOT_IDS, type PostTemplateId, type TextSlotId } from "../templates";
 import { drawPost, type RenderableImage, type RenderingContext2DLike } from "../render";
 import { insertInstagramMedia } from "./media-repository";
 
@@ -139,6 +140,9 @@ export function buildAutomationArtState(
   state = updateTextValue(state, AUTO_TEMPLATE_TEXT_SLOT, input.visualText);
   for (const slotId of NON_VISUAL_TEXT_SLOTS) {
     state = updateTextValue(state, slotId, "");
+  }
+  if (getTemplateById(state.templateId).imageArea === null) {
+    state = updateTextStyle(state, AUTO_TEMPLATE_TEXT_SLOT, { color: "#ffffff", bold: true });
   }
   const overlayOpacity = input.overlayOpacity ?? AUTO_TEMPLATE_DEFAULT_OVERLAY_OPACITY;
   state = setBackgroundImageOverlayOpacity(state, overlayOpacity);

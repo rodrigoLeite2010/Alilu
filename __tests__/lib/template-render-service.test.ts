@@ -70,6 +70,17 @@ describe("buildAutomationArtState (correção: template/foto errados)", () => {
     expect(state.texts.heading.value).toBe("Você não precisa vencer tudo hoje. Só precisa continuar.");
   });
 
+  it("força contraste branco no texto principal quando o template usa foto em tela cheia", () => {
+    const { state } = buildAutomationArtState({
+      templateId: "comunicado",
+      styleConfig: null,
+      visualText: "Você é um criador de conteúdo motivacional para Instagram.",
+      overlayOpacity: null,
+    });
+    expect(state.texts.heading.color).toBe("#ffffff");
+    expect(state.texts.heading.bold).toBe(true);
+  });
+
   it("aplica o véu padrão (20%) quando o dia não configurou nenhum", () => {
     const { state } = buildAutomationArtState({
       templateId: "frase-motivacional",

@@ -294,7 +294,7 @@ export function WeekDayEditor({
                       <img
                         src={previewUrl}
                         alt={`Prévia da arte de ${DAY_OF_WEEK_LABEL[day.dayOfWeek]}`}
-                        className="mt-2 max-w-[220px] rounded-md border border-zinc-200 shadow-sm"
+                        className="mt-2 w-full max-w-[340px] rounded-md border border-zinc-200 shadow-sm"
                       />
                     ) : null}
                   </div>
