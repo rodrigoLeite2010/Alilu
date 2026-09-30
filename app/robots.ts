@@ -30,6 +30,7 @@ export default function robots(): MetadataRoute.Robots {
         "/financeiro/assinaturas",
         "/financeiro/planejamento-anual",
         "/financeiro/metodo-envelopes",
+        "/financeiro/dividas",
         "/financeiro/reserva-de-emergencia",
         "/financeiro/metodo-50-30-20",
       ],

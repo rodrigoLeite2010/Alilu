@@ -209,3 +209,36 @@ export function parseCategoryLimitInput(body: unknown): ParseResult<CategoryLimi
   }
   return { ok: true, value: { limitCents } };
 }
+
+export interface DebtInput {
+  name: string;
+  balanceCents: number;
+  installmentCents: number;
+}
+
+const MAX_DEBT_CENTS = 100_000_000_00;
+
+export function parseDebtInput(body: unknown): ParseResult<DebtInput> {
+  if (typeof body !== "object" || body === null) return { ok: false, error: "Dados inválidos." };
+  const raw = body as Record<string, unknown>;
+
+  const name = typeof raw.name === "string" ? raw.name.trim() : "";
+  if (name.length < 1 || name.length > 80) return { ok: false, error: "Informe um nome de até 80 caracteres." };
+
+  const balanceCents = raw.balanceCents;
+  if (typeof balanceCents !== "number" || !Number.isInteger(balanceCents) || balanceCents < 0 || balanceCents > MAX_DEBT_CENTS) {
+    return { ok: false, error: "Informe um saldo devedor válido." };
+  }
+
+  const installmentCents = raw.installmentCents;
+  if (
+    typeof installmentCents !== "number" ||
+    !Number.isInteger(installmentCents) ||
+    installmentCents <= 0 ||
+    installmentCents > MAX_DEBT_CENTS
+  ) {
+    return { ok: false, error: "Informe um valor de parcela maior que zero." };
+  }
+
+  return { ok: true, value: { name, balanceCents, installmentCents } };
+}

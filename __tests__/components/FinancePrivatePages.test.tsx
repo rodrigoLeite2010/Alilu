@@ -9,6 +9,7 @@ const { default: MeuOrcamentoPage } = await import("@/app/financeiro/(privado)/m
 const { default: AssinaturasPage } = await import("@/app/financeiro/(privado)/assinaturas/page");
 const { default: PlanejamentoAnualPage } = await import("@/app/financeiro/(privado)/planejamento-anual/page");
 const { default: MetodoEnvelopesPage } = await import("@/app/financeiro/(privado)/metodo-envelopes/page");
+const { default: DividasPage } = await import("@/app/financeiro/(privado)/dividas/page");
 
 describe("páginas privadas de Educação Financeira", () => {
   beforeEach(() => {
@@ -80,5 +81,14 @@ describe("páginas privadas de Educação Financeira", () => {
 
     render(await MetodoEnvelopesPage());
     expect(screen.getByRole("heading", { name: "Método dos envelopes" })).toBeInTheDocument();
+  });
+
+  it("aba Dívidas leva à página de Controle de dívidas, e a página em si mostra o título certo", async () => {
+    authMock.mockResolvedValue({ user: { id: "user-1" } });
+    render(await DespesasPage());
+    expect(screen.getByRole("link", { name: "Dívidas" })).toHaveAttribute("href", "/financeiro/dividas");
+
+    render(await DividasPage());
+    expect(screen.getByRole("heading", { name: "Controle de dívidas" })).toBeInTheDocument();
   });
 });

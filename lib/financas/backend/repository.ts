@@ -304,3 +304,80 @@ export async function deleteCategoryLimit(userId: string, category: string): Pro
   `;
   return rows.length > 0;
 }
+
+export interface DebtRow {
+  id: string;
+  name: string;
+  balanceCents: number;
+  installmentCents: number;
+}
+
+function toDebt(row: Record<string, unknown>): DebtRow {
+  return {
+    id: row.id as string,
+    name: row.name as string,
+    balanceCents: Number(row.balanceCents),
+    installmentCents: Number(row.installmentCents),
+  };
+}
+
+export async function listDebts(userId: string): Promise<DebtRow[]> {
+  const db = getDb();
+  const rows = await db`
+    select id, name, balance_cents::float8 as "balanceCents", installment_cents::float8 as "installmentCents"
+    from fin_debts where user_id = ${userId} order by created_at
+  `;
+  return rows.map((row) => toDebt(row as Record<string, unknown>));
+}
+
+export async function getDebt(userId: string, id: string): Promise<DebtRow | null> {
+  const db = getDb();
+  const rows = await db`
+    select id, name, balance_cents::float8 as "balanceCents", installment_cents::float8 as "installmentCents"
+    from fin_debts where id = ${id} and user_id = ${userId}
+  `;
+  return rows[0] ? toDebt(rows[0] as Record<string, unknown>) : null;
+}
+
+export async function createDebt(
+  userId: string,
+  input: { name: string; balanceCents: number; installmentCents: number },
+): Promise<string> {
+  const db = getDb();
+  const rows = await db`
+    insert into fin_debts (user_id, name, balance_cents, installment_cents)
+    values (${userId}, ${input.name}, ${input.balanceCents}, ${input.installmentCents})
+    returning id
+  `;
+  return rows[0].id as string;
+}
+
+export async function updateDebt(
+  userId: string,
+  id: string,
+  input: { name: string; balanceCents: number; installmentCents: number },
+): Promise<boolean> {
+  const db = getDb();
+  const rows = await db`
+    update fin_debts set name = ${input.name}, balance_cents = ${input.balanceCents},
+      installment_cents = ${input.installmentCents}, updated_at = now()
+    where id = ${id} and user_id = ${userId} returning id
+  `;
+  return rows.length > 0;
+}
+
+/** Reduz o saldo devedor (pagamento, positivo) ou aumenta (ajuste, negativo); nunca deixa negativo. */
+export async function applyDebtPayment(userId: string, id: string, paymentCents: number): Promise<boolean> {
+  const db = getDb();
+  const rows = await db`
+    update fin_debts set balance_cents = greatest(balance_cents - ${paymentCents}, 0), updated_at = now()
+    where id = ${id} and user_id = ${userId} returning id
+  `;
+  return rows.length > 0;
+}
+
+export async function deleteDebt(userId: string, id: string): Promise<boolean> {
+  const db = getDb();
+  const rows = await db`delete from fin_debts where id = ${id} and user_id = ${userId} returning id`;
+  return rows.length > 0;
+}

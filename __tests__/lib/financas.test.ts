@@ -13,6 +13,7 @@ import {
 import {
   isValidExpenseCategory,
   parseCategoryLimitInput,
+  parseDebtInput,
   parseDelta,
   parseEntryInput,
   parseGoalInput,
@@ -24,6 +25,7 @@ import { actualSplit, split503020 } from "@/lib/financas/budget-method";
 import { isActiveSubscription, monthlyEquivalentCents, summarizeSubscriptions } from "@/lib/financas/subscriptions";
 import { summarizeAnnualPlan } from "@/lib/financas/annual";
 import { categoryLimitProgress } from "@/lib/financas/envelopes";
+import { debtPayoff } from "@/lib/financas/debts";
 import type { FinEntry, Occurrence } from "@/lib/financas/types";
 
 function entry(partial: Partial<FinEntry> & Pick<FinEntry, "id" | "kind" | "amountCents" | "date">): FinEntry {
@@ -500,5 +502,38 @@ describe("método dos envelopes", () => {
     expect(parseCategoryLimitInput({ limitCents: -100 }).ok).toBe(false);
     expect(parseCategoryLimitInput({ limitCents: 1.5 }).ok).toBe(false);
     expect(parseCategoryLimitInput(null).ok).toBe(false);
+  });
+});
+
+describe("controle de dívidas", () => {
+  it("calcula quantas parcelas faltam e o mês previsto de término", () => {
+    const debt = { balanceCents: 250000, installmentCents: 100000 };
+    // 250000 / 100000 = 2,5 -> arredonda para cima: 3 parcelas
+    expect(debtPayoff(debt, "2026-09-25")).toEqual({ paidOff: false, monthsRemaining: 3, payoffMonth: "2026-12" });
+  });
+
+  it("saldo devedor exato em N parcelas: N parcelas, sem sobra", () => {
+    const debt = { balanceCents: 300000, installmentCents: 100000 };
+    expect(debtPayoff(debt, "2026-09-25")).toEqual({ paidOff: false, monthsRemaining: 3, payoffMonth: "2026-12" });
+  });
+
+  it("saldo devedor zero: já quitada", () => {
+    expect(debtPayoff({ balanceCents: 0, installmentCents: 50000 }, "2026-09-25")).toEqual({
+      paidOff: true,
+      monthsRemaining: 0,
+      payoffMonth: null,
+    });
+  });
+
+  it("valida nome, saldo devedor e parcela", () => {
+    const r = parseDebtInput({ name: " Financiamento do carro ", balanceCents: 500000, installmentCents: 80000 });
+    expect(r.ok && r.value).toMatchObject({ name: "Financiamento do carro", balanceCents: 500000, installmentCents: 80000 });
+
+    expect(parseDebtInput({ name: "", balanceCents: 1000, installmentCents: 100 }).ok).toBe(false);
+    expect(parseDebtInput({ name: "X", balanceCents: -1, installmentCents: 100 }).ok).toBe(false);
+    expect(parseDebtInput({ name: "X", balanceCents: 1000, installmentCents: 0 }).ok).toBe(false);
+    // saldo devedor 0 é válido (dívida recém-quitada, ainda mantida na lista)
+    expect(parseDebtInput({ name: "X", balanceCents: 0, installmentCents: 100 }).ok).toBe(true);
+    expect(parseDebtInput(null).ok).toBe(false);
   });
 });

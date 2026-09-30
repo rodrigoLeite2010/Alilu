@@ -1,7 +1,8 @@
 import type { FinEntry, Occurrence } from "@/lib/financas/types";
-import type { EntryInput, GoalInput } from "@/lib/financas/validation";
+import type { DebtInput, EntryInput, GoalInput } from "@/lib/financas/validation";
 import type { Goal } from "@/lib/financas/goals";
 import type { CategoryLimit } from "@/lib/financas/envelopes";
+import type { Debt } from "@/lib/financas/debts";
 
 /** Evento global: qualquer tela recarrega seus dados quando algo é salvo. */
 export const FINANCE_CHANGED_EVENT = "alilu:financas-changed";
@@ -66,4 +67,11 @@ export const financeApi = {
     }),
   deleteCategoryLimit: (category: string) =>
     request<{ ok: true }>(`/api/financas/limites/${encodeURIComponent(category)}`, { method: "DELETE" }),
+  listDebts: () => request<{ debts: Debt[] }>("/api/financas/dividas").then((r) => r.debts),
+  createDebt: (input: DebtInput) => request<{ id: string }>("/api/financas/dividas", { method: "POST", body: JSON.stringify(input) }),
+  updateDebt: (id: string, input: DebtInput) =>
+    request<{ ok: true }>(`/api/financas/dividas/${id}`, { method: "PATCH", body: JSON.stringify(input) }),
+  deleteDebt: (id: string) => request<{ ok: true }>(`/api/financas/dividas/${id}`, { method: "DELETE" }),
+  payDebt: (id: string, deltaCents: number) =>
+    request<{ ok: true }>(`/api/financas/dividas/${id}/pagamento`, { method: "POST", body: JSON.stringify({ deltaCents }) }),
 };

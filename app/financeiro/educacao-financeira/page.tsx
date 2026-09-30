@@ -24,7 +24,7 @@ const CARDS: HubCard[] = [
   { title: "Controle de gastos", description: "Cadastre despesas fixas e variáveis, únicas ou recorrentes.", href: "/financeiro/despesas" },
   { title: "Contas a pagar", description: "Próximas contas por dia, com botão para marcar como paga.", href: "/financeiro/meu-orcamento" },
   { title: "Metas financeiras", description: "Quanto guardar por mês para chegar lá.", href: "/financeiro/metas" },
-  { title: "Controle de dívidas", description: "Saldo devedor, parcelas e previsão de término." },
+  { title: "Controle de dívidas", description: "Saldo devedor, parcelas e previsão de término.", href: "/financeiro/dividas" },
   { title: "Assinaturas mensais", description: "Quanto você paga por mês e por ano em assinaturas.", href: "/financeiro/assinaturas" },
   { title: "Planejamento anual", description: "Receitas, despesas e saldo mês a mês.", href: "/financeiro/planejamento-anual" },
   { title: "Método 50/30/20", description: "Referência de divisão da renda entre necessidades, desejos e economia.", href: "/financeiro/metodo-50-30-20" },
