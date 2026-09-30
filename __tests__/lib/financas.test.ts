@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, expect, it } from "vitest";
-import { addMonthsAnchored, addDays, diffDays, isValidISODate, monthRange } from "@/lib/financas/dates";
+import { addMonthsAnchored, addDays, diffDays, isValidISODate, isValidYear, monthRange } from "@/lib/financas/dates";
 import { expandOccurrences, occurrenceDates } from "@/lib/financas/recurrence";
 import {
   bucketUpcoming,
@@ -14,7 +14,8 @@ import { parseDelta, parseEntryInput, parseGoalInput, parseSettingsInput, reaisT
 import { goalProgress, suggestedReserveCents } from "@/lib/financas/goals";
 import { actualSplit, split503020 } from "@/lib/financas/budget-method";
 import { isActiveSubscription, monthlyEquivalentCents, summarizeSubscriptions } from "@/lib/financas/subscriptions";
-import type { FinEntry } from "@/lib/financas/types";
+import { summarizeAnnualPlan } from "@/lib/financas/annual";
+import type { FinEntry, Occurrence } from "@/lib/financas/types";
 
 function entry(partial: Partial<FinEntry> & Pick<FinEntry, "id" | "kind" | "amountCents" | "date">): FinEntry {
   return {
@@ -47,6 +48,12 @@ describe("datas", () => {
     expect(addDays("2026-02-27", 3)).toBe("2026-03-02");
     expect(diffDays("2026-09-25", "2026-09-30")).toBe(5);
     expect(monthRange("2026-02")).toEqual({ from: "2026-02-01", to: "2026-02-28" });
+  });
+  it("valida ano no formato YYYY", () => {
+    expect(isValidYear("2026")).toBe(true);
+    expect(isValidYear("26")).toBe(false);
+    expect(isValidYear("2026-01")).toBe(false);
+    expect(isValidYear(2026)).toBe(false);
   });
 });
 
@@ -409,5 +416,52 @@ describe("assinaturas mensais", () => {
   it("sem assinaturas ativas, retorna lista vazia e totais zerados", () => {
     const summary = summarizeSubscriptions([], "2026-09-25");
     expect(summary).toEqual({ subscriptions: [], monthlyTotalCents: 0, yearlyTotalCents: 0 });
+  });
+});
+
+describe("planejamento anual", () => {
+  function occ(partial: Partial<Occurrence> & Pick<Occurrence, "kind" | "amountCents" | "date">): Occurrence {
+    return {
+      entryId: partial.date,
+      description: "x",
+      category: partial.kind === "income" ? "Salário" : "Moradia",
+      nature: partial.kind === "expense" ? "fixed" : null,
+      recurring: false,
+      paid: false,
+      paidAt: null,
+      ...partial,
+    };
+  }
+
+  it("agrupa receitas e despesas por mês e calcula o saldo de cada mês", () => {
+    const occurrences: Occurrence[] = [
+      occ({ kind: "income", amountCents: 500000, date: "2026-01-05" }),
+      occ({ kind: "expense", amountCents: 300000, date: "2026-01-10" }),
+      occ({ kind: "income", amountCents: 500000, date: "2026-02-05" }),
+      occ({ kind: "expense", amountCents: 600000, date: "2026-02-10" }),
+      // fora do ano pedido — não deve entrar
+      occ({ kind: "income", amountCents: 999999, date: "2025-12-31" }),
+    ];
+    const plan = summarizeAnnualPlan(occurrences, "2026");
+
+    expect(plan.months).toHaveLength(12);
+    expect(plan.months[0]).toEqual({ month: "2026-01", incomeCents: 500000, expenseCents: 300000, balanceCents: 200000 });
+    expect(plan.months[1]).toEqual({ month: "2026-02", incomeCents: 500000, expenseCents: 600000, balanceCents: -100000 });
+    // março em diante: sem lançamentos, tudo zerado
+    expect(plan.months[2]).toEqual({ month: "2026-03", incomeCents: 0, expenseCents: 0, balanceCents: 0 });
+
+    expect(plan.incomeTotalCents).toBe(1000000);
+    expect(plan.expenseTotalCents).toBe(900000);
+    expect(plan.balanceTotalCents).toBe(100000);
+  });
+
+  it("sem nenhuma ocorrência, devolve os 12 meses zerados", () => {
+    const plan = summarizeAnnualPlan([], "2027");
+    expect(plan.months).toHaveLength(12);
+    expect(plan.months.every((m) => m.incomeCents === 0 && m.expenseCents === 0 && m.balanceCents === 0)).toBe(true);
+    expect(plan.months[11].month).toBe("2027-12");
+    expect(plan.incomeTotalCents).toBe(0);
+    expect(plan.expenseTotalCents).toBe(0);
+    expect(plan.balanceTotalCents).toBe(0);
   });
 });

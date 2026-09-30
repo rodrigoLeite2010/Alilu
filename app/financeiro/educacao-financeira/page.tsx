@@ -26,7 +26,7 @@ const CARDS: HubCard[] = [
   { title: "Metas financeiras", description: "Quanto guardar por mês para chegar lá.", href: "/financeiro/metas" },
   { title: "Controle de dívidas", description: "Saldo devedor, parcelas e previsão de término." },
   { title: "Assinaturas mensais", description: "Quanto você paga por mês e por ano em assinaturas.", href: "/financeiro/assinaturas" },
-  { title: "Planejamento anual", description: "Receitas, despesas e saldo mês a mês." },
+  { title: "Planejamento anual", description: "Receitas, despesas e saldo mês a mês.", href: "/financeiro/planejamento-anual" },
   { title: "Método 50/30/20", description: "Referência de divisão da renda entre necessidades, desejos e economia.", href: "/financeiro/metodo-50-30-20" },
   { title: "Método dos envelopes", description: "Limites por categoria com barra de progresso." },
   { title: "Reserva de emergência", description: "Quanto guardar para 3, 6, 9 ou 12 meses de despesas essenciais.", href: "/financeiro/reserva-de-emergencia" },

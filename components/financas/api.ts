@@ -27,8 +27,15 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
   return data;
 }
 
+export interface YearData {
+  year: string;
+  today: string;
+  occurrences: Occurrence[];
+}
+
 export const financeApi = {
   loadMonth: (month: string) => request<MonthData>(`/api/financas/month?month=${month}`),
+  loadYear: (year: string) => request<YearData>(`/api/financas/year?year=${year}`),
   listEntries: (kind: "income" | "expense") =>
     request<{ entries: FinEntry[] }>(`/api/financas/entries?kind=${kind}`).then((r) => r.entries),
   createEntry: (input: EntryInput) =>

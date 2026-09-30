@@ -18,6 +18,10 @@ export function isValidMonth(value: unknown): value is string {
   return typeof value === "string" && /^\d{4}-(0[1-9]|1[0-2])$/.test(value);
 }
 
+export function isValidYear(value: unknown): value is string {
+  return typeof value === "string" && /^\d{4}$/.test(value);
+}
+
 export function daysInMonth(year: number, month: number): number {
   return new Date(Date.UTC(year, month, 0)).getUTCDate();
 }

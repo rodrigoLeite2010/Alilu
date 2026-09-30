@@ -7,6 +7,7 @@ vi.mock("@/auth", () => ({ auth: (...args: unknown[]) => authMock(...args) }));
 const { default: DespesasPage } = await import("@/app/financeiro/(privado)/despesas/page");
 const { default: MeuOrcamentoPage } = await import("@/app/financeiro/(privado)/meu-orcamento/page");
 const { default: AssinaturasPage } = await import("@/app/financeiro/(privado)/assinaturas/page");
+const { default: PlanejamentoAnualPage } = await import("@/app/financeiro/(privado)/planejamento-anual/page");
 
 describe("páginas privadas de Educação Financeira", () => {
   beforeEach(() => {
@@ -60,5 +61,14 @@ describe("páginas privadas de Educação Financeira", () => {
 
     render(await AssinaturasPage());
     expect(screen.getByRole("heading", { name: "Assinaturas mensais" })).toBeInTheDocument();
+  });
+
+  it("aba Planejamento anual leva à página certa, e a página em si mostra o título certo", async () => {
+    authMock.mockResolvedValue({ user: { id: "user-1" } });
+    render(await DespesasPage());
+    expect(screen.getByRole("link", { name: "Planejamento anual" })).toHaveAttribute("href", "/financeiro/planejamento-anual");
+
+    render(await PlanejamentoAnualPage());
+    expect(screen.getByRole("heading", { name: "Planejamento anual" })).toBeInTheDocument();
   });
 });
