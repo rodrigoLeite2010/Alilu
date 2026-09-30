@@ -15,6 +15,7 @@ const TABS = [
   { href: "/financeiro/planejamento-anual", label: "Planejamento anual" },
   { href: "/financeiro/metodo-envelopes", label: "Envelopes" },
   { href: "/financeiro/dividas", label: "Dívidas" },
+  { href: "/financeiro/planilhas", label: "Planilhas" },
   { href: "/financeiro/reserva-de-emergencia", label: "Reserva" },
   { href: "/financeiro/metodo-50-30-20", label: "50/30/20" },
 ];

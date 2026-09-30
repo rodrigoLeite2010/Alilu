@@ -146,6 +146,7 @@ describe("E) robots.txt continua correto", () => {
         "/financeiro/planejamento-anual",
         "/financeiro/metodo-envelopes",
         "/financeiro/dividas",
+        "/financeiro/planilhas",
         "/financeiro/reserva-de-emergencia",
         "/financeiro/metodo-50-30-20",
       ],

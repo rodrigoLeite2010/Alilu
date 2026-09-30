@@ -30,7 +30,7 @@ const CARDS: HubCard[] = [
   { title: "Método 50/30/20", description: "Referência de divisão da renda entre necessidades, desejos e economia.", href: "/financeiro/metodo-50-30-20" },
   { title: "Método dos envelopes", description: "Limites por categoria com barra de progresso.", href: "/financeiro/metodo-envelopes" },
   { title: "Reserva de emergência", description: "Quanto guardar para 3, 6, 9 ou 12 meses de despesas essenciais.", href: "/financeiro/reserva-de-emergencia" },
-  { title: "Planilhas financeiras", description: "Modelos para baixar em CSV e XLSX." },
+  { title: "Planilhas financeiras", description: "Modelos para baixar em CSV e XLSX.", href: "/financeiro/planilhas" },
 ];
 
 const FAQ = [
