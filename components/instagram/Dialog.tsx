@@ -24,6 +24,14 @@ export function Dialog({
 }) {
   const titleId = useId();
   const panelRef = useRef<HTMLDivElement>(null);
+  // onClose costuma chegar como arrow function nova a cada render do pai
+  // (ex.: a cada tecla digitada num campo). Guardar numa ref evita que o
+  // efeito abaixo rode de novo a cada render — o que devolvia o foco para
+  // o primeiro campo do modal a cada caractere digitado.
+  const onCloseRef = useRef(onClose);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
 
   useEffect(() => {
     if (!open) return;
@@ -35,7 +43,7 @@ export function Dialog({
     (firstField ?? panel)?.focus();
 
     function onKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") onClose();
+      if (event.key === "Escape") onCloseRef.current();
     }
     document.addEventListener("keydown", onKeyDown);
     const overflow = document.body.style.overflow;
@@ -45,7 +53,7 @@ export function Dialog({
       document.body.style.overflow = overflow;
       previous?.focus?.();
     };
-  }, [open, onClose]);
+  }, [open]);
 
   if (!open) return null;
 
