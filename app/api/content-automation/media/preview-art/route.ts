@@ -63,7 +63,16 @@ export async function POST(request: Request): Promise<NextResponse> {
   }
 
   try {
-    const { buffer, contentType } = await renderAutomationArtBuffer({
+    const {
+      buffer,
+      contentType,
+      templateIdUsed,
+      sourceWidth,
+      sourceHeight,
+      finalWidth,
+      finalHeight,
+      jpegQuality,
+    } = await renderAutomationArtBuffer({
       templateId: safeTemplateId,
       styleConfig: null,
       sourceImageUrl: media.storageUrl,
@@ -71,7 +80,22 @@ export async function POST(request: Request): Promise<NextResponse> {
       overlayOpacity: safeOverlayOpacity,
     });
     const dataUrl = `data:${contentType};base64,${buffer.toString("base64")}`;
-    return NextResponse.json({ dataUrl });
+    return NextResponse.json(
+      {
+        dataUrl,
+        meta: {
+          templateIdUsed,
+          sourceWidth,
+          sourceHeight,
+          finalWidth,
+          finalHeight,
+          jpegQuality,
+          fileSizeBytes: buffer.byteLength,
+          visualTextLength: visualText.trim().length,
+        },
+      },
+      { headers: { "Cache-Control": "no-store" } },
+    );
   } catch (error) {
     console.error("[content-automation/media/preview-art] falha ao renderizar prévia", error);
     const message = error instanceof TemplateRenderError ? error.message : "Não foi possível gerar a prévia da arte.";

@@ -50,6 +50,7 @@ export function WeekDayEditor({
 }) {
   const [overrideMedia, setOverrideMedia] = useState(Boolean(day.imageMediaId || day.videoMediaId));
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewMeta, setPreviewMeta] = useState<string | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewError, setPreviewError] = useState<string | null>(null);
   const checkboxId = useId();
@@ -66,6 +67,8 @@ export function WeekDayEditor({
     if (!previewImageMediaId || !day.visualText.trim()) return;
     setPreviewLoading(true);
     setPreviewError(null);
+    setPreviewUrl(null);
+    setPreviewMeta(null);
     try {
       const response = await fetch("/api/content-automation/media/preview-art", {
         method: "POST",
@@ -77,11 +80,29 @@ export function WeekDayEditor({
           overlayOpacity: day.overlayOpacity,
         }),
       });
-      const payload = (await response.json()) as { dataUrl?: string; error?: string };
+      const payload = (await response.json()) as {
+        dataUrl?: string;
+        error?: string;
+        meta?: {
+          templateIdUsed?: string;
+          sourceWidth?: number;
+          sourceHeight?: number;
+          finalWidth?: number;
+          finalHeight?: number;
+          jpegQuality?: number;
+          fileSizeBytes?: number;
+          visualTextLength?: number;
+        };
+      };
       if (!response.ok || !payload.dataUrl) {
         throw new Error(payload.error || "Não foi possível gerar a prévia.");
       }
       setPreviewUrl(payload.dataUrl);
+      if (payload.meta) {
+        setPreviewMeta(
+          `${payload.meta.templateIdUsed ?? "template"} · ${payload.meta.finalWidth ?? "?"}×${payload.meta.finalHeight ?? "?"} · JPEG ${payload.meta.jpegQuality ?? "?"}`
+        );
+      }
     } catch (error) {
       setPreviewError(error instanceof Error ? error.message : "Não foi possível gerar a prévia.");
     } finally {
@@ -289,6 +310,7 @@ export function WeekDayEditor({
                       <span className="ml-2 text-xs text-zinc-500">Selecione uma imagem (padrão da automação ou deste dia) para visualizar.</span>
                     ) : null}
                     {previewError ? <p className="mt-1 text-xs text-red-600">{previewError}</p> : null}
+                    {previewMeta ? <p className="mt-2 text-xs text-zinc-500">{previewMeta}</p> : null}
                     {previewUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element -- prévia é um data: URL gerado no servidor, nunca uma imagem otimizável pelo next/image.
                       <img

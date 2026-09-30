@@ -8,7 +8,7 @@ import { describe, expect, it } from "vitest";
 import { writeFileSync, mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { createCanvas } from "@napi-rs/canvas";
+import { createCanvas, loadImage } from "@napi-rs/canvas";
 import { imageSize } from "image-size";
 import {
   buildAutomationArtState,
@@ -29,6 +29,19 @@ function makeTestImageFile(): string {
   const path = join(dir, "foto-fundo.png");
   writeFileSync(path, canvas.toBuffer("image/png"));
   return path;
+}
+
+async function countBrightPixels(buffer: Buffer): Promise<number> {
+  const image = await loadImage(buffer);
+  const canvas = createCanvas(image.naturalWidth, image.naturalHeight);
+  const ctx = canvas.getContext("2d");
+  ctx.drawImage(image, 0, 0);
+  const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+  let bright = 0;
+  for (let index = 0; index < pixels.length; index += 4) {
+    if (pixels[index] > 180 && pixels[index + 1] > 180 && pixels[index + 2] > 180) bright += 1;
+  }
+  return bright;
 }
 
 describe("buildAutomationArtState (correção: template/foto errados)", () => {
@@ -147,6 +160,19 @@ describe("renderAutomationArtBuffer (renderização real — mesmo motor do comp
 
     expect(AUTO_TEMPLATE_JPEG_QUALITY).toBe(92);
     expect(result.buffer.byteLength).toBeGreaterThan(lowQualityBuffer.byteLength);
+  });
+
+  it("renderiza pixels claros do texto visual sobre fundo escuro", async () => {
+    const sourceImageUrl = makeTestImageFile();
+    const result = await renderAutomationArtBuffer({
+      templateId: "frase-motivacional",
+      styleConfig: null,
+      sourceImageUrl,
+      visualText: "Você é um criador de conteúdo motivacional para Instagram.",
+      overlayOpacity: 0.2,
+    });
+
+    await expect(countBrightPixels(result.buffer)).resolves.toBeGreaterThan(500);
   });
 
   it("um texto bem mais longo que o normal ainda gera uma arte válida (ajuste dinâmico de fonte, nunca trava/estoura)", async () => {
