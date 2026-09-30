@@ -13,8 +13,9 @@ import {
   type PostEditorState,
 } from "../editor-state";
 import { getTemplateById, isPostTemplateId, TEXT_SLOT_IDS, type PostTemplateId, type TextSlotId } from "../templates";
-import { drawPost, type RenderableImage, type RenderingContext2DLike } from "../render";
+import type { RenderableImage, RenderingContext2DLike } from "../render";
 import { insertInstagramMedia } from "./media-repository";
+import { computeCoverRect } from "../layout-math";
 
 /**
  * Renderização server-side do template do compositor (Piloto Automático,
@@ -126,8 +127,16 @@ function drawAutomationVisualText(
 
   const totalHeight = lines.length * lineHeight;
   const startY = format.height * 0.5 - totalHeight / 2 + lineHeight / 2;
+  const bandPadding = Math.round(fontSize * 0.75);
+  const bandY = Math.max(format.height * 0.08, startY - lineHeight / 2 - bandPadding);
+  const bandHeight = Math.min(
+    format.height * 0.84 - bandY,
+    totalHeight + bandPadding * 2
+  );
 
   ctx.save();
+  ctx.fillStyle = "rgba(0, 0, 0, 0.34)";
+  ctx.fillRect(0, bandY, format.width, bandHeight);
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   ctx.font = `bold ${fontSize}px Georgia, 'Times New Roman', serif`;
@@ -141,6 +150,40 @@ function drawAutomationVisualText(
     ctx.fillText(line, format.width * 0.5, startY + index * lineHeight);
   }
   ctx.restore();
+}
+
+function drawAutomationBackground(
+  ctx: RenderingContext2DLike,
+  format: PostFormat,
+  sourceImage: RenderableImage,
+  overlayOpacity: number | null | undefined
+): void {
+  const cover = computeCoverRect(
+    format.width,
+    format.height,
+    sourceImage.naturalWidth,
+    sourceImage.naturalHeight,
+    0.5,
+    0.5,
+    1
+  );
+  ctx.clearRect(0, 0, format.width, format.height);
+  ctx.drawImage(
+    sourceImage,
+    cover.sx,
+    cover.sy,
+    cover.sWidth,
+    cover.sHeight,
+    0,
+    0,
+    format.width,
+    format.height
+  );
+  const opacity = overlayOpacity ?? AUTO_TEMPLATE_DEFAULT_OVERLAY_OPACITY;
+  if (opacity > 0) {
+    ctx.fillStyle = `rgba(0, 0, 0, ${Math.min(1, Math.max(0, opacity))})`;
+    ctx.fillRect(0, 0, format.width, format.height);
+  }
 }
 
 function buildBaseEditorState(
@@ -228,7 +271,7 @@ export async function renderAutomationArtBuffer(
   input: Pick<RenderAutomationArtInput, "templateId" | "styleConfig" | "sourceImageUrl" | "visualText" | "overlayOpacity">
 ): Promise<RenderedAutomationArt> {
   const format = getFormatById(AUTO_TEMPLATE_FORMAT_ID);
-  const { state, templateIdUsed } = buildAutomationArtState(input);
+  const { templateIdUsed } = buildAutomationArtState(input);
 
   let sourceImage: Awaited<ReturnType<typeof loadImage>>;
   try {
@@ -241,9 +284,9 @@ export async function renderAutomationArtBuffer(
 
   const canvas = createCanvas(format.width, format.height);
   const ctx = canvas.getContext("2d");
-  const stateWithoutTemplateText = updateTextValue(state, AUTO_TEMPLATE_TEXT_SLOT, "");
-  drawPost(ctx as unknown as RenderingContext2DLike, format, stateWithoutTemplateText, sourceImage as unknown as RenderableImage);
-  drawAutomationVisualText(ctx as unknown as RenderingContext2DLike, format, input.visualText);
+  const renderContext = ctx as unknown as RenderingContext2DLike;
+  drawAutomationBackground(renderContext, format, sourceImage as unknown as RenderableImage, input.overlayOpacity);
+  drawAutomationVisualText(renderContext, format, input.visualText);
 
   const buffer = canvas.toBuffer("image/jpeg", AUTO_TEMPLATE_JPEG_QUALITY);
   return {
