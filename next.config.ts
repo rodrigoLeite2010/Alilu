@@ -58,6 +58,18 @@ const nextConfig: NextConfig = {
       "./node_modules/ffmpeg-static/ffmpeg",
       "./node_modules/ffprobe-static/bin/linux/x64/ffprobe",
     ],
+    // Fontes embutidas do Piloto Automático (lib/instagram/backend/
+    // template-render-service.ts, AUTO_TEMPLATE) — lidas via
+    // GlobalFonts.registerFromPath(path.join(process.cwd(), ...)), não
+    // via require/import estático, então o "file tracing" da Vercel
+    // (@vercel/nft) não as descobre sozinho — mesmo motivo/mesmo padrão
+    // já documentado acima para os binários do ffmpeg-static/ffprobe-
+    // static. Sem isso, o arquivo .ttf não entra no bundle da function
+    // e registerFromPath falha silenciosamente em produção (retorna
+    // null, só loga um console.error) — o texto voltaria a não aparecer
+    // mesmo com o código correto.
+    "**/api/content-automation/media/preview-art": ["./lib/instagram/backend/fonts/*.ttf"],
+    "**/api/cron/content-automation": ["./lib/instagram/backend/fonts/*.ttf"],
   },
 
   async redirects() {

@@ -1,5 +1,6 @@
 import "server-only";
-import { createCanvas, loadImage } from "@napi-rs/canvas";
+import path from "node:path";
+import { createCanvas, loadImage, GlobalFonts } from "@napi-rs/canvas";
 import { put } from "@vercel/blob";
 import { getFormatById } from "../formats";
 import type { PostFormat } from "../formats";
@@ -26,12 +27,21 @@ import { computeCoverRect } from "../layout-math";
  * contexto de desenho e da imagem (@napi-rs/canvas em vez do <canvas> do
  * navegador), que implementa a mesma Canvas 2D API.
  *
- * Limitação conhecida: as fontes do editor (lib/instagram/fonts.ts) são
- * fontes de sistema do navegador do usuário (Segoe UI, Impact, etc.), que
- * não existem no container Linux da Vercel — sem registrar arquivos de
- * fonte via GlobalFonts do @napi-rs/canvas, o texto renderiza com a fonte
- * padrão do Skia (legível, mas não necessariamente idêntica à prévia).
- * Registrar fontes reais fica para uma etapa futura (ver docs).
+ * Fonte do texto desenhado sobre a imagem: as fontes do editor (lib/
+ * instagram/fonts.ts, ex. Georgia/Times New Roman) são fontes de SISTEMA
+ * do navegador/SO do usuário — o container Linux da function da Vercel
+ * não tem NENHUMA fonte instalada. Sem registrar um arquivo de fonte
+ * próprio, @napi-rs/canvas não encontra nenhum glifo pra desenhar e o
+ * texto sai invisível — só a imagem de fundo aparece (bug relatado: "a
+ * automação gera a imagem mas o texto não aparece", embora o mesmo
+ * fluxo funcione perfeitamente no editor manual, que desenha no
+ * navegador). Corrigido embutindo a fonte DejaVu Serif (licença livre,
+ * arquivos em ./fonts/) e registrando via GlobalFonts.registerFromPath
+ * (ensureAutomationFontsRegistered, abaixo) antes de desenhar. Usamos
+ * APENAS essa fonte (nunca Georgia/Times como fallback) para que a
+ * prévia (que pode rodar num ambiente com essas fontes de sistema) e o
+ * resultado publicado de verdade (que nunca tem) desenhem sempre
+ * idênticos — ver AUTOMATION_FONT_FAMILY.
  */
 
 export class TemplateRenderError extends Error {
@@ -77,9 +87,46 @@ export const AUTO_TEMPLATE_OVERLAY_LEVELS = [0, 0.1, 0.2, 0.3, 0.4] as const;
  * espera 0..1; repetir esse número aqui gerava uma saída comprimida demais.
  */
 export const AUTO_TEMPLATE_JPEG_QUALITY = 92;
-export const AUTO_TEMPLATE_RENDER_VERSION = "v3-text-layer";
+export const AUTO_TEMPLATE_RENDER_VERSION = "v4-bundled-font";
 
 const NON_VISUAL_TEXT_SLOTS: TextSlotId[] = TEXT_SLOT_IDS.filter((slotId) => slotId !== AUTO_TEMPLATE_TEXT_SLOT);
+
+/**
+ * Família usada em TODO texto desenhado pelo Piloto Automático (nunca
+ * Georgia/Times New Roman — ver comentário de RenderedAutomationArt
+ * acima). DejaVu Serif: fonte livre (licença em ./fonts/LICENSE-
+ * DejaVu.txt), visualmente próxima de uma serifada clássica, arquivo
+ * embutido no repositório (não depende de nenhuma fonte do ambiente).
+ */
+const AUTOMATION_FONT_FAMILY = "Alilu Automation Serif";
+
+const AUTOMATION_FONT_FILES = [
+  path.join(process.cwd(), "lib/instagram/backend/fonts/DejaVuSerif.ttf"),
+  path.join(process.cwd(), "lib/instagram/backend/fonts/DejaVuSerif-Bold.ttf"),
+];
+
+let automationFontsRegistered = false;
+
+/**
+ * Registra as fontes da automação no processo uma única vez (GlobalFonts
+ * é global ao processo do @napi-rs/canvas — registrar de novo a cada
+ * chamada é redundante; o alias repetido faz o registro assumir "já
+ * registrado" e não falha, mas evitamos a chamada extra mesmo assim).
+ * Marca `automationFontsRegistered = true` mesmo se `registerFromPath`
+ * falhar: numa instância de function onde o arquivo não resolve, tentar
+ * de novo a cada render não vai mudar o resultado, só desperdiça tempo —
+ * o erro já fica no log do console pra investigar.
+ */
+function ensureAutomationFontsRegistered(): void {
+  if (automationFontsRegistered) return;
+  automationFontsRegistered = true;
+  for (const fontPath of AUTOMATION_FONT_FILES) {
+    const key = GlobalFonts.registerFromPath(fontPath, AUTOMATION_FONT_FAMILY);
+    if (!key) {
+      console.error("[template-render-service] falha ao registrar fonte da automação", { fontPath });
+    }
+  }
+}
 
 function wrapAutomationText(
   ctx: RenderingContext2DLike,
@@ -118,7 +165,7 @@ function drawAutomationVisualText(
   let lines: string[] = [];
 
   while (fontSize >= 38) {
-    ctx.font = `bold ${fontSize}px Georgia, 'Times New Roman', serif`;
+    ctx.font = `bold ${fontSize}px "${AUTOMATION_FONT_FAMILY}"`;
     lines = wrapAutomationText(ctx, text, maxWidth);
     if (lines.length * lineHeight <= format.height * 0.34) break;
     fontSize = Math.round(fontSize * 0.9);
@@ -139,7 +186,7 @@ function drawAutomationVisualText(
   ctx.fillRect(0, bandY, format.width, bandHeight);
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  ctx.font = `bold ${fontSize}px Georgia, 'Times New Roman', serif`;
+  ctx.font = `bold ${fontSize}px "${AUTOMATION_FONT_FAMILY}"`;
   ctx.fillStyle = "rgba(0, 0, 0, 0.42)";
   for (const [index, line] of lines.entries()) {
     const y = startY + index * lineHeight;
@@ -270,6 +317,7 @@ export function buildAutomationArtState(
 export async function renderAutomationArtBuffer(
   input: Pick<RenderAutomationArtInput, "templateId" | "styleConfig" | "sourceImageUrl" | "visualText" | "overlayOpacity">
 ): Promise<RenderedAutomationArt> {
+  ensureAutomationFontsRegistered();
   const format = getFormatById(AUTO_TEMPLATE_FORMAT_ID);
   const { templateIdUsed } = buildAutomationArtState(input);
 
