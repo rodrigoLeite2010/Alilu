@@ -1,9 +1,12 @@
 import type { Metadata } from "next";
 import { auth } from "@/auth";
 import { listAutomations } from "@/lib/content-automation/backend/automation-service";
+import { canUseAutomation } from "@/lib/billing/backend/automation-access-service";
+import { serializeAccessResult } from "@/lib/billing/backend/billing-dto";
 import { LinkButton } from "@/components/ui/Button";
 import { SchedulingIntro } from "@/components/instagram/SchedulingIntro";
 import { AutomationsOverview, type AutomationListItemDto } from "@/components/instagram/content-automation/AutomationsOverview";
+import { AutomationBillingBanner } from "@/components/instagram/content-automation/AutomationBillingBanner";
 
 export const metadata: Metadata = {
   robots: { index: false, follow: false },
@@ -25,7 +28,10 @@ export default async function ContentAutomationDashboardPage() {
     );
   }
 
-  const automations = await listAutomations(session.user.id);
+  const [automations, access] = await Promise.all([
+    listAutomations(session.user.id),
+    canUseAutomation(session.user.id),
+  ]);
   const dto: AutomationListItemDto[] = automations.map((item) => ({
     id: item.id,
     name: item.name,
@@ -49,6 +55,8 @@ export default async function ContentAutomationDashboardPage() {
         </div>
         <LinkButton href="/instagram/piloto-automatico/nova">Criar automação</LinkButton>
       </div>
+
+      <AutomationBillingBanner initialAccess={serializeAccessResult(access)} />
 
       <AutomationsOverview initialAutomations={dto} />
     </div>

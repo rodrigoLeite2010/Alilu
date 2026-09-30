@@ -16,6 +16,7 @@ import { getInstagramMediaById, type InstagramMediaRecord } from "@/lib/instagra
 import { createDraftImagePost, createDraftReelPost, createDraftCarouselPost } from "@/lib/instagram/backend/instagram-post-repository";
 import { MIN_CAROUSEL_ITEMS, MAX_CAROUSEL_ITEMS } from "@/lib/instagram/backend/instagram-post-service";
 import { renderAndStoreAutomationArt, renderAndStoreAutomationCarousel } from "@/lib/instagram/backend/template-render-service";
+import { reserveAutomationUse, releaseAutomationUse } from "@/lib/billing/backend/automation-access-service";
 import type { AutomationDayRecord, AutomationRecord, AutomationRunStatus } from "./automation-types";
 
 /**
@@ -155,11 +156,13 @@ async function resolveCaptionForRun(
 }
 
 /**
- * Gera o conteúdo e cria a publicação. Decide DRAFT (modo aprovação, o
- * padrão) ou já SCHEDULED (modo automático) — mas nunca publica
- * diretamente: SCHEDULED só entra na fila do agendador já existente.
+ * Implementação original, sem nenhuma mudança de lógica — mesma geração
+ * de conteúdo/imagem e criação de post DRAFT/SCHEDULED de sempre. Nunca
+ * chamar esta função diretamente: só `generateAndCreatePublication`
+ * (abaixo), que faz a verificação de acesso ANTES de chegar aqui, deve
+ * ser usada pelo laço do cron.
  */
-async function generateAndCreatePublication(
+async function generateAndCreatePublicationUnchecked(
   automation: AutomationRecord,
   day: AutomationDayRecord,
   runId: string,
@@ -303,6 +306,34 @@ async function generateAndCreatePublication(
   return { publicationId, status: willAutoPublish ? "SCHEDULED" : "WAITING_APPROVAL" };
 }
 
+/**
+ * Verifica e reserva o acesso ao Piloto Automático (trial/assinatura) e
+ * SÓ DEPOIS chama a geração de conteúdo/IA de verdade — nunca o
+ * contrário. Lança SubscriptionRequiredError sem nunca chamar a IA
+ * quando o uso não é permitido (bloqueio de trial/assinatura). Se a
+ * geração falhar depois da reserva (erro interno, IA fora do ar, etc.),
+ * devolve a vaga do trial antes de propagar o erro, para o usuário não
+ * perder um dos 3 usos do dia por uma falha nossa.
+ *
+ * Única mudança no fluxo já existente do Piloto Automático: o corpo de
+ * geração em si (generateAndCreatePublicationUnchecked) não foi tocado.
+ */
+async function generateAndCreatePublication(
+  automation: AutomationRecord,
+  day: AutomationDayRecord,
+  runId: string,
+  publishAtUtc: Date,
+  nowDate: Date,
+): Promise<{ publicationId: string; status: Extract<AutomationRunStatus, "WAITING_APPROVAL" | "SCHEDULED"> }> {
+  const reservation = await reserveAutomationUse(automation.userId, nowDate);
+  try {
+    return await generateAndCreatePublicationUnchecked(automation, day, runId, publishAtUtc);
+  } catch (error) {
+    await releaseAutomationUse(reservation);
+    throw error;
+  }
+}
+
 export async function runContentAutomationCron(
   options: RunContentAutomationOptions = {},
 ): Promise<ContentAutomationRunResult[]> {
@@ -338,7 +369,7 @@ export async function runContentAutomationCron(
     if (!claimed) continue; // outra instância pegou o claim, ou o retry ainda não está pronto.
 
     try {
-      const { publicationId, status } = await generateAndCreatePublication(automation, day, run.id, publishAtUtc);
+      const { publicationId, status } = await generateAndCreatePublication(automation, day, run.id, publishAtUtc, nowDate);
       await markRunGenerated(run.id, lockToken, publicationId, status);
       results.push({ automationId: automation.id, runId: run.id, status });
     } catch (error) {
