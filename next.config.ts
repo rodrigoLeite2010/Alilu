@@ -11,27 +11,50 @@ const nextConfig: NextConfig = {
   // "non-ecmascript placeable asset". serverExternalPackages diz ao
   // Next.js pra não tentar empacotar esse pacote nas rotas de servidor;
   // ele é resolvido via require() normal do node_modules em runtime.
-  serverExternalPackages: ["@napi-rs/canvas"],
+  // Além de @napi-rs/canvas: ffmpeg-static e ffprobe-static (editor de
+  // vídeo split-screen) resolvem o caminho do próprio binário nativo em
+  // tempo de execução com `path.join(__dirname, "bin", plataforma, ...)`
+  // (código-fonte deles, confirmado lendo node_modules/ffprobe-static/
+  // index.js e node_modules/ffmpeg-static/index.js) — exatamente o mesmo
+  // padrão problemático do @napi-rs/canvas. Sem listar aqui, o
+  // Webpack/Turbopack empacota (bundla) o pacote e reescreve esse
+  // `__dirname` para um caminho de build que não existe de verdade no
+  // ambiente da function na Vercel — foi exatamente essa a causa raiz do
+  // erro em produção "spawn /ROOT/.../ffprobe ENOENT" depois do primeiro
+  // deploy desta ferramenta (ver relatório da Fase A e o adendo de
+  // correção). Listar aqui faz o Next.js usar `require()` normal do
+  // Node.js para esses pacotes (sem bundlar/reescrever), deixando o
+  // próprio `__dirname` deles resolver certo em runtime.
+  serverExternalPackages: ["@napi-rs/canvas", "ffmpeg-static", "ffprobe-static"],
 
-  // ffmpeg-static (binário de vídeo do editor split-screen — ver
-  // lib/videos/backend/video-processing-service.ts) e ffprobe-static (mede
-  // duração/faixas reais dos vídeos enviados) embutem binários nativos
-  // fora de node_modules/<pacote>/*.js — o "file tracing" do Next.js (que
-  // decide quais arquivos entram no bundle de output de CADA rota, para a
-  // Vercel não subir o node_modules inteiro) segue só imports estáticos de
-  // JS: como esses pacotes resolvem o caminho do binário em runtime (a
-  // partir de __dirname/uma tabela de plataforma), o tracer não enxerga o
-  // binário como dependência e ele fica de fora do output de produção —
-  // resultando em "ENOENT"/binário ausente ao rodar na Vercel, mesmo com
-  // tudo funcionando localmente. outputFileTracingIncludes força a
-  // inclusão, escopada só à rota que realmente usa os binários (nunca
-  // globalmente, para não inflar toda função da Vercel com ~144MB de
-  // binários que as outras rotas não usam). Só o binário linux/x64 do
-  // ffprobe-static entra — é o único que a Vercel roda (Node.js Functions
-  // rodam em Linux x64); os binários darwin/win32 do pacote (uso local em
-  // dev) ficariam de fora à toa se incluídos aqui.
+  // ffmpeg-static/ffprobe-static embutem binários nativos fora de
+  // node_modules/<pacote>/*.js. Escopado só à rota que realmente usa os
+  // binários (nunca globalmente, para não inflar toda função da Vercel
+  // com ~144MB de binários que as outras rotas não usam). Só o binário
+  // linux/x64 do ffprobe-static entra — é o único que a Vercel roda
+  // (Node.js Functions rodam em Linux x64); os binários darwin/win32 do
+  // pacote (uso local em dev) ficariam de fora à toa se incluídos aqui.
+  // Rede de segurança complementar ao serverExternalPackages acima: o
+  // "file tracing" da Vercel (@vercel/nft) decide, por análise estática,
+  // quais arquivos de node_modules entram no pacote de deploy de cada
+  // rota — os binários nativos destes 2 pacotes ficam fora do node_modules
+  // que ele já rastreia, garantindo que entrem mesmo assim.
+  //
+  // A CHAVE deste objeto é comparada (picomatch, contains:true — ver
+  // node_modules/next/dist/build/collect-build-traces.js) contra a rota já
+  // normalizada por normalizeAppPath(entryName), que PRESERVA o segmento
+  // "app" literal no início para uma API route (confirmado lendo o código
+  // fonte do Next.js 16.3.5 instalado: o entryName real de uma route.ts é
+  // "app/api/.../route", e normalizeAppPath só remove segmentos de grupo
+  // "(nome)", segmentos paralelos "@slot" e o último segmento quando ele é
+  // literalmente "page"/"route" — "app" continua no resultado). Por isso
+  // NÃO usamos "/api/videos/split-screen" (não bate) nem o entryName cru
+  // "app/api/videos/split-screen/route" (o "/route" final já foi removido
+  // antes da comparação) — usamos um glob com "**/" na frente, que
+  // funciona nesta versão E continuaria funcionando se esse detalhe de
+  // normalização mudar numa versão futura do Next.js.
   outputFileTracingIncludes: {
-    "app/api/videos/split-screen/route": [
+    "**/api/videos/split-screen": [
       "./node_modules/ffmpeg-static/ffmpeg",
       "./node_modules/ffprobe-static/bin/linux/x64/ffprobe",
     ],
