@@ -9,6 +9,7 @@ import { FeaturedTools } from "@/components/home/FeaturedTools";
 import { InstagramHighlight } from "@/components/home/InstagramHighlight";
 import { FinanceHighlight } from "@/components/home/FinanceHighlight";
 import { PdfHighlight } from "@/components/home/PdfHighlight";
+import { VideoHighlight } from "@/components/home/VideoHighlight";
 import { BenefitsSection } from "@/components/home/BenefitsSection";
 import { HomeCTA } from "@/components/home/HomeCTA";
 
@@ -31,10 +32,10 @@ export const metadata: Metadata = buildPageMetadata({
  * de só listar categorias, a página responde em poucos segundos "o que é
  * o Alilu, o que dá pra fazer aqui e por onde começar" — Hero + busca,
  * categorias, ferramentas populares e destaques dedicados a Instagram,
- * Financeiro e PDF, nessa ordem (Utilidades em primeiro plano, antes dos
- * destaques específicos). Todo o conteúdo vem dos catálogos já existentes
- * (data/tools.ts, data/categories.ts, data/instagram.ts) — nada é
- * inventado aqui.
+ * Financeiro, PDF e Vídeos, nessa ordem (Utilidades em primeiro plano,
+ * antes dos destaques específicos). Todo o conteúdo vem dos catálogos já
+ * existentes (data/tools.ts, data/categories.ts, data/instagram.ts,
+ * data/videos.ts) — nada é inventado aqui.
  */
 export default function HomePage() {
   return (
@@ -53,6 +54,7 @@ export default function HomePage() {
       <InstagramHighlight />
       <FinanceHighlight />
       <PdfHighlight />
+      <VideoHighlight />
       <BenefitsSection />
 
       <Container className="py-10">

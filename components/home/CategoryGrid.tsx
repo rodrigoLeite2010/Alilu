@@ -3,6 +3,7 @@ import { Icon } from "@/components/ui/Icon";
 import { CategoryCard } from "@/components/tools/CategoryCard";
 import { categories } from "@/data/categories";
 import { INSTAGRAM_CATEGORY, instagramTools } from "@/data/instagram";
+import { VIDEOS_CATEGORY, videoTools } from "@/data/videos";
 
 /**
  * Grade de categorias da Home. Extraído de app/page.tsx sem alterar a
@@ -35,6 +36,26 @@ export function CategoryGrid() {
         </div>
         <p className="mt-auto text-xs font-medium text-zinc-500">
           {instagramTools.length} {instagramTools.length === 1 ? "ferramenta" : "ferramentas"}
+        </p>
+      </Link>
+      {/* Categoria "Vídeos": vive em /videos (fora de
+          /utilitarios/[categoria], ver data/videos.ts) — mesmo motivo do
+          card de Instagram acima, com um motivo adicional específico desta
+          categoria: ela ENVIA arquivos ao servidor (Blob + FFmpeg), o que
+          não se encaixa no registro 100% client-side de data/categories.ts. */}
+      <Link
+        href={VIDEOS_CATEGORY.path}
+        className="group flex h-full flex-col gap-3 rounded-lg border border-zinc-200 bg-white p-5 transition-colors hover:border-teal-700/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
+      >
+        <span className="flex h-11 w-11 items-center justify-center rounded-md bg-zinc-100 text-zinc-700 transition-colors group-hover:bg-teal-50 group-hover:text-teal-800">
+          <Icon name={VIDEOS_CATEGORY.icon} className="h-5 w-5" />
+        </span>
+        <div>
+          <p className="text-lg font-semibold text-zinc-900 group-hover:text-teal-800">{VIDEOS_CATEGORY.name}</p>
+          <p className="mt-1 text-sm text-zinc-600">{VIDEOS_CATEGORY.description}</p>
+        </div>
+        <p className="mt-auto text-xs font-medium text-zinc-500">
+          {videoTools.length} {videoTools.length === 1 ? "ferramenta" : "ferramentas"}
         </p>
       </Link>
       {categories.map((category) => (

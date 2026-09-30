@@ -3,6 +3,7 @@ import { getSiteSearchIndex } from "@/data/site-search";
 import { tools } from "@/data/tools";
 import { instagramTools } from "@/data/instagram";
 import { lotteryModalities } from "@/data/lotteries";
+import { videoTools } from "@/data/videos";
 
 /**
  * Testes de integridade do índice de busca da Home (components/home/HomeSearch.tsx):
@@ -15,8 +16,11 @@ describe("índice de busca da Home", () => {
     const activeTools = tools.filter((tool) => tool.status === "ativo");
     const activeInstagramTools = instagramTools.filter((tool) => tool.status === "ativo");
     const activeLotteryModalities = lotteryModalities.filter((modality) => modality.status === "ativo");
+    const activeVideoTools = videoTools.filter((tool) => tool.status === "ativo");
 
-    expect(index).toHaveLength(activeTools.length + activeInstagramTools.length + activeLotteryModalities.length);
+    expect(index).toHaveLength(
+      activeTools.length + activeInstagramTools.length + activeLotteryModalities.length + activeVideoTools.length,
+    );
   });
 
   it("cada item tem um id único no índice", () => {
@@ -46,6 +50,15 @@ describe("índice de busca da Home", () => {
     for (const item of lotteryItems) {
       expect(item.href.startsWith("/loterias")).toBe(true);
       expect(item.categoryLabel).toBe("Loterias");
+    }
+  });
+
+  it("todo item de Vídeos aponta para uma rota dentro de /videos", () => {
+    const videoItems = getSiteSearchIndex().filter((item) => item.id.startsWith("video:"));
+    expect(videoItems.length).toBeGreaterThan(0);
+    for (const item of videoItems) {
+      expect(item.href.startsWith("/videos")).toBe(true);
+      expect(item.categoryLabel).toBe("Vídeos");
     }
   });
 

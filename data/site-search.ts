@@ -1,6 +1,7 @@
 import { tools } from "./tools";
 import { instagramTools } from "./instagram";
 import { lotteryModalities } from "./lotteries";
+import { videoTools } from "./videos";
 import { getCategoryById } from "./categories";
 
 /**
@@ -73,6 +74,19 @@ export function getSiteSearchIndex(): SiteSearchItem[] {
       categoryLabel: "Loterias",
     }));
 
-  cachedIndex = [...fromTools, ...fromInstagram, ...fromLotteries];
+  const fromVideos: SiteSearchItem[] = videoTools
+    .filter((tool) => tool.status === "ativo")
+    .map((tool) => ({
+      id: `video:${tool.id}`,
+      name: tool.name,
+      shortName: tool.shortName,
+      description: tool.description,
+      keywords: [tool.shortName.toLowerCase(), "vídeo", "editor de vídeo", "split screen", "reels", "shorts", "tiktok"],
+      icon: tool.icon,
+      href: tool.path,
+      categoryLabel: "Vídeos",
+    }));
+
+  cachedIndex = [...fromTools, ...fromInstagram, ...fromLotteries, ...fromVideos];
   return cachedIndex;
 }

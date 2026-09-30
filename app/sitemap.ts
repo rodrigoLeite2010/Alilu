@@ -5,6 +5,7 @@ import { SITE_URL } from "@/lib/seo/site";
 import { getPublishedTools } from "@/lib/seo/publish";
 import { INSTAGRAM_CATEGORY, instagramTools } from "@/data/instagram";
 import { LOTTERIES_CATEGORY, lotteryModalities } from "@/data/lotteries";
+import { VIDEOS_CATEGORY, videoTools } from "@/data/videos";
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const staticRoutes: MetadataRoute.Sitemap = [
@@ -12,6 +13,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${SITE_URL}/utilitarios`, changeFrequency: "weekly", priority: 0.9 },
     { url: `${SITE_URL}${INSTAGRAM_CATEGORY.path}`, changeFrequency: "weekly", priority: 0.9 },
     { url: `${SITE_URL}${LOTTERIES_CATEGORY.path}`, changeFrequency: "weekly", priority: 0.8 },
+    { url: `${SITE_URL}${VIDEOS_CATEGORY.path}`, changeFrequency: "weekly", priority: 0.8 },
     // Desdobramento/fechamento é uma sub-ferramenta da Lotofácil, não uma
     // modalidade própria (data/lotteries.ts) — por isso entra direto aqui,
     // igual a /financeiro/educacao-financeira logo abaixo.
@@ -46,6 +48,17 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: 0.7,
     }));
 
+  // Ferramentas da categoria Vídeos (data/videos.ts) — mesma regra do
+  // Instagram/Loterias acima: só entram aqui as que já têm página de
+  // verdade ("ativo").
+  const videoRoutes: MetadataRoute.Sitemap = videoTools
+    .filter((tool) => tool.status === "ativo")
+    .map((tool) => ({
+      url: `${SITE_URL}${tool.path}`,
+      changeFrequency: "monthly",
+      priority: 0.7,
+    }));
+
   const categoryRoutes: MetadataRoute.Sitemap = categories.map((category) => ({
     url: `${SITE_URL}/utilitarios/${category.id}`,
     changeFrequency: "weekly",
@@ -63,5 +76,5 @@ export default function sitemap(): MetadataRoute.Sitemap {
     })
   );
 
-  return [...staticRoutes, ...instagramRoutes, ...lotteryRoutes, ...categoryRoutes, ...toolRoutes];
+  return [...staticRoutes, ...instagramRoutes, ...lotteryRoutes, ...videoRoutes, ...categoryRoutes, ...toolRoutes];
 }
