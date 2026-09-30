@@ -9,11 +9,13 @@ import { writeFileSync, mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createCanvas } from "@napi-rs/canvas";
+import { imageSize } from "image-size";
 import {
   buildAutomationArtState,
   renderAutomationArtBuffer,
   AUTO_TEMPLATE_DEFAULT_TEMPLATE_ID,
   AUTO_TEMPLATE_DEFAULT_OVERLAY_OPACITY,
+  AUTO_TEMPLATE_JPEG_QUALITY,
   AUTO_TEMPLATE_TEXT_SLOT,
 } from "@/lib/instagram/backend/template-render-service";
 
@@ -102,9 +104,38 @@ describe("renderAutomationArtBuffer (renderização real — mesmo motor do comp
     expect(result.templateIdUsed).toBe("frase-motivacional");
     expect(result.contentType).toBe("image/jpeg");
     expect(result.buffer.byteLength).toBeGreaterThan(1000);
+    const dimensions = imageSize(result.buffer);
+    expect(dimensions).toMatchObject({ width: 1080, height: 1350, type: "jpg" });
+    expect(result).toMatchObject({
+      sourceWidth: 800,
+      sourceHeight: 1000,
+      finalWidth: 1080,
+      finalHeight: 1350,
+      jpegQuality: AUTO_TEMPLATE_JPEG_QUALITY,
+    });
     // Assinatura JPEG (SOI marker) — garante que não é um buffer vazio/corrompido.
     expect(result.buffer[0]).toBe(0xff);
     expect(result.buffer[1]).toBe(0xd8);
+  });
+
+  it("exporta JPEG em qualidade alta do @napi-rs/canvas (escala 0..100), não no 0.92 do browser", async () => {
+    const sourceImageUrl = makeTestImageFile();
+    const result = await renderAutomationArtBuffer({
+      templateId: "frase-motivacional",
+      styleConfig: null,
+      sourceImageUrl,
+      visualText: "Texto com boa definição sobre a imagem",
+      overlayOpacity: 0.2,
+    });
+
+    const lowQualityCanvas = createCanvas(1080, 1350);
+    const lowQualityCtx = lowQualityCanvas.getContext("2d");
+    lowQualityCtx.fillStyle = "#3355aa";
+    lowQualityCtx.fillRect(0, 0, 1080, 1350);
+    const lowQualityBuffer = lowQualityCanvas.toBuffer("image/jpeg", 0.92);
+
+    expect(AUTO_TEMPLATE_JPEG_QUALITY).toBe(92);
+    expect(result.buffer.byteLength).toBeGreaterThan(lowQualityBuffer.byteLength);
   });
 
   it("um texto bem mais longo que o normal ainda gera uma arte válida (ajuste dinâmico de fonte, nunca trava/estoura)", async () => {
