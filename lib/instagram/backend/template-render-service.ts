@@ -2,6 +2,7 @@ import "server-only";
 import { createCanvas, loadImage } from "@napi-rs/canvas";
 import { put } from "@vercel/blob";
 import { getFormatById } from "../formats";
+import type { PostFormat } from "../formats";
 import {
   createInitialEditorState,
   deserializeEditorState,
@@ -77,6 +78,69 @@ export const AUTO_TEMPLATE_OVERLAY_LEVELS = [0, 0.1, 0.2, 0.3, 0.4] as const;
 export const AUTO_TEMPLATE_JPEG_QUALITY = 92;
 
 const NON_VISUAL_TEXT_SLOTS: TextSlotId[] = TEXT_SLOT_IDS.filter((slotId) => slotId !== AUTO_TEMPLATE_TEXT_SLOT);
+
+function wrapAutomationText(
+  ctx: RenderingContext2DLike,
+  text: string,
+  maxWidth: number
+): string[] {
+  const words = text.split(/\s+/).filter(Boolean);
+  if (words.length === 0) return [];
+
+  const lines: string[] = [];
+  let current = words[0];
+  for (const word of words.slice(1)) {
+    const candidate = `${current} ${word}`;
+    if (ctx.measureText(candidate).width <= maxWidth) {
+      current = candidate;
+    } else {
+      lines.push(current);
+      current = word;
+    }
+  }
+  lines.push(current);
+  return lines;
+}
+
+function drawAutomationVisualText(
+  ctx: RenderingContext2DLike,
+  format: PostFormat,
+  visualText: string
+): void {
+  const text = visualText.trim();
+  if (!text) return;
+
+  const maxWidth = format.width * 0.78;
+  let fontSize = Math.round(Math.min(format.width, format.height) * 0.07);
+  let lineHeight = Math.round(fontSize * 1.22);
+  let lines: string[] = [];
+
+  while (fontSize >= 38) {
+    ctx.font = `bold ${fontSize}px Georgia, 'Times New Roman', serif`;
+    lines = wrapAutomationText(ctx, text, maxWidth);
+    if (lines.length * lineHeight <= format.height * 0.34) break;
+    fontSize = Math.round(fontSize * 0.9);
+    lineHeight = Math.round(fontSize * 1.22);
+  }
+
+  const totalHeight = lines.length * lineHeight;
+  const startY = format.height * 0.5 - totalHeight / 2 + lineHeight / 2;
+
+  ctx.save();
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.font = `bold ${fontSize}px Georgia, 'Times New Roman', serif`;
+  ctx.fillStyle = "rgba(0, 0, 0, 0.42)";
+  for (const [index, line] of lines.entries()) {
+    const y = startY + index * lineHeight;
+    ctx.fillText(line, format.width * 0.5 + 4, y + 4);
+  }
+  ctx.fillStyle = "#ffffff";
+  for (const [index, line] of lines.entries()) {
+    ctx.fillText(line, format.width * 0.5, startY + index * lineHeight);
+  }
+  ctx.restore();
+}
 
 function buildBaseEditorState(
   templateId: string | null,
@@ -175,7 +239,9 @@ export async function renderAutomationArtBuffer(
 
   const canvas = createCanvas(format.width, format.height);
   const ctx = canvas.getContext("2d");
-  drawPost(ctx as unknown as RenderingContext2DLike, format, state, sourceImage as unknown as RenderableImage);
+  const stateWithoutTemplateText = updateTextValue(state, AUTO_TEMPLATE_TEXT_SLOT, "");
+  drawPost(ctx as unknown as RenderingContext2DLike, format, stateWithoutTemplateText, sourceImage as unknown as RenderableImage);
+  drawAutomationVisualText(ctx as unknown as RenderingContext2DLike, format, input.visualText);
 
   const buffer = canvas.toBuffer("image/jpeg", AUTO_TEMPLATE_JPEG_QUALITY);
   return {
