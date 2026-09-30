@@ -273,3 +273,34 @@ export async function deleteGoal(userId: string, id: string): Promise<boolean> {
   const rows = await db`delete from fin_goals where id = ${id} and user_id = ${userId} returning id`;
   return rows.length > 0;
 }
+
+export interface CategoryLimitRow {
+  category: string;
+  limitCents: number;
+}
+
+export async function listCategoryLimits(userId: string): Promise<CategoryLimitRow[]> {
+  const db = getDb();
+  const rows = await db`
+    select category, limit_cents::float8 as "limitCents"
+    from fin_category_limits where user_id = ${userId} order by category
+  `;
+  return rows.map((row) => ({ category: row.category as string, limitCents: Number(row.limitCents) }));
+}
+
+/** Cria o limite da categoria ou atualiza o valor se já existir (1 por categoria por usuário). */
+export async function setCategoryLimit(userId: string, category: string, limitCents: number): Promise<void> {
+  const db = getDb();
+  await db`
+    insert into fin_category_limits (user_id, category, limit_cents) values (${userId}, ${category}, ${limitCents})
+    on conflict (user_id, category) do update set limit_cents = excluded.limit_cents, updated_at = now()
+  `;
+}
+
+export async function deleteCategoryLimit(userId: string, category: string): Promise<boolean> {
+  const db = getDb();
+  const rows = await db`
+    delete from fin_category_limits where user_id = ${userId} and category = ${category} returning id
+  `;
+  return rows.length > 0;
+}

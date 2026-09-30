@@ -1,5 +1,5 @@
 import { isValidISODate } from "./dates";
-import { categoriesFor } from "./categories";
+import { categoriesFor, EXPENSE_CATEGORIES } from "./categories";
 import type { EntryKind, ExpenseNature, Recurrence } from "./types";
 
 export interface EntryInput {
@@ -188,4 +188,24 @@ export function parseDelta(body: unknown): ParseResult<{ deltaCents: number }> {
     return { ok: false, error: "Valor inválido." };
   }
   return { ok: true, value: { deltaCents } };
+}
+
+export interface CategoryLimitInput {
+  limitCents: number;
+}
+
+const MAX_LIMIT_CENTS = 100_000_000_00;
+
+export function isValidExpenseCategory(value: unknown): value is (typeof EXPENSE_CATEGORIES)[number] {
+  return typeof value === "string" && (EXPENSE_CATEGORIES as readonly string[]).includes(value);
+}
+
+export function parseCategoryLimitInput(body: unknown): ParseResult<CategoryLimitInput> {
+  if (typeof body !== "object" || body === null) return { ok: false, error: "Dados inválidos." };
+  const raw = body as Record<string, unknown>;
+  const limitCents = raw.limitCents;
+  if (typeof limitCents !== "number" || !Number.isInteger(limitCents) || limitCents <= 0 || limitCents > MAX_LIMIT_CENTS) {
+    return { ok: false, error: "Informe um limite maior que zero." };
+  }
+  return { ok: true, value: { limitCents } };
 }

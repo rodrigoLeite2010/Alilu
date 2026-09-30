@@ -10,11 +10,20 @@ import {
   projectCashFlow,
   summarizeMonth,
 } from "@/lib/financas/summary";
-import { parseDelta, parseEntryInput, parseGoalInput, parseSettingsInput, reaisTextToCents } from "@/lib/financas/validation";
+import {
+  isValidExpenseCategory,
+  parseCategoryLimitInput,
+  parseDelta,
+  parseEntryInput,
+  parseGoalInput,
+  parseSettingsInput,
+  reaisTextToCents,
+} from "@/lib/financas/validation";
 import { goalProgress, suggestedReserveCents } from "@/lib/financas/goals";
 import { actualSplit, split503020 } from "@/lib/financas/budget-method";
 import { isActiveSubscription, monthlyEquivalentCents, summarizeSubscriptions } from "@/lib/financas/subscriptions";
 import { summarizeAnnualPlan } from "@/lib/financas/annual";
+import { categoryLimitProgress } from "@/lib/financas/envelopes";
 import type { FinEntry, Occurrence } from "@/lib/financas/types";
 
 function entry(partial: Partial<FinEntry> & Pick<FinEntry, "id" | "kind" | "amountCents" | "date">): FinEntry {
@@ -463,5 +472,33 @@ describe("planejamento anual", () => {
     expect(plan.incomeTotalCents).toBe(0);
     expect(plan.expenseTotalCents).toBe(0);
     expect(plan.balanceTotalCents).toBe(0);
+  });
+});
+
+describe("método dos envelopes", () => {
+  it("calcula percentual usado, quanto falta e o estado (ok/atenção/estourou)", () => {
+    const limit = { category: "Alimentação", limitCents: 100000 };
+    expect(categoryLimitProgress(limit, 30000)).toMatchObject({ percentUsed: 30, remainingCents: 70000, state: "ok" });
+    expect(categoryLimitProgress(limit, 85000)).toMatchObject({ percentUsed: 85, remainingCents: 15000, state: "attention" });
+    expect(categoryLimitProgress(limit, 100000)).toMatchObject({ percentUsed: 100, remainingCents: 0, state: "attention" });
+    expect(categoryLimitProgress(limit, 120000)).toMatchObject({ percentUsed: 120, remainingCents: -20000, state: "over" });
+  });
+
+  it("sem nenhum gasto ainda, fica 0% e dentro do limite", () => {
+    const limit = { category: "Lazer", limitCents: 50000 };
+    expect(categoryLimitProgress(limit, 0)).toMatchObject({ percentUsed: 0, remainingCents: 50000, state: "ok" });
+  });
+
+  it("valida categoria de despesa e o valor do limite", () => {
+    expect(isValidExpenseCategory("Alimentação")).toBe(true);
+    expect(isValidExpenseCategory("Salário")).toBe(false); // categoria de receita, não de despesa
+    expect(isValidExpenseCategory("Categoria Inventada")).toBe(false);
+    expect(isValidExpenseCategory(123)).toBe(false);
+
+    expect(parseCategoryLimitInput({ limitCents: 50000 }).ok).toBe(true);
+    expect(parseCategoryLimitInput({ limitCents: 0 }).ok).toBe(false);
+    expect(parseCategoryLimitInput({ limitCents: -100 }).ok).toBe(false);
+    expect(parseCategoryLimitInput({ limitCents: 1.5 }).ok).toBe(false);
+    expect(parseCategoryLimitInput(null).ok).toBe(false);
   });
 });

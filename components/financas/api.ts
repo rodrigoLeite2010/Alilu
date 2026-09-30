@@ -1,6 +1,7 @@
 import type { FinEntry, Occurrence } from "@/lib/financas/types";
 import type { EntryInput, GoalInput } from "@/lib/financas/validation";
 import type { Goal } from "@/lib/financas/goals";
+import type { CategoryLimit } from "@/lib/financas/envelopes";
 
 /** Evento global: qualquer tela recarrega seus dados quando algo é salvo. */
 export const FINANCE_CHANGED_EVENT = "alilu:financas-changed";
@@ -57,4 +58,12 @@ export const financeApi = {
   deleteGoal: (id: string) => request<{ ok: true }>(`/api/financas/goals/${id}`, { method: "DELETE" }),
   depositToGoal: (id: string, deltaCents: number) =>
     request<{ ok: true }>(`/api/financas/goals/${id}/deposit`, { method: "POST", body: JSON.stringify({ deltaCents }) }),
+  listCategoryLimits: () => request<{ limits: CategoryLimit[] }>("/api/financas/limites").then((r) => r.limits),
+  setCategoryLimit: (category: string, limitCents: number) =>
+    request<{ ok: true }>(`/api/financas/limites/${encodeURIComponent(category)}`, {
+      method: "PUT",
+      body: JSON.stringify({ limitCents }),
+    }),
+  deleteCategoryLimit: (category: string) =>
+    request<{ ok: true }>(`/api/financas/limites/${encodeURIComponent(category)}`, { method: "DELETE" }),
 };

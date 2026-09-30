@@ -8,6 +8,7 @@ const { default: DespesasPage } = await import("@/app/financeiro/(privado)/despe
 const { default: MeuOrcamentoPage } = await import("@/app/financeiro/(privado)/meu-orcamento/page");
 const { default: AssinaturasPage } = await import("@/app/financeiro/(privado)/assinaturas/page");
 const { default: PlanejamentoAnualPage } = await import("@/app/financeiro/(privado)/planejamento-anual/page");
+const { default: MetodoEnvelopesPage } = await import("@/app/financeiro/(privado)/metodo-envelopes/page");
 
 describe("páginas privadas de Educação Financeira", () => {
   beforeEach(() => {
@@ -70,5 +71,14 @@ describe("páginas privadas de Educação Financeira", () => {
 
     render(await PlanejamentoAnualPage());
     expect(screen.getByRole("heading", { name: "Planejamento anual" })).toBeInTheDocument();
+  });
+
+  it("aba Envelopes leva à página do Método dos envelopes, e a página em si mostra o título certo", async () => {
+    authMock.mockResolvedValue({ user: { id: "user-1" } });
+    render(await DespesasPage());
+    expect(screen.getByRole("link", { name: "Envelopes" })).toHaveAttribute("href", "/financeiro/metodo-envelopes");
+
+    render(await MetodoEnvelopesPage());
+    expect(screen.getByRole("heading", { name: "Método dos envelopes" })).toBeInTheDocument();
   });
 });
