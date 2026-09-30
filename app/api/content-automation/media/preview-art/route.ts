@@ -72,6 +72,7 @@ export async function POST(request: Request): Promise<NextResponse> {
       finalWidth,
       finalHeight,
       jpegQuality,
+      renderVersion,
     } = await renderAutomationArtBuffer({
       templateId: safeTemplateId,
       styleConfig: null,
@@ -90,6 +91,7 @@ export async function POST(request: Request): Promise<NextResponse> {
           finalWidth,
           finalHeight,
           jpegQuality,
+          renderVersion,
           fileSizeBytes: buffer.byteLength,
           visualTextLength: visualText.trim().length,
         },

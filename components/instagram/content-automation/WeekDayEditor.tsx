@@ -90,6 +90,7 @@ export function WeekDayEditor({
           finalWidth?: number;
           finalHeight?: number;
           jpegQuality?: number;
+          renderVersion?: string;
           fileSizeBytes?: number;
           visualTextLength?: number;
         };
@@ -100,7 +101,7 @@ export function WeekDayEditor({
       setPreviewUrl(payload.dataUrl);
       if (payload.meta) {
         setPreviewMeta(
-          `${payload.meta.templateIdUsed ?? "template"} · ${payload.meta.finalWidth ?? "?"}×${payload.meta.finalHeight ?? "?"} · JPEG ${payload.meta.jpegQuality ?? "?"}`
+          `${payload.meta.templateIdUsed ?? "template"} · ${payload.meta.finalWidth ?? "?"}×${payload.meta.finalHeight ?? "?"} · JPEG ${payload.meta.jpegQuality ?? "?"} · ${payload.meta.renderVersion ?? "render ?"}`
         );
       }
     } catch (error) {

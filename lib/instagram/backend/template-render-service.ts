@@ -76,6 +76,7 @@ export const AUTO_TEMPLATE_OVERLAY_LEVELS = [0, 0.1, 0.2, 0.3, 0.4] as const;
  * espera 0..1; repetir esse número aqui gerava uma saída comprimida demais.
  */
 export const AUTO_TEMPLATE_JPEG_QUALITY = 92;
+export const AUTO_TEMPLATE_RENDER_VERSION = "v3-text-layer";
 
 const NON_VISUAL_TEXT_SLOTS: TextSlotId[] = TEXT_SLOT_IDS.filter((slotId) => slotId !== AUTO_TEMPLATE_TEXT_SLOT);
 
@@ -185,6 +186,7 @@ export interface RenderedAutomationArt {
   finalWidth: number;
   finalHeight: number;
   jpegQuality: number;
+  renderVersion: string;
 }
 
 /**
@@ -253,6 +255,7 @@ export async function renderAutomationArtBuffer(
     finalWidth: format.width,
     finalHeight: format.height,
     jpegQuality: AUTO_TEMPLATE_JPEG_QUALITY,
+    renderVersion: AUTO_TEMPLATE_RENDER_VERSION,
   };
 }
 
@@ -282,6 +285,7 @@ export async function renderAndStoreAutomationArt(input: RenderAutomationArtInpu
     sourceImage: `${sourceWidth}x${sourceHeight}`,
     finalImage: `${finalWidth}x${finalHeight}`,
     jpegQuality,
+    renderVersion: AUTO_TEMPLATE_RENDER_VERSION,
     fileSizeBytes: buffer.byteLength,
     templateIdUsed,
     overlayOpacity: input.overlayOpacity ?? AUTO_TEMPLATE_DEFAULT_OVERLAY_OPACITY,
