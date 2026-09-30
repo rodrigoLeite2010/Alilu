@@ -36,7 +36,7 @@ export async function generatePostContentForRun(
   automation: AutomationRecord,
   day: AutomationDayRecord,
   runId: string,
-  options: { includeVisualText?: boolean } = {},
+  options: { includeVisualText?: boolean; visualTextMode?: "SHORT" | "LONG" } = {},
 ): Promise<GeneratedPostForPublication> {
   const provider = getContentAIProvider();
   const recent = await listRecentGenerationsForAutomation(automation.id, 7);
@@ -51,6 +51,7 @@ export async function generatePostContentForRun(
     dayOfWeekLabel: DAY_OF_WEEK_LABEL[day.dayOfWeek],
     avoidTopics,
     includeVisualText: options.includeVisualText,
+    visualTextMode: options.visualTextMode,
   });
   await recordGenerationUsage(automation.id, runId, usage);
 

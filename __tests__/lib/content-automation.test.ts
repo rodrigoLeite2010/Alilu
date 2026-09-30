@@ -20,8 +20,10 @@ vi.mock("@/lib/content-automation/backend/provider-factory", () => ({
 }));
 
 const fakeRenderAndStoreAutomationArt = vi.fn();
+const fakeRenderAndStoreAutomationCarousel = vi.fn();
 vi.mock("@/lib/instagram/backend/template-render-service", () => ({
   renderAndStoreAutomationArt: (...args: unknown[]) => fakeRenderAndStoreAutomationArt(...args),
+  renderAndStoreAutomationCarousel: (...args: unknown[]) => fakeRenderAndStoreAutomationCarousel(...args),
 }));
 
 const repo = await import("@/lib/content-automation/backend/automation-repository");
@@ -527,6 +529,233 @@ describe("modo AUTO_TEMPLATE (IA/manual desenha o texto sobre a imagem)", () => 
     await expect(
       service.updateAutomationDay(automationId, seed.userId, "FRIDAY", { overlayOpacity: 0.15 }),
     ).rejects.toThrow(/véu/i);
+  });
+});
+
+describe("modo CAROUSEL (texto comprido dividido em slides, mesmo motor do Carrossel automático manual)", () => {
+  async function activeCarouselAutomation(
+    seed: Awaited<ReturnType<typeof seedUserWithAccount>>,
+    overrides: {
+      contentMode?: "AI" | "MANUAL";
+      visualText?: string;
+      manualCaption?: string;
+      templateId?: string | null;
+      visualTextColor?: string | null;
+    } = {},
+  ) {
+    const contentMode = overrides.contentMode ?? "AI";
+    const automationId = await repo.createAutomation({
+      userId: seed.userId,
+      instagramAccountId: seed.accountId,
+      name: "Automação CAROUSEL de teste",
+      description: "",
+      timezone: "America/Sao_Paulo",
+      brandContext: "Marca de utilitários domésticos",
+      autoPublish: false,
+      requireApproval: true,
+      generationLeadMinutes: 120,
+      imageMode: "AUTO_TEMPLATE",
+      fixedImageMediaId: seed.mediaId,
+      videoSelection: "FIXED",
+      fixedVideoMediaId: seed.videoId,
+    });
+
+    await repo.updateAutomationDay(automationId, seed.userId, "WEDNESDAY" as never, {
+      enabled: true,
+      contentType: "CAROUSEL",
+      contentMode,
+      prompt: contentMode === "AI" ? "Conte a história completa da marca, bem detalhada" : "",
+      manualCaption: contentMode === "MANUAL" ? (overrides.manualCaption ?? "Legenda manual completa, com CTA.") : undefined,
+      visualText:
+        contentMode === "MANUAL"
+          ? (overrides.visualText ?? "Um texto longo o bastante para virar vários slides de carrossel, contando uma historinha passo a passo.")
+          : undefined,
+      templateId: overrides.templateId,
+      visualTextColor: overrides.visualTextColor,
+      publishTime: "19:00",
+    });
+
+    await repo.setAutomationStatus(automationId, seed.userId, "ACTIVE");
+    return automationId;
+  }
+
+  async function seedRenderedCarouselMedia(seed: Awaited<ReturnType<typeof seedUserWithAccount>>, count: number, prefix = "carousel") {
+    const ids: string[] = [];
+    for (let i = 0; i < count; i += 1) {
+      const [row] = await db.sql`
+        insert into instagram_media (user_id, storage_url, media_type)
+        values (${seed.userId}, ${`https://blob.example.com/${prefix}-${i}.jpg`}, 'image') returning id
+      `;
+      ids.push(row.id as string);
+    }
+    return ids;
+  }
+
+  it("modo IA: pede o texto no formato LONG, divide em slides via renderAndStoreAutomationCarousel e cria um post do tipo carrossel", async () => {
+    const seed = await seedUserWithAccount(db);
+    const mediaIds = await seedRenderedCarouselMedia(seed, 4);
+    fakeRenderAndStoreAutomationCarousel.mockResolvedValue({ mediaIds, overflowText: null });
+    happyPost({
+      caption: "Legenda gerada pela IA para o carrossel",
+      cta: "",
+      hashtags: [],
+      visualText: "Um texto comprido gerado pela IA, que vai ser dividido em vários slides pelo motor do carrossel.",
+    });
+    await activeCarouselAutomation(seed, { contentMode: "AI", templateId: "promocao" });
+    const now = () => new Date("2026-09-23T20:00:00.000Z");
+
+    const [result] = await cron.runContentAutomationCron({ now });
+    expect(result.status).toBe("WAITING_APPROVAL");
+
+    expect(fakeProvider.generatePost).toHaveBeenCalledTimes(1);
+    const [[callArgs]] = fakeProvider.generatePost.mock.calls;
+    expect(callArgs.includeVisualText).toBe(true);
+    expect(callArgs.visualTextMode).toBe("LONG");
+
+    expect(fakeRenderAndStoreAutomationCarousel).toHaveBeenCalledTimes(1);
+    const [renderArgs] = fakeRenderAndStoreAutomationCarousel.mock.calls[0];
+    expect(renderArgs).toMatchObject({
+      userId: seed.userId,
+      templateId: "promocao",
+      sourceImageUrl: "https://blob.example.com/1.jpg",
+      sourceMediaId: seed.mediaId,
+      visualText: "Um texto comprido gerado pela IA, que vai ser dividido em vários slides pelo motor do carrossel.",
+      maxSlides: 10,
+    });
+    expect(renderArgs.automationRunId).toEqual(expect.any(String));
+
+    const runRow = (await db.sql`select * from automation_runs`)[0];
+    const [post] = await db.sql`select * from instagram_posts where id = ${runRow.publication_id}`;
+    expect(post.post_type).toBe("carousel");
+    expect(post.caption).toBe("Legenda gerada pela IA para o carrossel");
+    const items = await db.sql`select media_id, position from instagram_post_items where post_id = ${runRow.publication_id} order by position asc`;
+    expect(items.map((item) => item.media_id as string)).toEqual(mediaIds);
+  });
+
+  it("modo manual: usa a legenda e o texto longo escritos à mão, sem chamar a IA", async () => {
+    const seed = await seedUserWithAccount(db);
+    const mediaIds = await seedRenderedCarouselMedia(seed, 3, "manual");
+    fakeRenderAndStoreAutomationCarousel.mockResolvedValue({ mediaIds, overflowText: null });
+    await activeCarouselAutomation(seed, {
+      contentMode: "MANUAL",
+      manualCaption: "Legenda manual do carrossel, corre lá!",
+      visualText: "Texto manual comprido, escrito à mão, que também vira vários slides.",
+      templateId: "frase-motivacional",
+      visualTextColor: "#ffcc00",
+    });
+    const now = () => new Date("2026-09-23T20:00:00.000Z");
+
+    const [result] = await cron.runContentAutomationCron({ now });
+    expect(result.status).toBe("WAITING_APPROVAL");
+    expect(fakeProvider.generatePost).not.toHaveBeenCalled();
+
+    expect(fakeRenderAndStoreAutomationCarousel).toHaveBeenCalledTimes(1);
+    const [renderArgs] = fakeRenderAndStoreAutomationCarousel.mock.calls[0];
+    expect(renderArgs).toMatchObject({
+      templateId: "frase-motivacional",
+      visualText: "Texto manual comprido, escrito à mão, que também vira vários slides.",
+      visualTextColor: "#ffcc00",
+    });
+
+    const runRow = (await db.sql`select * from automation_runs`)[0];
+    const [post] = await db.sql`select * from instagram_posts where id = ${runRow.publication_id}`;
+    expect(post.post_type).toBe("carousel");
+    expect(post.caption).toBe("Legenda manual do carrossel, corre lá!");
+  });
+
+  it("texto que excede o limite de slides é logado como sobra, mas não impede a publicação (o que coube é publicado)", async () => {
+    const seed = await seedUserWithAccount(db);
+    const mediaIds = await seedRenderedCarouselMedia(seed, 10, "overflow");
+    fakeRenderAndStoreAutomationCarousel.mockResolvedValue({ mediaIds, overflowText: "o resto do texto que não coube em 10 slides..." });
+    await activeCarouselAutomation(seed, {
+      contentMode: "MANUAL",
+      manualCaption: "Legenda de um texto gigante",
+      visualText: "Texto gigantesco ".repeat(200),
+    });
+    const now = () => new Date("2026-09-23T20:00:00.000Z");
+
+    const [result] = await cron.runContentAutomationCron({ now });
+    expect(result.status).toBe("WAITING_APPROVAL");
+
+    const runRow = (await db.sql`select * from automation_runs`)[0];
+    const items = await db.sql`select media_id from instagram_post_items where post_id = ${runRow.publication_id}`;
+    expect(items.length).toBe(10);
+  });
+
+  it("rejeita (com backoff) quando o texto só dá para menos slides do que o mínimo de um carrossel", async () => {
+    const seed = await seedUserWithAccount(db);
+    const [onlyMedia] = await seedRenderedCarouselMedia(seed, 1, "curto-demais");
+    fakeRenderAndStoreAutomationCarousel.mockResolvedValue({ mediaIds: [onlyMedia], overflowText: null });
+    await activeCarouselAutomation(seed, {
+      contentMode: "MANUAL",
+      manualCaption: "Legenda de um texto curto demais",
+      visualText: "Texto curto",
+    });
+    const now = () => new Date("2026-09-23T20:00:00.000Z");
+
+    const [result] = await cron.runContentAutomationCron({ now });
+    expect(result.status).toBe("PENDING");
+    expect(result.error).toMatch(/pelo menos 2/);
+
+    const [runRow] = await db.sql`select * from automation_runs`;
+    expect(runRow.status).toBe("PENDING");
+    expect(runRow.publication_id).toBeNull();
+  });
+
+  it("não deixa ativar um dia CAROUSEL quando a automação não usa imageMode AUTO_TEMPLATE", async () => {
+    const seed = await seedUserWithAccount(db);
+    const automationId = await repo.createAutomation({
+      userId: seed.userId,
+      instagramAccountId: seed.accountId,
+      name: "Carrossel sem AUTO_TEMPLATE",
+      description: "",
+      timezone: "America/Sao_Paulo",
+      brandContext: "",
+      autoPublish: false,
+      requireApproval: true,
+      generationLeadMinutes: 120,
+      imageMode: "FIXED_IMAGE",
+      fixedImageMediaId: seed.mediaId,
+      videoSelection: "FIXED",
+      fixedVideoMediaId: seed.videoId,
+    });
+    await repo.updateAutomationDay(automationId, seed.userId, "WEDNESDAY" as never, {
+      enabled: true,
+      contentType: "CAROUSEL",
+      contentMode: "MANUAL",
+      manualCaption: "Legenda qualquer",
+      visualText: "Texto qualquer",
+    });
+
+    await expect(service.activateAutomation(automationId, seed.userId)).rejects.toThrow(/AUTO_TEMPLATE/);
+  });
+
+  it("não deixa ativar um dia CAROUSEL manual sem o texto visual, mesmo com legenda preenchida", async () => {
+    const seed = await seedUserWithAccount(db);
+    const automationId = await repo.createAutomation({
+      userId: seed.userId,
+      instagramAccountId: seed.accountId,
+      name: "Carrossel incompleto",
+      description: "",
+      timezone: "America/Sao_Paulo",
+      brandContext: "",
+      autoPublish: false,
+      requireApproval: true,
+      generationLeadMinutes: 120,
+      imageMode: "AUTO_TEMPLATE",
+      fixedImageMediaId: seed.mediaId,
+      videoSelection: "FIXED",
+      fixedVideoMediaId: seed.videoId,
+    });
+    await repo.updateAutomationDay(automationId, seed.userId, "WEDNESDAY" as never, {
+      enabled: true,
+      contentType: "CAROUSEL",
+      contentMode: "MANUAL",
+      manualCaption: "Legenda preenchida normalmente.",
+      visualText: "",
+    });
+
+    await expect(service.activateAutomation(automationId, seed.userId)).rejects.toThrow(/texto.*imagem/i);
   });
 });
 

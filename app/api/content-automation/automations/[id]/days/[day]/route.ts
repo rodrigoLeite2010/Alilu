@@ -46,6 +46,7 @@ export async function PATCH(request: Request, { params }: RouteParams): Promise<
     templateId,
     styleConfig,
     overlayOpacity,
+    visualTextColor,
     imageMediaId,
     videoMediaId,
   } = body as Record<string, unknown>;
@@ -67,6 +68,7 @@ export async function PATCH(request: Request, { params }: RouteParams): Promise<
             ? (styleConfig as Record<string, unknown>)
             : undefined,
       overlayOpacity: overlayOpacity === null ? null : typeof overlayOpacity === "number" ? overlayOpacity : undefined,
+      visualTextColor: visualTextColor === null ? null : typeof visualTextColor === "string" ? visualTextColor : undefined,
       imageMediaId: imageMediaId === null ? null : typeof imageMediaId === "string" ? imageMediaId : undefined,
       videoMediaId: videoMediaId === null ? null : typeof videoMediaId === "string" ? videoMediaId : undefined,
     });

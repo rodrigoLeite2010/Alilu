@@ -3,22 +3,21 @@ import { auth } from "@/auth";
 import { getInstagramMediaById } from "@/lib/instagram/backend/media-repository";
 import { isPostTemplateId } from "@/lib/instagram/templates";
 import {
-  renderAutomationArtBuffer,
+  renderAutomationCarouselBuffers,
   TemplateRenderError,
   AUTO_TEMPLATE_OVERLAY_LEVELS,
 } from "@/lib/instagram/backend/template-render-service";
 import { isValidHexColor } from "@/lib/instagram/colors";
+import { MAX_CAROUSEL_ITEMS } from "@/lib/instagram/backend/instagram-post-service";
 
 /**
  * POST `{ imageMediaId, templateId, visualText, overlayOpacity, visualTextColor }`:
- * gera uma prévia da arte do Piloto Automático (modo AUTO_TEMPLATE) SEM
- * gravar nada — nem no Blob, nem em instagram_media, nem numa execução.
- * Chama exatamente o mesmo motor de desenho usado na geração real
- * (renderAutomationArtBuffer), então o preview nunca diverge do
- * resultado final (Parte 8 do briefing: "o preview deve representar
- * fielmente o resultado final"). Usado tanto no assistente de criação
- * (automação ainda não existe) quanto na edição — por isso não depende
- * de um automationId, só da posse da imagem.
+ * gera uma prévia do CARROSSEL do Piloto Automático (modo AUTO_TEMPLATE)
+ * SEM gravar nada — nem no Blob, nem em instagram_media, nem numa
+ * execução. Mesmo motor de divisão/desenho usado na geração real
+ * (renderAutomationCarouselBuffers), então o preview nunca diverge do
+ * resultado final — mesmo princípio de preview-art/route.ts, só que
+ * devolvendo um array de imagens (um por slide) em vez de uma só.
  */
 export async function POST(request: Request): Promise<NextResponse> {
   const session = await auth();
@@ -39,7 +38,7 @@ export async function POST(request: Request): Promise<NextResponse> {
     return NextResponse.json({ error: "imageMediaId é obrigatório." }, { status: 400 });
   }
   if (typeof visualText !== "string" || !visualText.trim()) {
-    return NextResponse.json({ error: "Escreva o texto que vai sobre a imagem antes de pré-visualizar." }, { status: 400 });
+    return NextResponse.json({ error: "Escreva o texto do carrossel antes de pré-visualizar." }, { status: 400 });
   }
   const safeTemplateId = templateId === null || templateId === undefined
     ? null
@@ -72,45 +71,28 @@ export async function POST(request: Request): Promise<NextResponse> {
   }
 
   try {
-    const {
-      buffer,
-      contentType,
-      templateIdUsed,
-      sourceWidth,
-      sourceHeight,
-      finalWidth,
-      finalHeight,
-      jpegQuality,
-      renderVersion,
-    } = await renderAutomationArtBuffer({
+    const { slides, overflowText } = await renderAutomationCarouselBuffers({
       templateId: safeTemplateId,
       styleConfig: null,
       sourceImageUrl: media.storageUrl,
       visualText: visualText.trim(),
       overlayOpacity: safeOverlayOpacity,
       visualTextColor: safeVisualTextColor,
+      maxSlides: MAX_CAROUSEL_ITEMS,
     });
-    const dataUrl = `data:${contentType};base64,${buffer.toString("base64")}`;
     return NextResponse.json(
       {
-        dataUrl,
-        meta: {
-          templateIdUsed,
-          sourceWidth,
-          sourceHeight,
-          finalWidth,
-          finalHeight,
-          jpegQuality,
-          renderVersion,
-          fileSizeBytes: buffer.byteLength,
-          visualTextLength: visualText.trim().length,
-        },
+        slides: slides.map((slide) => ({
+          dataUrl: `data:${slide.contentType};base64,${slide.buffer.toString("base64")}`,
+          text: slide.text,
+        })),
+        overflowText,
       },
       { headers: { "Cache-Control": "no-store" } },
     );
   } catch (error) {
-    console.error("[content-automation/media/preview-art] falha ao renderizar prévia", error);
-    const message = error instanceof TemplateRenderError ? error.message : "Não foi possível gerar a prévia da arte.";
+    console.error("[content-automation/media/preview-carousel-art] falha ao renderizar prévia", error);
+    const message = error instanceof TemplateRenderError ? error.message : "Não foi possível gerar a prévia do carrossel.";
     return NextResponse.json({ error: message }, { status: 400 });
   }
 }

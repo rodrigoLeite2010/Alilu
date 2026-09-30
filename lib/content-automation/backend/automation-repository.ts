@@ -82,6 +82,7 @@ function mapDayRow(row: Record<string, unknown>): AutomationDayRecord {
     templateId: (row.template_id as string | null) ?? null,
     styleConfig,
     overlayOpacity: row.overlay_opacity === null || row.overlay_opacity === undefined ? null : Number(row.overlay_opacity),
+    visualTextColor: (row.visual_text_color as string | null) ?? null,
     imageMediaId: (row.image_media_id as string | null) ?? null,
     videoMediaId: (row.video_media_id as string | null) ?? null,
   };
@@ -241,6 +242,7 @@ export interface UpdateAutomationDayInput {
   templateId?: string | null;
   styleConfig?: Record<string, unknown> | null;
   overlayOpacity?: number | null;
+  visualTextColor?: string | null;
   imageMediaId?: string | null;
   videoMediaId?: string | null;
 }
@@ -274,6 +276,8 @@ export async function updateAutomationDay(
     patch.overlayOpacity === undefined
       ? (current.overlay_opacity === null || current.overlay_opacity === undefined ? null : Number(current.overlay_opacity))
       : patch.overlayOpacity;
+  const visualTextColor =
+    patch.visualTextColor === undefined ? ((current.visual_text_color as string | null) ?? null) : patch.visualTextColor;
   const styleConfig =
     patch.styleConfig === undefined
       ? (current.style_config as string | Record<string, unknown> | null)
@@ -294,7 +298,8 @@ export async function updateAutomationDay(
     update content_automation_days set
       enabled = ${enabled}, content_type = ${contentType}, content_mode = ${contentMode},
       prompt = ${prompt}, manual_caption = ${manualCaption}, visual_text = ${visualText}, publish_time = ${publishTime},
-      template_id = ${templateId}, style_config = ${styleConfigJson}, overlay_opacity = ${overlayOpacity}, image_media_id = ${imageMediaId},
+      template_id = ${templateId}, style_config = ${styleConfigJson}, overlay_opacity = ${overlayOpacity},
+      visual_text_color = ${visualTextColor}, image_media_id = ${imageMediaId},
       video_media_id = ${videoMediaId}, updated_at = now()
     where automation_id = ${automationId} and day_of_week = ${dayOfWeek}
   `;
@@ -376,6 +381,7 @@ export async function duplicateAutomation(id: string, userId: string, newName: s
       templateId: day.templateId,
       styleConfig: day.styleConfig,
       overlayOpacity: day.overlayOpacity,
+      visualTextColor: day.visualTextColor,
       imageMediaId: day.imageMediaId,
       videoMediaId: day.videoMediaId,
     });

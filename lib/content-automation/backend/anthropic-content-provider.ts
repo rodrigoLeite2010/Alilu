@@ -153,8 +153,11 @@ export class AnthropicContentProvider implements AIContentProvider {
   async generatePost(
     input: GeneratePostContentInput,
   ): Promise<{ content: GeneratedPostContent; usage: AIGenerationUsage }> {
+    const visualTextIsLong = input.includeVisualText && input.visualTextMode === "LONG";
     const visualTextField = input.includeVisualText
-      ? ', "visualText": string (frase BEM curta e de impacto, até 80 caracteres, sem hashtags e sem emojis, para ser desenhada em cima da imagem — diferente da legenda)'
+      ? visualTextIsLong
+        ? ', "visualText": string (texto mais longo — de 3 a 8 frases, pode ter mais de um parágrafo separado por uma linha em branco — para ser desenhado em várias imagens de um carrossel, uma frase/ideia por slide; sem hashtags e sem emojis; diferente da legenda)'
+        : ', "visualText": string (frase BEM curta e de impacto, até 80 caracteres, sem hashtags e sem emojis, para ser desenhada em cima da imagem — diferente da legenda)'
       : "";
     const prompt = [
       ...dayOfWeekPromptLines(input.dayOfWeekLabel),
@@ -177,7 +180,7 @@ export class AnthropicContentProvider implements AIContentProvider {
       hashtags: asStringArray(json.hashtags),
       cta: asString(json.cta),
       visualDescription: asString(json.visualDescription),
-      visualText: input.includeVisualText ? asString(json.visualText).slice(0, 80) : undefined,
+      visualText: input.includeVisualText ? asString(json.visualText).slice(0, visualTextIsLong ? 4000 : 80) : undefined,
     };
     if (!content.caption) {
       throw new AIProviderRequestError("A IA não gerou uma legenda válida.");

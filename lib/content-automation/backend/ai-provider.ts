@@ -32,12 +32,20 @@ export interface GeneratePostContentInput {
   /** Assuntos/legendas recentes a evitar repetir (seção 21). */
   avoidTopics: string[];
   /**
-   * Quando true, pede também um texto curto para desenhar sobre a imagem
-   * (modo de imagem AUTO_TEMPLATE — ver template-render-service.ts),
-   * numa única chamada em vez de duas. `false`/ausente preserva o
+   * Quando true, pede também um texto para desenhar sobre a imagem (modo
+   * de imagem AUTO_TEMPLATE — ver template-render-service.ts), numa
+   * única chamada em vez de duas. `false`/ausente preserva o
    * comportamento histórico (só legenda).
    */
   includeVisualText?: boolean;
+  /**
+   * Só relevante com `includeVisualText: true`. "SHORT" (padrão, POST —
+   * uma imagem só): frase de até 80 caracteres. "LONG" (CAROUSEL): texto
+   * mais longo — várias frases/parágrafos — pensado para ser dividido em
+   * vários slides depois (ver splitAutomationVisualText,
+   * template-render-service.ts), não para caber numa imagem só.
+   */
+  visualTextMode?: "SHORT" | "LONG";
 }
 
 export interface GeneratedPostContent {
@@ -48,9 +56,10 @@ export interface GeneratedPostContent {
   /** Descrição do visual sugerido — informativo hoje (a arte final usa a imagem fixa/biblioteca configurada, ver docs/content-automation.md). */
   visualDescription: string;
   /**
-   * Frase curta para desenhar sobre a imagem (modo AUTO_TEMPLATE), gerada
-   * só quando `includeVisualText` foi pedido — `undefined` caso
-   * contrário, nunca usado como legenda.
+   * Texto para desenhar sobre a imagem (modo AUTO_TEMPLATE), gerado só
+   * quando `includeVisualText` foi pedido — curto (POST) ou longo
+   * (CAROUSEL, conforme `visualTextMode`) — `undefined` caso contrário,
+   * nunca usado como legenda.
    */
   visualText?: string;
 }

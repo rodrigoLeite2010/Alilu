@@ -69,6 +69,7 @@ const nextConfig: NextConfig = {
     // null, só loga um console.error) — o texto voltaria a não aparecer
     // mesmo com o código correto.
     "**/api/content-automation/media/preview-art": ["./lib/instagram/backend/fonts/*.ttf"],
+    "**/api/content-automation/media/preview-carousel-art": ["./lib/instagram/backend/fonts/*.ttf"],
     "**/api/cron/content-automation": ["./lib/instagram/backend/fonts/*.ttf"],
   },
 

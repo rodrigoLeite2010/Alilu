@@ -36,7 +36,13 @@ export const DAY_OF_WEEK_LABEL: Record<DayOfWeek, string> = {
   SUNDAY: "Domingo",
 };
 
-export type AutomationContentType = "POST" | "REEL";
+export type AutomationContentType = "POST" | "REEL" | "CAROUSEL";
+
+/** Tamanho máximo do texto desenhado sobre a imagem de um POST (cabe numa arte só) — compartilhado entre a validação do serviço e o formulário (WeekDayEditor). */
+export const MAX_VISUAL_TEXT_LENGTH = 120;
+
+/** Tamanho máximo do texto de um CAROUSEL — bem maior que o de POST, porque é dividido em vários slides (generateSlidesFromText, mesmo motor do Carrossel automático manual) em vez de precisar caber numa imagem só. */
+export const MAX_CAROUSEL_VISUAL_TEXT_LENGTH = 4000;
 
 /**
  * Como a legenda de um dia é definida: "AI" (padrão histórico) chama o
@@ -67,16 +73,25 @@ export interface AutomationDayRecord {
   automationId: string;
   dayOfWeek: DayOfWeek;
   enabled: boolean;
+  /**
+   * "CAROUSEL" só é válido quando a automação usa imageMode =
+   * "AUTO_TEMPLATE": em vez de desenhar UMA imagem, o texto visual
+   * (mais longo que o de POST) é dividido em vários slides com o MESMO
+   * motor do Carrossel automático manual (generateSlidesFromText) e
+   * publicado como carrossel de verdade (createDraftCarouselPost).
+   */
   contentType: AutomationContentType;
   contentMode: AutomationContentMode;
   prompt: string;
   /** Legenda final, usada tal como está quando contentMode = "MANUAL" (ignorado em modo "AI"). */
   manualCaption: string | null;
   /**
-   * Frase curta desenhada sobre a imagem quando imageMode = "AUTO_TEMPLATE"
-   * e contentMode = "MANUAL" (ver template-render-service.ts). Em modo
-   * "AI" o texto visual é gerado a cada execução e nunca fica salvo aqui
-   * — este campo é ignorado nesse caso.
+   * Texto desenhado sobre a imagem quando imageMode = "AUTO_TEMPLATE" e
+   * contentMode = "MANUAL" (ver template-render-service.ts) — usado tal
+   * como está em POST (frase curta) e CAROUSEL (texto mais longo,
+   * dividido em slides na hora de gerar). Em modo "AI" o texto visual é
+   * gerado a cada execução e nunca fica salvo aqui — este campo é
+   * ignorado nesse caso.
    */
   visualText: string | null;
   publishTime: string; // "HH:mm"
@@ -89,6 +104,14 @@ export interface AutomationDayRecord {
    * `null` usa o padrão (20%).
    */
   overlayOpacity: number | null;
+  /**
+   * Cor (hex, "#rrggbb") do texto desenhado sobre a imagem quando
+   * imageMode = "AUTO_TEMPLATE" (POST ou CAROUSEL) — ver
+   * template-render-service.ts. `null` usa o padrão (branco, "#ffffff"),
+   * mesma cor que o template "frase-motivacional" já usa por padrão no
+   * editor manual.
+   */
+  visualTextColor: string | null;
   imageMediaId: string | null;
   videoMediaId: string | null;
 }

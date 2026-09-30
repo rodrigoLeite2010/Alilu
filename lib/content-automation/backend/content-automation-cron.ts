@@ -13,8 +13,9 @@ import {
 import { zonedToday, publishInstantUtc, isDueForGeneration } from "./automation-time";
 import { generatePostContentForRun, generateReelContentForRun } from "./content-generation-service";
 import { getInstagramMediaById, type InstagramMediaRecord } from "@/lib/instagram/backend/media-repository";
-import { createDraftImagePost, createDraftReelPost } from "@/lib/instagram/backend/instagram-post-repository";
-import { renderAndStoreAutomationArt } from "@/lib/instagram/backend/template-render-service";
+import { createDraftImagePost, createDraftReelPost, createDraftCarouselPost } from "@/lib/instagram/backend/instagram-post-repository";
+import { MIN_CAROUSEL_ITEMS, MAX_CAROUSEL_ITEMS } from "@/lib/instagram/backend/instagram-post-service";
+import { renderAndStoreAutomationArt, renderAndStoreAutomationCarousel } from "@/lib/instagram/backend/template-render-service";
 import type { AutomationDayRecord, AutomationRecord, AutomationRunStatus } from "./automation-types";
 
 /**
@@ -118,7 +119,7 @@ async function resolveCaptionForRun(
   automation: AutomationRecord,
   day: AutomationDayRecord,
   runId: string,
-  kind: "POST" | "REEL" = "POST",
+  kind: "POST" | "REEL" | "CAROUSEL" = "POST",
   needsVisualText = false,
 ): Promise<{ caption: string; visualText: string | null }> {
   if (day.contentMode === "MANUAL") {
@@ -132,7 +133,9 @@ async function resolveCaptionForRun(
     const visualText = day.visualText?.trim();
     if (!visualText) {
       throw new ContentAutomationConfigError(
-        "Modo manual selecionado, mas nenhum texto foi escrito para a imagem deste dia.",
+        kind === "CAROUSEL"
+          ? "Modo manual selecionado, mas nenhum texto foi escrito para o carrossel deste dia."
+          : "Modo manual selecionado, mas nenhum texto foi escrito para a imagem deste dia.",
       );
     }
     return { caption: manualCaption, visualText };
@@ -141,7 +144,13 @@ async function resolveCaptionForRun(
     const generated = await generateReelContentForRun(automation, day, runId);
     return { caption: generated.caption, visualText: null };
   }
-  const generated = await generatePostContentForRun(automation, day, runId, { includeVisualText: needsVisualText });
+  // CAROUSEL pede um texto BEM mais longo (visualTextMode: "LONG") do que
+  // POST — ver anthropic-content-provider.ts — porque vai ser dividido em
+  // vários slides (splitAutomationVisualText), não caber numa imagem só.
+  const generated = await generatePostContentForRun(automation, day, runId, {
+    includeVisualText: needsVisualText,
+    visualTextMode: kind === "CAROUSEL" ? "LONG" : "SHORT",
+  });
   return { caption: generated.caption, visualText: needsVisualText ? (generated.visualText ?? null) : null };
 }
 
@@ -201,6 +210,76 @@ async function generateAndCreatePublication(
       userId: automation.userId,
       instagramAccountId: automation.instagramAccountId,
       mediaId,
+      caption,
+      scheduledAtUtc,
+      timezone: automation.timezone,
+      source: "AUTOMATION",
+    });
+    return { publicationId, status: willAutoPublish ? "SCHEDULED" : "WAITING_APPROVAL" };
+  }
+
+  if (day.contentType === "CAROUSEL") {
+    // Validado na ativação (automation-service.ts: assertReadyToActivate)
+    // que CAROUSEL só é permitido com imageMode = AUTO_TEMPLATE — confere
+    // de novo aqui, mesma defesa em profundidade já usada para POST.
+    if (automation.imageMode !== "AUTO_TEMPLATE") {
+      throw new ContentAutomationConfigError(
+        "Este dia está configurado como Carrossel, mas a automação não usa o modo de imagem AUTO_TEMPLATE.",
+      );
+    }
+    const sourceMedia = await resolveImageMediaId(automation, day);
+    const { caption, visualText } = await resolveCaptionForRun(automation, day, runId, "CAROUSEL", true);
+    if (!visualText) {
+      throw new ContentAutomationConfigError("Não foi possível obter o texto do carrossel deste dia.");
+    }
+
+    console.info("[content-automation-cron] conteúdo resolvido para a execução (carrossel)", {
+      automationId: automation.id,
+      automationDayId: day.id,
+      runId,
+      dayOfWeek: day.dayOfWeek,
+      publishDateUtc: publishAtUtc.toISOString(),
+      templateId: day.templateId,
+      contentMode: day.contentMode,
+      visualTextLength: visualText.length,
+      captionReceived: Boolean(caption),
+    });
+
+    const { mediaIds, overflowText } = await renderAndStoreAutomationCarousel({
+      userId: automation.userId,
+      templateId: day.templateId,
+      styleConfig: day.styleConfig,
+      sourceImageUrl: sourceMedia.storageUrl,
+      sourceMediaId: sourceMedia.id,
+      visualText,
+      overlayOpacity: day.overlayOpacity,
+      visualTextColor: day.visualTextColor,
+      maxSlides: MAX_CAROUSEL_ITEMS,
+      automationRunId: runId,
+    });
+    if (overflowText) {
+      // Nunca falha o run por causa disso — só loga, mesma filosofia do
+      // Carrossel automático manual ("nunca cortar e perder o texto
+      // silenciosamente", mas aqui não há tela pra mostrar um aviso, só o
+      // carrossel com o que coube em MAX_CAROUSEL_ITEMS slides).
+      console.info("[content-automation-cron] texto do carrossel excedeu o limite de slides — parte não publicada", {
+        automationId: automation.id,
+        automationDayId: day.id,
+        runId,
+        maxSlides: MAX_CAROUSEL_ITEMS,
+        overflowTextLength: overflowText.length,
+      });
+    }
+    if (mediaIds.length < MIN_CAROUSEL_ITEMS) {
+      throw new ContentAutomationConfigError(
+        `O texto do carrossel deste dia só deu para ${mediaIds.length} slide${mediaIds.length === 1 ? "" : "s"} — um carrossel precisa de pelo menos ${MIN_CAROUSEL_ITEMS}. Escreva um texto mais longo.`,
+      );
+    }
+
+    const publicationId = await createDraftCarouselPost({
+      userId: automation.userId,
+      instagramAccountId: automation.instagramAccountId,
+      mediaIds,
       caption,
       scheduledAtUtc,
       timezone: automation.timezone,

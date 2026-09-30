@@ -131,6 +131,7 @@ export function AutomationEditor({
             visualText: day.visualText,
             templateId: day.templateId,
             overlayOpacity: day.overlayOpacity,
+            visualTextColor: day.visualTextColor,
             publishTime: day.publishTime,
             imageMediaId: day.imageMediaId,
             videoMediaId: day.videoMediaId,
@@ -186,7 +187,7 @@ export function AutomationEditor({
     }
   }
 
-  const needsImage = days.some((day) => day.enabled && day.contentType === "POST");
+  const needsImage = days.some((day) => day.enabled && (day.contentType === "POST" || day.contentType === "CAROUSEL"));
   const needsVideo = days.some((day) => day.enabled && day.contentType === "REEL");
 
   return (

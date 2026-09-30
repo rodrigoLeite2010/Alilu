@@ -1,6 +1,7 @@
 import "server-only";
 import { isValidTimeZone } from "@/lib/instagram/schedule-time";
 import { isPostTemplateId } from "@/lib/instagram/templates";
+import { isValidHexColor } from "@/lib/instagram/colors";
 import { getInstagramAccountByIdForUser } from "@/lib/instagram/backend/instagram-account-repository";
 import { getInstagramMediaById } from "@/lib/instagram/backend/media-repository";
 import {
@@ -30,6 +31,8 @@ import {
 import { publishInstantUtc, zonedToday } from "./automation-time";
 import {
   DAYS_OF_WEEK,
+  MAX_VISUAL_TEXT_LENGTH,
+  MAX_CAROUSEL_VISUAL_TEXT_LENGTH,
   type AutomationContentMode,
   type AutomationContentType,
   type AutomationWithDays,
@@ -66,8 +69,9 @@ const MAX_BRAND_CONTEXT_LENGTH = 2000;
 const MAX_PROMPT_LENGTH = 800;
 /** Mesmo limite de legenda da Meta usado em todo o resto do projeto (ver instagram-post-service.ts). */
 const MAX_MANUAL_CAPTION_LENGTH = 2200;
-/** Texto curto desenhado sobre a imagem (modo AUTO_TEMPLATE) — bem menor que a legenda, para não ficar ilegível no template. */
-const MAX_VISUAL_TEXT_LENGTH = 120;
+// MAX_VISUAL_TEXT_LENGTH e MAX_CAROUSEL_VISUAL_TEXT_LENGTH agora vêm de
+// automation-types.ts — compartilhados com o formulário (WeekDayEditor),
+// que não pode importar este módulo "server-only".
 /** Mesmos níveis de AUTO_TEMPLATE_OVERLAY_LEVELS (template-render-service.ts) — duplicado aqui só como literal para não puxar @napi-rs/canvas nesta camada de validação. */
 const ALLOWED_OVERLAY_OPACITY_LEVELS = [0, 0.1, 0.2, 0.3, 0.4];
 const PUBLISH_TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
@@ -224,6 +228,8 @@ export interface UpdateDayServiceInput {
   styleConfig?: Record<string, unknown> | null;
   /** Véu (0/0.1/0.2/0.3/0.4) sobre a foto quando imageMode = "AUTO_TEMPLATE". null usa o padrão (20%). */
   overlayOpacity?: number | null;
+  /** Cor (hex "#rrggbb") do texto sobre a imagem quando imageMode = "AUTO_TEMPLATE". null usa o padrão (branco). */
+  visualTextColor?: string | null;
   imageMediaId?: string | null;
   videoMediaId?: string | null;
 }
@@ -256,8 +262,15 @@ export async function updateAutomationDay(
   }
   if (input.visualText !== undefined) {
     const trimmed = input.visualText === null ? null : input.visualText.trim();
-    if (trimmed && trimmed.length > MAX_VISUAL_TEXT_LENGTH) {
-      throw new AutomationValidationError(`O texto sobre a imagem pode ter no máximo ${MAX_VISUAL_TEXT_LENGTH} caracteres.`);
+    // CAROUSEL divide o texto em vários slides (generateSlidesFromText),
+    // então aceita um texto bem mais longo que POST (uma imagem só). O
+    // patch sempre chega com os dois campos juntos nesta tela (ver
+    // AutomationEditor.tsx/AutomationWizard.tsx — salvam o dia inteiro de
+    // uma vez), então input.contentType já reflete o tipo efetivo deste
+    // dia quando visualText também está sendo validado.
+    const effectiveMaxLength = input.contentType === "CAROUSEL" ? MAX_CAROUSEL_VISUAL_TEXT_LENGTH : MAX_VISUAL_TEXT_LENGTH;
+    if (trimmed && trimmed.length > effectiveMaxLength) {
+      throw new AutomationValidationError(`O texto sobre a imagem pode ter no máximo ${effectiveMaxLength} caracteres.`);
     }
     patch.visualText = trimmed;
   }
@@ -278,6 +291,12 @@ export async function updateAutomationDay(
       throw new AutomationValidationError("Nível de véu sobre a imagem inválido.");
     }
     patch.overlayOpacity = input.overlayOpacity;
+  }
+  if (input.visualTextColor !== undefined) {
+    if (input.visualTextColor !== null && !isValidHexColor(input.visualTextColor)) {
+      throw new AutomationValidationError("Cor do texto inválida — use um código hexadecimal (ex.: #ffffff).");
+    }
+    patch.visualTextColor = input.visualTextColor;
   }
   if (input.publishTime !== undefined) {
     if (!PUBLISH_TIME_RE.test(input.publishTime)) throw new AutomationValidationError("Horário inválido (use HH:mm).");
@@ -301,19 +320,25 @@ function assertReadyToActivate(automation: AutomationWithDays): void {
     throw new AutomationValidationError("Habilite pelo menos um dia da semana antes de ativar.");
   }
   for (const day of enabledDays) {
+    if (day.contentType === "CAROUSEL" && automation.imageMode !== "AUTO_TEMPLATE") {
+      throw new AutomationValidationError(
+        `${day.dayOfWeek.toLowerCase()} está configurado como Carrossel, mas isso só funciona com o modo de imagem "Gerar com IA sobre a imagem" (AUTO_TEMPLATE) — mude o modo de imagem da automação ou o tipo de conteúdo deste dia.`,
+      );
+    }
+    const needsVisualText = automation.imageMode === "AUTO_TEMPLATE" && (day.contentType === "POST" || day.contentType === "CAROUSEL");
     if (day.contentMode === "MANUAL") {
       if (!day.manualCaption?.trim()) {
         throw new AutomationValidationError(`Escreva a legenda manual de ${day.dayOfWeek.toLowerCase()} antes de ativar.`);
       }
-      if (automation.imageMode === "AUTO_TEMPLATE" && day.contentType === "POST" && !day.visualText?.trim()) {
+      if (needsVisualText && !day.visualText?.trim()) {
         throw new AutomationValidationError(`Escreva o texto que vai sobre a imagem de ${day.dayOfWeek.toLowerCase()} antes de ativar.`);
       }
     } else if (!day.prompt.trim()) {
       throw new AutomationValidationError(`Defina o que publicar em ${day.dayOfWeek.toLowerCase()} antes de ativar.`);
     }
-    if (day.contentType === "POST") {
+    if (day.contentType === "POST" || day.contentType === "CAROUSEL") {
       if (!(day.imageMediaId ?? automation.fixedImageMediaId)) {
-        throw new AutomationValidationError(`Defina uma imagem para o dia configurado como Post (${day.dayOfWeek.toLowerCase()}).`);
+        throw new AutomationValidationError(`Defina uma imagem para o dia configurado como ${day.contentType === "POST" ? "Post" : "Carrossel"} (${day.dayOfWeek.toLowerCase()}).`);
       }
     } else {
       if (!(day.videoMediaId ?? automation.fixedVideoMediaId)) {

@@ -17,6 +17,9 @@ import { getTemplateById, isPostTemplateId, TEXT_SLOT_IDS, type PostTemplateId, 
 import type { RenderableImage, RenderingContext2DLike } from "../render";
 import { insertInstagramMedia } from "./media-repository";
 import { computeCoverRect } from "../layout-math";
+import { isValidHexColor } from "../colors";
+import { fitTextBlock, resolveTextBlockBox, type TextBlockBox, type TextMeasurer } from "../carousel/text-fit";
+import { generateSlidesFromText } from "../carousel/generate-slides-from-text";
 
 /**
  * Renderização server-side do template do compositor (Piloto Automático,
@@ -128,73 +131,110 @@ function ensureAutomationFontsRegistered(): void {
   }
 }
 
-function wrapAutomationText(
-  ctx: RenderingContext2DLike,
-  text: string,
-  maxWidth: number
-): string[] {
-  const words = text.split(/\s+/).filter(Boolean);
-  if (words.length === 0) return [];
+/** Cor padrão do texto quando o dia não escolheu nenhuma — branco, igual ao default do template "frase-motivacional" (combo "midnight", ver lib/instagram/colors.ts) que o editor manual já usa. */
+export const AUTOMATION_DEFAULT_TEXT_COLOR = "#ffffff";
 
-  const lines: string[] = [];
-  let current = words[0];
-  for (const word of words.slice(1)) {
-    const candidate = `${current} ${word}`;
-    if (ctx.measureText(candidate).width <= maxWidth) {
-      current = candidate;
-    } else {
-      lines.push(current);
-      current = word;
-    }
-  }
-  lines.push(current);
-  return lines;
+/**
+ * Proporções do bloco de texto do Piloto Automático — as MESMAS para uma
+ * imagem única (POST) e para cada slide de um carrossel (CAROUSEL),
+ * porque `resolveAutomationTextBox` (abaixo) é usada tanto para desenhar
+ * quanto para PLANEJAR onde cortar um texto comprido em slides
+ * (splitAutomationVisualText/generateSlidesFromText) — exatamente o
+ * mesmo princípio de text-fit.ts/auto-carousel.ts para o Carrossel
+ * automático manual: o que o planejamento decide que "cabe" sempre bate
+ * com o que o desenho de verdade produz.
+ */
+const AUTOMATION_TEXT_MAX_WIDTH_FRAC = 0.78;
+const AUTOMATION_TEXT_FONT_SIZE_FRAC = 0.07;
+const AUTOMATION_TEXT_LINE_HEIGHT = 1.22;
+
+function resolveAutomationTextBox(format: PostFormat): TextBlockBox {
+  return resolveTextBlockBox({
+    maxWidthFrac: AUTOMATION_TEXT_MAX_WIDTH_FRAC,
+    fontSizeFrac: AUTOMATION_TEXT_FONT_SIZE_FRAC,
+    fontWeight: "bold",
+    lineHeight: AUTOMATION_TEXT_LINE_HEIGHT,
+    fontFamily: `"${AUTOMATION_FONT_FAMILY}"`,
+    canvasWidth: format.width,
+    canvasHeight: format.height,
+  });
 }
 
+/**
+ * Canvas pequeno, nunca desenhado, só para medir texto (`measureText`
+ * depende da fonte carregada no processo, não do tamanho do canvas) —
+ * usado para PLANEJAR a divisão em slides (splitAutomationVisualText)
+ * antes de desenhar de verdade cada um.
+ */
+function createAutomationTextMeasurer(): TextMeasurer {
+  ensureAutomationFontsRegistered();
+  const canvas = createCanvas(64, 64);
+  return canvas.getContext("2d") as unknown as TextMeasurer;
+}
+
+/**
+ * Divide um texto comprido nos pedaços que cabem em cada slide do
+ * Piloto Automático — MESMO motor (generateSlidesFromText) e MESMA
+ * prioridade de quebra (parágrafo > frase > palavra) do Carrossel
+ * automático manual (lib/instagram/carousel/auto-carousel.ts), só que
+ * medindo com a fonte embutida do servidor em vez de um <canvas> do
+ * navegador. `overflowText` nunca é descartado silenciosamente — quem
+ * chama decide o que fazer (o cron loga; a prévia mostra um aviso).
+ */
+export function splitAutomationVisualText(
+  visualText: string,
+  maxSlides: number
+): { slideTexts: string[]; overflowText: string | null } {
+  const format = getFormatById(AUTO_TEMPLATE_FORMAT_ID);
+  const box = resolveAutomationTextBox(format);
+  const measurer = createAutomationTextMeasurer();
+  const { slides, overflowText } = generateSlidesFromText(measurer, visualText.trim(), box, maxSlides);
+  return { slideTexts: slides, overflowText };
+}
+
+/**
+ * Desenha UM texto (a frase inteira de um POST, ou já o pedaço de um
+ * slide de CAROUSEL) sobre o canvas, encolhendo a fonte até caber
+ * (fitTextBlock — mesmo ajuste dinâmico de render.ts/drawTextSlots) e
+ * cortando com "…" só no caso extremo de nem no piso de legibilidade
+ * caber inteiro (nunca deveria acontecer: o texto de POST é curto, e
+ * cada slide de CAROUSEL já foi medido para caber por
+ * splitAutomationVisualText — fica como rede de segurança).
+ *
+ * SEM faixa/sombra atrás do texto (removida: bug relatado — a imagem já
+ * escura ficava com uma faixa preta extra em cima, redundante com o véu
+ * configurável, que já existe para legibilidade). A cor é escolhida pelo
+ * usuário (visualTextColor); branco é o padrão.
+ */
 function drawAutomationVisualText(
   ctx: RenderingContext2DLike,
   format: PostFormat,
-  visualText: string
+  visualText: string,
+  color: string | null | undefined
 ): void {
   const text = visualText.trim();
   if (!text) return;
 
-  const maxWidth = format.width * 0.78;
-  let fontSize = Math.round(Math.min(format.width, format.height) * 0.07);
-  let lineHeight = Math.round(fontSize * 1.22);
-  let lines: string[] = [];
+  const box = resolveAutomationTextBox(format);
+  const { lines, fontSizePx } = fitTextBlock(ctx as unknown as TextMeasurer, text, box);
+  const lineHeightPx = Math.round(fontSizePx * box.lineHeight);
 
-  while (fontSize >= 38) {
-    ctx.font = `bold ${fontSize}px "${AUTOMATION_FONT_FAMILY}"`;
-    lines = wrapAutomationText(ctx, text, maxWidth);
-    if (lines.length * lineHeight <= format.height * 0.34) break;
-    fontSize = Math.round(fontSize * 0.9);
-    lineHeight = Math.round(fontSize * 1.22);
-  }
+  const maxLines = Math.max(1, Math.floor(box.maxBlockHeightPx / lineHeightPx));
+  const finalLines =
+    lines.length > maxLines
+      ? [...lines.slice(0, maxLines - 1), `${lines[maxLines - 1].replace(/[.,;:!?…]*$/, "")}…`]
+      : lines;
 
-  const totalHeight = lines.length * lineHeight;
-  const startY = format.height * 0.5 - totalHeight / 2 + lineHeight / 2;
-  const bandPadding = Math.round(fontSize * 0.75);
-  const bandY = Math.max(format.height * 0.08, startY - lineHeight / 2 - bandPadding);
-  const bandHeight = Math.min(
-    format.height * 0.84 - bandY,
-    totalHeight + bandPadding * 2
-  );
+  const totalHeight = finalLines.length * lineHeightPx;
+  const startY = format.height * 0.5 - totalHeight / 2 + lineHeightPx / 2;
 
   ctx.save();
-  ctx.fillStyle = "rgba(0, 0, 0, 0.34)";
-  ctx.fillRect(0, bandY, format.width, bandHeight);
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  ctx.font = `bold ${fontSize}px "${AUTOMATION_FONT_FAMILY}"`;
-  ctx.fillStyle = "rgba(0, 0, 0, 0.42)";
-  for (const [index, line] of lines.entries()) {
-    const y = startY + index * lineHeight;
-    ctx.fillText(line, format.width * 0.5 + 4, y + 4);
-  }
-  ctx.fillStyle = "#ffffff";
-  for (const [index, line] of lines.entries()) {
-    ctx.fillText(line, format.width * 0.5, startY + index * lineHeight);
+  ctx.font = `bold ${fontSizePx}px "${AUTOMATION_FONT_FAMILY}"`;
+  ctx.fillStyle = color && isValidHexColor(color) ? color : AUTOMATION_DEFAULT_TEXT_COLOR;
+  for (const [index, line] of finalLines.entries()) {
+    ctx.fillText(line, format.width * 0.5, startY + index * lineHeightPx);
   }
   ctx.restore();
 }
@@ -263,6 +303,8 @@ export interface RenderAutomationArtInput {
    * (20%, AUTO_TEMPLATE_DEFAULT_OVERLAY_OPACITY).
    */
   overlayOpacity?: number | null;
+  /** Cor (hex "#rrggbb") do texto — `undefined`/`null` usa o padrão (branco, AUTOMATION_DEFAULT_TEXT_COLOR). */
+  visualTextColor?: string | null;
   /** Id da execução (automation_runs), só para rastreabilidade. */
   automationRunId: string | null;
 }
@@ -315,7 +357,7 @@ export function buildAutomationArtState(
  * resultado final).
  */
 export async function renderAutomationArtBuffer(
-  input: Pick<RenderAutomationArtInput, "templateId" | "styleConfig" | "sourceImageUrl" | "visualText" | "overlayOpacity">
+  input: Pick<RenderAutomationArtInput, "templateId" | "styleConfig" | "sourceImageUrl" | "visualText" | "overlayOpacity" | "visualTextColor">
 ): Promise<RenderedAutomationArt> {
   ensureAutomationFontsRegistered();
   const format = getFormatById(AUTO_TEMPLATE_FORMAT_ID);
@@ -334,7 +376,7 @@ export async function renderAutomationArtBuffer(
   const ctx = canvas.getContext("2d");
   const renderContext = ctx as unknown as RenderingContext2DLike;
   drawAutomationBackground(renderContext, format, sourceImage as unknown as RenderableImage, input.overlayOpacity);
-  drawAutomationVisualText(renderContext, format, input.visualText);
+  drawAutomationVisualText(renderContext, format, input.visualText, input.visualTextColor);
 
   const buffer = canvas.toBuffer("image/jpeg", AUTO_TEMPLATE_JPEG_QUALITY);
   return {
@@ -380,6 +422,7 @@ export async function renderAndStoreAutomationArt(input: RenderAutomationArtInpu
     fileSizeBytes: buffer.byteLength,
     templateIdUsed,
     overlayOpacity: input.overlayOpacity ?? AUTO_TEMPLATE_DEFAULT_OVERLAY_OPACITY,
+    visualTextColor: input.visualTextColor ?? AUTOMATION_DEFAULT_TEXT_COLOR,
     visualTextLength: input.visualText.length,
     renderedMediaUrl: blob.url,
   });
@@ -393,4 +436,156 @@ export async function renderAndStoreAutomationArt(input: RenderAutomationArtInpu
     generatedFromMediaId: input.sourceMediaId,
     automationRunId: input.automationRunId,
   });
+}
+
+
+/**
+ * Entrada de renderAutomationCarouselBuffers/renderAndStoreAutomationCarousel
+ * — igual a RenderAutomationArtInput, mas `visualText` é o texto INTEIRO
+ * colado/gerado (não um slide já pronto) e `maxSlides` é obrigatório:
+ * quem chama decide o teto (o cron usa MAX_CAROUSEL_ITEMS da Meta, 10; a
+ * prévia pode usar um valor menor pra ficar rápida).
+ */
+export interface RenderAutomationCarouselInput {
+  templateId: string | null;
+  styleConfig: Record<string, unknown> | null;
+  sourceImageUrl: string;
+  visualText: string;
+  overlayOpacity?: number | null;
+  visualTextColor?: string | null;
+  maxSlides: number;
+}
+
+export interface RenderedAutomationCarouselSlide extends RenderedAutomationArt {
+  /** O pedaço de texto deste slide (depois de splitAutomationVisualText). */
+  text: string;
+}
+
+export interface RenderedAutomationCarousel {
+  /** Um item por slide, já na ordem de publicação. */
+  slides: RenderedAutomationCarouselSlide[];
+  /**
+   * Texto que sobrou por ultrapassar `maxSlides` — `null` quando tudo
+   * coube. Nunca descartado silenciosamente (mesma garantia do Carrossel
+   * automático manual) — quem chama decide o que fazer (o cron só loga;
+   * a rota de prévia devolve para a tela mostrar um aviso).
+   */
+  overflowText: string | null;
+}
+
+/**
+ * Divide `input.visualText` em slides (splitAutomationVisualText) e
+ * desenha cada um — MESMA imagem de fundo e MESMO template/véu/cor em
+ * todos os slides (só o texto muda), igual ao "Trocar imagem de fundo"
+ * do Carrossel automático manual, que também aplica uma única imagem a
+ * todos os slides de uma vez. Nunca grava nada (sem Blob, sem banco) —
+ * usada tanto pela geração real (renderAndStoreAutomationCarousel)
+ * quanto pela prévia, para as duas nunca divergirem (mesmo princípio de
+ * renderAutomationArtBuffer).
+ */
+export async function renderAutomationCarouselBuffers(
+  input: RenderAutomationCarouselInput
+): Promise<RenderedAutomationCarousel> {
+  ensureAutomationFontsRegistered();
+  const format = getFormatById(AUTO_TEMPLATE_FORMAT_ID);
+  const { templateIdUsed } = buildAutomationArtState({
+    templateId: input.templateId,
+    styleConfig: input.styleConfig,
+    visualText: "",
+    overlayOpacity: input.overlayOpacity,
+  });
+
+  const trimmedText = input.visualText.trim();
+  if (!trimmedText) {
+    throw new TemplateRenderError("Escreva o texto do carrossel antes de gerar.");
+  }
+
+  const { slideTexts, overflowText } = splitAutomationVisualText(trimmedText, input.maxSlides);
+  if (slideTexts.length === 0) {
+    throw new TemplateRenderError("Não foi possível dividir o texto em slides — tente um texto mais curto.");
+  }
+
+  let sourceImage: Awaited<ReturnType<typeof loadImage>>;
+  try {
+    sourceImage = await loadImage(input.sourceImageUrl);
+  } catch (error) {
+    throw new TemplateRenderError(
+      `Não foi possível carregar a imagem de origem para gerar a arte: ${error instanceof Error ? error.message : String(error)}`
+    );
+  }
+
+  const slides: RenderedAutomationCarouselSlide[] = slideTexts.map((slideText) => {
+    const canvas = createCanvas(format.width, format.height);
+    const ctx = canvas.getContext("2d");
+    const renderContext = ctx as unknown as RenderingContext2DLike;
+    drawAutomationBackground(renderContext, format, sourceImage as unknown as RenderableImage, input.overlayOpacity);
+    drawAutomationVisualText(renderContext, format, slideText, input.visualTextColor);
+    const buffer = canvas.toBuffer("image/jpeg", AUTO_TEMPLATE_JPEG_QUALITY);
+    return {
+      buffer,
+      contentType: "image/jpeg",
+      templateIdUsed,
+      sourceWidth: sourceImage.naturalWidth,
+      sourceHeight: sourceImage.naturalHeight,
+      finalWidth: format.width,
+      finalHeight: format.height,
+      jpegQuality: AUTO_TEMPLATE_JPEG_QUALITY,
+      renderVersion: AUTO_TEMPLATE_RENDER_VERSION,
+      text: slideText,
+    };
+  });
+
+  return { slides, overflowText };
+}
+
+/**
+ * Igual a renderAndStoreAutomationArt, mas para os N slides de um
+ * carrossel: sobe cada imagem ao Blob e grava uma linha em
+ * instagram_media por slide (mesma função insertInstagramMedia, sem
+ * tabela nova), devolvendo os ids já na ordem de publicação — prontos
+ * para createDraftCarouselPost (instagram-post-repository.ts).
+ */
+export async function renderAndStoreAutomationCarousel(
+  input: RenderAutomationCarouselInput & {
+    userId: string;
+    sourceMediaId: string | null;
+    automationRunId: string | null;
+  }
+): Promise<{ mediaIds: string[]; overflowText: string | null }> {
+  const { slides, overflowText } = await renderAutomationCarouselBuffers(input);
+
+  const mediaIds: string[] = [];
+  for (const [index, slide] of slides.entries()) {
+    const blob = await put(`instagram-media/${input.userId}/generated/${Date.now()}-${index}.jpg`, slide.buffer, {
+      access: "public",
+      addRandomSuffix: true,
+      contentType: "image/jpeg",
+    });
+    const mediaId = await insertInstagramMedia({
+      userId: input.userId,
+      storageUrl: blob.url,
+      mediaType: "image",
+      fileSizeBytes: slide.buffer.byteLength,
+      originalFilename: null,
+      generatedFromMediaId: input.sourceMediaId,
+      automationRunId: input.automationRunId,
+    });
+    mediaIds.push(mediaId);
+  }
+
+  // Debug (mesmo padrão de renderAndStoreAutomationArt) — nunca loga
+  // tokens/segredos, só metadados de rastreabilidade já públicos.
+  console.info("[template-render-service] carrossel AUTO_TEMPLATE gerado", {
+    userId: input.userId,
+    automationRunId: input.automationRunId,
+    sourceMediaId: input.sourceMediaId,
+    slideCount: slides.length,
+    hasOverflowText: overflowText !== null,
+    renderVersion: AUTO_TEMPLATE_RENDER_VERSION,
+    overlayOpacity: input.overlayOpacity ?? AUTO_TEMPLATE_DEFAULT_OVERLAY_OPACITY,
+    visualTextColor: input.visualTextColor ?? AUTOMATION_DEFAULT_TEXT_COLOR,
+    mediaIds,
+  });
+
+  return { mediaIds, overflowText };
 }

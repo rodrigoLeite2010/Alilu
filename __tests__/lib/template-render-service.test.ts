@@ -13,6 +13,8 @@ import { imageSize } from "image-size";
 import {
   buildAutomationArtState,
   renderAutomationArtBuffer,
+  renderAutomationCarouselBuffers,
+  splitAutomationVisualText,
   AUTO_TEMPLATE_DEFAULT_TEMPLATE_ID,
   AUTO_TEMPLATE_DEFAULT_OVERLAY_OPACITY,
   AUTO_TEMPLATE_JPEG_QUALITY,
@@ -42,6 +44,31 @@ async function countBrightPixels(buffer: Buffer): Promise<number> {
     if (pixels[index] > 180 && pixels[index + 1] > 180 && pixels[index + 2] > 180) bright += 1;
   }
   return bright;
+}
+
+/** Foto de teste de uma cor sólida escolhida — permite provar, por cor exata, que nada além do texto é pintado por cima (sem faixa). */
+function makeSolidTestImageFile(hex: string): string {
+  const canvas = createCanvas(800, 1000);
+  const ctx = canvas.getContext("2d");
+  ctx.fillStyle = hex;
+  ctx.fillRect(0, 0, 800, 1000);
+  const dir = mkdtempSync(join(tmpdir(), "alilu-auto-template-solid-"));
+  const path = join(dir, "foto-fundo-solida.png");
+  writeFileSync(path, canvas.toBuffer("image/png"));
+  return path;
+}
+
+async function countPixelsMatching(buffer: Buffer, predicate: (r: number, g: number, b: number) => boolean): Promise<number> {
+  const image = await loadImage(buffer);
+  const canvas = createCanvas(image.naturalWidth, image.naturalHeight);
+  const ctx = canvas.getContext("2d");
+  ctx.drawImage(image, 0, 0);
+  const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+  let count = 0;
+  for (let index = 0; index < pixels.length; index += 4) {
+    if (predicate(pixels[index], pixels[index + 1], pixels[index + 2])) count += 1;
+  }
+  return count;
 }
 
 describe("buildAutomationArtState (correção: template/foto errados)", () => {
@@ -198,6 +225,201 @@ describe("renderAutomationArtBuffer (renderização real — mesmo motor do comp
         visualText: "Frase",
         overlayOpacity: 0.2,
       })
+    ).rejects.toThrow(/imagem de origem/i);
+  });
+});
+
+describe("drawAutomationVisualText — sem faixa preta atrás do texto, cor escolhida pelo usuário", () => {
+  it("não pinta nenhuma faixa/retângulo escuro atrás do texto — só o véu configurado (aqui, nenhum) permanece visível", async () => {
+    // Fundo sólido claro e véu 0% — se ainda existisse a faixa preta
+    // antiga atrás do texto, apareceriam muitos pixels bem escuros; sem
+    // ela, só a leve anti-serrilhagem das bordas das letras (poucos
+    // pixels, nunca um bloco).
+    const sourceImageUrl = makeSolidTestImageFile("#dedede");
+    const result = await renderAutomationArtBuffer({
+      templateId: "frase-motivacional",
+      styleConfig: null,
+      sourceImageUrl,
+      visualText: "Texto curto",
+      overlayOpacity: 0,
+    });
+
+    const nearBlackPixels = await countPixelsMatching(result.buffer, (r, g, b) => r < 30 && g < 30 && b < 30);
+    const totalPixels = result.finalWidth * result.finalHeight;
+    // Uma faixa cobrindo a área do texto seria uma fração grande e
+    // contígua da imagem — bem mais que 0,5% dos pixels; a anti-serrilhagem
+    // das letras sozinha nunca chega perto disso.
+    expect(nearBlackPixels).toBeLessThan(totalPixels * 0.005);
+  });
+
+  it("usa branco como cor padrão quando o dia não escolheu nenhuma cor", async () => {
+    const sourceImageUrl = makeSolidTestImageFile("#1a1a2e");
+    const result = await renderAutomationArtBuffer({
+      templateId: "frase-motivacional",
+      styleConfig: null,
+      sourceImageUrl,
+      visualText: "Frase em branco por padrão",
+      overlayOpacity: 0,
+      visualTextColor: null,
+    });
+
+    await expect(countBrightPixels(result.buffer)).resolves.toBeGreaterThan(200);
+  });
+
+  it("desenha o texto na cor escolhida pelo usuário (ex.: verde puro), em vez do branco padrão", async () => {
+    const sourceImageUrl = makeSolidTestImageFile("#1a1a2e");
+    const result = await renderAutomationArtBuffer({
+      templateId: "frase-motivacional",
+      styleConfig: null,
+      sourceImageUrl,
+      visualText: "Frase verde",
+      overlayOpacity: 0,
+      visualTextColor: "#00ff00",
+    });
+
+    const greenPixels = await countPixelsMatching(result.buffer, (r, g, b) => g > 180 && r < 100 && b < 100);
+    const whitePixels = await countPixelsMatching(result.buffer, (r, g, b) => r > 220 && g > 220 && b > 220);
+    expect(greenPixels).toBeGreaterThan(200);
+    // Praticamente nenhum pixel branco puro — a cor de verdade usada foi verde, não o padrão.
+    expect(whitePixels).toBeLessThan(greenPixels);
+  });
+
+  it("uma cor inválida (não-hex) cai de volta pro branco padrão, em vez de quebrar a renderização", async () => {
+    const sourceImageUrl = makeSolidTestImageFile("#1a1a2e");
+    const result = await renderAutomationArtBuffer({
+      templateId: "frase-motivacional",
+      styleConfig: null,
+      sourceImageUrl,
+      visualText: "Frase com cor inválida",
+      overlayOpacity: 0,
+      visualTextColor: "not-a-color",
+    });
+
+    await expect(countBrightPixels(result.buffer)).resolves.toBeGreaterThan(200);
+  });
+});
+
+describe("splitAutomationVisualText (mesmo motor de divisão do Carrossel automático manual)", () => {
+  it("um texto curto vira um único slide, sem sobra", () => {
+    const { slideTexts, overflowText } = splitAutomationVisualText("Um texto curto para um só slide.", 10);
+    expect(slideTexts).toEqual(["Um texto curto para um só slide."]);
+    expect(overflowText).toBeNull();
+  });
+
+  it("um texto longo (vários parágrafos) é dividido em mais de um slide, sem perder nenhum trecho, quando cabe dentro do limite de slides", () => {
+    const paragraphs = Array.from(
+      { length: 8 },
+      (_, index) =>
+        `Parágrafo número ${index + 1}: uma frase razoavelmente longa para ajudar a estourar o espaço de um slide só e forçar a divisão em vários pedaços consecutivos.`,
+    );
+    const longText = paragraphs.join("\n\n");
+
+    const { slideTexts, overflowText } = splitAutomationVisualText(longText, 10);
+    expect(slideTexts.length).toBeGreaterThan(1);
+    expect(slideTexts.length).toBeLessThanOrEqual(10);
+    expect(overflowText).toBeNull();
+    // Nenhuma palavra perdida: o texto de todos os slides, concatenado, contém cada parágrafo original.
+    const joined = slideTexts.join(" ");
+    for (const paragraph of paragraphs) {
+      const firstSentence = paragraph.split(":")[0];
+      expect(joined).toContain(firstSentence);
+    }
+  });
+
+  it("um texto que precisaria de mais slides do que o permitido é cortado em maxSlides, com o resto devolvido em overflowText (nunca descartado em silêncio)", () => {
+    const paragraphs = Array.from(
+      { length: 10 },
+      (_, index) =>
+        `Parágrafo número ${index + 1}: uma frase razoavelmente longa para ajudar a estourar o espaço de um slide só e forçar a divisão em vários pedaços consecutivos, item exclusivo ${index + 1}.`,
+    );
+    const longText = paragraphs.join("\n\n");
+
+    const { slideTexts, overflowText } = splitAutomationVisualText(longText, 2);
+    expect(slideTexts.length).toBe(2);
+    expect(overflowText).not.toBeNull();
+    expect(overflowText).toContain("item exclusivo 10");
+  });
+});
+
+describe("renderAutomationCarouselBuffers (um slide por pedaço do texto, mesma imagem/template/véu/cor em todos)", () => {
+  it("gera um buffer JPEG válido por slide, na ordem, cada um já com o texto certo desse slide", async () => {
+    const sourceImageUrl = makeTestImageFile();
+    const paragraphs = Array.from(
+      { length: 4 },
+      (_, index) => `Parágrafo ${index + 1}: texto suficientemente longo para ajudar a estourar o espaço de um slide só.`,
+    );
+    const visualText = paragraphs.join("\n\n");
+
+    const result = await renderAutomationCarouselBuffers({
+      templateId: "frase-motivacional",
+      styleConfig: null,
+      sourceImageUrl,
+      visualText,
+      overlayOpacity: 0.2,
+      maxSlides: 10,
+    });
+
+    expect(result.overflowText).toBeNull();
+    expect(result.slides.length).toBeGreaterThan(1);
+    const { slideTexts } = splitAutomationVisualText(visualText, 10);
+    expect(result.slides.map((slide) => slide.text)).toEqual(slideTexts);
+
+    for (const slide of result.slides) {
+      expect(slide.contentType).toBe("image/jpeg");
+      expect(slide.buffer.byteLength).toBeGreaterThan(1000);
+      expect(slide.buffer[0]).toBe(0xff);
+      expect(slide.buffer[1]).toBe(0xd8);
+      expect(slide.templateIdUsed).toBe("frase-motivacional");
+      expect(slide.finalWidth).toBe(1080);
+      expect(slide.finalHeight).toBe(1350);
+    }
+  });
+
+  it("devolve overflowText quando o texto não cabe inteiro em maxSlides, mas ainda assim gera os slides que couberam", async () => {
+    const sourceImageUrl = makeTestImageFile();
+    const paragraphs = Array.from(
+      { length: 10 },
+      (_, index) => `Parágrafo ${index + 1}: texto suficientemente longo para ajudar a estourar o espaço de um slide só, item ${index + 1}.`,
+    );
+    const visualText = paragraphs.join("\n\n");
+
+    const result = await renderAutomationCarouselBuffers({
+      templateId: "frase-motivacional",
+      styleConfig: null,
+      sourceImageUrl,
+      visualText,
+      overlayOpacity: 0.2,
+      maxSlides: 2,
+    });
+
+    expect(result.slides.length).toBe(2);
+    expect(result.overflowText).not.toBeNull();
+  });
+
+  it("recusa texto vazio (ou só espaços) com uma mensagem clara, em vez de gerar um carrossel sem nada", async () => {
+    const sourceImageUrl = makeTestImageFile();
+    await expect(
+      renderAutomationCarouselBuffers({
+        templateId: "frase-motivacional",
+        styleConfig: null,
+        sourceImageUrl,
+        visualText: "   ",
+        overlayOpacity: 0.2,
+        maxSlides: 10,
+      }),
+    ).rejects.toThrow(/texto do carrossel/i);
+  });
+
+  it("mensagem de erro clara quando a imagem de origem não pode ser carregada", async () => {
+    await expect(
+      renderAutomationCarouselBuffers({
+        templateId: "frase-motivacional",
+        styleConfig: null,
+        sourceImageUrl: "/caminho/que/nao/existe/foto.png",
+        visualText: "Texto qualquer",
+        overlayOpacity: 0.2,
+        maxSlides: 10,
+      }),
     ).rejects.toThrow(/imagem de origem/i);
   });
 });

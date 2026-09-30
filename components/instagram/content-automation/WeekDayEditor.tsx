@@ -1,10 +1,19 @@
 "use client";
 
 import { useId, useState } from "react";
-import { DAY_OF_WEEK_LABEL, type AutomationContentMode, type AutomationContentType, type DayOfWeek, type ImageMode } from "@/lib/content-automation/backend/automation-types";
+import {
+  DAY_OF_WEEK_LABEL,
+  MAX_VISUAL_TEXT_LENGTH,
+  MAX_CAROUSEL_VISUAL_TEXT_LENGTH,
+  type AutomationContentMode,
+  type AutomationContentType,
+  type DayOfWeek,
+  type ImageMode,
+} from "@/lib/content-automation/backend/automation-types";
 import { POST_TEMPLATES } from "@/lib/instagram/templates";
 import { MediaPicker } from "./MediaPicker";
 import { autoResizeTextarea } from "./textarea-utils";
+import { ColorSwatchInput } from "@/components/tools/instagram-post-creator/ColorSwatchInput";
 
 export interface DayFormState {
   dayOfWeek: DayOfWeek;
@@ -20,6 +29,8 @@ export interface DayFormState {
   templateId: string | null;
   /** Véu (0/0.1/0.2/0.3/0.4) sobre a foto quando imageMode = "AUTO_TEMPLATE". null usa o padrão (20%). */
   overlayOpacity: number | null;
+  /** Cor (hex #rrggbb) do texto desenhado sobre a imagem quando imageMode = "AUTO_TEMPLATE". null usa o padrão (branco). */
+  visualTextColor: string | null;
   publishTime: string;
   imageMediaId: string | null;
   videoMediaId: string | null;
@@ -53,15 +64,22 @@ export function WeekDayEditor({
   const [previewMeta, setPreviewMeta] = useState<string | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewError, setPreviewError] = useState<string | null>(null);
+  const [carouselPreviewSlides, setCarouselPreviewSlides] = useState<string[] | null>(null);
+  const [carouselPreviewOverflow, setCarouselPreviewOverflow] = useState<string | null>(null);
+  const [carouselPreviewLoading, setCarouselPreviewLoading] = useState(false);
+  const [carouselPreviewError, setCarouselPreviewError] = useState<string | null>(null);
   const checkboxId = useId();
   const promptId = useId();
   const manualCaptionId = useId();
   const visualTextId = useId();
   const templateId = useId();
   const overlayId = useId();
+  const colorId = useId();
   const timeId = useId();
-  const isAutoTemplatePost = imageMode === "AUTO_TEMPLATE" && day.contentType === "POST";
+  const isCarousel = day.contentType === "CAROUSEL";
+  const isAutoTemplateImage = imageMode === "AUTO_TEMPLATE" && (day.contentType === "POST" || isCarousel);
   const previewImageMediaId = day.imageMediaId ?? defaultImageMediaId;
+  const visualTextMaxLength = isCarousel ? MAX_CAROUSEL_VISUAL_TEXT_LENGTH : MAX_VISUAL_TEXT_LENGTH;
 
   async function handlePreview() {
     if (!previewImageMediaId || !day.visualText.trim()) return;
@@ -78,6 +96,7 @@ export function WeekDayEditor({
           templateId: day.templateId,
           visualText: day.visualText,
           overlayOpacity: day.overlayOpacity,
+          visualTextColor: day.visualTextColor,
         }),
       });
       const payload = (await response.json()) as {
@@ -111,6 +130,41 @@ export function WeekDayEditor({
     }
   }
 
+  async function handlePreviewCarousel() {
+    if (!previewImageMediaId || !day.visualText.trim()) return;
+    setCarouselPreviewLoading(true);
+    setCarouselPreviewError(null);
+    setCarouselPreviewSlides(null);
+    setCarouselPreviewOverflow(null);
+    try {
+      const response = await fetch("/api/content-automation/media/preview-carousel-art", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          imageMediaId: previewImageMediaId,
+          templateId: day.templateId,
+          visualText: day.visualText,
+          overlayOpacity: day.overlayOpacity,
+          visualTextColor: day.visualTextColor,
+        }),
+      });
+      const payload = (await response.json()) as {
+        slides?: { dataUrl: string }[];
+        overflowText?: string | null;
+        error?: string;
+      };
+      if (!response.ok || !payload.slides) {
+        throw new Error(payload.error || "Não foi possível gerar a prévia do carrossel.");
+      }
+      setCarouselPreviewSlides(payload.slides.map((slide) => slide.dataUrl));
+      setCarouselPreviewOverflow(payload.overflowText ?? null);
+    } catch (error) {
+      setCarouselPreviewError(error instanceof Error ? error.message : "Não foi possível gerar a prévia do carrossel.");
+    } finally {
+      setCarouselPreviewLoading(false);
+    }
+  }
+
   return (
     <fieldset className={`rounded-lg border p-4 transition-colors ${day.enabled ? "border-teal-300 bg-teal-50/30" : "border-zinc-200"}`}>
       <legend className="px-1 text-sm font-semibold text-zinc-900">{DAY_OF_WEEK_LABEL[day.dayOfWeek]}</legend>
@@ -133,7 +187,11 @@ export function WeekDayEditor({
           <div>
             <span className="mb-1 block text-xs font-medium text-zinc-700">Formato</span>
             <div className="flex gap-3 text-sm">
-              {(["POST", "REEL"] as AutomationContentType[]).map((type) => (
+              {(
+                imageMode === "AUTO_TEMPLATE"
+                  ? (["POST", "CAROUSEL", "REEL"] as AutomationContentType[])
+                  : (["POST", "REEL"] as AutomationContentType[])
+              ).map((type) => (
                 <label key={type} className="inline-flex items-center gap-1.5">
                   <input
                     type="radio"
@@ -142,10 +200,15 @@ export function WeekDayEditor({
                     onChange={() => onChange({ contentType: type })}
                     className="h-4 w-4 border-zinc-300 text-teal-700"
                   />
-                  {type === "POST" ? "Post" : "Reel"}
+                  {type === "POST" ? "Post" : type === "CAROUSEL" ? "Carrossel" : "Reel"}
                 </label>
               ))}
             </div>
+            {isCarousel ? (
+              <p className="mt-1 text-xs text-zinc-500">
+                Um texto comprido (IA ou escrito à mão) é dividido automaticamente em vários slides — exatamente como o Carrossel automático manual.
+              </p>
+            ) : null}
           </div>
 
           <div>
@@ -224,7 +287,9 @@ export function WeekDayEditor({
                 placeholder={
                   day.contentType === "POST"
                     ? `Descreva o conteúdo que deve ser criado para este dia. Ex.: Crie uma frase motivacional para ${DAY_OF_WEEK_LABEL[day.dayOfWeek].toLowerCase()} com tom leve, inspirador e humano.`
-                    : `Descreva o Reel que deve ser criado para este dia. Ex.: Crie um Reel curto mostrando uma dica sobre ferramentas online, com tom leve e direto.`
+                    : isCarousel
+                      ? `Descreva o carrossel que deve ser criado para este dia. Ex.: Conte, em vários parágrafos, uma história inspiradora sobre superação, para ${DAY_OF_WEEK_LABEL[day.dayOfWeek].toLowerCase()} — a IA escreve um texto comprido, dividido automaticamente entre os slides.`
+                      : `Descreva o Reel que deve ser criado para este dia. Ex.: Crie um Reel curto mostrando uma dica sobre ferramentas online, com tom leve e direto.`
                 }
                 className="w-full min-h-[144px] resize-y rounded-md border border-zinc-300 px-3 py-2 text-sm leading-relaxed"
               />
@@ -234,7 +299,7 @@ export function WeekDayEditor({
             </div>
           )}
 
-          {isAutoTemplatePost ? (
+          {isAutoTemplateImage ? (
             <div className="rounded-md border border-teal-200 bg-teal-50/40 p-3 space-y-3">
               <div>
                 <label htmlFor={templateId} className="mb-1 block text-xs font-medium text-zinc-700">
@@ -277,10 +342,20 @@ export function WeekDayEditor({
                 </p>
               </div>
 
+              <div>
+                <ColorSwatchInput
+                  id={colorId}
+                  label="Cor do texto"
+                  value={day.visualTextColor ?? "#ffffff"}
+                  onChange={(value) => onChange({ visualTextColor: value })}
+                />
+                <p className="mt-1 text-xs text-zinc-500">Sem faixa atrás do texto — escolha uma cor com bom contraste sobre a sua foto. Branco é o padrão.</p>
+              </div>
+
               {day.contentMode === "MANUAL" ? (
                 <div>
                   <label htmlFor={visualTextId} className="mb-1 block text-xs font-medium text-zinc-700">
-                    Texto sobre a imagem
+                    {isCarousel ? "Texto do carrossel (será dividido em vários slides)" : "Texto sobre a imagem"}
                   </label>
                   <textarea
                     id={visualTextId}
@@ -291,39 +366,86 @@ export function WeekDayEditor({
                       autoResizeTextarea(event.target);
                     }}
                     onFocus={(event) => autoResizeTextarea(event.target)}
-                    rows={3}
-                    maxLength={120}
-                    placeholder="Frase curta desenhada sobre a foto — diferente da legenda."
-                    className="w-full min-h-[96px] resize-y rounded-md border border-zinc-300 px-3 py-2 text-sm leading-relaxed"
+                    rows={isCarousel ? 10 : 3}
+                    maxLength={visualTextMaxLength}
+                    placeholder={
+                      isCarousel
+                        ? "Cole ou escreva um texto comprido — ele é dividido automaticamente entre os slides do carrossel, igual ao Carrossel automático manual."
+                        : "Frase curta desenhada sobre a foto — diferente da legenda."
+                    }
+                    className={`w-full resize-y rounded-md border border-zinc-300 px-3 py-2 text-sm leading-relaxed ${isCarousel ? "min-h-[220px]" : "min-h-[96px]"}`}
                   />
-                  <p className="mt-1 text-xs text-zinc-500">{day.visualText.length}/120</p>
+                  <p className="mt-1 text-xs text-zinc-500">
+                    {day.visualText.length}/{visualTextMaxLength}
+                  </p>
 
                   <div className="mt-2">
-                    <button
-                      type="button"
-                      onClick={handlePreview}
-                      disabled={previewLoading || !previewImageMediaId || !day.visualText.trim()}
-                      className="min-h-9 rounded-md border border-teal-300 bg-white px-3 py-1.5 text-xs font-medium text-teal-800 disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      {previewLoading ? "Gerando prévia…" : "Visualizar arte"}
-                    </button>
-                    {!previewImageMediaId ? (
-                      <span className="ml-2 text-xs text-zinc-500">Selecione uma imagem (padrão da automação ou deste dia) para visualizar.</span>
-                    ) : null}
-                    {previewError ? <p className="mt-1 text-xs text-red-600">{previewError}</p> : null}
-                    {previewMeta ? <p className="mt-2 text-xs text-zinc-500">{previewMeta}</p> : null}
-                    {previewUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element -- prévia é um data: URL gerado no servidor, nunca uma imagem otimizável pelo next/image.
-                      <img
-                        src={previewUrl}
-                        alt={`Prévia da arte de ${DAY_OF_WEEK_LABEL[day.dayOfWeek]}`}
-                        className="mt-2 w-full max-w-[340px] rounded-md border border-zinc-200 shadow-sm"
-                      />
-                    ) : null}
+                    {isCarousel ? (
+                      <>
+                        <button
+                          type="button"
+                          onClick={handlePreviewCarousel}
+                          disabled={carouselPreviewLoading || !previewImageMediaId || !day.visualText.trim()}
+                          className="min-h-9 rounded-md border border-teal-300 bg-white px-3 py-1.5 text-xs font-medium text-teal-800 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          {carouselPreviewLoading ? "Gerando prévia…" : "Visualizar carrossel"}
+                        </button>
+                        {!previewImageMediaId ? (
+                          <span className="ml-2 text-xs text-zinc-500">Selecione uma imagem (padrão da automação ou deste dia) para visualizar.</span>
+                        ) : null}
+                        {carouselPreviewError ? <p className="mt-1 text-xs text-red-600">{carouselPreviewError}</p> : null}
+                        {carouselPreviewOverflow ? (
+                          <p className="mt-2 text-xs text-amber-700">
+                            O texto não coube inteiro nos slides — a parte a mais não vai ser publicada. Encurte o texto ou aceite que só o início será usado.
+                          </p>
+                        ) : null}
+                        {carouselPreviewSlides && carouselPreviewSlides.length > 0 ? (
+                          <div className="mt-2 flex gap-2 overflow-x-auto">
+                            {carouselPreviewSlides.map((slideUrl, index) => (
+                              // eslint-disable-next-line @next/next/no-img-element -- prévia é um data: URL gerado no servidor, nunca uma imagem otimizável pelo next/image.
+                              <img
+                                key={index}
+                                src={slideUrl}
+                                alt={`Prévia do slide ${index + 1} de ${DAY_OF_WEEK_LABEL[day.dayOfWeek]}`}
+                                className="h-40 w-auto flex-none rounded-md border border-zinc-200 shadow-sm"
+                              />
+                            ))}
+                          </div>
+                        ) : null}
+                      </>
+                    ) : (
+                      <>
+                        <button
+                          type="button"
+                          onClick={handlePreview}
+                          disabled={previewLoading || !previewImageMediaId || !day.visualText.trim()}
+                          className="min-h-9 rounded-md border border-teal-300 bg-white px-3 py-1.5 text-xs font-medium text-teal-800 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          {previewLoading ? "Gerando prévia…" : "Visualizar arte"}
+                        </button>
+                        {!previewImageMediaId ? (
+                          <span className="ml-2 text-xs text-zinc-500">Selecione uma imagem (padrão da automação ou deste dia) para visualizar.</span>
+                        ) : null}
+                        {previewError ? <p className="mt-1 text-xs text-red-600">{previewError}</p> : null}
+                        {previewMeta ? <p className="mt-2 text-xs text-zinc-500">{previewMeta}</p> : null}
+                        {previewUrl ? (
+                          // eslint-disable-next-line @next/next/no-img-element -- prévia é um data: URL gerado no servidor, nunca uma imagem otimizável pelo next/image.
+                          <img
+                            src={previewUrl}
+                            alt={`Prévia da arte de ${DAY_OF_WEEK_LABEL[day.dayOfWeek]}`}
+                            className="mt-2 w-full max-w-[340px] rounded-md border border-zinc-200 shadow-sm"
+                          />
+                        ) : null}
+                      </>
+                    )}
                   </div>
                 </div>
               ) : (
-                <p className="text-xs text-zinc-600">A IA também gera o texto curto desenhado sobre a imagem, a partir do prompt acima. A prévia exata aparece depois da primeira geração.</p>
+                <p className="text-xs text-zinc-600">
+                  {isCarousel
+                    ? "A IA também gera o texto comprido dividido entre os slides do carrossel, a partir do prompt acima. A prévia exata aparece depois da primeira geração."
+                    : "A IA também gera o texto curto desenhado sobre a imagem, a partir do prompt acima. A prévia exata aparece depois da primeira geração."}
+                </p>
               )}
             </div>
           ) : null}
@@ -339,11 +461,11 @@ export function WeekDayEditor({
                 }}
                 className="h-4 w-4 rounded border-zinc-300 text-teal-700"
               />
-              Usar {day.contentType === "POST" ? "uma imagem" : "um vídeo"} diferente do padrão da automação neste dia
+              Usar {day.contentType === "POST" || isCarousel ? "uma imagem" : "um vídeo"} diferente do padrão da automação neste dia
             </label>
             {overrideMedia ? (
               <div className="mt-2">
-                {day.contentType === "POST" ? (
+                {day.contentType === "POST" || isCarousel ? (
                   <MediaPicker
                     userId={userId}
                     mediaType="image"

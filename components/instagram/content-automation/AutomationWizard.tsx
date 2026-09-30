@@ -25,6 +25,7 @@ function emptyDay(dayOfWeek: DayOfWeek): DayFormState {
     visualText: "",
     templateId: null,
     overlayOpacity: null,
+    visualTextColor: null,
     publishTime: "09:00",
     imageMediaId: null,
     videoMediaId: null,
@@ -71,7 +72,7 @@ export function AutomationWizard({ userId, accounts }: { userId: string; account
   const leadId = useId();
 
   const enabledCount = useMemo(() => days.filter((day) => day.enabled).length, [days]);
-  const needsImage = useMemo(() => days.some((day) => day.enabled && day.contentType === "POST"), [days]);
+  const needsImage = useMemo(() => days.some((day) => day.enabled && (day.contentType === "POST" || day.contentType === "CAROUSEL")), [days]);
   const needsVideo = useMemo(() => days.some((day) => day.enabled && day.contentType === "REEL"), [days]);
 
   function updateDay(dayOfWeek: DayOfWeek, patch: Partial<DayFormState>) {
@@ -89,17 +90,23 @@ export function AutomationWizard({ userId, accounts }: { userId: string; account
           if (!day.manualCaption.trim()) {
             return `Escreva a legenda manual de ${DAY_OF_WEEK_LABEL[day.dayOfWeek]}.`;
           }
-          if (imageMode === "AUTO_TEMPLATE" && day.contentType === "POST" && !day.visualText.trim()) {
-            return `Escreva o texto que vai sobre a imagem de ${DAY_OF_WEEK_LABEL[day.dayOfWeek]}.`;
+          if (imageMode === "AUTO_TEMPLATE" && (day.contentType === "POST" || day.contentType === "CAROUSEL") && !day.visualText.trim()) {
+            return day.contentType === "CAROUSEL"
+              ? `Escreva o texto do carrossel de ${DAY_OF_WEEK_LABEL[day.dayOfWeek]}.`
+              : `Escreva o texto que vai sobre a imagem de ${DAY_OF_WEEK_LABEL[day.dayOfWeek]}.`;
           }
         } else if (!day.prompt.trim()) {
           return `Defina o que publicar em ${DAY_OF_WEEK_LABEL[day.dayOfWeek]}.`;
         }
       }
-      if (needsImage && !fixedImageMediaId && days.every((day) => !day.enabled || day.contentType !== "POST" || day.imageMediaId)) {
-        // cada dia POST já tem imagem própria — ok mesmo sem imagem padrão
-      } else if (needsImage && !fixedImageMediaId && days.some((day) => day.enabled && day.contentType === "POST" && !day.imageMediaId)) {
-        return "Defina a imagem padrão da automação ou uma imagem específica para cada dia de Post.";
+      if (needsImage && !fixedImageMediaId && days.every((day) => !day.enabled || (day.contentType !== "POST" && day.contentType !== "CAROUSEL") || day.imageMediaId)) {
+        // cada dia POST/CAROUSEL já tem imagem própria — ok mesmo sem imagem padrão
+      } else if (
+        needsImage &&
+        !fixedImageMediaId &&
+        days.some((day) => day.enabled && (day.contentType === "POST" || day.contentType === "CAROUSEL") && !day.imageMediaId)
+      ) {
+        return "Defina a imagem padrão da automação ou uma imagem específica para cada dia de Post/Carrossel.";
       }
       if (needsVideo && !fixedVideoMediaId && days.some((day) => day.enabled && day.contentType === "REEL" && !day.videoMediaId)) {
         return "Defina o vídeo padrão da automação ou um vídeo específico para cada dia de Reel.";
@@ -163,6 +170,7 @@ export function AutomationWizard({ userId, accounts }: { userId: string; account
             visualText: day.visualText,
             templateId: day.templateId,
             overlayOpacity: day.overlayOpacity,
+            visualTextColor: day.visualTextColor,
             publishTime: day.publishTime,
             imageMediaId: day.imageMediaId,
             videoMediaId: day.videoMediaId,
@@ -443,7 +451,7 @@ export function AutomationWizard({ userId, accounts }: { userId: string; account
                   .map((day) => (
                     <tr key={day.dayOfWeek} className="border-t border-zinc-100">
                       <td className="px-3 py-2 font-medium text-zinc-900">{DAY_OF_WEEK_LABEL[day.dayOfWeek]}</td>
-                      <td className="px-3 py-2">{day.contentType === "POST" ? "Post" : "Reel"}</td>
+                      <td className="px-3 py-2">{day.contentType === "POST" ? "Post" : day.contentType === "CAROUSEL" ? "Carrossel" : "Reel"}</td>
                       <td className="px-3 py-2">{day.publishTime}</td>
                       <td className="px-3 py-2">{day.contentMode === "MANUAL" ? "Manual" : "IA"}</td>
                       <td className="max-w-xs truncate px-3 py-2 text-zinc-600">
