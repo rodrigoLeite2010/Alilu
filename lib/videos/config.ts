@@ -17,28 +17,27 @@ import type { VideoAudioSource, VideoDurationMode, VideoOutputFormat, VideoSplit
 export const MAX_VIDEO_INPUT_BYTES = 100 * 1024 * 1024;
 
 /**
- * 60 segundos de duração final do resultado.
+ * 150 segundos (2:30) de duração final do resultado.
  *
- * Já foi 180s nesta fase, mas um teste real em produção com um resultado
- * de 149s (02:29) confirmou o risco que já estava documentado aqui: a
- * rota roda com `maxDuration = 60` (mesmo teto das demais rotas pesadas
- * do projeto — ver app/api/cron/content-automation/route.ts) e a Vercel
- * matou a function no meio do processamento ("Task timed out after 60
- * seconds") antes do FFmpeg terminar — download dos 2 vídeos + ffprobe +
- * decode + encode + upload não coube no orçamento de parede.
+ * Histórico: 180s na Fase A → um teste real em produção com um resultado
+ * de 149s deu "Task timed out after 60 seconds" (a rota rodava com
+ * `maxDuration = 60`) → baixado para 60s + preset do FFmpeg trocado para
+ * "ultrafast" (ver split-screen-ffmpeg.ts), sem confirmação real ainda →
+ * o Rodrigo pediu para subir para 150s. Como a conta é Vercel Pro
+ * (confirmado com ele), desta vez a rota também teve seu `maxDuration`
+ * subido para 200s (app/api/videos/split-screen/route.ts) — os dois
+ * números precisam andar juntos: MAX_OUTPUT_DURATION_SECONDS sozinho não
+ * significa nada se a function não tiver orçamento de tempo para
+ * processar esse tanto de vídeo.
  *
- * Baixado para 60s (bem abaixo do que causou o timeout) junto com a troca
- * do preset do FFmpeg para "ultrafast" (ver split-screen-ffmpeg.ts) — as
- * duas mudanças juntas dão bastante margem, mas o número exato ainda é
- * uma estimativa: não há telemetria real de quanto tempo cada etapa leva
- * na function da Vercel (os logs de tempo adicionados em
- * lib/videos/backend/video-processing-service.ts vão revelar isso da
- * próxima vez que alguém gerar um vídeo perto deste limite). Se um
- * timeout voltar a acontecer mesmo com 60s, baixe este número de novo —
- * nunca suba o `maxDuration` da rota (já está no teto usado pelo resto do
- * projeto).
+ * Ainda é uma estimativa (sem telemetria real de um resultado de 150s de
+ * verdade rodando na Vercel) — os logs de tempo por etapa em
+ * lib/videos/backend/video-processing-service.ts mostram onde o tempo é
+ * gasto se um timeout acontecer de novo. Se acontecer, o ajuste é baixar
+ * este número (ou subir o `maxDuration`, já que agora há folga no plano
+ * Pro para isso, ao contrário de antes).
  */
-export const MAX_OUTPUT_DURATION_SECONDS = 60;
+export const MAX_OUTPUT_DURATION_SECONDS = 150;
 
 /**
  * Preset "Vídeo satisfatório": o único preset desta fase (ver relatório —

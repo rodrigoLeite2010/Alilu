@@ -10,13 +10,18 @@ import {
 // FFmpeg via child_process, o que o runtime Edge não suporta.
 export const runtime = "nodejs";
 
-// Mesmo teto já usado (e já validado em produção) por outras rotas deste
-// projeto que fazem trabalho pesado em lote — ver
-// app/api/cron/content-automation/route.ts. O orçamento de
-// MAX_OUTPUT_DURATION_SECONDS (lib/videos/config.ts) foi pensado
-// especificamente para caber dentro destes 60s (download dos 2 vídeos +
-// decode + encode + upload do resultado).
-export const maxDuration = 60;
+// 200s (bem acima dos 60s usados pelas outras rotas deste projeto — ver
+// app/api/cron/content-automation/route.ts): confirmado com o Rodrigo que
+// a conta é Vercel Pro, que permite subir isso rota a rota (Hobby trava
+// em 60s, sem exceção). Escopado só a esta rota — as demais continuam em
+// 60s. Pensado para caber com folga MAX_OUTPUT_DURATION_SECONDS=150s
+// (lib/videos/config.ts) + a sobra de download/probe/upload, mas ainda é
+// uma estimativa: os logs de tempo por etapa em
+// lib/videos/backend/video-processing-service.ts (adicionados depois do
+// timeout com 149s/60s) mostram exatamente onde o tempo real é gasto —
+// ajuste este número e/ou MAX_OUTPUT_DURATION_SECONDS a partir deles se
+// um timeout acontecer de novo.
+export const maxDuration = 200;
 
 /**
  * Processa o split-screen de dois vídeos já enviados ao Vercel Blob
