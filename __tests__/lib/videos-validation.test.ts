@@ -40,6 +40,19 @@ describe("parseSplitScreenRequest — corpo válido", () => {
     });
     expect(result.ok).toBe(true);
   });
+
+  it("aceita enquadramento manual opcional por vídeo", () => {
+    const result = parseSplitScreenRequest({
+      ...VALID_BODY,
+      primaryFraming: { positionX: -0.5, positionY: 0.25, zoom: 1.5 },
+      secondaryFraming: { positionX: 1, positionY: -1, zoom: 2.5 },
+    });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.primaryFraming).toEqual({ positionX: -0.5, positionY: 0.25, zoom: 1.5 });
+      expect(result.value.secondaryFraming).toEqual({ positionX: 1, positionY: -1, zoom: 2.5 });
+    }
+  });
 });
 
 describe("parseSplitScreenRequest — URLs de blob", () => {
@@ -139,6 +152,24 @@ describe("parseSplitScreenRequest — corte (trim) inválido", () => {
     const result = parseSplitScreenRequest({
       ...VALID_BODY,
       primaryTrim: { startSeconds: "0", endSeconds: 5 },
+    });
+    expect(result.ok).toBe(false);
+  });
+});
+
+describe("parseSplitScreenRequest — enquadramento inválido", () => {
+  it("rejeita posição fora do intervalo normalizado", () => {
+    const result = parseSplitScreenRequest({
+      ...VALID_BODY,
+      primaryFraming: { positionX: 2, positionY: 0, zoom: 1 },
+    });
+    expect(result.ok).toBe(false);
+  });
+
+  it("rejeita zoom menor que o cover mínimo", () => {
+    const result = parseSplitScreenRequest({
+      ...VALID_BODY,
+      secondaryFraming: { positionX: 0, positionY: 0, zoom: 0.9 },
     });
     expect(result.ok).toBe(false);
   });

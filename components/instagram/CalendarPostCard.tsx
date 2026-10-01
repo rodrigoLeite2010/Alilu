@@ -69,6 +69,7 @@ const TYPE_LABEL: Record<InstagramPostType, string> = {
   image: "Post",
   carousel: "Carrossel",
   reels: "Reel",
+  story: "Story",
 };
 
 type DialogKind = "schedule" | "edit" | "cancel" | "delete" | "error" | null;

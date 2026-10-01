@@ -6,11 +6,20 @@ import type {
   VideoAudioConfig,
   VideoAudioSource,
   VideoDurationMode,
+  VideoFraming,
   VideoOutputFormat,
   VideoSplitLayoutRatio,
   VideoTrimRange,
 } from "./split-screen-ffmpeg";
-import { VIDEO_LAYOUT_TOP_RATIO, VIDEO_OUTPUT_DIMENSIONS, computeOutputDurationSeconds } from "./split-screen-ffmpeg";
+import {
+  VIDEO_FRAMING_MAX_POSITION,
+  VIDEO_FRAMING_MAX_ZOOM,
+  VIDEO_FRAMING_MIN_POSITION,
+  VIDEO_FRAMING_MIN_ZOOM,
+  VIDEO_LAYOUT_TOP_RATIO,
+  VIDEO_OUTPUT_DIMENSIONS,
+  computeOutputDurationSeconds,
+} from "./split-screen-ffmpeg";
 
 /**
  * Validação do corpo de POST /api/videos/split-screen. Lógica pura de
@@ -46,6 +55,8 @@ export interface SplitScreenRequestBody {
   layoutRatio: VideoSplitLayoutRatio;
   primaryTrim: VideoTrimRange;
   secondaryTrim: VideoTrimRange;
+  primaryFraming?: VideoFraming;
+  secondaryFraming?: VideoFraming;
   durationMode: VideoDurationMode;
   audio: VideoAudioConfig;
 }
@@ -120,6 +131,37 @@ function parseAudio(raw: unknown): ParseResult<VideoAudioConfig> {
   };
 }
 
+function parseFraming(raw: unknown, label: string): ParseResult<VideoFraming | undefined> {
+  if (raw === undefined) return { ok: true, value: undefined };
+  if (typeof raw !== "object" || raw === null) {
+    return { ok: false, error: `Enquadramento do ${label} inválido.` };
+  }
+  const value = raw as Record<string, unknown>;
+  const { positionX, positionY, zoom } = value;
+
+  if (
+    typeof positionX !== "number" ||
+    !Number.isFinite(positionX) ||
+    positionX < VIDEO_FRAMING_MIN_POSITION ||
+    positionX > VIDEO_FRAMING_MAX_POSITION
+  ) {
+    return { ok: false, error: `Posição horizontal do ${label} inválida.` };
+  }
+  if (
+    typeof positionY !== "number" ||
+    !Number.isFinite(positionY) ||
+    positionY < VIDEO_FRAMING_MIN_POSITION ||
+    positionY > VIDEO_FRAMING_MAX_POSITION
+  ) {
+    return { ok: false, error: `Posição vertical do ${label} inválida.` };
+  }
+  if (typeof zoom !== "number" || !Number.isFinite(zoom) || zoom < VIDEO_FRAMING_MIN_ZOOM || zoom > VIDEO_FRAMING_MAX_ZOOM) {
+    return { ok: false, error: `Zoom do ${label} inválido.` };
+  }
+
+  return { ok: true, value: { positionX, positionY, zoom } };
+}
+
 export function parseSplitScreenRequest(body: unknown): ParseResult<SplitScreenRequestBody> {
   if (typeof body !== "object" || body === null) {
     return { ok: false, error: "Dados inválidos." };
@@ -153,6 +195,12 @@ export function parseSplitScreenRequest(body: unknown): ParseResult<SplitScreenR
   const secondaryTrim = parseTrim(raw.secondaryTrim, "vídeo complementar");
   if (!secondaryTrim.ok) return secondaryTrim;
 
+  const primaryFraming = parseFraming(raw.primaryFraming, "vídeo principal");
+  if (!primaryFraming.ok) return primaryFraming;
+
+  const secondaryFraming = parseFraming(raw.secondaryFraming, "vídeo complementar");
+  if (!secondaryFraming.ok) return secondaryFraming;
+
   const audio = parseAudio(raw.audio);
   if (!audio.ok) return audio;
 
@@ -177,6 +225,8 @@ export function parseSplitScreenRequest(body: unknown): ParseResult<SplitScreenR
       layoutRatio: layoutRatio as VideoSplitLayoutRatio,
       primaryTrim: primaryTrim.value,
       secondaryTrim: secondaryTrim.value,
+      primaryFraming: primaryFraming.value,
+      secondaryFraming: secondaryFraming.value,
       durationMode: durationMode as VideoDurationMode,
       audio: audio.value,
     },

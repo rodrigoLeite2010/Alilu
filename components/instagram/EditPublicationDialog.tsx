@@ -49,6 +49,8 @@ export function EditPublicationDialog({
 
   const isVideo = post.postType === "reels";
   const isCarousel = post.postType === "carousel";
+  /** Stories não têm legenda na API do Instagram — o campo nem aparece. */
+  const isStory = post.postType === "story";
 
   function validateFiles(list: File[]): string | null {
     if (isCarousel && list.length > 0 && (list.length < 2 || list.length > 10)) {
@@ -137,6 +139,7 @@ export function EditPublicationDialog({
         </>
       }
     >
+      {isStory ? null : (
       <div className="flex flex-col gap-1">
         <label htmlFor={captionId} className="text-xs font-medium text-zinc-700">
           Legenda
@@ -154,6 +157,7 @@ export function EditPublicationDialog({
           {caption.length}/{MAX_CAPTION}
         </span>
       </div>
+      )}
 
       <div className="flex flex-col gap-1">
         <label htmlFor={mediaId} className="text-xs font-medium text-zinc-700">

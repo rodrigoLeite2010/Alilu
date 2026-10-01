@@ -43,10 +43,12 @@ function mapRunRow(row: Record<string, unknown>): AutomationRunRecord {
 }
 
 /**
- * Garante a existência da linha do dia para (automationId, runDate) — a
- * CHAVE da idempotência. `on conflict (automation_id, run_date) do
- * nothing` faz com que chamadas concorrentes nunca criem duas linhas; a
- * que perder a corrida simplesmente relê a linha já criada pela outra.
+ * Garante a existência da linha do HORÁRIO para (automationDayId, runDate)
+ * — a CHAVE da idempotência (migração 0018: antes era 1 por automação por
+ * dia; agora é 1 por horário por dia, para permitir vários horários no
+ * mesmo dia). `on conflict (automation_day_id, run_date) do nothing` faz
+ * com que chamadas concorrentes nunca criem duas linhas; a que perder a
+ * corrida simplesmente relê a linha já criada pela outra.
  */
 export async function ensureRunForDate(
   automationId: string,
@@ -58,13 +60,13 @@ export async function ensureRunForDate(
   const inserted = await db`
     insert into automation_runs (automation_id, automation_day_id, instagram_account_id, run_date)
     values (${automationId}, ${automationDayId}, ${instagramAccountId}, ${runDate})
-    on conflict (automation_id, run_date) do nothing
+    on conflict (automation_day_id, run_date) do nothing
     returning *
   `;
   if (inserted[0]) return mapRunRow(inserted[0]);
 
   const existing = await db`
-    select * from automation_runs where automation_id = ${automationId} and run_date = ${runDate}
+    select * from automation_runs where automation_day_id = ${automationDayId} and run_date = ${runDate}
   `;
   return mapRunRow(existing[0]);
 }
@@ -186,6 +188,60 @@ export async function listRunsForAutomationOwnedByUser(
     limit ${limit}
   `;
   return rows.map(mapRunRow);
+}
+
+/** Linha do histórico com o que a tela precisa mostrar além da execução em si (horário, tipo, publicação gerada). */
+export interface AutomationRunHistoryItem extends AutomationRunRecord {
+  publishTime: string | null;
+  contentType: string | null;
+  slotIndex: number;
+  publicationStatus: string | null;
+  publicationType: string | null;
+  metaMediaId: string | null;
+  publicationError: string | null;
+  publishedAt: Date | null;
+  /** URL pública da 1ª mídia da publicação (a arte gerada) — prévia no histórico. */
+  previewUrl: string | null;
+}
+
+/** Histórico detalhado (mais recente primeiro), restrito ao dono via join. */
+export async function listRunHistoryForAutomationOwnedByUser(
+  automationId: string,
+  userId: string,
+  limit = 50,
+): Promise<AutomationRunHistoryItem[]> {
+  const db = getDb();
+  const rows = await db`
+    select r.*, d.publish_time as slot_publish_time, d.content_type as slot_content_type, d.slot_index as slot_slot_index,
+      p.status as publication_status, p.post_type as publication_type, p.meta_media_id as publication_meta_media_id,
+      p.last_error_sanitized as publication_error, p.published_at as publication_published_at,
+      (
+        select m.storage_url from instagram_post_items pi
+        join instagram_media m on m.id = pi.media_id
+        where pi.post_id = p.id
+        order by pi.position
+        limit 1
+      ) as publication_preview_url
+    from automation_runs r
+    join content_automations a on a.id = r.automation_id
+    left join content_automation_days d on d.id = r.automation_day_id
+    left join instagram_posts p on p.id = r.publication_id
+    where r.automation_id = ${automationId} and a.user_id = ${userId}
+    order by r.run_date desc, d.publish_time desc nulls last, r.created_at desc
+    limit ${limit}
+  `;
+  return rows.map((row) => ({
+    ...mapRunRow(row),
+    publishTime: (row.slot_publish_time as string | null) ?? null,
+    contentType: (row.slot_content_type as string | null) ?? null,
+    slotIndex: row.slot_slot_index === null || row.slot_slot_index === undefined ? 0 : Number(row.slot_slot_index),
+    publicationStatus: (row.publication_status as string | null) ?? null,
+    publicationType: (row.publication_type as string | null) ?? null,
+    metaMediaId: (row.publication_meta_media_id as string | null) ?? null,
+    publicationError: (row.publication_error as string | null) ?? null,
+    publishedAt: row.publication_published_at ? new Date(row.publication_published_at as string) : null,
+    previewUrl: (row.publication_preview_url as string | null) ?? null,
+  }));
 }
 
 export async function getRunOwnedByUser(runId: string, userId: string): Promise<AutomationRunRecord | null> {

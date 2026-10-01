@@ -55,6 +55,34 @@ export interface VideoOutputDimensions {
   height: number;
 }
 
+export interface VideoFraming {
+  /** -1 a 1. -1 mostra o extremo esquerdo, 0 centraliza, 1 mostra o extremo direito. */
+  positionX: number;
+  /** -1 a 1. -1 mostra o topo, 0 centraliza, 1 mostra a base. */
+  positionY: number;
+  /** Multiplicador acima do cover mínimo. 1 mantém o comportamento cover atual. */
+  zoom: number;
+}
+
+export interface VideoRegionDimensions {
+  width: number;
+  height: number;
+}
+
+export interface VideoSourceDimensions {
+  width: number;
+  height: number;
+}
+
+export interface VideoFramingLayout {
+  renderedWidth: number;
+  renderedHeight: number;
+  offsetX: number;
+  offsetY: number;
+  maxOffsetX: number;
+  maxOffsetY: number;
+}
+
 /** Dimensões de saída por formato — únicas usadas nesta fase (sem controle manual). */
 export const VIDEO_OUTPUT_DIMENSIONS: Record<VideoOutputFormat, VideoOutputDimensions> = {
   vertical: { width: 1080, height: 1920 },
@@ -69,6 +97,17 @@ export const VIDEO_LAYOUT_TOP_RATIO: Record<VideoSplitLayoutRatio, number> = {
   "40-60": 0.4,
 };
 
+export const DEFAULT_VIDEO_FRAMING: VideoFraming = {
+  positionX: 0,
+  positionY: 0,
+  zoom: 1,
+};
+
+export const VIDEO_FRAMING_MIN_POSITION = -1;
+export const VIDEO_FRAMING_MAX_POSITION = 1;
+export const VIDEO_FRAMING_MIN_ZOOM = 1;
+export const VIDEO_FRAMING_MAX_ZOOM = 2.5;
+
 export interface BuildSplitScreenFfmpegArgsInput {
   /** Caminho local (já baixado em /tmp) do vídeo principal — sempre renderizado em cima. */
   primaryInputPath: string;
@@ -82,6 +121,8 @@ export interface BuildSplitScreenFfmpegArgsInput {
   secondaryTrim: VideoTrimRange;
   durationMode: VideoDurationMode;
   audio: VideoAudioConfig;
+  primaryFraming?: VideoFraming;
+  secondaryFraming?: VideoFraming;
   /** Medido via ffprobe no arquivo já baixado — nunca inferido do lado do cliente. */
   primaryHasAudio: boolean;
   /** Medido via ffprobe no arquivo já baixado — nunca inferido do lado do cliente. */
@@ -92,9 +133,62 @@ function trimDurationSeconds(trim: VideoTrimRange): number {
   return trim.endSeconds - trim.startSeconds;
 }
 
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
+}
+
+export function normalizeVideoFraming(framing: Partial<VideoFraming> | undefined): VideoFraming {
+  return {
+    positionX: clamp(framing?.positionX ?? DEFAULT_VIDEO_FRAMING.positionX, VIDEO_FRAMING_MIN_POSITION, VIDEO_FRAMING_MAX_POSITION),
+    positionY: clamp(framing?.positionY ?? DEFAULT_VIDEO_FRAMING.positionY, VIDEO_FRAMING_MIN_POSITION, VIDEO_FRAMING_MAX_POSITION),
+    zoom: clamp(framing?.zoom ?? DEFAULT_VIDEO_FRAMING.zoom, VIDEO_FRAMING_MIN_ZOOM, VIDEO_FRAMING_MAX_ZOOM),
+  };
+}
+
+export function computeVideoFramingLayout(
+  source: VideoSourceDimensions,
+  region: VideoRegionDimensions,
+  framing: Partial<VideoFraming> | undefined,
+): VideoFramingLayout {
+  const safeSourceWidth = Math.max(1, source.width);
+  const safeSourceHeight = Math.max(1, source.height);
+  const safeRegionWidth = Math.max(1, region.width);
+  const safeRegionHeight = Math.max(1, region.height);
+  const normalized = normalizeVideoFraming(framing);
+  const coverScale = Math.max(safeRegionWidth / safeSourceWidth, safeRegionHeight / safeSourceHeight);
+  const finalScale = coverScale * normalized.zoom;
+  const renderedWidth = safeSourceWidth * finalScale;
+  const renderedHeight = safeSourceHeight * finalScale;
+  const maxOffsetX = Math.max(0, (renderedWidth - safeRegionWidth) / 2);
+  const maxOffsetY = Math.max(0, (renderedHeight - safeRegionHeight) / 2);
+
+  return {
+    renderedWidth,
+    renderedHeight,
+    offsetX: normalized.positionX * maxOffsetX,
+    offsetY: normalized.positionY * maxOffsetY,
+    maxOffsetX,
+    maxOffsetY,
+  };
+}
+
 /** Arredonda para o inteiro par mais próximo — libx264 (yuv420p) exige dimensões pares. */
 function roundToEven(value: number): number {
   return Math.round(value / 2) * 2;
+}
+
+function formatFfmpegNumber(value: number): string {
+  return Number(value.toFixed(4)).toString();
+}
+
+function buildCoverCropFilter(inputIndex: number, region: VideoRegionDimensions, framing: Partial<VideoFraming> | undefined, label: string): string {
+  const normalized = normalizeVideoFraming(framing);
+  const scaledWidth = roundToEven(region.width * normalized.zoom);
+  const scaledHeight = roundToEven(region.height * normalized.zoom);
+  const cropX = `(iw-${region.width})*${formatFfmpegNumber((normalized.positionX + 1) / 2)}`;
+  const cropY = `(ih-${region.height})*${formatFfmpegNumber((normalized.positionY + 1) / 2)}`;
+
+  return `[${inputIndex}:v]scale=${scaledWidth}:${scaledHeight}:force_original_aspect_ratio=increase,crop=${region.width}:${region.height}:${cropX}:${cropY},setsar=1[${label}]`;
 }
 
 /**
@@ -140,8 +234,8 @@ export function buildSplitScreenFfmpegArgs(input: BuildSplitScreenFfmpegArgsInpu
   args.push("-i", input.secondaryInputPath);
 
   const filters: string[] = [
-    `[0:v]scale=${width}:${topHeight}:force_original_aspect_ratio=increase,crop=${width}:${topHeight},setsar=1[top]`,
-    `[1:v]scale=${width}:${bottomHeight}:force_original_aspect_ratio=increase,crop=${width}:${bottomHeight},setsar=1[bottom]`,
+    buildCoverCropFilter(0, { width, height: topHeight }, input.primaryFraming, "top"),
+    buildCoverCropFilter(1, { width, height: bottomHeight }, input.secondaryFraming, "bottom"),
     `[top][bottom]vstack=inputs=2[vout]`,
   ];
 

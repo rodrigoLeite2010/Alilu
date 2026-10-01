@@ -14,7 +14,8 @@ import type { MusicMode, MusicType } from "@/lib/instagram/backend/music-support
  * Reels é uma etapa futura, e vai precisar das próprias regras de vídeo.
  */
 
-export type InstagramPostType = "image" | "carousel" | "reels";
+/** "story" (migração 0018): imagem 9:16 publicada como Story — sem legenda. */
+export type InstagramPostType = "image" | "carousel" | "reels" | "story";
 export type InstagramPostStatus =
   | "DRAFT"
   | "SCHEDULED"
@@ -152,6 +153,14 @@ async function insertPostWithItems(
 /** Cria um post de imagem única (DRAFT, ou SCHEDULED se `scheduledAtUtc` for informado). */
 export async function createDraftImagePost(input: CreateDraftImagePostInput): Promise<string> {
   return insertPostWithItems(input, "image", [input.mediaId]);
+}
+
+/**
+ * Cria um rascunho/agendamento de Story (uma única imagem 9:16). Stories
+ * não têm legenda na API do Instagram — a legenda é sempre gravada vazia.
+ */
+export async function createDraftStoryPost(input: CreateDraftImagePostInput): Promise<string> {
+  return insertPostWithItems({ ...input, caption: "" }, "story", [input.mediaId]);
 }
 
 /** Cria um rascunho/agendamento de Reel, associado a um único vídeo. */

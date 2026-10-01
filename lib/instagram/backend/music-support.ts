@@ -29,7 +29,7 @@
 
 export type MusicMode = "ACCOUNT_DEFAULT" | "NONE" | "CUSTOM";
 export type MusicType = "None" | "InstagramCatalog" | "CustomAudio";
-export type InstagramPostTypeForMusic = "image" | "carousel" | "reels";
+export type InstagramPostTypeForMusic = "image" | "carousel" | "reels" | "story";
 
 /** Configuração de música padrão da conta (instagram_accounts.default_music_*). */
 export interface AccountDefaultMusic {
@@ -136,7 +136,8 @@ export function resolveMusicApplication(
 ): MusicApplicationResult {
   if (requested.requestedType === "None") return NOTHING_REQUESTED;
 
-  const mediaLabel = postType === "image" ? "imagem" : postType === "carousel" ? "carrossel" : "Reel";
+  const mediaLabel =
+    postType === "image" ? "imagem" : postType === "carousel" ? "carrossel" : postType === "story" ? "Story" : "Reel";
 
   if (requested.requestedType === "InstagramCatalog") {
     return {

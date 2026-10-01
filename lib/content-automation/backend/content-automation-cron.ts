@@ -13,11 +13,18 @@ import {
 import { zonedToday, publishInstantUtc, isDueForGeneration } from "./automation-time";
 import { generatePostContentForRun, generateReelContentForRun } from "./content-generation-service";
 import { getInstagramMediaById, type InstagramMediaRecord } from "@/lib/instagram/backend/media-repository";
-import { createDraftImagePost, createDraftReelPost, createDraftCarouselPost } from "@/lib/instagram/backend/instagram-post-repository";
+import {
+  createDraftImagePost,
+  createDraftReelPost,
+  createDraftCarouselPost,
+  createDraftStoryPost,
+} from "@/lib/instagram/backend/instagram-post-repository";
+import { getInstagramAccountByIdForUser } from "@/lib/instagram/backend/instagram-account-repository";
 import { MIN_CAROUSEL_ITEMS, MAX_CAROUSEL_ITEMS } from "@/lib/instagram/backend/instagram-post-service";
 import { renderAndStoreAutomationArt, renderAndStoreAutomationCarousel } from "@/lib/instagram/backend/template-render-service";
 import { reserveAutomationUse, releaseAutomationUse } from "@/lib/billing/backend/automation-access-service";
-import type { AutomationDayRecord, AutomationRecord, AutomationRunStatus } from "./automation-types";
+import { CONTENT_CATEGORY_LABEL, DAY_OF_WEEK_LABEL, type AutomationDayRecord, type AutomationRecord, type AutomationRunStatus } from "./automation-types";
+import { applyPromptVariables, displaySiteUrl } from "../prompt-variables";
 
 /**
  * Cron do Piloto Automático de Conteúdo — SÓ gera conteúdo e cria/agenda a
@@ -162,14 +169,108 @@ async function resolveCaptionForRun(
  * (abaixo), que faz a verificação de acesso ANTES de chegar aqui, deve
  * ser usada pelo laço do cron.
  */
-async function generateAndCreatePublicationUnchecked(
+/**
+ * Substitui as variáveis ({{diaSemana}}, {{data}}, {{hora}}, {{nomeConta}},
+ * {{tema}}, {{categoria}}, {{urlSite}} — ver lib/content-automation/
+ * prompt-variables.ts) no prompt, na legenda manual e no texto visual do
+ * horário, ANTES de qualquer geração. Devolve uma cópia — o registro salvo
+ * no banco nunca é alterado.
+ */
+async function resolveDayVariables(
   automation: AutomationRecord,
   day: AutomationDayRecord,
+  runDate: string,
+): Promise<AutomationDayRecord> {
+  const texts = [day.prompt, day.manualCaption ?? "", day.visualText ?? ""];
+  if (!texts.some((text) => text.includes("{{"))) return day;
+
+  const account = await getInstagramAccountByIdForUser(automation.instagramAccountId, automation.userId);
+  const context = {
+    diaSemana: DAY_OF_WEEK_LABEL[day.dayOfWeek],
+    runDate,
+    hora: day.publishTime,
+    nomeConta: account?.igUsername ?? null,
+    tema: automation.name,
+    categoria: day.contentCategory ? CONTENT_CATEGORY_LABEL[day.contentCategory] : null,
+    urlSite: displaySiteUrl(process.env.NEXT_PUBLIC_SITE_URL),
+  };
+  return {
+    ...day,
+    prompt: applyPromptVariables(day.prompt, context),
+    manualCaption: day.manualCaption === null ? null : applyPromptVariables(day.manualCaption, context),
+    visualText: day.visualText === null ? null : applyPromptVariables(day.visualText, context),
+  };
+}
+
+async function generateAndCreatePublicationUnchecked(
+  automation: AutomationRecord,
+  rawDay: AutomationDayRecord,
   runId: string,
   publishAtUtc: Date,
+  runDate: string,
 ): Promise<{ publicationId: string; status: Extract<AutomationRunStatus, "WAITING_APPROVAL" | "SCHEDULED"> }> {
   const willAutoPublish = automation.autoPublish && !automation.requireApproval;
   const scheduledAtUtc = willAutoPublish ? publishAtUtc : null;
+  const day = await resolveDayVariables(automation, rawDay, runDate);
+
+  if (day.contentType === "STORY") {
+    // Story = UMA imagem 9:16 (1080×1920), sem legenda. O texto (IA ou
+    // manual) é SEMPRE desenhado sobre a foto quando existir — não depende
+    // do imageMode da automação, porque um Story sem legenda só comunica
+    // pelo que está na imagem. Modo manual com texto vazio = Story só com
+    // a foto (recortada para 9:16). Mesmo motor de arte do POST
+    // (renderAndStoreAutomationArt), só que no formato "stories".
+    const sourceMedia = await resolveImageMediaId(automation, day);
+    let visualText = "";
+    if (day.contentMode === "MANUAL") {
+      visualText = day.visualText?.trim() ?? "";
+    } else {
+      const generated = await generatePostContentForRun(automation, day, runId, {
+        includeVisualText: true,
+        visualTextMode: "SHORT",
+      });
+      visualText = generated.visualText?.trim() ?? "";
+      if (!visualText) {
+        throw new ContentAutomationConfigError("A IA não devolveu o texto do Story — tentando novamente.");
+      }
+    }
+
+    console.info("[content-automation-cron] conteúdo resolvido para a execução (story)", {
+      automationId: automation.id,
+      automationDayId: day.id,
+      runId,
+      dayOfWeek: day.dayOfWeek,
+      slotIndex: day.slotIndex,
+      publishDateUtc: publishAtUtc.toISOString(),
+      contentMode: day.contentMode,
+      visualTextLength: visualText.length,
+    });
+
+    const mediaId = await renderAndStoreAutomationArt({
+      userId: automation.userId,
+      formatId: "stories",
+      templateId: day.templateId,
+      styleConfig: day.styleConfig,
+      sourceImageUrl: sourceMedia.storageUrl,
+      sourceMediaId: sourceMedia.id,
+      visualText,
+      // Sem texto, nenhum véu: o Story fica exatamente com a foto.
+      overlayOpacity: visualText ? day.overlayOpacity : 0,
+      visualTextColor: day.visualTextColor,
+      automationRunId: runId,
+    });
+
+    const publicationId = await createDraftStoryPost({
+      userId: automation.userId,
+      instagramAccountId: automation.instagramAccountId,
+      mediaId,
+      caption: "",
+      scheduledAtUtc,
+      timezone: automation.timezone,
+      source: "AUTOMATION",
+    });
+    return { publicationId, status: willAutoPublish ? "SCHEDULED" : "WAITING_APPROVAL" };
+  }
 
   if (day.contentType === "POST") {
     const sourceMedia = await resolveImageMediaId(automation, day);
@@ -324,10 +425,11 @@ async function generateAndCreatePublication(
   runId: string,
   publishAtUtc: Date,
   nowDate: Date,
+  runDate: string,
 ): Promise<{ publicationId: string; status: Extract<AutomationRunStatus, "WAITING_APPROVAL" | "SCHEDULED"> }> {
   const reservation = await reserveAutomationUse(automation.userId, nowDate);
   try {
-    return await generateAndCreatePublicationUnchecked(automation, day, runId, publishAtUtc);
+    return await generateAndCreatePublicationUnchecked(automation, day, runId, publishAtUtc, runDate);
   } catch (error) {
     await releaseAutomationUse(reservation);
     throw error;
@@ -350,35 +452,74 @@ export async function runContentAutomationCron(
 
     const nowDate = now();
     const { date, dayOfWeek } = zonedToday(nowDate, automation.timezone);
-    const day = automation.days.find((candidate) => candidate.dayOfWeek === dayOfWeek);
-    if (!day || !day.enabled) continue;
-    const hasContentSource = day.contentMode === "MANUAL" ? Boolean(day.manualCaption?.trim()) : Boolean(day.prompt.trim());
-    if (!hasContentSource) continue;
+    // Vários horários no mesmo dia (migração 0018): cada horário habilitado
+    // de hoje é uma execução independente, com a própria trava de
+    // idempotência (automation_day_id + run_date) — o horário principal
+    // (slot 0) se comporta exatamente como o único horário de antes.
+    const todaySlots = automation.days
+      .filter((candidate) => candidate.dayOfWeek === dayOfWeek && candidate.enabled)
+      .sort((a, b) => a.publishTime.localeCompare(b.publishTime));
+    let touched = false;
 
-    const publishAtUtc = publishInstantUtc(date, day.publishTime, automation.timezone);
-    if (!isDueForGeneration(nowDate, publishAtUtc, automation.generationLeadMinutes)) continue;
+    for (const day of todaySlots) {
+      if (results.length >= limit || Date.now() - startedAt > timeBudgetMs) break;
 
-    const run = await ensureRunForDate(automation.id, day.id, automation.instagramAccountId, date);
-    if (run.status !== "PENDING" && run.status !== "FAILED") {
-      // Já gerado, em geração por outra instância, aguardando aprovação, etc. — nada a fazer.
-      continue;
+      const hasContentSource =
+        day.contentType === "STORY"
+          ? day.contentMode === "MANUAL" || Boolean(day.prompt.trim())
+          : day.contentMode === "MANUAL"
+            ? Boolean(day.manualCaption?.trim())
+            : Boolean(day.prompt.trim());
+      if (!hasContentSource) continue;
+
+      const publishAtUtc = publishInstantUtc(date, day.publishTime, automation.timezone);
+      if (!isDueForGeneration(nowDate, publishAtUtc, automation.generationLeadMinutes)) continue;
+
+      const run = await ensureRunForDate(automation.id, day.id, automation.instagramAccountId, date);
+      if (run.status !== "PENDING" && run.status !== "FAILED") {
+        // Já gerado, em geração por outra instância, aguardando aprovação, etc. — nada a fazer.
+        continue;
+      }
+
+      const lockToken = randomUUID();
+      const claimed = await claimRunForGeneration(run.id, lockToken);
+      if (!claimed) continue; // outra instância pegou o claim, ou o retry ainda não está pronto.
+
+      const runStartedAt = Date.now();
+      try {
+        const { publicationId, status } = await generateAndCreatePublication(automation, day, run.id, publishAtUtc, nowDate, date);
+        await markRunGenerated(run.id, lockToken, publicationId, status);
+        results.push({ automationId: automation.id, runId: run.id, status });
+        console.info("[content-automation-cron] execução gerada", {
+          automationId: automation.id,
+          instagramAccountId: automation.instagramAccountId,
+          automationDayId: day.id,
+          contentType: day.contentType,
+          scheduledDate: date,
+          publishTime: day.publishTime,
+          publicationId,
+          status,
+          executionTimeMs: Date.now() - runStartedAt,
+        });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Falha desconhecida ao gerar conteúdo.";
+        const outcome = await markRunFailed(run.id, lockToken, message, now);
+        results.push({ automationId: automation.id, runId: run.id, status: outcome.status, error: message });
+        console.error("[content-automation-cron] falha ao gerar execução", {
+          automationId: automation.id,
+          instagramAccountId: automation.instagramAccountId,
+          automationDayId: day.id,
+          contentType: day.contentType,
+          scheduledDate: date,
+          publishTime: day.publishTime,
+          error: message,
+          executionTimeMs: Date.now() - runStartedAt,
+        });
+      }
+      touched = true;
     }
 
-    const lockToken = randomUUID();
-    const claimed = await claimRunForGeneration(run.id, lockToken);
-    if (!claimed) continue; // outra instância pegou o claim, ou o retry ainda não está pronto.
-
-    try {
-      const { publicationId, status } = await generateAndCreatePublication(automation, day, run.id, publishAtUtc, nowDate);
-      await markRunGenerated(run.id, lockToken, publicationId, status);
-      results.push({ automationId: automation.id, runId: run.id, status });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Falha desconhecida ao gerar conteúdo.";
-      const outcome = await markRunFailed(run.id, lockToken, message, now);
-      results.push({ automationId: automation.id, runId: run.id, status: outcome.status, error: message });
-    }
-
-    await touchAutomationRunTimestamps(automation.id, nowDate, null);
+    if (touched) await touchAutomationRunTimestamps(automation.id, nowDate, null);
   }
 
   return results;

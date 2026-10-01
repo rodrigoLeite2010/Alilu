@@ -36,7 +36,45 @@ export const DAY_OF_WEEK_LABEL: Record<DayOfWeek, string> = {
   SUNDAY: "Domingo",
 };
 
-export type AutomationContentType = "POST" | "REEL" | "CAROUSEL";
+/**
+ * "STORY": imagem 9:16 (1080×1920) publicada como Story do Instagram
+ * (media_type=STORIES) — mesma geração de arte do POST, só que no formato
+ * de Stories e sem legenda (Stories não têm legenda na API).
+ */
+export type AutomationContentType = "POST" | "REEL" | "CAROUSEL" | "STORY";
+
+/** Quantos horários um mesmo dia pode ter (o principal + extras). */
+export const MAX_SLOTS_PER_DAY = 6;
+
+/**
+ * Categoria opcional de um horário — só alimenta a variável {{categoria}}
+ * do prompt e a sugestão de prompt na tela; nunca muda o fluxo de geração.
+ */
+export type AutomationContentCategory =
+  | "MOTIVACIONAL"
+  | "FINANCEIRO"
+  | "UTILIDADES"
+  | "CURIOSIDADE"
+  | "DIVULGACAO"
+  | "PERSONALIZADO";
+
+export const CONTENT_CATEGORIES: AutomationContentCategory[] = [
+  "MOTIVACIONAL",
+  "FINANCEIRO",
+  "UTILIDADES",
+  "CURIOSIDADE",
+  "DIVULGACAO",
+  "PERSONALIZADO",
+];
+
+export const CONTENT_CATEGORY_LABEL: Record<AutomationContentCategory, string> = {
+  MOTIVACIONAL: "Motivacional",
+  FINANCEIRO: "Financeiro",
+  UTILIDADES: "Utilidades",
+  CURIOSIDADE: "Curiosidade",
+  DIVULGACAO: "Divulgação",
+  PERSONALIZADO: "Personalizado",
+};
 
 /** Tamanho máximo do texto desenhado sobre a imagem de um POST (cabe numa arte só) — compartilhado entre a validação do serviço e o formulário (WeekDayEditor). */
 export const MAX_VISUAL_TEXT_LENGTH = 120;
@@ -72,6 +110,13 @@ export interface AutomationDayRecord {
   id: string;
   automationId: string;
   dayOfWeek: DayOfWeek;
+  /**
+   * 0 = horário principal do dia (sempre existe, criado junto da
+   * automação); 1, 2, … = horários extras do mesmo dia ("+ Adicionar
+   * horário"). Cada horário gera no máximo 1 execução por dia.
+   */
+  slotIndex: number;
+  contentCategory: AutomationContentCategory | null;
   enabled: boolean;
   /**
    * "CAROUSEL" só é válido quando a automação usa imageMode =

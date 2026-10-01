@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildSplitScreenFfmpegArgs,
+  computeVideoFramingLayout,
   computeOutputDurationSeconds,
   VIDEO_LAYOUT_TOP_RATIO,
   VIDEO_OUTPUT_DIMENSIONS,
@@ -55,6 +56,49 @@ describe("buildSplitScreenFfmpegArgs — formatos de saída", () => {
   });
 });
 
+describe("computeVideoFramingLayout — enquadramento manual", () => {
+  it("vídeo 16:9 em região vertical preenche sem área vazia e limita movimento horizontal", () => {
+    const layout = computeVideoFramingLayout(
+      { width: 1920, height: 1080 },
+      { width: 1080, height: 960 },
+      { positionX: 1, positionY: 0, zoom: 1 },
+    );
+
+    expect(layout.renderedWidth).toBeGreaterThanOrEqual(1080);
+    expect(layout.renderedHeight).toBeGreaterThanOrEqual(960);
+    expect(layout.maxOffsetX).toBeGreaterThan(0);
+    expect(layout.maxOffsetY).toBe(0);
+    expect(layout.offsetX).toBe(layout.maxOffsetX);
+  });
+
+  it("vídeo 9:16 em região horizontal preenche sem área vazia e limita movimento vertical", () => {
+    const layout = computeVideoFramingLayout(
+      { width: 1080, height: 1920 },
+      { width: 1920, height: 540 },
+      { positionX: 0, positionY: -1, zoom: 1 },
+    );
+
+    expect(layout.renderedWidth).toBeGreaterThanOrEqual(1920);
+    expect(layout.renderedHeight).toBeGreaterThanOrEqual(540);
+    expect(layout.maxOffsetX).toBe(0);
+    expect(layout.maxOffsetY).toBeGreaterThan(0);
+    expect(layout.offsetY).toBe(-layout.maxOffsetY);
+  });
+
+  it("vídeo quadrado com zoom 150% aumenta a área renderizada e mantém posição central", () => {
+    const layout = computeVideoFramingLayout(
+      { width: 1000, height: 1000 },
+      { width: 1080, height: 1080 },
+      { positionX: 0, positionY: 0, zoom: 1.5 },
+    );
+
+    expect(layout.renderedWidth).toBeCloseTo(1620);
+    expect(layout.renderedHeight).toBeCloseTo(1620);
+    expect(layout.offsetX).toBe(0);
+    expect(layout.offsetY).toBe(0);
+  });
+});
+
 describe("buildSplitScreenFfmpegArgs — proporções de layout", () => {
   const ratios: VideoSplitLayoutRatio[] = ["50-50", "60-40", "40-60"];
 
@@ -70,6 +114,29 @@ describe("buildSplitScreenFfmpegArgs — proporções de layout", () => {
     expect(filterComplex).toContain(`[0:v]scale=1080:${expectedTop}`);
     expect(filterComplex).toContain(`[1:v]scale=1080:${expectedBottom}`);
     expect(filterComplex).toContain("vstack=inputs=2");
+  });
+});
+
+describe("buildSplitScreenFfmpegArgs — enquadramento manual", () => {
+  it("mantém crop central quando nenhum enquadramento é enviado", () => {
+    const args = buildSplitScreenFfmpegArgs(BASE_INPUT);
+    const filterComplex = argAfter(args, "-filter_complex")!;
+
+    expect(filterComplex).toContain("crop=1080:960:(iw-1080)*0.5:(ih-960)*0.5");
+  });
+
+  it("usa zoom e posição normalizada no scale/crop do vídeo principal e complementar", () => {
+    const args = buildSplitScreenFfmpegArgs({
+      ...BASE_INPUT,
+      primaryFraming: { positionX: -1, positionY: 1, zoom: 1.5 },
+      secondaryFraming: { positionX: 1, positionY: -1, zoom: 2 },
+    });
+    const filterComplex = argAfter(args, "-filter_complex")!;
+
+    expect(filterComplex).toContain("[0:v]scale=1620:1440:force_original_aspect_ratio=increase");
+    expect(filterComplex).toContain("crop=1080:960:(iw-1080)*0:(ih-960)*1");
+    expect(filterComplex).toContain("[1:v]scale=2160:1920:force_original_aspect_ratio=increase");
+    expect(filterComplex).toContain("crop=1080:960:(iw-1080)*1:(ih-960)*0");
   });
 });
 

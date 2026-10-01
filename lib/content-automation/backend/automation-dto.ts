@@ -6,7 +6,10 @@ import type { AutomationDayRecord, AutomationRunRecord, AutomationWithDays } fro
 
 export function serializeDay(day: AutomationDayRecord) {
   return {
+    id: day.id,
     dayOfWeek: day.dayOfWeek,
+    slotIndex: day.slotIndex,
+    contentCategory: day.contentCategory,
     enabled: day.enabled,
     contentType: day.contentType,
     contentMode: day.contentMode,

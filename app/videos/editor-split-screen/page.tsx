@@ -37,8 +37,8 @@ const contentSections = [
     body: 'Envie o vídeo principal e o vídeo complementar, escolha o formato (vertical, quadrado ou horizontal) e a proporção do split (50/50, 60/40 ou 40/60). Corte o início e o fim de cada vídeo, escolha se o complementar repete em loop ou se o resultado corta no mais curto dos dois, e escolha a fonte de áudio. Clique em "Gerar vídeo" e aguarde o processamento — depois é só baixar o resultado.',
   },
   {
-    title: "Enquadramento automático",
-    body: 'Cada vídeo preenche automaticamente a área que lhe cabe ("cover"): o excesso é cortado nas bordas, mas a imagem nunca é esticada ou deformada. Não há controle manual de zoom ou posição nesta versão.',
+    title: "Enquadramento manual",
+    body: 'Cada vídeo preenche a área que lhe cabe ("cover") sem esticar nem deformar. Depois disso, você pode arrastar o vídeo e ajustar o zoom para escolher exatamente qual parte fica visível no resultado.',
   },
 ];
 

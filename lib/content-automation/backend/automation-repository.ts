@@ -2,6 +2,8 @@ import "server-only";
 import { getDb } from "@/lib/db/client";
 import {
   DAYS_OF_WEEK,
+  MAX_SLOTS_PER_DAY,
+  type AutomationContentCategory,
   type AutomationContentMode,
   type AutomationContentType,
   type AutomationDayRecord,
@@ -21,9 +23,11 @@ import {
  * instagram-post-repository.ts / instagram-post-service.ts.
  *
  * Cada automação nasce SEMPRE com as 7 linhas de dia (todas desabilitadas
- * por padrão) — a tela edita com UPDATE, nunca insert/delete de dia
- * individual, o que casa com a constraint única (automation_id,
- * day_of_week) e evita qualquer automação "incompleta" faltando um dia.
+ * por padrão) — o "horário principal" de cada dia (slot_index = 0), que
+ * nunca é apagado e é editado com UPDATE. Horários EXTRAS do mesmo dia
+ * (slot_index 1, 2, …, migração 0018) são criados/removidos com
+ * addAutomationSlot/removeAutomationSlot; a constraint única passa a ser
+ * (automation_id, day_of_week, slot_index).
  *
  * Padrão de UPDATE parcial: igual a updatePostContent em
  * instagram-post-repository.ts — lê a linha atual, resolve em JS o que
@@ -72,6 +76,8 @@ function mapDayRow(row: Record<string, unknown>): AutomationDayRecord {
     id: row.id as string,
     automationId: row.automation_id as string,
     dayOfWeek: row.day_of_week as DayOfWeek,
+    slotIndex: row.slot_index === null || row.slot_index === undefined ? 0 : Number(row.slot_index),
+    contentCategory: (row.content_category as AutomationContentCategory | null) ?? null,
     enabled: Boolean(row.enabled),
     contentType: row.content_type as AutomationContentType,
     contentMode: (row.content_mode as AutomationContentMode | null) ?? "AI",
@@ -137,7 +143,8 @@ async function fetchDays(automationId: string): Promise<AutomationDayRecord[]> {
   const rows = await db`
     select * from content_automation_days
     where automation_id = ${automationId}
-    order by array_position(array['MONDAY','TUESDAY','WEDNESDAY','THURSDAY','FRIDAY','SATURDAY','SUNDAY']::text[], day_of_week)
+    order by array_position(array['MONDAY','TUESDAY','WEDNESDAY','THURSDAY','FRIDAY','SATURDAY','SUNDAY']::text[], day_of_week),
+      slot_index
   `;
   return rows.map(mapDayRow);
 }
@@ -168,7 +175,7 @@ export async function listAutomationsForUser(userId: string): Promise<Automation
     select a.*, coalesce(d.active_days, 0) as active_days_count
     from content_automations a
     left join (
-      select automation_id, count(*) filter (where enabled) as active_days
+      select automation_id, count(distinct day_of_week) filter (where enabled) as active_days
       from content_automation_days
       group by automation_id
     ) d on d.automation_id = a.id
@@ -233,6 +240,7 @@ export async function updateAutomation(
 
 export interface UpdateAutomationDayInput {
   enabled?: boolean;
+  contentCategory?: AutomationContentCategory | null;
   contentType?: AutomationContentType;
   contentMode?: AutomationContentMode;
   prompt?: string;
@@ -247,24 +255,41 @@ export interface UpdateAutomationDayInput {
   videoMediaId?: string | null;
 }
 
-/** Atualiza um dia específico — restrito ao dono via join com content_automations. */
+/**
+ * Qual linha de horário editar: um dia da semana (= o horário PRINCIPAL
+ * dele, slot_index 0 — compatível com todo chamador que já existia) ou o
+ * id de um horário específico (principal ou extra).
+ */
+export type AutomationDayRef = DayOfWeek | { slotId: string };
+
+/** Atualiza um horário específico — restrito ao dono via join com content_automations. */
 export async function updateAutomationDay(
   automationId: string,
   userId: string,
-  dayOfWeek: DayOfWeek,
+  dayRef: AutomationDayRef,
   patch: UpdateAutomationDayInput,
 ): Promise<boolean> {
   const owner = await fetchAutomationRow(automationId, userId);
   if (!owner) return false;
 
   const db = getDb();
-  const currentRows = await db`
-    select * from content_automation_days where automation_id = ${automationId} and day_of_week = ${dayOfWeek}
-  `;
+  const currentRows =
+    typeof dayRef === "string"
+      ? await db`
+          select * from content_automation_days
+          where automation_id = ${automationId} and day_of_week = ${dayRef} and slot_index = 0
+        `
+      : await db`
+          select * from content_automation_days
+          where automation_id = ${automationId} and id = ${dayRef.slotId}
+        `;
   const current = currentRows[0];
   if (!current) return false;
+  const rowId = current.id as string;
 
   const enabled = patch.enabled ?? Boolean(current.enabled);
+  const contentCategory =
+    patch.contentCategory === undefined ? ((current.content_category as AutomationContentCategory | null) ?? null) : patch.contentCategory;
   const contentType = patch.contentType ?? (current.content_type as AutomationContentType);
   const contentMode = patch.contentMode ?? ((current.content_mode as AutomationContentMode | null) ?? "AI");
   const prompt = patch.prompt ?? ((current.prompt as string | null) ?? "");
@@ -296,14 +321,66 @@ export async function updateAutomationDay(
 
   await db`
     update content_automation_days set
-      enabled = ${enabled}, content_type = ${contentType}, content_mode = ${contentMode},
+      enabled = ${enabled}, content_category = ${contentCategory}, content_type = ${contentType}, content_mode = ${contentMode},
       prompt = ${prompt}, manual_caption = ${manualCaption}, visual_text = ${visualText}, publish_time = ${publishTime},
       template_id = ${templateId}, style_config = ${styleConfigJson}, overlay_opacity = ${overlayOpacity},
       visual_text_color = ${visualTextColor}, image_media_id = ${imageMediaId},
       video_media_id = ${videoMediaId}, updated_at = now()
-    where automation_id = ${automationId} and day_of_week = ${dayOfWeek}
+    where id = ${rowId} and automation_id = ${automationId}
   `;
   return true;
+}
+
+export class AutomationSlotLimitError extends Error {}
+
+/**
+ * "+ Adicionar horário": cria um horário extra no dia (slot_index =
+ * próximo livre), já habilitado e às 12:00 — o usuário ajusta tipo,
+ * horário e prompt em seguida. Lança AutomationSlotLimitError se o dia já
+ * tem MAX_SLOTS_PER_DAY horários. Devolve null se a automação não for do
+ * usuário.
+ */
+export async function addAutomationSlot(
+  automationId: string,
+  userId: string,
+  dayOfWeek: DayOfWeek,
+): Promise<string | null> {
+  const owner = await fetchAutomationRow(automationId, userId);
+  if (!owner) return null;
+
+  const db = getDb();
+  const existing = await db`
+    select slot_index from content_automation_days
+    where automation_id = ${automationId} and day_of_week = ${dayOfWeek}
+  `;
+  if (existing.length >= MAX_SLOTS_PER_DAY) {
+    throw new AutomationSlotLimitError(`Cada dia pode ter no máximo ${MAX_SLOTS_PER_DAY} horários.`);
+  }
+  const nextSlot = existing.reduce((max, row) => Math.max(max, Number(row.slot_index)), -1) + 1;
+  const rows = await db`
+    insert into content_automation_days (automation_id, day_of_week, slot_index, enabled, publish_time)
+    values (${automationId}, ${dayOfWeek}, ${nextSlot}, true, '12:00')
+    returning id
+  `;
+  return rows[0].id as string;
+}
+
+/**
+ * Remove um horário EXTRA (slot_index > 0) — o horário principal do dia
+ * nunca é apagado (desabilite-o em vez disso). As publicações já geradas
+ * por esse horário continuam no calendário; só o histórico de execuções
+ * dele deixa de existir (automation_runs tem "on delete cascade").
+ */
+export async function removeAutomationSlot(automationId: string, userId: string, slotId: string): Promise<boolean> {
+  const owner = await fetchAutomationRow(automationId, userId);
+  if (!owner) return false;
+  const db = getDb();
+  const rows = await db`
+    delete from content_automation_days
+    where id = ${slotId} and automation_id = ${automationId} and slot_index > 0
+    returning id
+  `;
+  return rows.length > 0;
 }
 
 export async function setAutomationStatus(
@@ -373,9 +450,19 @@ export async function duplicateAutomation(id: string, userId: string, newName: s
   });
 
   for (const day of original.days) {
-    await updateAutomationDay(newId, userId, day.dayOfWeek, {
+    let ref: AutomationDayRef = day.dayOfWeek;
+    if (day.slotIndex > 0) {
+      const slotId = await addAutomationSlot(newId, userId, day.dayOfWeek);
+      if (!slotId) continue;
+      ref = { slotId };
+    }
+    await updateAutomationDay(newId, userId, ref, {
       enabled: day.enabled,
+      contentCategory: day.contentCategory,
       contentType: day.contentType,
+      contentMode: day.contentMode,
+      manualCaption: day.manualCaption,
+      visualText: day.visualText,
       prompt: day.prompt,
       publishTime: day.publishTime,
       templateId: day.templateId,

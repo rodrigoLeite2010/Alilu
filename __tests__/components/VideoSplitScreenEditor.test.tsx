@@ -27,6 +27,8 @@ function makeVideoFile(name: string, type = "video/mp4"): File {
 
 function setVideoDuration(videoEl: HTMLVideoElement, seconds: number) {
   Object.defineProperty(videoEl, "duration", { configurable: true, value: seconds });
+  Object.defineProperty(videoEl, "videoWidth", { configurable: true, value: 1920 });
+  Object.defineProperty(videoEl, "videoHeight", { configurable: true, value: 1080 });
 }
 
 async function selectFile(label: string, previewTestId: string, file: File, durationSeconds: number) {
@@ -182,6 +184,8 @@ describe("VideoSplitScreenEditor — fluxo completo de geração", () => {
     expect(body).toMatchObject({
       outputFormat: "vertical",
       layoutRatio: "50-50",
+      primaryFraming: { positionX: 0, positionY: 0, zoom: 1 },
+      secondaryFraming: { positionX: 0, positionY: 0, zoom: 1 },
       durationMode: "loop",
       audio: { source: "primary" },
     });
@@ -193,6 +197,22 @@ describe("VideoSplitScreenEditor — fluxo completo de geração", () => {
     const downloadLink = screen.getByRole("link", { name: /baixar vídeo/i });
     expect(downloadLink).toHaveAttribute("href", "https://blob.example.com/videos/outputs/resultado.mp4");
     expect(downloadLink).toHaveAttribute("download");
+  });
+
+  it("envia o zoom do vídeo selecionado para a rota de processamento", async () => {
+    render(<VideoSplitScreenEditor />);
+
+    await selectFile("Vídeo principal (fica em cima)", "preview-video-primary", makeVideoFile("principal.mp4"), 10);
+    await selectFile("Vídeo complementar (fica embaixo)", "preview-video-secondary", makeVideoFile("complementar.mp4"), 4);
+
+    fireEvent.change(screen.getByLabelText("Zoom do enquadramento"), { target: { value: "1.5" } });
+    fireEvent.click(screen.getByTestId("generate-button"));
+
+    await waitFor(() => expect(global.fetch).toHaveBeenCalledWith("/api/videos/split-screen", expect.anything()));
+    const [, requestInit] = (global.fetch as ReturnType<typeof vi.fn>).mock.calls[0];
+    const body = JSON.parse(requestInit.body as string);
+    expect(body.primaryFraming).toEqual({ positionX: 0, positionY: 0, zoom: 1.5 });
+    expect(body.secondaryFraming).toEqual({ positionX: 0, positionY: 0, zoom: 1 });
   });
 
   it('mostra uma mensagem de erro quando a rota de processamento falha, sem quebrar a interface', async () => {

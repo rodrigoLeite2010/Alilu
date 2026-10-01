@@ -481,6 +481,42 @@ export async function createCarouselContainer(
   return payload.id;
 }
 
+export interface CreateStoryMediaContainerInput {
+  igUserId: string;
+  accessToken: string;
+  imageUrl: string;
+}
+
+/**
+ * Cria o container de um Story de imagem — mesmo endpoint /media do
+ * Content Publishing da Instagram API with Instagram Login, com
+ * `media_type=STORIES` + `image_url` (documentação oficial:
+ * developers.facebook.com/docs/instagram-platform/content-publishing).
+ * Stories não aceitam legenda; a imagem precisa ser JPEG em URL pública
+ * (a arte é sempre gerada como JPEG 1080×1920 no Vercel Blob). Depois de
+ * criado, o container segue o MESMO caminho de qualquer outro tipo:
+ * consulta de status_code até FINISHED e media_publish.
+ */
+export async function createStoryMediaContainer(input: CreateStoryMediaContainerInput): Promise<string> {
+  const url = new URL(`https://graph.instagram.com/${GRAPH_API_VERSION}/${input.igUserId}/media`);
+  const body = new URLSearchParams();
+  body.set("media_type", "STORIES");
+  body.set("image_url", input.imageUrl);
+  body.set("access_token", input.accessToken);
+
+  const response = await fetch(url.toString(), { method: "POST", body });
+  const text = await response.text();
+  const payload = safeParseJson(text);
+
+  if (!response.ok) {
+    throw new InstagramGraphApiError("Falha ao criar o container do Story.", payload ?? text);
+  }
+  if (!isRecord(payload) || typeof payload.id !== "string") {
+    throw new InstagramGraphApiError("Resposta inesperada da Meta ao criar o container do Story.", payload);
+  }
+  return payload.id;
+}
+
 export interface CreateReelMediaContainerInput {
   igUserId: string;
   accessToken: string;

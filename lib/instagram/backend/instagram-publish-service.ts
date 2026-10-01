@@ -6,6 +6,7 @@ import {
   createCarouselItemContainer,
   createImageMediaContainer,
   createReelMediaContainer,
+  createStoryMediaContainer,
   getMediaContainerStatus,
   publishMediaContainer,
 } from "@/lib/instagram/backend/meta-graph-client";
@@ -162,6 +163,14 @@ async function createContainerForPost(ctx: ExecuteContext): Promise<string> {
       caption: post.caption,
       shareToFeed: true,
     });
+  }
+
+  if (post.postType === "story") {
+    const item = post.items[0];
+    if (!item || item.mediaType !== "image") {
+      throw new PublishValidationError("A mídia associada a este Story não é uma imagem.");
+    }
+    return createStoryMediaContainer({ igUserId: post.igUserId, accessToken, imageUrl: item.storageUrl });
   }
 
   throw new PublishValidationError("Tipo de publicação não suportado.");

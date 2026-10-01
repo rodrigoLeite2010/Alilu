@@ -189,6 +189,8 @@ export async function processSplitScreenVideo(request: SplitScreenRequestBody): 
         layoutRatio: request.layoutRatio,
         primaryTrim: request.primaryTrim,
         secondaryTrim: request.secondaryTrim,
+        primaryFraming: request.primaryFraming,
+        secondaryFraming: request.secondaryFraming,
         durationMode: request.durationMode,
         audio: request.audio,
         primaryHasAudio: primaryInfo.hasAudio,

@@ -18,6 +18,10 @@ import {
   setAutomationStatus,
   updateAutomation as updateAutomationInDb,
   updateAutomationDay as updateAutomationDayInDb,
+  addAutomationSlot as addAutomationSlotInDb,
+  removeAutomationSlot as removeAutomationSlotInDb,
+  AutomationSlotLimitError,
+  type AutomationDayRef,
   type AutomationListItem,
   type UpdateAutomationDayInput,
   type UpdateAutomationInput,
@@ -26,15 +30,20 @@ import {
   cancelPendingRunsForAutomation,
   getRunOwnedByUser,
   listRunsForAutomationOwnedByUser,
+  listRunHistoryForAutomationOwnedByUser,
   setRunStatus,
 } from "./automation-run-repository";
 import { publishInstantUtc, zonedToday } from "./automation-time";
 import {
+  CONTENT_CATEGORIES,
+  DAY_OF_WEEK_LABEL,
   DAYS_OF_WEEK,
   MAX_VISUAL_TEXT_LENGTH,
   MAX_CAROUSEL_VISUAL_TEXT_LENGTH,
+  type AutomationContentCategory,
   type AutomationContentMode,
   type AutomationContentType,
+  type AutomationDayRecord,
   type AutomationWithDays,
   type DayOfWeek,
   type ImageMode,
@@ -213,8 +222,12 @@ export async function updateAutomation(
   if (!updated) throw new AutomationValidationError("Automação não encontrada.");
 }
 
+const SUPPORTED_CONTENT_TYPES: AutomationContentType[] = ["POST", "REEL", "CAROUSEL", "STORY"];
+
 export interface UpdateDayServiceInput {
   enabled?: boolean;
+  /** Categoria opcional do horário (Motivacional, Financeiro…) — só alimenta {{categoria}} e a sugestão de prompt. */
+  contentCategory?: AutomationContentCategory | null;
   contentType?: AutomationContentType;
   contentMode?: AutomationContentMode;
   prompt?: string;
@@ -237,14 +250,29 @@ export interface UpdateDayServiceInput {
 export async function updateAutomationDay(
   automationId: string,
   userId: string,
-  dayOfWeek: DayOfWeek,
+  dayRef: AutomationDayRef,
   input: UpdateDayServiceInput,
 ): Promise<void> {
-  if (!DAYS_OF_WEEK.includes(dayOfWeek)) throw new AutomationValidationError("Dia da semana inválido.");
+  // dayRef: um dia da semana (= o horário principal dele, comportamento de
+  // sempre) ou { slotId } (qualquer horário, inclusive os extras do dia).
+  if (typeof dayRef === "string" && !DAYS_OF_WEEK.includes(dayRef)) {
+    throw new AutomationValidationError("Dia da semana inválido.");
+  }
 
   const patch: UpdateAutomationDayInput = {};
   if (input.enabled !== undefined) patch.enabled = input.enabled;
-  if (input.contentType !== undefined) patch.contentType = input.contentType;
+  if (input.contentType !== undefined) {
+    if (!SUPPORTED_CONTENT_TYPES.includes(input.contentType)) {
+      throw new AutomationValidationError("Tipo de conteúdo inválido.");
+    }
+    patch.contentType = input.contentType;
+  }
+  if (input.contentCategory !== undefined) {
+    if (input.contentCategory !== null && !CONTENT_CATEGORIES.includes(input.contentCategory)) {
+      throw new AutomationValidationError("Categoria inválida.");
+    }
+    patch.contentCategory = input.contentCategory;
+  }
   if (input.contentMode !== undefined) patch.contentMode = input.contentMode;
   if (input.prompt !== undefined) {
     const trimmed = input.prompt.trim();
@@ -305,8 +333,34 @@ export async function updateAutomationDay(
   if (input.imageMediaId !== undefined) patch.imageMediaId = await assertOwnedImageMedia(input.imageMediaId, userId);
   if (input.videoMediaId !== undefined) patch.videoMediaId = await assertOwnedVideoMedia(input.videoMediaId, userId);
 
-  const updated = await updateAutomationDayInDb(automationId, userId, dayOfWeek, patch);
+  const updated = await updateAutomationDayInDb(automationId, userId, dayRef, patch);
   if (!updated) throw new AutomationValidationError("Automação ou dia não encontrado.");
+}
+
+/** "+ Adicionar horário" num dia da semana. Devolve o id do novo horário. */
+export async function addAutomationSlot(automationId: string, userId: string, dayOfWeek: DayOfWeek): Promise<string> {
+  if (!DAYS_OF_WEEK.includes(dayOfWeek)) throw new AutomationValidationError("Dia da semana inválido.");
+  try {
+    const slotId = await addAutomationSlotInDb(automationId, userId, dayOfWeek);
+    if (!slotId) throw new AutomationValidationError("Automação não encontrada.");
+    return slotId;
+  } catch (error) {
+    if (error instanceof AutomationSlotLimitError) throw new AutomationValidationError(error.message);
+    throw error;
+  }
+}
+
+/** Remove um horário extra (o principal de cada dia não pode ser removido — só desabilitado). */
+export async function removeAutomationSlot(automationId: string, userId: string, slotId: string): Promise<void> {
+  const removed = await removeAutomationSlotInDb(automationId, userId, slotId);
+  if (!removed) {
+    throw new AutomationValidationError("Horário não encontrado — o horário principal do dia não pode ser removido, só desativado.");
+  }
+}
+
+/** Rótulo de um horário nas mensagens de validação — "segunda-feira às 12:00". */
+function slotLabel(day: AutomationDayRecord): string {
+  return `${DAY_OF_WEEK_LABEL[day.dayOfWeek].toLowerCase()} às ${day.publishTime}`;
 }
 
 /**
@@ -320,6 +374,17 @@ function assertReadyToActivate(automation: AutomationWithDays): void {
     throw new AutomationValidationError("Habilite pelo menos um dia da semana antes de ativar.");
   }
   for (const day of enabledDays) {
+    if (day.contentType === "STORY") {
+      // Story: texto opcional no modo manual (vazio = só a foto); no modo
+      // IA, precisa do prompt. Sempre precisa de uma imagem de fundo.
+      if (day.contentMode !== "MANUAL" && !day.prompt.trim()) {
+        throw new AutomationValidationError(`Defina o que o Story de ${slotLabel(day)} deve dizer antes de ativar.`);
+      }
+      if (!(day.imageMediaId ?? automation.fixedImageMediaId)) {
+        throw new AutomationValidationError(`Defina uma imagem de fundo para o Story de ${slotLabel(day)}.`);
+      }
+      continue;
+    }
     if (day.contentType === "CAROUSEL" && automation.imageMode !== "AUTO_TEMPLATE") {
       throw new AutomationValidationError(
         `${day.dayOfWeek.toLowerCase()} está configurado como Carrossel, mas isso só funciona com o modo de imagem "Gerar com IA sobre a imagem" (AUTO_TEMPLATE) — mude o modo de imagem da automação ou o tipo de conteúdo deste dia.`,
@@ -389,6 +454,12 @@ export async function listAutomationHistory(automationId: string, userId: string
   // Garante posse mesmo que a listagem também filtre por join.
   await getAutomationDetails(automationId, userId);
   return listRunsForAutomationOwnedByUser(automationId, userId);
+}
+
+/** Histórico com horário, tipo e o resultado da publicação (status na Meta, id da mídia, erro, prévia). */
+export async function listAutomationHistoryDetailed(automationId: string, userId: string) {
+  await getAutomationDetails(automationId, userId);
+  return listRunHistoryForAutomationOwnedByUser(automationId, userId);
 }
 
 /**

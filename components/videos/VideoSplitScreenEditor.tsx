@@ -1,8 +1,18 @@
 "use client";
 
-import { useEffect, useId, useMemo, useRef, useState, type ChangeEvent } from "react";
+import {
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type KeyboardEvent,
+  type PointerEvent,
+  type SyntheticEvent,
+} from "react";
 import { uploadPresigned } from "@vercel/blob/client";
-import { ArrowLeftRight, Download, Pause, Play, Sparkles } from "lucide-react";
+import { ArrowLeftRight, Download, Move, Pause, Play, RotateCcw, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import {
   MAX_OUTPUT_DURATION_SECONDS,
@@ -16,9 +26,14 @@ import {
 import {
   VIDEO_LAYOUT_TOP_RATIO,
   VIDEO_OUTPUT_DIMENSIONS,
+  DEFAULT_VIDEO_FRAMING,
+  VIDEO_FRAMING_MAX_ZOOM,
+  VIDEO_FRAMING_MIN_ZOOM,
+  computeVideoFramingLayout,
   computeOutputDurationSeconds,
   type VideoAudioSource,
   type VideoDurationMode,
+  type VideoFraming,
   type VideoOutputFormat,
   type VideoSplitLayoutRatio,
 } from "@/lib/videos/split-screen-ffmpeg";
@@ -30,10 +45,9 @@ import {
  * POST /api/videos/split-screen para gerar o resultado no servidor com
  * FFmpeg. Sem login — ferramenta pública.
  *
- * O preview (dois <video> nativos posicionados conforme o layout, tocados
- * em conjunto) é só uma aproximação: mostra a posição/proporção real, mas
- * nunca o resultado pixel-exato (cortes, loop e mix de áudio só existem de
- * verdade depois do processamento no servidor).
+ * O preview usa a mesma regra de cover + enquadramento normalizado que o
+ * filtro de vídeo. Loop, corte temporal e mix de áudio só existem de
+ * verdade depois do processamento no servidor.
  */
 
 type Stage = "idle" | "enviando" | "processando" | "sucesso" | "erro";
@@ -42,6 +56,8 @@ interface VideoSlotState {
   file: File | null;
   objectUrl: string | null;
   durationSeconds: number | null;
+  videoWidth: number | null;
+  videoHeight: number | null;
   trimStartText: string;
   trimEndText: string;
 }
@@ -50,9 +66,13 @@ const EMPTY_SLOT: VideoSlotState = {
   file: null,
   objectUrl: null,
   durationSeconds: null,
+  videoWidth: null,
+  videoHeight: null,
   trimStartText: "00:00",
   trimEndText: "00:00",
 };
+
+type VideoSlotKey = "primary" | "secondary";
 
 const OUTPUT_FORMAT_OPTIONS: { value: VideoOutputFormat; label: string }[] = [
   { value: "vertical", label: "Vertical (9:16)" },
@@ -88,6 +108,7 @@ const MAX_INPUT_MEGABYTES = Math.round(MAX_VIDEO_INPUT_BYTES / (1024 * 1024));
  * só para dar uma sensação de progresso, sem porcentagem real.
  */
 const PROCESSING_TO_FINALIZING_DELAY_MS = 8000;
+const FRAMING_STEP = 0.05;
 
 function formatClock(totalSeconds: number): string {
   const safeSeconds = Math.max(0, Math.floor(totalSeconds));
@@ -108,6 +129,18 @@ function parseClock(text: string): number | null {
 function buildUploadPathname(file: File): string {
   const uuid = typeof crypto.randomUUID === "function" ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`;
   return `${VIDEO_UPLOAD_PATH_PREFIX}${uuid}-${sanitizeOriginalFilename(file.name)}`;
+}
+
+function clampFramingPosition(value: number): number {
+  return Math.min(1, Math.max(-1, value));
+}
+
+function clampFramingZoom(value: number): number {
+  return Math.min(VIDEO_FRAMING_MAX_ZOOM, Math.max(VIDEO_FRAMING_MIN_ZOOM, value));
+}
+
+function zoomPercent(zoom: number): string {
+  return `${Math.round(zoom * 100)}%`;
 }
 
 async function readErrorMessage(response: Response, fallback: string): Promise<string> {
@@ -232,6 +265,155 @@ function VideoUploadSlot({
   );
 }
 
+function FramingPreviewPane({
+  slotKey,
+  label,
+  objectUrl,
+  videoWidth,
+  videoHeight,
+  regionWidth,
+  regionHeight,
+  framing,
+  selected,
+  onSelect,
+  onFramingChange,
+  videoRef,
+  loop,
+  onLoadedMetadata,
+}: {
+  slotKey: VideoSlotKey;
+  label: string;
+  objectUrl: string | null;
+  videoWidth: number | null;
+  videoHeight: number | null;
+  regionWidth: number;
+  regionHeight: number;
+  framing: VideoFraming;
+  selected: boolean;
+  onSelect: () => void;
+  onFramingChange: (framing: VideoFraming) => void;
+  videoRef: React.RefObject<HTMLVideoElement | null>;
+  loop?: boolean;
+  onLoadedMetadata: (event: SyntheticEvent<HTMLVideoElement>) => void;
+}) {
+  const dragRef = useRef<{
+    pointerId: number;
+    startClientX: number;
+    startClientY: number;
+    startPositionX: number;
+    startPositionY: number;
+    width: number;
+    height: number;
+  } | null>(null);
+
+  const hasSize = Boolean(videoWidth && videoHeight);
+  const layout =
+    hasSize && videoWidth !== null && videoHeight !== null
+      ? computeVideoFramingLayout({ width: videoWidth, height: videoHeight }, { width: regionWidth, height: regionHeight }, framing)
+      : null;
+
+  function updatePosition(positionX: number, positionY: number) {
+    onFramingChange({
+      ...framing,
+      positionX: clampFramingPosition(positionX),
+      positionY: clampFramingPosition(positionY),
+    });
+  }
+
+  function handlePointerDown(event: PointerEvent<HTMLDivElement>) {
+    if (!objectUrl || !layout) return;
+    onSelect();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    const bounds = event.currentTarget.getBoundingClientRect();
+    dragRef.current = {
+      pointerId: event.pointerId,
+      startClientX: event.clientX,
+      startClientY: event.clientY,
+      startPositionX: framing.positionX,
+      startPositionY: framing.positionY,
+      width: bounds.width,
+      height: bounds.height,
+    };
+  }
+
+  function handlePointerMove(event: PointerEvent<HTMLDivElement>) {
+    if (!dragRef.current || !layout) return;
+    event.preventDefault();
+    const drag = dragRef.current;
+    const maxOffsetX = (layout.maxOffsetX / regionWidth) * drag.width;
+    const maxOffsetY = (layout.maxOffsetY / regionHeight) * drag.height;
+    const deltaX = maxOffsetX > 0 ? -(event.clientX - drag.startClientX) / maxOffsetX : 0;
+    const deltaY = maxOffsetY > 0 ? -(event.clientY - drag.startClientY) / maxOffsetY : 0;
+    updatePosition(drag.startPositionX + deltaX, drag.startPositionY + deltaY);
+  }
+
+  function handlePointerUp(event: PointerEvent<HTMLDivElement>) {
+    if (dragRef.current?.pointerId === event.pointerId) {
+      dragRef.current = null;
+    }
+  }
+
+  function handleKeyDown(event: KeyboardEvent<HTMLDivElement>) {
+    if (!objectUrl) return;
+    const horizontal = event.key === "ArrowLeft" ? -FRAMING_STEP : event.key === "ArrowRight" ? FRAMING_STEP : 0;
+    const vertical = event.key === "ArrowUp" ? -FRAMING_STEP : event.key === "ArrowDown" ? FRAMING_STEP : 0;
+    if (horizontal === 0 && vertical === 0) return;
+    event.preventDefault();
+    onSelect();
+    updatePosition(framing.positionX + horizontal, framing.positionY + vertical);
+  }
+
+  const videoStyle =
+    layout && objectUrl
+      ? {
+          width: `${(layout.renderedWidth / regionWidth) * 100}%`,
+          height: `${(layout.renderedHeight / regionHeight) * 100}%`,
+          left: `${((regionWidth - layout.renderedWidth) / 2 - layout.offsetX) / regionWidth * 100}%`,
+          top: `${((regionHeight - layout.renderedHeight) / 2 - layout.offsetY) / regionHeight * 100}%`,
+        }
+      : undefined;
+
+  return (
+    <div
+      role="button"
+      tabIndex={objectUrl ? 0 : -1}
+      aria-label={`Editar enquadramento: ${label}`}
+      data-testid={`framing-pane-${slotKey}`}
+      onClick={onSelect}
+      onKeyDown={handleKeyDown}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerUp}
+      className={`relative h-full overflow-hidden bg-zinc-900 outline-none touch-none ${
+        objectUrl ? "cursor-grab active:cursor-grabbing" : ""
+      } ${selected ? "ring-2 ring-teal-300 ring-inset" : "ring-1 ring-white/10 ring-inset"}`}
+    >
+      {objectUrl ? (
+        <>
+          <video
+            ref={videoRef}
+            data-testid={`preview-video-${slotKey}`}
+            src={objectUrl}
+            muted
+            loop={loop}
+            playsInline
+            onLoadedMetadata={onLoadedMetadata}
+            className={layout ? "absolute max-w-none select-none" : "h-full w-full object-cover"}
+            style={videoStyle}
+          />
+          <div className="pointer-events-none absolute left-2 top-2 inline-flex items-center gap-1 rounded bg-black/60 px-2 py-1 text-[11px] font-medium text-white">
+            <Move className="size-3" aria-hidden />
+            Arraste para ajustar
+          </div>
+        </>
+      ) : (
+        <div className="flex h-full w-full items-center justify-center text-xs text-zinc-500">{label}</div>
+      )}
+    </div>
+  );
+}
+
 export function VideoSplitScreenEditor() {
   const [primary, setPrimary] = useState<VideoSlotState>(EMPTY_SLOT);
   const [secondary, setSecondary] = useState<VideoSlotState>(EMPTY_SLOT);
@@ -246,6 +428,9 @@ export function VideoSplitScreenEditor() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [resultUrl, setResultUrl] = useState<string | null>(null);
   const [isPreviewPlaying, setIsPreviewPlaying] = useState(false);
+  const [activeFramingSlot, setActiveFramingSlot] = useState<VideoSlotKey>("primary");
+  const [primaryFraming, setPrimaryFraming] = useState<VideoFraming>(DEFAULT_VIDEO_FRAMING);
+  const [secondaryFraming, setSecondaryFraming] = useState<VideoFraming>(DEFAULT_VIDEO_FRAMING);
 
   const primaryVideoRef = useRef<HTMLVideoElement>(null);
   const secondaryVideoRef = useRef<HTMLVideoElement>(null);
@@ -276,6 +461,7 @@ export function VideoSplitScreenEditor() {
   function replaceSlotFile(
     setter: (updater: (previous: VideoSlotState) => VideoSlotState) => void,
     file: File | null,
+    resetFraming: () => void,
   ) {
     setter((previous) => {
       if (previous.objectUrl) URL.revokeObjectURL(previous.objectUrl);
@@ -284,6 +470,8 @@ export function VideoSplitScreenEditor() {
         file,
         objectUrl: URL.createObjectURL(file),
         durationSeconds: null,
+        videoWidth: null,
+        videoHeight: null,
         trimStartText: "00:00",
         trimEndText: "00:00",
       };
@@ -291,15 +479,20 @@ export function VideoSplitScreenEditor() {
     setStage("idle");
     setErrorMessage(null);
     setResultUrl(null);
+    resetFraming();
   }
 
   function handleLoadedMetadata(
     setter: (updater: (previous: VideoSlotState) => VideoSlotState) => void,
     durationSeconds: number,
+    videoWidth: number,
+    videoHeight: number,
   ) {
     setter((previous) => ({
       ...previous,
       durationSeconds,
+      videoWidth,
+      videoHeight,
       trimEndText: previous.trimEndText === "00:00" ? formatClock(durationSeconds) : previous.trimEndText,
     }));
   }
@@ -307,6 +500,9 @@ export function VideoSplitScreenEditor() {
   function handleSwap() {
     setPrimary(secondary);
     setSecondary(primary);
+    setPrimaryFraming(secondaryFraming);
+    setSecondaryFraming(primaryFraming);
+    setActiveFramingSlot((previous) => (previous === "primary" ? "secondary" : "primary"));
     setStage("idle");
     setErrorMessage(null);
     setResultUrl(null);
@@ -355,6 +551,18 @@ export function VideoSplitScreenEditor() {
 
   const dimensions = VIDEO_OUTPUT_DIMENSIONS[outputFormat];
   const topRatio = VIDEO_LAYOUT_TOP_RATIO[layoutRatio];
+  const topHeight = Math.round((dimensions.height * topRatio) / 2) * 2;
+  const bottomHeight = dimensions.height - topHeight;
+  const activeFraming = activeFramingSlot === "primary" ? primaryFraming : secondaryFraming;
+  const setActiveFraming = activeFramingSlot === "primary" ? setPrimaryFraming : setSecondaryFraming;
+
+  function resetActiveFraming() {
+    setActiveFraming(DEFAULT_VIDEO_FRAMING);
+  }
+
+  function updateActiveZoom(zoom: number) {
+    setActiveFraming((previous) => ({ ...previous, zoom: clampFramingZoom(zoom) }));
+  }
 
   function togglePreviewPlayback() {
     const primaryEl = primaryVideoRef.current;
@@ -422,6 +630,8 @@ export function VideoSplitScreenEditor() {
             startSeconds: parseClock(secondary.trimStartText),
             endSeconds: parseClock(secondary.trimEndText),
           },
+          primaryFraming,
+          secondaryFraming,
           durationMode,
           audio,
         }),
@@ -463,7 +673,7 @@ export function VideoSplitScreenEditor() {
           label="Vídeo principal (fica em cima)"
           testId="primary"
           slot={primary}
-          onFileChange={(file) => replaceSlotFile(setPrimary, file)}
+          onFileChange={(file) => replaceSlotFile(setPrimary, file, () => setPrimaryFraming(DEFAULT_VIDEO_FRAMING))}
           onTrimStartChange={(text) => setPrimary((previous) => ({ ...previous, trimStartText: text }))}
           onTrimEndChange={(text) => setPrimary((previous) => ({ ...previous, trimEndText: text }))}
           trimError={primaryTrimError}
@@ -474,7 +684,7 @@ export function VideoSplitScreenEditor() {
           label="Vídeo complementar (fica embaixo)"
           testId="secondary"
           slot={secondary}
-          onFileChange={(file) => replaceSlotFile(setSecondary, file)}
+          onFileChange={(file) => replaceSlotFile(setSecondary, file, () => setSecondaryFraming(DEFAULT_VIDEO_FRAMING))}
           onTrimStartChange={(text) => setSecondary((previous) => ({ ...previous, trimStartText: text }))}
           onTrimEndChange={(text) => setSecondary((previous) => ({ ...previous, trimEndText: text }))}
           trimError={secondaryTrimError}
@@ -482,47 +692,97 @@ export function VideoSplitScreenEditor() {
         />
 
         <div className="rounded-lg border border-zinc-200 bg-zinc-950 p-3">
-          <p className="mb-2 text-xs text-zinc-400">
-            Pré-visualização aproximada — o resultado final (corte, loop e áudio) só existe depois de gerar o vídeo.
-          </p>
+          <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
+            <div>
+              <h2 className="text-sm font-semibold text-white">Enquadramento</h2>
+              <p className="text-xs text-zinc-400">Arraste cada vídeo para escolher a área visível.</p>
+            </div>
+            <p className="rounded bg-zinc-900 px-2 py-1 text-xs text-zinc-300">
+              Editando: {activeFramingSlot === "primary" ? "Vídeo principal" : "Vídeo complementar"}
+            </p>
+          </div>
           <div
             className="relative mx-auto flex max-h-[70vh] flex-col overflow-hidden bg-black"
             style={{ aspectRatio: `${dimensions.width} / ${dimensions.height}`, width: outputFormat === "horizontal" ? "100%" : "auto" }}
           >
-            <div style={{ height: `${topRatio * 100}%` }} className="relative overflow-hidden bg-zinc-900">
-              {primary.objectUrl ? (
-                <video
-                  ref={primaryVideoRef}
-                  data-testid="preview-video-primary"
-                  src={primary.objectUrl}
-                  muted
-                  playsInline
-                  onLoadedMetadata={(event) => handleLoadedMetadata(setPrimary, event.currentTarget.duration)}
-                  className="h-full w-full object-cover"
-                />
-              ) : (
-                <div className="flex h-full w-full items-center justify-center text-xs text-zinc-500">
-                  Vídeo principal
-                </div>
-              )}
+            <div style={{ height: `${topRatio * 100}%` }}>
+              <FramingPreviewPane
+                slotKey="primary"
+                label="Vídeo principal"
+                objectUrl={primary.objectUrl}
+                videoWidth={primary.videoWidth}
+                videoHeight={primary.videoHeight}
+                regionWidth={dimensions.width}
+                regionHeight={topHeight}
+                framing={primaryFraming}
+                selected={activeFramingSlot === "primary"}
+                onSelect={() => setActiveFramingSlot("primary")}
+                onFramingChange={setPrimaryFraming}
+                videoRef={primaryVideoRef}
+                onLoadedMetadata={(event) =>
+                  handleLoadedMetadata(
+                    setPrimary,
+                    event.currentTarget.duration,
+                    event.currentTarget.videoWidth,
+                    event.currentTarget.videoHeight,
+                  )
+                }
+              />
             </div>
-            <div style={{ height: `${(1 - topRatio) * 100}%` }} className="relative overflow-hidden bg-zinc-900">
-              {secondary.objectUrl ? (
-                <video
-                  ref={secondaryVideoRef}
-                  data-testid="preview-video-secondary"
-                  src={secondary.objectUrl}
-                  muted
-                  loop
-                  playsInline
-                  onLoadedMetadata={(event) => handleLoadedMetadata(setSecondary, event.currentTarget.duration)}
-                  className="h-full w-full object-cover"
-                />
-              ) : (
-                <div className="flex h-full w-full items-center justify-center text-xs text-zinc-500">
-                  Vídeo complementar
-                </div>
-              )}
+            <div style={{ height: `${(1 - topRatio) * 100}%` }}>
+              <FramingPreviewPane
+                slotKey="secondary"
+                label="Vídeo complementar"
+                objectUrl={secondary.objectUrl}
+                videoWidth={secondary.videoWidth}
+                videoHeight={secondary.videoHeight}
+                regionWidth={dimensions.width}
+                regionHeight={bottomHeight}
+                framing={secondaryFraming}
+                selected={activeFramingSlot === "secondary"}
+                onSelect={() => setActiveFramingSlot("secondary")}
+                onFramingChange={setSecondaryFraming}
+                videoRef={secondaryVideoRef}
+                loop
+                onLoadedMetadata={(event) =>
+                  handleLoadedMetadata(
+                    setSecondary,
+                    event.currentTarget.duration,
+                    event.currentTarget.videoWidth,
+                    event.currentTarget.videoHeight,
+                  )
+                }
+              />
+            </div>
+          </div>
+          <div className="mt-3 rounded-md bg-white p-3">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-sm font-medium text-zinc-900">
+                Zoom do {activeFramingSlot === "primary" ? "principal" : "complementar"}: {zoomPercent(activeFraming.zoom)}
+              </p>
+              <Button type="button" variant="secondary" onClick={resetActiveFraming} disabled={busy}>
+                <RotateCcw className="size-4" aria-hidden />
+                Centralizar
+              </Button>
+            </div>
+            <div className="mt-3 grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2">
+              <Button type="button" variant="secondary" onClick={() => updateActiveZoom(activeFraming.zoom - 0.1)} disabled={busy}>
+                -
+              </Button>
+              <input
+                aria-label="Zoom do enquadramento"
+                type="range"
+                min={VIDEO_FRAMING_MIN_ZOOM}
+                max={VIDEO_FRAMING_MAX_ZOOM}
+                step={0.05}
+                value={activeFraming.zoom}
+                disabled={busy}
+                onChange={(event) => updateActiveZoom(Number(event.target.value))}
+                className="w-full"
+              />
+              <Button type="button" variant="secondary" onClick={() => updateActiveZoom(activeFraming.zoom + 0.1)} disabled={busy}>
+                +
+              </Button>
             </div>
           </div>
           {primary.objectUrl && secondary.objectUrl ? (

@@ -58,6 +58,17 @@ export class TemplateRenderError extends Error {
 export const AUTO_TEMPLATE_FORMAT_ID = "vertical";
 
 /**
+ * Formatos que o Piloto Automático sabe desenhar: "vertical" (feed, 4:5 —
+ * padrão de Post/Carrossel) e "stories" (1080×1920, 9:16 — Stories). O
+ * bloco de texto é o MESMO em proporção nos dois: centralizado, até 62% da
+ * altura (TEXT_SLOT_MAX_BLOCK_HEIGHT_FRAC) e 78% da largura — no Story
+ * isso deixa ~365px livres em cima e embaixo, fora das áreas que o
+ * Instagram cobre com a barra de progresso/perfil (topo) e a caixa de
+ * resposta (rodapé), e ~119px de margem em cada lateral.
+ */
+export type AutomationArtFormatId = "vertical" | "stories";
+
+/**
  * Slot de texto que recebe o texto visual (IA ou manual). Fixo em
  * "heading" nesta etapa — todos os 5 templates existentes o usam como
  * destaque principal; um seletor por dia (escolher outro slot) fica para
@@ -288,6 +299,8 @@ function buildBaseEditorState(
 
 export interface RenderAutomationArtInput {
   userId: string;
+  /** Formato da arte — `undefined` = "vertical" (comportamento histórico de Post). Stories usam "stories". */
+  formatId?: AutomationArtFormatId;
   /** templateId e styleConfig salvos no dia (content_automation_days.template_id/style_config). */
   templateId: string | null;
   styleConfig: Record<string, unknown> | null;
@@ -357,10 +370,13 @@ export function buildAutomationArtState(
  * resultado final).
  */
 export async function renderAutomationArtBuffer(
-  input: Pick<RenderAutomationArtInput, "templateId" | "styleConfig" | "sourceImageUrl" | "visualText" | "overlayOpacity" | "visualTextColor">
+  input: Pick<
+    RenderAutomationArtInput,
+    "templateId" | "styleConfig" | "sourceImageUrl" | "visualText" | "overlayOpacity" | "visualTextColor" | "formatId"
+  >
 ): Promise<RenderedAutomationArt> {
   ensureAutomationFontsRegistered();
-  const format = getFormatById(AUTO_TEMPLATE_FORMAT_ID);
+  const format = getFormatById(input.formatId ?? AUTO_TEMPLATE_FORMAT_ID);
   const { templateIdUsed } = buildAutomationArtState(input);
 
   let sourceImage: Awaited<ReturnType<typeof loadImage>>;
