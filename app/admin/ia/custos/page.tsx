@@ -5,6 +5,7 @@ import { Container } from "@/components/ui/Container";
 import { getAdminSession } from "@/lib/admin/admin-access";
 import { getCostsDashboard, type CostPeriodSummary } from "@/lib/ai-video/backend/admin-service";
 import { formatBrl } from "@/lib/ai-video/pricing";
+import { AI_VIDEO_TIER_LABEL, type AiVideoTier } from "@/lib/ai-video/types";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Admin · IA · Custos", robots: { index: false, follow: false } };
@@ -23,7 +24,11 @@ function Period({ title, data }: { title: string; data: CostPeriodSummary }) {
     ["Tempo médio de geração", data.averageGenerationSeconds === null ? "—" : `${Math.round(data.averageGenerationSeconds)} s`],
     ["Créditos consumidos / devolvidos", `${data.creditsConsumed} / ${data.creditsRefunded}`],
     ["Compras pagas", `${data.purchasesCount} · ${formatBrl(data.purchasesRevenueBrl)}`],
-    ["Gasto com o provedor", `US$ ${data.providerSpendUsd.toFixed(2)}`],
+    ["Gasto com os provedores", `US$ ${data.providerSpendUsd.toFixed(2)}`],
+    ["Taxa de erro", `${data.errorRatePct.toFixed(1)}%`],
+    ["Regenerações com desconto", `${data.retries} (${data.retryRatePct.toFixed(1)}% das concluídas)`],
+    ["Problemas reportados", String(data.issuesReported)],
+    ["“Gostei”", String(data.liked)],
   ];
   return (
     <section className="rounded-lg border border-zinc-200 p-4">
@@ -64,12 +69,12 @@ export default async function AdminAiCostsPage() {
         <Period title="Este mês (UTC)" data={data.month} />
       </div>
       <section className="mt-6">
-        <h2 className="text-base font-semibold text-zinc-900">Por modelo (mês)</h2>
+        <h2 className="text-base font-semibold text-zinc-900">Por qualidade e modelo (mês)</h2>
         <div className="mt-2 overflow-x-auto rounded-md border border-zinc-200">
           <table className="w-full min-w-[640px] text-left text-sm">
             <thead className="bg-zinc-50 text-xs uppercase text-zinc-500">
               <tr>
-                <th className="px-3 py-2">Modelo</th>
+                <th className="px-3 py-2">Qualidade / modelo</th>
                 <th className="px-3 py-2">Gerações</th>
                 <th className="px-3 py-2">Custo médio</th>
                 <th className="px-3 py-2">Créditos</th>
@@ -87,9 +92,12 @@ export default async function AdminAiCostsPage() {
                 </tr>
               ) : (
                 data.byModel.map((row) => (
-                  <tr key={`${row.provider}-${row.model}`} className="border-t border-zinc-100">
+                  <tr key={`${row.tier}-${row.provider}-${row.model}`} className="border-t border-zinc-100">
                     <td className="px-3 py-2">
-                      {row.provider} · {row.model}
+                      <span className="font-medium">{AI_VIDEO_TIER_LABEL[row.tier as AiVideoTier] ?? row.tier}</span>
+                      <span className="block text-xs text-zinc-500">
+                        {row.provider} · {row.model}
+                      </span>
                     </td>
                     <td className="px-3 py-2">{row.generations}</td>
                     <td className="px-3 py-2">{formatBrl(row.averageCostBrl)}</td>
@@ -104,12 +112,24 @@ export default async function AdminAiCostsPage() {
           </table>
         </div>
       </section>
+      {data.usersForReview.length > 0 ? (
+        <section className="mt-6">
+          <h2 className="text-base font-semibold text-zinc-900">Usuários para revisão (muitos reportes em 30 dias)</h2>
+          <ul className="mt-2 space-y-1 text-sm text-zinc-700">
+            {data.usersForReview.map((user) => (
+              <li key={user.email}>
+                {user.email} — {user.reports} reportes, {user.refunds} com devolução
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
       <p className="mt-6 text-sm text-zinc-600">
         Bônus de boas-vindas concedidos no mês: {data.welcomeBonusCredits} créditos · Créditos de estorno/contestação já
         usados (não recuperados): {data.unrecoveredCredits}.
       </p>
       <p className="mt-2 text-xs text-zinc-500">
-        Reconciliação: compare “Gasto com o provedor” com o uso mostrado no portal de desenvolvedor da Runway — o custo por
+        Reconciliação: compare “Gasto com o provedor” com o uso mostrado nos portais da Runway e do fal.ai — o custo por
         geração aqui é o da tabela de preço vigente no envio (a API não informa o custo de cada tarefa).
       </p>
     </Container>

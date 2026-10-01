@@ -22,7 +22,7 @@ export default async function AdminAiPricingPage() {
         </Link>
       </div>
       <div className="mt-6">
-        <AiPricingAdmin config={view.config} models={view.models.map((item) => item.row)} packages={view.packages.map((item) => item.pkg)} provider={view.provider} />
+        <AiPricingAdmin config={view.config} models={view.models.map((item) => item.row)} packages={view.packages.map((item) => item.pkg)} providers={view.providers} />
       </div>
     </Container>
   );

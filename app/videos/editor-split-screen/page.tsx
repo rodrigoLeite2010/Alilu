@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { auth } from "@/auth";
 import { Container } from "@/components/ui/Container";
 import { Breadcrumbs } from "@/components/navigation/Breadcrumbs";
 import { SectionHeading } from "@/components/ui/SectionHeading";
@@ -9,6 +10,7 @@ import { buildPageMetadata } from "@/lib/seo/metadata";
 import { MAX_OUTPUT_DURATION_SECONDS, MAX_VIDEO_INPUT_BYTES } from "@/lib/videos/config";
 import { VIDEOS_CATEGORY, videoTools } from "@/data/videos";
 import { VideoSplitScreenEditor } from "@/components/videos/VideoSplitScreenEditor";
+import { getInstagramAccountForUser } from "@/lib/instagram/backend/instagram-account-repository";
 
 const tool = videoTools.find((item) => item.id === "editor-split-screen")!;
 const maxInputMegabytes = Math.round(MAX_VIDEO_INPUT_BYTES / (1024 * 1024));
@@ -67,7 +69,19 @@ const faq: ToolFaqItem[] = [
   },
 ];
 
-export default function VideoSplitScreenEditorPage() {
+export default async function VideoSplitScreenEditorPage() {
+  const session = await auth();
+  const userId = session?.user?.id ?? null;
+  let account: { connected: boolean; username: string | null } | null = null;
+  if (userId) {
+    try {
+      const record = await getInstagramAccountForUser(userId);
+      account = { connected: Boolean(record && record.status === "connected"), username: record?.igUsername ?? null };
+    } catch {
+      account = null;
+    }
+  }
+
   return (
     <Container className="py-8 sm:py-10">
       <Breadcrumbs
@@ -84,7 +98,11 @@ export default function VideoSplitScreenEditorPage() {
       </section>
 
       <section className="mt-8">
-        <VideoSplitScreenEditor />
+        <VideoSplitScreenEditor
+          userId={userId}
+          instagramConnected={account?.connected ?? null}
+          igUsername={account?.username ?? null}
+        />
       </section>
 
       <div className="mt-8">

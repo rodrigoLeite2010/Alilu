@@ -3,6 +3,7 @@
 // download do MP4 (fetch) e o Vercel Blob são falsos.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createTestDb, type TestDb } from "../helpers/pglite-db";
+import { makeSolidMp4 } from "../helpers/ai-video-media";
 
 let db: TestDb;
 vi.mock("@/lib/db/client", () => ({
@@ -20,6 +21,8 @@ const { ImageToVideoProviderError } = await import("@/lib/ai-video/backend/provi
 import type { ImageToVideoProvider, VideoGenerationStatus } from "@/lib/ai-video/backend/providers/provider";
 
 const T0 = new Date("2026-10-01T12:00:00.000Z");
+// MP4 de verdade: a finalização valida o arquivo com ffprobe antes de consumir os créditos.
+const SAMPLE_MP4 = makeSolidMp4();
 const at = (ms: number) => new Date(T0.getTime() + ms);
 
 const provider = {
@@ -58,7 +61,7 @@ function input(userId: string, overrides: Record<string, unknown> = {}) {
     idempotencyKey: "chave-idem-0001",
     imageUrl: `https://abc123.public.blob.vercel-storage.com/ai-video/${userId}/input/foto.jpg`,
     prompt: "câmera aproxima devagar",
-    tier: "ECONOMICO",
+    tier: "PADRAO",
     durationSeconds: 5,
     aspectRatio: "9:16",
     ...overrides,
@@ -77,14 +80,17 @@ async function ledgerTypes(userId: string) {
 
 beforeEach(async () => {
   db = await createTestDb();
-  registry.__setImageToVideoProvidersForTests({ runway: provider as unknown as ImageToVideoProvider });
+  registry.__setImageToVideoProvidersForTests({
+    runway: provider as unknown as ImageToVideoProvider,
+    fal: provider as unknown as ImageToVideoProvider,
+  });
   provider.supports.mockReset().mockReturnValue(true);
   provider.create.mockReset().mockResolvedValue({ externalTaskId: "task-1" });
   provider.getStatus.mockReset();
   provider.cancel.mockReset().mockResolvedValue(undefined);
   blobPut.mockReset().mockResolvedValue({ url: "https://abc123.public.blob.vercel-storage.com/ai-video/u/generated/v.mp4" });
   blobDel.mockReset().mockResolvedValue(undefined);
-  fetchMock.mockReset().mockResolvedValue(new Response(new Uint8Array([0, 0, 0, 24]), { status: 200 }));
+  fetchMock.mockReset().mockImplementation(async () => new Response(new Uint8Array(SAMPLE_MP4), { status: 200 }));
   global.fetch = fetchMock as unknown as typeof fetch;
   vi.spyOn(console, "info").mockImplementation(() => undefined);
   vi.spyOn(console, "error").mockImplementation(() => undefined);
@@ -279,17 +285,19 @@ describe("geração", () => {
     expect(await balance(userId)).toEqual({ available: 100, reserved: 0 });
   });
 
-  it("vídeo pronto mas cópia para o storage falhando: tenta de novo e, no timeout, devolve e registra o custo do provedor", async () => {
+  it("vídeo pronto mas download falhando: tenta de novo e, esgotadas as tentativas, devolve e registra o custo do provedor", async () => {
     const userId = await seedUser(100);
     const generation = await service.createGeneration(userId, input(userId), T0);
     provider.getStatus.mockResolvedValue(status({ state: "SUCCEEDED", outputUrls: ["https://cdn.example.com/out.mp4"] }));
-    fetchMock.mockResolvedValue(new Response("erro", { status: 500 }));
-    const retry = await service.refreshGenerationForUser(generation.id, userId, at(20_000));
-    expect(retry?.status).toBe("SUBMITTED");
+    fetchMock.mockImplementation(async () => new Response("erro", { status: 500 }));
+    const first = await service.refreshGenerationForUser(generation.id, userId, at(20_000));
+    expect(first?.status).toBe("AI_COMPLETED");
     expect(await balance(userId)).toEqual({ available: 0, reserved: 100 });
-    const after = await service.refreshGenerationForUser(generation.id, userId, at(31 * 60_000));
+    await service.refreshGenerationForUser(generation.id, userId, at(60_000));
+    const after = await service.refreshGenerationForUser(generation.id, userId, at(100_000));
     expect(after?.status).toBe("REFUNDED");
     expect(after?.providerCharged).toBe(true);
+    expect(provider.getStatus).toHaveBeenCalledTimes(1); // não consulta o provedor de novo depois de AI_COMPLETED
     expect(await balance(userId)).toEqual({ available: 100, reserved: 0 });
   });
 

@@ -11,21 +11,29 @@ import {
   AI_VIDEO_ASPECT_RATIOS,
   AI_VIDEO_IMAGE_CONTENT_TYPES,
   AI_VIDEO_IN_PROGRESS_STATUSES,
+  AI_VIDEO_ISSUE_LABEL,
+  AI_VIDEO_ISSUE_TYPES,
   AI_VIDEO_MAX_IMAGE_BYTES,
   AI_VIDEO_MAX_PROMPT_LENGTH,
   AI_VIDEO_PROMPT_SUGGESTIONS,
+  AI_VIDEO_TIERS,
+  AI_VIDEO_TIER_BADGE,
   AI_VIDEO_TIER_DESCRIPTION,
   AI_VIDEO_TIER_LABEL,
   type AiVideoAspectRatio,
   type AiVideoGenerationStatus,
+  type AiVideoIssueType,
   type AiVideoTier,
 } from "@/lib/ai-video/types";
+import { buildSimpleOverlays, simpleInputFromOverlays, type AiVideoOverlay, type SimpleOverlayInput } from "@/lib/ai-video/overlays";
 import { formatCredits, formatDateTime, newIdempotencyKey, readErrorMessage, slugFileName } from "./client-utils";
+import { OverlayEditor } from "./OverlayEditor";
 
 export interface AiVideoOptionDto {
   tier: AiVideoTier;
   durationSeconds: number;
   credits: number;
+  retryCredits: number;
 }
 
 export interface AiVideoGenerationClientDto {
@@ -42,6 +50,13 @@ export interface AiVideoGenerationClientDto {
   expiresAt: string | null;
   createdAt: string;
   completedAt: string | null;
+  progressLabel: string;
+  preserveText: boolean;
+  overlays: AiVideoOverlay[];
+  parentGenerationId: string | null;
+  isDiscountedRetry: boolean;
+  listCreditCost: number | null;
+  liked: boolean;
 }
 
 export interface AiVideoDraftDto {
@@ -50,6 +65,8 @@ export interface AiVideoDraftDto {
   tier: string | null;
   durationSeconds: number | null;
   aspectRatio: string | null;
+  preserveText: boolean | null;
+  overlays: AiVideoOverlay[] | null;
 }
 
 const STATUS_LABEL: Record<AiVideoGenerationStatus, string> = {
@@ -58,6 +75,8 @@ const STATUS_LABEL: Record<AiVideoGenerationStatus, string> = {
   SUBMITTED: "Na fila",
   QUEUED: "Na fila",
   PROCESSING: "Gerando vídeo",
+  AI_COMPLETED: "Finalizando",
+  POST_PROCESSING: "Finalizando",
   COMPLETED: "Pronto",
   FAILED: "Não foi possível gerar",
   REFUNDED: "Não gerado — créditos devolvidos",
@@ -89,7 +108,7 @@ export function AiVideoGenerator({
   initialGenerations: AiVideoGenerationClientDto[];
   draft: AiVideoDraftDto | null;
 }) {
-  const tiers = useMemo(() => Array.from(new Set(options.map((option) => option.tier))), [options]);
+  const tiers = useMemo(() => AI_VIDEO_TIERS.filter((value) => options.some((option) => option.tier === value)), [options]);
   const [available, setAvailable] = useState(initialAvailable);
   const router = useRouter();
   const [imageUrl, setImageUrl] = useState<string | null>(draft?.inputImageUrl ?? null);
@@ -109,9 +128,22 @@ export function AiVideoGenerator({
   const [error, setError] = useState<string | null>(null);
   const [insufficient, setInsufficient] = useState<{ required: number; available: number } | null>(null);
   const idempotencyKeyRef = useRef<string>(newIdempotencyKey());
+  // Ligado por padrão: textos/logos aplicados pelo Alilu depois da IA.
+  const [preserveText, setPreserveText] = useState<boolean>(draft?.preserveText ?? true);
+  const [overlayInput, setOverlayInput] = useState<SimpleOverlayInput>(() => simpleInputFromOverlays(draft?.overlays ?? []));
+  const [retryOf, setRetryOf] = useState<AiVideoGenerationClientDto | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [issueFor, setIssueFor] = useState<AiVideoGenerationClientDto | null>(null);
+  const formRef = useRef<HTMLElement | null>(null);
 
   const selected = options.find((option) => option.tier === tier && option.durationSeconds === duration) ?? null;
-  const cost = selected?.credits ?? null;
+  const cost = selected ? (retryOf ? selected.retryCredits : selected.credits) : null;
+  const overlays = useMemo(() => (preserveText ? buildSimpleOverlays(overlayInput) : []), [preserveText, overlayInput]);
+  const minCreditsByTier = useMemo(() => {
+    const map = new Map<AiVideoTier, number>();
+    for (const option of options) map.set(option.tier, Math.min(map.get(option.tier) ?? Infinity, option.credits));
+    return map;
+  }, [options]);
 
   function selectTier(next: AiVideoTier) {
     setTier(next);
@@ -172,14 +204,40 @@ export function AiVideoGenerator({
       await fetch("/api/ai-video/draft", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ imageUrl, prompt, tier, durationSeconds: duration, aspectRatio }),
+        body: JSON.stringify({ imageUrl, prompt, tier, durationSeconds: duration, aspectRatio, preserveText, overlays }),
       });
     } catch {
       // mesmo sem rascunho, segue para a compra
     }
     const required = insufficient?.required ?? cost ?? 0;
     router.push(`/minha-conta/creditos-ia?voltar=${encodeURIComponent("/videos/imagem-para-video")}&custo=${required}`);
-  }, [imageUrl, prompt, tier, duration, aspectRatio, insufficient, cost, router]);
+  }, [imageUrl, prompt, tier, duration, aspectRatio, preserveText, overlays, insufficient, cost, router]);
+
+  /** Carrega um vídeo anterior no formulário (para "gerar novamente" ou "versão final"). */
+  function loadFrom(generation: AiVideoGenerationClientDto, options_: { retry: boolean; tier?: AiVideoTier }) {
+    setImageUrl(generation.inputImageUrl);
+    setPrompt(generation.prompt);
+    const nextTier = options_.tier ?? generation.tier;
+    setTier(nextTier);
+    const durations = options.filter((option) => option.tier === nextTier).map((option) => option.durationSeconds);
+    setDuration(durations.includes(generation.durationSeconds) ? generation.durationSeconds : (durations[0] ?? generation.durationSeconds));
+    setAspectRatio(generation.aspectRatio);
+    setPreserveText(generation.preserveText);
+    setOverlayInput(simpleInputFromOverlays(generation.overlays));
+    setRetryOf(options_.retry ? generation : null);
+    setError(null);
+    idempotencyKeyRef.current = newIdempotencyKey();
+    formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  async function handleLike(generation: AiVideoGenerationClientDto) {
+    setGenerations((list) => list.map((item) => (item.id === generation.id ? { ...item, liked: true } : item)));
+    try {
+      await fetch(`/api/ai-video/generations/${generation.id}/feedback`, { method: "POST" });
+    } catch {
+      // métrica — sem impacto para o usuário
+    }
+  }
 
   async function handleGenerate() {
     setError(null);
@@ -211,6 +269,9 @@ export function AiVideoGenerator({
           tier,
           durationSeconds: duration,
           aspectRatio,
+          preserveText,
+          overlays,
+          retryOfGenerationId: retryOf?.id ?? null,
         }),
       });
       if (response.status === 402) {
@@ -224,6 +285,7 @@ export function AiVideoGenerator({
       const payload = (await response.json()) as { generation: AiVideoGenerationClientDto; wallet: { available: number } };
       setGenerations((list) => [payload.generation, ...list.filter((item) => item.id !== payload.generation.id)]);
       setAvailable(payload.wallet.available);
+      setRetryOf(null);
       idempotencyKeyRef.current = newIdempotencyKey();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Não foi possível iniciar a geração.");
@@ -243,7 +305,24 @@ export function AiVideoGenerator({
         </LinkButton>
       </div>
 
-      <section className="space-y-5 rounded-lg border border-zinc-200 p-4 sm:p-6">
+      {notice ? (
+        <p role="status" className="rounded-md bg-teal-50 px-3 py-2 text-sm text-teal-900">
+          {notice}
+        </p>
+      ) : null}
+
+      <section ref={formRef} className="scroll-mt-6 space-y-5 rounded-lg border border-zinc-200 p-4 sm:p-6">
+        {retryOf ? (
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+            <span>
+              Gerando novamente com desconto a partir do vídeo de {formatDateTime(retryOf.createdAt)}. Ajuste o que quiser antes de gerar
+              (a imagem é a mesma).
+            </span>
+            <button type="button" onClick={() => setRetryOf(null)} className="text-xs font-medium underline">
+              Cancelar desconto
+            </button>
+          </div>
+        ) : null}
         <div>
           <p className="mb-2 text-sm font-medium text-zinc-800">Imagem</p>
           <div className="flex flex-wrap items-start gap-4">
@@ -251,13 +330,15 @@ export function AiVideoGenerator({
               // eslint-disable-next-line @next/next/no-img-element -- prévia da imagem enviada (Vercel Blob).
               <img src={imageUrl} alt="Imagem enviada" className="h-32 w-auto max-w-[200px] rounded-md border border-zinc-200 object-contain" />
             ) : null}
-            <label className="inline-flex min-h-11 cursor-pointer items-center rounded-md border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-800 hover:bg-zinc-50">
+            <label
+              className={`inline-flex min-h-11 cursor-pointer items-center rounded-md border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-800 hover:bg-zinc-50 ${retryOf ? "pointer-events-none opacity-50" : ""}`}
+            >
               {uploading ? "Enviando…" : imageUrl ? "Trocar imagem" : "Enviar imagem"}
               <input
                 type="file"
                 accept={AI_VIDEO_IMAGE_CONTENT_TYPES.join(",")}
                 className="sr-only"
-                disabled={uploading}
+                disabled={uploading || retryOf !== null}
                 onChange={(event) => handleFile(event.target.files?.[0] ?? null)}
               />
             </label>
@@ -295,7 +376,7 @@ export function AiVideoGenerator({
 
         <fieldset>
           <legend className="mb-2 text-sm font-medium text-zinc-800">Qualidade</legend>
-          <div className="grid gap-2 sm:grid-cols-2">
+          <div className="grid gap-2 sm:grid-cols-3">
             {tiers.map((value) => (
               <label
                 key={value}
@@ -304,7 +385,11 @@ export function AiVideoGenerator({
                 <input type="radio" name="ai-video-tier" checked={tier === value} onChange={() => selectTier(value)} className="mt-0.5 h-4 w-4" />
                 <span>
                   <span className="block font-medium text-zinc-900">{AI_VIDEO_TIER_LABEL[value]}</span>
-                  <span className="block text-xs text-zinc-500">{AI_VIDEO_TIER_DESCRIPTION[value]}</span>
+                  <span className="mt-0.5 block text-[11px] font-medium uppercase tracking-wide text-teal-800">{AI_VIDEO_TIER_BADGE[value]}</span>
+                  <span className="mt-1 block text-xs text-zinc-500">{AI_VIDEO_TIER_DESCRIPTION[value]}</span>
+                  {minCreditsByTier.has(value) ? (
+                    <span className="mt-1 block text-xs font-medium text-zinc-700">a partir de {formatCredits(minCreditsByTier.get(value)!)}</span>
+                  ) : null}
                 </span>
               </label>
             ))}
@@ -336,10 +421,31 @@ export function AiVideoGenerator({
           </fieldset>
         </div>
 
+        <div>
+          <label className="flex cursor-pointer items-start gap-2 text-sm">
+            <input type="checkbox" checked={preserveText} onChange={(event) => setPreserveText(event.target.checked)} className="mt-0.5 h-4 w-4" />
+            <span>
+              <span className="block font-medium text-zinc-900">Preservar textos e logotipos</span>
+              <span className="block text-xs text-zinc-500">
+                Modelos de IA podem gerar variações inesperadas em letras e logos. Com esta opção, seus textos e seu logo são aplicados
+                pela finalização automática do Alilu, depois da IA — saem exatamente como você digitou. Deixe os campos vazios para só animar a imagem.
+              </span>
+            </span>
+          </label>
+          {preserveText ? (
+            <div className="mt-3">
+              <OverlayEditor userId={userId} value={overlayInput} onChange={setOverlayInput} imageUrl={imageUrl} aspectRatio={aspectRatio} />
+            </div>
+          ) : null}
+        </div>
+
         {cost !== null ? (
           <div className="rounded-md border border-teal-200 bg-teal-50/60 p-4 text-sm text-zinc-800">
             <p>
-              Esta geração consumirá: <strong>{formatCredits(cost)}</strong>
+              Esta geração custará: <strong>{formatCredits(cost)}</strong>
+              {retryOf && selected && selected.credits > cost ? (
+                <span className="ml-1 text-xs text-zinc-500">(preço cheio {formatCredits(selected.credits)})</span>
+              ) : null}
             </p>
             <p>Seu saldo: {formatCredits(available)}</p>
             <p>
@@ -355,7 +461,7 @@ export function AiVideoGenerator({
         ) : null}
 
         <Button type="button" onClick={handleGenerate} disabled={submitting || uploading} className="w-full justify-center sm:w-auto">
-          {submitting ? "Enviando…" : "Gerar vídeo"}
+          {submitting ? "Enviando…" : retryOf ? "Gerar novamente com desconto" : "Gerar vídeo"}
         </Button>
         <p className="text-xs text-zinc-500">
           A geração utiliza serviços externos de inteligência artificial. Não envie imagens de terceiros sem autorização nem
@@ -383,7 +489,10 @@ export function AiVideoGenerator({
                 </div>
                 <p className="mt-2 line-clamp-2 text-sm text-zinc-800">{generation.prompt}</p>
                 {isInProgress(generation.status) ? (
-                  <p className="mt-2 text-xs text-zinc-500">Isso costuma levar de 1 a 3 minutos. Pode sair desta tela — o vídeo continua sendo gerado.</p>
+                  <p className="mt-2 text-xs text-zinc-500">
+                    <strong className="font-medium text-zinc-700">{generation.progressLabel}</strong> Isso costuma levar de 1 a 3 minutos. Pode
+                    sair desta tela — o vídeo continua sendo gerado.
+                  </p>
                 ) : null}
                 {generation.errorMessage ? <p className="mt-2 text-sm text-red-700">{generation.errorMessage}</p> : null}
                 {generation.status === "COMPLETED" && generation.videoUrl ? (
@@ -397,6 +506,26 @@ export function AiVideoGenerator({
                         Publicar como Reel
                       </LinkButton>
                     </div>
+                    <div className="flex flex-wrap gap-2 border-t border-zinc-100 pt-2">
+                      <Button type="button" variant="secondary" onClick={() => handleLike(generation)} disabled={generation.liked}>
+                        {generation.liked ? "Você gostou ✓" : "Gostei"}
+                      </Button>
+                      {generation.tier === "ECONOMICO" && tiers.includes("PADRAO") ? (
+                        <Button type="button" variant="secondary" onClick={() => loadFrom(generation, { retry: false, tier: "PADRAO" })}>
+                          Gostei — gerar versão final no Padrão
+                        </Button>
+                      ) : null}
+                      <Button type="button" variant="ghost" onClick={() => loadFrom(generation, { retry: true })}>
+                        Gerar novamente
+                        {(() => {
+                          const option = options.find((item) => item.tier === generation.tier && item.durationSeconds === generation.durationSeconds);
+                          return option ? ` (${formatCredits(option.retryCredits)})` : "";
+                        })()}
+                      </Button>
+                      <Button type="button" variant="ghost" onClick={() => setIssueFor(generation)}>
+                        Reportar problema
+                      </Button>
+                    </div>
                     {generation.expiresAt ? (
                       <p className="text-xs text-zinc-500">Disponível para download até {formatDateTime(generation.expiresAt)}.</p>
                     ) : null}
@@ -407,6 +536,23 @@ export function AiVideoGenerator({
           </ul>
         )}
       </section>
+
+      <IssueDialog
+        generation={issueFor}
+        onClose={() => setIssueFor(null)}
+        onReported={(payload) => {
+          setIssueFor(null);
+          setGenerations((list) => list.map((item) => (item.id === payload.generation.id ? payload.generation : item)));
+          setAvailable(payload.wallet.available);
+          setNotice(
+            payload.resolution === "REFUNDED"
+              ? `Confirmamos o defeito no vídeo e devolvemos ${formatCredits(payload.refundedCredits)}.`
+              : payload.resolution === "PENDING_REVIEW"
+                ? "Problema registrado. Vamos analisar o arquivo e, se houver defeito, devolvemos os créditos."
+                : "Problema registrado, obrigado! O vídeo está tecnicamente válido — use “Gerar novamente” para tentar outra versão com desconto.",
+          );
+        }}
+      />
 
       <Dialog
         open={insufficient !== null}
@@ -437,5 +583,95 @@ export function AiVideoGenerator({
         ) : null}
       </Dialog>
     </div>
+  );
+}
+
+interface IssueResponse {
+  resolution: "REFUNDED" | "RETRY_OFFERED" | "PENDING_REVIEW";
+  refundedCredits: number;
+  generation: AiVideoGenerationClientDto;
+  wallet: { available: number };
+}
+
+function IssueDialog({
+  generation,
+  onClose,
+  onReported,
+}: {
+  generation: AiVideoGenerationClientDto | null;
+  onClose: () => void;
+  onReported: (payload: IssueResponse) => void;
+}) {
+  const [issueType, setIssueType] = useState<AiVideoIssueType | null>(null);
+  const [description, setDescription] = useState("");
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function submit() {
+    if (!generation || !issueType) {
+      setError("Escolha o tipo de problema.");
+      return;
+    }
+    setSending(true);
+    setError(null);
+    try {
+      const response = await fetch(`/api/ai-video/generations/${generation.id}/issue`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ issueType, description }),
+      });
+      if (!response.ok) throw new Error(await readErrorMessage(response, "Não foi possível registrar o problema."));
+      onReported((await response.json()) as IssueResponse);
+      setIssueType(null);
+      setDescription("");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Não foi possível registrar o problema.");
+    } finally {
+      setSending(false);
+    }
+  }
+
+  return (
+    <Dialog
+      open={generation !== null}
+      title="Reportar problema"
+      onClose={onClose}
+      footer={
+        <>
+          <Button type="button" variant="secondary" onClick={onClose}>
+            Cancelar
+          </Button>
+          <Button type="button" onClick={submit} disabled={sending}>
+            {sending ? "Enviando…" : "Enviar"}
+          </Button>
+        </>
+      }
+    >
+      <fieldset className="space-y-2 text-sm">
+        <legend className="mb-2 text-zinc-700">O que aconteceu com este vídeo?</legend>
+        {AI_VIDEO_ISSUE_TYPES.map((type) => (
+          <label key={type} className="flex items-center gap-2">
+            <input type="radio" name="ai-video-issue" checked={issueType === type} onChange={() => setIssueType(type)} className="h-4 w-4" />
+            {AI_VIDEO_ISSUE_LABEL[type]}
+          </label>
+        ))}
+      </fieldset>
+      <label htmlFor="ai-video-issue-description" className="mt-3 block text-sm text-zinc-700">
+        Detalhes (opcional)
+      </label>
+      <textarea
+        id="ai-video-issue-description"
+        value={description}
+        maxLength={1000}
+        onChange={(event) => setDescription(event.target.value)}
+        rows={3}
+        className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm"
+      />
+      <p className="mt-2 text-xs text-zinc-500">
+        Vídeo corrompido ou erro técnico: verificamos o arquivo e, se houver defeito, os créditos voltam na hora. Se o vídeo estiver
+        válido mas não ficou como você queria, use “Gerar novamente” com desconto.
+      </p>
+      {error ? <p className="mt-2 text-sm text-red-600">{error}</p> : null}
+    </Dialog>
   );
 }

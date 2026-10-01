@@ -32,6 +32,10 @@ function mapConfig(row: Record<string, unknown>): AiPricingConfig {
     retentionDaysFree: num(row.retention_days_free),
     retentionDaysPaid: num(row.retention_days_paid),
     purchaseRefundWindowDays: num(row.purchase_refund_window_days),
+    retryDiscountPct: num(row.retry_discount_pct ?? 50),
+    maxRetriesPerGeneration: num(row.max_retries_per_generation ?? 3),
+    postprocessCostBrl: num(row.postprocess_cost_brl ?? 0),
+    issueReviewThreshold: num(row.issue_review_threshold ?? 5),
     effectiveFrom: new Date(row.effective_from as string).toISOString(),
   };
 }
@@ -92,14 +96,16 @@ export async function insertPricingConfig(input: AiPricingConfigInput): Promise<
       welcome_bonus_credits, max_provider_cost_usd, daily_provider_spend_limit_usd,
       monthly_provider_spend_limit_usd, max_generations_per_user_per_hour,
       moderation_strikes_before_block, moderation_block_hours, retention_days_free,
-      retention_days_paid, purchase_refund_window_days
+      retention_days_paid, purchase_refund_window_days, retry_discount_pct, max_retries_per_generation,
+      postprocess_cost_brl, issue_review_threshold
     ) values (
       ${input.creditValueBrl}, ${input.targetGrossMarginPct}, ${input.minimumGrossMarginPct}, ${input.usdBrlReferenceRate},
       ${input.providerCostSafetyMultiplier}, ${input.paymentFeePct}, ${input.taxPct}, ${input.infraCostBrlPerGeneration},
       ${input.welcomeBonusCredits}, ${input.maxProviderCostUsd}, ${input.dailyProviderSpendLimitUsd},
       ${input.monthlyProviderSpendLimitUsd}, ${input.maxGenerationsPerUserPerHour},
       ${input.moderationStrikesBeforeBlock}, ${input.moderationBlockHours}, ${input.retentionDaysFree},
-      ${input.retentionDaysPaid}, ${input.purchaseRefundWindowDays}
+      ${input.retentionDaysPaid}, ${input.purchaseRefundWindowDays}, ${input.retryDiscountPct}, ${input.maxRetriesPerGeneration},
+      ${input.postprocessCostBrl}, ${input.issueReviewThreshold}
     )
     returning *
   `;
@@ -110,7 +116,7 @@ export async function listModelPricing(): Promise<AiVideoModelPricing[]> {
   const db = getDb();
   const rows = await db`
     select * from ai_video_model_pricing
-    order by array_position(array['ECONOMICO','PADRAO','ALTA']::text[], tier), duration_seconds
+    order by array_position(array['ECONOMICO','PADRAO','PREMIUM']::text[], tier), duration_seconds
   `;
   return rows.map(mapModelPricing);
 }
@@ -134,13 +140,14 @@ export async function getModelPricingById(id: string): Promise<AiVideoModelPrici
 
 export async function updateModelPricing(
   id: string,
-  patch: { aliluCreditCost: number; isActive: boolean; providerCreditsPerSecond: number },
+  patch: { aliluCreditCost: number; isActive: boolean; providerCreditsPerSecond: number; providerFixedCredits: number },
 ): Promise<void> {
   const db = getDb();
   await db`
     update ai_video_model_pricing
     set alilu_credit_cost = ${patch.aliluCreditCost}, is_active = ${patch.isActive},
-        provider_credits_per_second = ${patch.providerCreditsPerSecond}, updated_at = now()
+        provider_credits_per_second = ${patch.providerCreditsPerSecond},
+        provider_fixed_credits = ${patch.providerFixedCredits}, updated_at = now()
     where id = ${id}
   `;
 }

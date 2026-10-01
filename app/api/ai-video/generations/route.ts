@@ -18,7 +18,8 @@ export async function GET(): Promise<NextResponse> {
 }
 
 /**
- * POST { idempotencyKey, imageUrl, prompt, tier, durationSeconds, aspectRatio }:
+ * POST { idempotencyKey, imageUrl, prompt, tier, durationSeconds, aspectRatio,
+ *        preserveText?, overlays?, retryOfGenerationId? }:
  * "GERAR VÍDEO". O custo é SEMPRE recalculado no servidor — o valor
  * mostrado na tela nunca é usado. 402 = créditos insuficientes (com
  * quanto falta); a requisição ao provedor nunca acontece nesse caso.
@@ -45,6 +46,9 @@ export async function POST(request: Request): Promise<NextResponse> {
       tier: String(body.tier ?? ""),
       durationSeconds: Number(body.durationSeconds),
       aspectRatio: String(body.aspectRatio ?? ""),
+      preserveText: body.preserveText === true,
+      overlays: body.overlays,
+      retryOfGenerationId: typeof body.retryOfGenerationId === "string" ? body.retryOfGenerationId : null,
     });
     await clearDraft(userId);
     const wallet = await getWallet(userId);

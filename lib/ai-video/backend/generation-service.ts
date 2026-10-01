@@ -10,12 +10,16 @@ import {
   type AiVideoModelPricing,
   type AiVideoTier,
 } from "../types";
-import { economicsForCredits, providerCostUsd } from "../pricing";
+import { economicsForCredits, providerCostUsd, retryCreditCost } from "../pricing";
+import { OverlayValidationError, validateOverlays, type AiVideoOverlay } from "../overlays";
 import { getActiveModelPricing, getActivePricingConfig, listModelPricing } from "./pricing-repository";
 import { applyWalletMovement, ensureWallet, getWallet, grantWelcomeBonusOnce, type WalletRecord } from "./wallet-repository";
 import {
   claimGeneration,
   countGenerationsSince,
+  countRetriesOf,
+  findGenerationByIdempotencyKey,
+  setGenerationStatusKeepingLock,
   countModerationFailuresSince,
   deleteGeneration,
   getGenerationById,
@@ -31,6 +35,7 @@ import {
 import { getImageToVideoProvider } from "./providers/provider-registry";
 import { ImageToVideoProviderError } from "./providers/provider";
 import { isAiVideoInputPathForUser } from "./ai-video-storage";
+import { processAiVideo, VideoOutputInvalidError, VideoPostProcessError } from "./video-overlay-service";
 
 /**
  * Regra de negócio da geração "imagem → vídeo":
@@ -91,6 +96,27 @@ export interface CreateGenerationInput {
   tier: string;
   durationSeconds: number;
   aspectRatio: string;
+  /** "Preservar textos e logotipos": aplica os overlays DEPOIS da IA. */
+  preserveText?: boolean;
+  /** Lista de overlays (lib/ai-video/overlays.ts) — validada no servidor. */
+  overlays?: unknown;
+  /** "Gerar novamente com desconto" a partir desta geração concluída. */
+  retryOfGenerationId?: string | null;
+}
+
+/** Quantas tentativas de pós-processamento (FFmpeg/cópia) antes de devolver os créditos. */
+const MAX_POSTPROCESS_ATTEMPTS = 3;
+
+/**
+ * Instrução extra ao modelo quando "preservar textos e logo" está ligado.
+ * AJUDA, mas não garante — a garantia é o pós-processamento (overlays).
+ */
+const PRESERVE_TEXT_PROMPT_SUFFIX =
+  " Keep any existing text, letters and logos static and unchanged. Do not add new text. Prefer subtle, stable camera motion.";
+
+export function buildProviderPrompt(prompt: string, preserveText: boolean): string {
+  if (!preserveText) return prompt;
+  return `${prompt.slice(0, AI_VIDEO_MAX_PROMPT_LENGTH - PRESERVE_TEXT_PROMPT_SUFFIX.length)}${PRESERVE_TEXT_PROMPT_SUFFIX}`;
 }
 
 export interface GenerationQuote {
@@ -159,8 +185,40 @@ export async function createGeneration(
 ): Promise<AiVideoGenerationRecord> {
   const { tier, aspectRatio, prompt } = validateInput(userId, input);
 
+  const preserveText = input.preserveText === true;
+  let overlays: AiVideoOverlay[] = [];
+  try {
+    // Sem "preservar textos e logo": só anima a imagem, nenhum overlay é aplicado.
+    overlays = preserveText ? validateOverlays(input.overlays, (url) => isAiVideoInputPathForUser(url, userId)) : [];
+  } catch (error) {
+    if (error instanceof OverlayValidationError) throw new AiVideoError(error.message, "INVALID_OVERLAYS", 400);
+    throw error;
+  }
+
   const quote = await quoteGeneration(tier, input.durationSeconds);
   const { pricing, config } = quote;
+
+  // "Gerar novamente com desconto": só a partir de um vídeo concluído do próprio usuário, com a mesma imagem.
+  let parentGenerationId: string | null = null;
+  if (input.retryOfGenerationId) {
+    const parent = await getGenerationForUser(String(input.retryOfGenerationId), userId);
+    if (!parent || (parent.status !== "COMPLETED" && parent.status !== "EXPIRED")) {
+      throw new AiVideoError("Só é possível gerar novamente a partir de um vídeo concluído.", "RETRY_NOT_ALLOWED", 400);
+    }
+    if (parent.inputImageUrl !== input.imageUrl) {
+      throw new AiVideoError("Para gerar novamente com desconto, use a mesma imagem.", "RETRY_IMAGE_CHANGED", 400);
+    }
+    const existing = await findGenerationByIdempotencyKey(userId, input.idempotencyKey);
+    if (!existing && (await countRetriesOf(parent.id)) >= config.maxRetriesPerGeneration) {
+      throw new AiVideoError("Você já gerou novamente este vídeo o máximo de vezes com desconto.", "RETRY_LIMIT", 429);
+    }
+    parentGenerationId = parent.id;
+    const credits = retryCreditCost(config, pricing);
+    const economics = economicsForCredits(config, pricing, credits);
+    quote.credits = credits;
+    quote.revenueBrl = economics.revenueBrl;
+    quote.grossMarginPct = economics.grossMarginPct;
+  }
 
   const provider = getImageToVideoProvider(pricing.provider);
   if (!provider || !provider.supports({ model: pricing.providerModel, durationSeconds: pricing.durationSeconds, aspectRatio })) {
@@ -197,11 +255,16 @@ export async function createGeneration(
     exchangeRateReference: config.usdBrlReferenceRate,
     estimatedCostBrl: quote.estimatedCostBrl,
     revenueAllocatedBrl: quote.revenueBrl,
+    preserveText,
+    overlays,
+    parentGenerationId,
+    pricingKind: parentGenerationId ? ("RETRY_DISCOUNT" as const) : ("FULL" as const),
+    listCreditCost: pricing.aliluCreditCost,
   };
 
   // Trava de preço: protege contra mudança de preço do provedor, modelo
   // errado, duração inesperada ou configuração incorreta.
-  const guard = await evaluatePriceGuard(quote, now);
+  const guard = await evaluatePriceGuard(quote, now, { skipMarginCheck: parentGenerationId !== null });
   if (guard) {
     const { generation } = await insertGenerationOnce({ ...base, status: "PRICE_GUARD_BLOCKED", errorCode: guard.code, errorMessage: guard.adminMessage });
     console.error("[ai-video] PRICE_GUARD_BLOCKED", {
@@ -249,6 +312,7 @@ export async function createGeneration(
 async function evaluatePriceGuard(
   quote: GenerationQuote,
   now: Date,
+  options: { skipMarginCheck?: boolean } = {},
 ): Promise<{ code: string; adminMessage: string } | null> {
   const { config } = quote;
   if (quote.providerCostUsd > config.maxProviderCostUsd) {
@@ -257,7 +321,8 @@ async function evaluatePriceGuard(
       adminMessage: `Custo estimado US$ ${quote.providerCostUsd.toFixed(4)} acima do máximo US$ ${config.maxProviderCostUsd}.`,
     };
   }
-  if (quote.grossMarginPct < config.minimumGrossMarginPct) {
+  // A regeneração com desconto é subsidiada de propósito (piso = custo, ver retryCreditCost).
+  if (!options.skipMarginCheck && quote.grossMarginPct < config.minimumGrossMarginPct) {
     return {
       code: "MARGIN_BELOW_MINIMUM",
       adminMessage: `Margem ${quote.grossMarginPct.toFixed(1)}% abaixo da mínima ${config.minimumGrossMarginPct}%.`,
@@ -317,16 +382,136 @@ async function refundGeneration(
   });
 }
 
-async function copyOutputToStorage(generation: AiVideoGenerationRecord, outputUrl: string): Promise<string> {
-  const response = await fetch(outputUrl);
+async function downloadBuffer(url: string): Promise<Buffer> {
+  const response = await fetch(url);
   if (!response.ok) throw new ImageToVideoProviderError("Não foi possível baixar o vídeo gerado.", "TECHNICAL", true, response.status, "DOWNLOAD_FAILED");
-  const buffer = Buffer.from(await response.arrayBuffer());
-  const blob = await put(`ai-video/${generation.userId}/generated/${generation.id}.mp4`, buffer, {
-    access: "public",
-    addRandomSuffix: true,
-    contentType: "video/mp4",
+  return Buffer.from(await response.arrayBuffer());
+}
+
+/**
+ * Finalização (com o lock): baixa o MP4 da IA → valida (ffprobe) → aplica
+ * overlays (se houver) → guarda no Blob → CONSOME a reserva → COMPLETED.
+ *   - MP4 vazio/corrompido/sem duração → devolução automática.
+ *   - falha de download/FFmpeg → tenta de novo (até MAX_POSTPROCESS_ATTEMPTS) e depois devolve.
+ * Em qualquer devolução aqui o provedor JÁ cobrou (providerCharged = true).
+ */
+async function finalizeGeneration(generation: AiVideoGenerationRecord, lockToken: string, now: Date): Promise<void> {
+  if (!generation.outputVideoUrl) {
+    await refundGeneration(generation, lockToken, now, { kind: "TECHNICAL_ERROR", code: "EMPTY_OUTPUT", message: "O provedor não devolveu o vídeo.", providerCharged: true });
+    return;
+  }
+  const attempt = generation.postprocessAttempts + 1;
+  const retryOrRefund = async (code: string, message: string) => {
+    if (attempt < MAX_POSTPROCESS_ATTEMPTS) {
+      await updateGeneration(
+        generation.id,
+        { postprocessAttempts: attempt, nextCheckAt: new Date(now.getTime() + THROTTLED_POLL_INTERVAL_MS), errorMessage: message.slice(0, 500) },
+        lockToken,
+      );
+      return;
+    }
+    await refundGeneration(generation, lockToken, now, {
+      kind: "TECHNICAL_ERROR",
+      code,
+      message: "Não foi possível finalizar o vídeo. Seus créditos foram devolvidos.",
+      providerCharged: true,
+    });
+  };
+
+  if (generation.overlays.length > 0 && generation.status !== "POST_PROCESSING") {
+    await setGenerationStatusKeepingLock(generation.id, "POST_PROCESSING", lockToken);
+  }
+
+  let finalBuffer: Buffer;
+  try {
+    const videoBuffer = await downloadBuffer(generation.outputVideoUrl);
+    const result = await processAiVideo({
+      videoBuffer,
+      overlays: generation.overlays,
+      loadOverlayImage: async (url) => {
+        // Defesa em profundidade: só imagens do próprio usuário (já validado na criação).
+        if (!isAiVideoInputPathForUser(url, generation.userId)) throw new VideoPostProcessError("Imagem do overlay não permitida.");
+        return downloadBuffer(url);
+      },
+    });
+    finalBuffer = result.buffer;
+  } catch (error) {
+    if (error instanceof VideoOutputInvalidError) {
+      await refundGeneration(generation, lockToken, now, {
+        kind: "TECHNICAL_ERROR",
+        code: `INVALID_OUTPUT_${error.code}`,
+        message: "O vídeo gerado veio vazio ou corrompido. Seus créditos foram devolvidos.",
+        providerCharged: true,
+      });
+      return;
+    }
+    console.error("[ai-video] falha na finalização", { generationId: generation.id, attempt, message: (error as Error)?.message?.slice(0, 300) });
+    await retryOrRefund(error instanceof VideoPostProcessError ? "POSTPROCESS_FAILED" : "DOWNLOAD_FAILED", (error as Error)?.message ?? "falha");
+    return;
+  }
+
+  let storageUrl: string;
+  try {
+    const blob = await put(`ai-video/${generation.userId}/generated/${generation.id}.mp4`, finalBuffer, {
+      access: "public",
+      addRandomSuffix: true,
+      contentType: "video/mp4",
+    });
+    storageUrl = blob.url;
+  } catch (error) {
+    await retryOrRefund("STORAGE_FAILED", (error as Error)?.message ?? "falha no storage");
+    return;
+  }
+
+  const config = await getActivePricingConfig();
+  const paid = await userHasPaidPurchase(generation.userId);
+  const retentionDays = paid ? config.retentionDaysPaid : config.retentionDaysFree;
+  const netFactor = 1 - config.paymentFeePct / 100 - config.taxPct / 100;
+  // Pós-processamento: custo só registrado internamente (não entra no preço por padrão).
+  const postprocessCost = generation.overlays.length > 0 ? config.postprocessCostBrl : 0;
+  const grossProfitBrl = generation.revenueAllocatedBrl * netFactor - generation.estimatedCostBrl - postprocessCost;
+
+  // Consome PRIMEIRO (idempotente pela referência) — mesmo raciocínio da devolução.
+  await applyWalletMovement({
+    userId: generation.userId,
+    type: "CONSUME",
+    availableDelta: 0,
+    reservedDelta: -generation.creditCost,
+    referenceType: "ai_video_generation",
+    referenceId: generation.id,
+    description: `Vídeo de ${generation.durationSeconds}s gerado`,
   });
-  return blob.url;
+  await updateGeneration(
+    generation.id,
+    {
+      status: "COMPLETED",
+      storageVideoUrl: storageUrl,
+      completedAt: now,
+      nextCheckAt: null,
+      providerCharged: true,
+      // A API não devolve o custo por tarefa: o custo real = tabela de preço vigente no envio.
+      providerActualCostUsd: generation.providerEstimatedCostUsd,
+      grossProfitBrl,
+      expiresAt: new Date(now.getTime() + retentionDays * 24 * 3600_000),
+      errorMessage: null,
+      postprocessAttempts: attempt,
+    },
+    lockToken,
+  );
+  console.info("[ai-video] geração concluída", {
+    generationId: generation.id,
+    userId: generation.userId,
+    provider: generation.provider,
+    model: generation.providerModel,
+    tier: generation.tier,
+    durationSeconds: generation.durationSeconds,
+    credits: generation.creditCost,
+    pricingKind: generation.pricingKind,
+    overlays: generation.overlays.length,
+    providerCostUsd: generation.providerEstimatedCostUsd,
+    externalTaskId: generation.externalTaskId,
+    latencyMs: now.getTime() - generation.createdAt.getTime(),
+  });
 }
 
 /** Um passo da máquina de estados — chamado com o lock da geração já obtido. */
@@ -337,13 +522,19 @@ export async function advanceGeneration(generation: AiVideoGenerationRecord, loc
     return;
   }
 
+  // 0) A IA já terminou → validar, aplicar overlays, guardar e consumir.
+  if (generation.status === "AI_COMPLETED" || generation.status === "POST_PROCESSING") {
+    await finalizeGeneration(generation, lockToken, now);
+    return;
+  }
+
   // 1) Reservado, ainda não enviado → enviar (com retry para 429/5xx/rede).
   if (generation.status === "CREDIT_RESERVED") {
     try {
       const { externalTaskId } = await provider.create({
         model: generation.providerModel,
         imageUrl: generation.inputImageUrl,
-        prompt: generation.prompt,
+        prompt: buildProviderPrompt(generation.prompt, generation.preserveText),
         durationSeconds: generation.durationSeconds,
         aspectRatio: generation.aspectRatio,
       });
@@ -430,59 +621,12 @@ export async function advanceGeneration(generation: AiVideoGenerationRecord, loc
       await refundGeneration(generation, lockToken, now, { kind: "TECHNICAL_ERROR", code: "EMPTY_OUTPUT", message: "O provedor não devolveu o vídeo.", providerCharged: true });
       return;
     }
-    let storageUrl: string;
-    try {
-      storageUrl = await copyOutputToStorage(generation, outputUrl);
-    } catch {
-      // As URLs do provedor valem 24–48 h: tenta copiar de novo no próximo ciclo.
-      await updateGeneration(generation.id, { nextCheckAt: new Date(now.getTime() + THROTTLED_POLL_INTERVAL_MS), outputVideoUrl: outputUrl }, lockToken);
-      return;
-    }
-
-    const config = await getActivePricingConfig();
-    const paid = await userHasPaidPurchase(generation.userId);
-    const retentionDays = paid ? config.retentionDaysPaid : config.retentionDaysFree;
-    const netFactor = 1 - config.paymentFeePct / 100 - config.taxPct / 100;
-    const grossProfitBrl = generation.revenueAllocatedBrl * netFactor - generation.estimatedCostBrl;
-
-    // Consome PRIMEIRO (idempotente pela referência) — mesmo raciocínio da devolução.
-    await applyWalletMovement({
-      userId: generation.userId,
-      type: "CONSUME",
-      availableDelta: 0,
-      reservedDelta: -generation.creditCost,
-      referenceType: "ai_video_generation",
-      referenceId: generation.id,
-      description: `Vídeo de ${generation.durationSeconds}s gerado`,
-    });
-    await updateGeneration(
-      generation.id,
-      {
-        status: "COMPLETED",
-        storageVideoUrl: storageUrl,
-        outputVideoUrl: outputUrl,
-        completedAt: now,
-        nextCheckAt: null,
-        providerCharged: true,
-        // A API não devolve o custo por tarefa: o custo real = tabela de preço vigente no envio.
-        providerActualCostUsd: generation.providerEstimatedCostUsd,
-        grossProfitBrl,
-        expiresAt: new Date(now.getTime() + retentionDays * 24 * 3600_000),
-        errorMessage: null,
-      },
-      lockToken,
-    );
-    console.info("[ai-video] geração concluída", {
-      generationId: generation.id,
-      userId: generation.userId,
-      provider: generation.provider,
-      model: generation.providerModel,
-      durationSeconds: generation.durationSeconds,
-      credits: generation.creditCost,
-      providerCostUsd: generation.providerEstimatedCostUsd,
-      externalTaskId: generation.externalTaskId,
-      latencyMs: now.getTime() - generation.createdAt.getTime(),
-    });
+    // A IA terminou: guarda a URL temporária e segue para a finalização
+    // (validar o MP4 + overlays). Se o processo cair aqui, o próximo ciclo
+    // continua de AI_COMPLETED sem consultar o provedor de novo.
+    await updateGeneration(generation.id, { status: "AI_COMPLETED", outputVideoUrl: outputUrl, nextCheckAt: now }, lockToken);
+    const reclaimed = await claimGeneration(generation.id, lockToken, now);
+    if (reclaimed) await finalizeGeneration(reclaimed, lockToken, now);
     return;
   }
 
@@ -560,16 +704,18 @@ export interface AiVideoOption {
   tier: AiVideoTier;
   durationSeconds: number;
   credits: number;
+  /** Preço de "gerar novamente com desconto" nesta combinação. */
+  retryCredits: number;
 }
 
 /** Combinações que a tela pode oferecer (só linhas ativas cujo provedor aceita a duração). Sem custo/provedor — só créditos. */
 export async function listGenerationOptions(): Promise<AiVideoOption[]> {
-  const rows = await listModelPricing();
+  const [rows, config] = await Promise.all([listModelPricing(), getActivePricingConfig()]);
   return rows
     .filter((row) => row.isActive)
     .filter((row) => {
       const provider = getImageToVideoProvider(row.provider);
       return provider?.supports({ model: row.providerModel, durationSeconds: row.durationSeconds, aspectRatio: "9:16" }) ?? false;
     })
-    .map((row) => ({ tier: row.tier, durationSeconds: row.durationSeconds, credits: row.aliluCreditCost }));
+    .map((row) => ({ tier: row.tier, durationSeconds: row.durationSeconds, credits: row.aliluCreditCost, retryCredits: retryCreditCost(config, row) }));
 }

@@ -1,6 +1,7 @@
 import "server-only";
 import type { ImageToVideoProvider } from "./provider";
 import { runwayImageToVideoProvider } from "./runway-provider";
+import { falImageToVideoProvider } from "./fal-provider";
 
 /**
  * Provedores disponíveis, por id (o mesmo gravado em
@@ -12,6 +13,7 @@ import { runwayImageToVideoProvider } from "./runway-provider";
  */
 const PROVIDERS: Record<string, ImageToVideoProvider> = {
   runway: runwayImageToVideoProvider,
+  fal: falImageToVideoProvider,
 };
 
 let override: Record<string, ImageToVideoProvider> | null = null;

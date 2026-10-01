@@ -18,11 +18,24 @@ const uploadPresignedMock = vi.fn();
 vi.mock("@vercel/blob/client", () => ({
   uploadPresigned: (...args: unknown[]) => uploadPresignedMock(...args),
 }));
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: vi.fn() }),
+}));
 
 const { VideoSplitScreenEditor } = await import("@/components/videos/VideoSplitScreenEditor");
 
 function makeVideoFile(name: string, type = "video/mp4"): File {
   return new File([new Uint8Array(10)], name, { type });
+}
+
+function renderEditor() {
+  return render(<VideoSplitScreenEditor userId={null} instagramConnected={null} igUsername={null} />);
+}
+
+function getSplitScreenRequestInit(): RequestInit {
+  const call = (global.fetch as ReturnType<typeof vi.fn>).mock.calls.find(([url]) => url === "/api/videos/split-screen");
+  if (!call) throw new Error("Chamada para /api/videos/split-screen não encontrada.");
+  return call[1] as RequestInit;
 }
 
 function setVideoDuration(videoEl: HTMLVideoElement, seconds: number) {
@@ -59,7 +72,7 @@ afterEach(() => {
 
 describe("VideoSplitScreenEditor — upload dos dois vídeos", () => {
   it("aceita os dois vídeos e mostra o nome do arquivo e a duração de cada um", async () => {
-    render(<VideoSplitScreenEditor />);
+    renderEditor();
 
     await selectFile("Vídeo principal (fica em cima)", "preview-video-primary", makeVideoFile("principal.mp4"), 10);
     await selectFile("Vídeo complementar (fica embaixo)", "preview-video-secondary", makeVideoFile("complementar.mp4"), 4);
@@ -73,7 +86,7 @@ describe("VideoSplitScreenEditor — upload dos dois vídeos", () => {
   });
 
   it("rejeita um arquivo de formato não suportado, com mensagem amigável, e nunca cria o preview", () => {
-    render(<VideoSplitScreenEditor />);
+    renderEditor();
 
     const input = screen.getByLabelText("Vídeo principal (fica em cima)") as HTMLInputElement;
     fireEvent.change(input, { target: { files: [makeVideoFile("nota.txt", "text/plain")] } });
@@ -85,7 +98,7 @@ describe("VideoSplitScreenEditor — upload dos dois vídeos", () => {
 
 describe("VideoSplitScreenEditor — formato e layout", () => {
   it("permite trocar o formato de saída e a proporção do split", () => {
-    render(<VideoSplitScreenEditor />);
+    renderEditor();
 
     expect(screen.getByRole("button", { name: "Vertical (9:16)" })).toHaveAttribute("aria-pressed", "true");
     fireEvent.click(screen.getByRole("button", { name: "Quadrado (1:1)" }));
@@ -100,7 +113,7 @@ describe("VideoSplitScreenEditor — formato e layout", () => {
 
 describe("VideoSplitScreenEditor — Trocar vídeos", () => {
   it('o botão "Trocar vídeos" inverte os arquivos (e seus cortes) entre principal e complementar', async () => {
-    render(<VideoSplitScreenEditor />);
+    renderEditor();
 
     await selectFile("Vídeo principal (fica em cima)", "preview-video-primary", makeVideoFile("um.mp4"), 10);
     await selectFile("Vídeo complementar (fica embaixo)", "preview-video-secondary", makeVideoFile("dois.mp4"), 4);
@@ -116,7 +129,7 @@ describe("VideoSplitScreenEditor — Trocar vídeos", () => {
 
 describe("VideoSplitScreenEditor — preset Vídeo satisfatório", () => {
   it("reafirma formato vertical, split 50/50, loop e áudio do principal, mesmo partindo de outras escolhas", () => {
-    render(<VideoSplitScreenEditor />);
+    renderEditor();
 
     fireEvent.click(screen.getByRole("button", { name: "Quadrado (1:1)" }));
     fireEvent.click(screen.getByRole("button", { name: "60 / 40" }));
@@ -134,7 +147,7 @@ describe("VideoSplitScreenEditor — preset Vídeo satisfatório", () => {
 
 describe("VideoSplitScreenEditor — validação de corte", () => {
   it("mostra um erro amigável quando o fim do corte não é depois do início", async () => {
-    render(<VideoSplitScreenEditor />);
+    renderEditor();
     await selectFile("Vídeo principal (fica em cima)", "preview-video-primary", makeVideoFile("principal.mp4"), 10);
 
     const primarySlot = screen.getByTestId("video-slot-primary");
@@ -150,7 +163,7 @@ describe("VideoSplitScreenEditor — validação de corte", () => {
 
 describe("VideoSplitScreenEditor — limite de duração do resultado", () => {
   it('desabilita "Gerar vídeo" quando a duração final estimada passa do limite da ferramenta', async () => {
-    render(<VideoSplitScreenEditor />);
+    renderEditor();
 
     await selectFile("Vídeo principal (fica em cima)", "preview-video-primary", makeVideoFile("principal.mp4"), 300);
     await selectFile("Vídeo complementar (fica embaixo)", "preview-video-secondary", makeVideoFile("complementar.mp4"), 300);
@@ -167,7 +180,7 @@ describe("VideoSplitScreenEditor — limite de duração do resultado", () => {
 
 describe("VideoSplitScreenEditor — fluxo completo de geração", () => {
   it("envia os dois vídeos ao Blob, chama a rota de processamento e mostra o resultado para baixar", async () => {
-    render(<VideoSplitScreenEditor />);
+    renderEditor();
 
     await selectFile("Vídeo principal (fica em cima)", "preview-video-primary", makeVideoFile("principal.mp4"), 10);
     await selectFile("Vídeo complementar (fica embaixo)", "preview-video-secondary", makeVideoFile("complementar.mp4"), 4);
@@ -179,7 +192,7 @@ describe("VideoSplitScreenEditor — fluxo completo de geração", () => {
     expect(uploadPresignedMock.mock.calls[0][2]).toMatchObject({ handleUploadUrl: "/api/videos/upload" });
 
     await waitFor(() => expect(global.fetch).toHaveBeenCalledWith("/api/videos/split-screen", expect.anything()));
-    const [, requestInit] = (global.fetch as ReturnType<typeof vi.fn>).mock.calls[0];
+    const requestInit = getSplitScreenRequestInit();
     const body = JSON.parse(requestInit.body as string);
     expect(body).toMatchObject({
       outputFormat: "vertical",
@@ -194,13 +207,12 @@ describe("VideoSplitScreenEditor — fluxo completo de geração", () => {
 
     const resultVideo = await screen.findByTestId("result-video");
     expect(resultVideo).toHaveAttribute("src", "https://blob.example.com/videos/outputs/resultado.mp4");
-    const downloadLink = screen.getByRole("link", { name: /baixar vídeo/i });
-    expect(downloadLink).toHaveAttribute("href", "https://blob.example.com/videos/outputs/resultado.mp4");
-    expect(downloadLink).toHaveAttribute("download");
+    expect(screen.getByRole("button", { name: /baixar vídeo/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /publicar no reels/i })).toBeInTheDocument();
   });
 
   it("envia o zoom do vídeo selecionado para a rota de processamento", async () => {
-    render(<VideoSplitScreenEditor />);
+    renderEditor();
 
     await selectFile("Vídeo principal (fica em cima)", "preview-video-primary", makeVideoFile("principal.mp4"), 10);
     await selectFile("Vídeo complementar (fica embaixo)", "preview-video-secondary", makeVideoFile("complementar.mp4"), 4);
@@ -209,7 +221,7 @@ describe("VideoSplitScreenEditor — fluxo completo de geração", () => {
     fireEvent.click(screen.getByTestId("generate-button"));
 
     await waitFor(() => expect(global.fetch).toHaveBeenCalledWith("/api/videos/split-screen", expect.anything()));
-    const [, requestInit] = (global.fetch as ReturnType<typeof vi.fn>).mock.calls[0];
+    const requestInit = getSplitScreenRequestInit();
     const body = JSON.parse(requestInit.body as string);
     expect(body.primaryFraming).toEqual({ positionX: 0, positionY: 0, zoom: 1.5 });
     expect(body.secondaryFraming).toEqual({ positionX: 0, positionY: 0, zoom: 1 });
@@ -221,7 +233,7 @@ describe("VideoSplitScreenEditor — fluxo completo de geração", () => {
       json: async () => ({ error: "Não foi possível gerar o vídeo." }),
     }) as unknown as typeof fetch;
 
-    render(<VideoSplitScreenEditor />);
+    renderEditor();
     await selectFile("Vídeo principal (fica em cima)", "preview-video-primary", makeVideoFile("principal.mp4"), 10);
     await selectFile("Vídeo complementar (fica embaixo)", "preview-video-secondary", makeVideoFile("complementar.mp4"), 4);
 
@@ -245,7 +257,7 @@ describe("VideoSplitScreenEditor — indicador de progresso (3 estados textuais)
         }),
     ) as unknown as typeof fetch;
 
-    render(<VideoSplitScreenEditor />);
+    renderEditor();
     await selectFile("Vídeo principal (fica em cima)", "preview-video-primary", makeVideoFile("principal.mp4"), 10);
     await selectFile("Vídeo complementar (fica embaixo)", "preview-video-secondary", makeVideoFile("complementar.mp4"), 4);
 

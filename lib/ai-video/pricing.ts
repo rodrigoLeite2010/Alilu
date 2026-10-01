@@ -91,6 +91,18 @@ export function economicsForCredits(
   };
 }
 
+/**
+ * "Gerar novamente com desconto": preço cheio × (1 − desconto), em
+ * múltiplos de 5 — mas NUNCA abaixo do custo (o desconto é limitado ao
+ * ponto de equilíbrio: lucro bruto ≥ 0). Nunca acima do preço cheio.
+ */
+export function retryCreditCost(config: AiPricingConfig, row: AiVideoModelPricing, listCredits = row.aliluCreditCost): number {
+  const discounted = Math.ceil((listCredits * (1 - pct(config.retryDiscountPct))) / 5) * 5;
+  let credits = Math.max(5, discounted);
+  while (credits < listCredits && economicsForCredits(config, row, credits).grossProfitBrl < 0) credits += 5;
+  return Math.min(credits, listCredits);
+}
+
 /** Custo total (R$) por crédito Alilu cobrado — o pior caso entre os modelos ativos decide a margem dos pacotes. */
 export function worstCostPerCredit(config: AiPricingConfig, rows: AiVideoModelPricing[]): number {
   return rows

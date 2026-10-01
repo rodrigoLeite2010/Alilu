@@ -71,6 +71,20 @@ const nextConfig: NextConfig = {
     "**/api/content-automation/media/preview-art": ["./lib/instagram/backend/fonts/*.ttf"],
     "**/api/content-automation/media/preview-carousel-art": ["./lib/instagram/backend/fonts/*.ttf"],
     "**/api/cron/content-automation": ["./lib/instagram/backend/fonts/*.ttf"],
+    // Imagem para vídeo com IA: pós-processamento (validação ffprobe +
+    // overlays de texto/logo via FFmpeg) roda no cron e nas rotas de
+    // geração (consulta da tela e "reportar problema") — mesmo motivo dos
+    // binários do split-screen e das fontes acima.
+    "**/api/cron/ai-video": [
+      "./node_modules/ffmpeg-static/ffmpeg",
+      "./node_modules/ffprobe-static/bin/linux/x64/ffprobe",
+      "./lib/ai-video/backend/fonts/*.ttf",
+    ],
+    "**/api/ai-video/generations": [
+      "./node_modules/ffmpeg-static/ffmpeg",
+      "./node_modules/ffprobe-static/bin/linux/x64/ffprobe",
+      "./lib/ai-video/backend/fonts/*.ttf",
+    ],
   },
 
   async redirects() {

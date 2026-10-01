@@ -3,6 +3,7 @@ import { auth } from "@/auth";
 import { saveDraft } from "@/lib/ai-video/backend/generation-repository";
 import { isAiVideoInputPathForUser } from "@/lib/ai-video/backend/ai-video-storage";
 import { AI_VIDEO_MAX_PROMPT_LENGTH } from "@/lib/ai-video/types";
+import { validateOverlays } from "@/lib/ai-video/overlays";
 
 /** PUT: guarda o rascunho (imagem já enviada + configurações) antes de ir comprar créditos. */
 export async function PUT(request: Request): Promise<NextResponse> {
@@ -22,6 +23,17 @@ export async function PUT(request: Request): Promise<NextResponse> {
     tier: typeof body.tier === "string" ? body.tier.slice(0, 20) : null,
     durationSeconds: typeof body.durationSeconds === "number" ? Math.round(body.durationSeconds) : null,
     aspectRatio: typeof body.aspectRatio === "string" ? body.aspectRatio.slice(0, 10) : null,
+    preserveText: typeof body.preserveText === "boolean" ? body.preserveText : null,
+    overlays: safeOverlays(body.overlays, userId),
   });
   return NextResponse.json({ saved: true });
+}
+
+/** Rascunho: overlays inválidos são simplesmente descartados (a validação definitiva é na geração). */
+function safeOverlays(raw: unknown, userId: string) {
+  try {
+    return validateOverlays(raw, (url) => isAiVideoInputPathForUser(url, userId));
+  } catch {
+    return null;
+  }
 }

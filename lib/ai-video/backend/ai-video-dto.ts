@@ -1,5 +1,6 @@
 import "server-only";
 import type { AiVideoGenerationRecord } from "./generation-repository";
+import { aiVideoProgressLabel } from "../types";
 import type { CreditTransactionRecord, WalletRecord } from "./wallet-repository";
 import type { CreditPurchaseRecord } from "./credit-purchase-repository";
 
@@ -10,6 +11,13 @@ import type { CreditPurchaseRecord } from "./credit-purchase-repository";
 
 export function serializeGenerationForUser(generation: AiVideoGenerationRecord) {
   return {
+    progressLabel: aiVideoProgressLabel(generation.status, generation.overlays.length > 0),
+    preserveText: generation.preserveText,
+    overlays: generation.overlays,
+    parentGenerationId: generation.parentGenerationId,
+    isDiscountedRetry: generation.pricingKind === "RETRY_DISCOUNT",
+    listCreditCost: generation.listCreditCost,
+    liked: generation.userFeedback === "LIKED",
     id: generation.id,
     tier: generation.tier,
     prompt: generation.prompt,

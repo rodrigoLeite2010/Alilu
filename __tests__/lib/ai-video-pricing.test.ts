@@ -31,6 +31,10 @@ const config: AiPricingConfig = {
   retentionDaysFree: 7,
   retentionDaysPaid: 30,
   purchaseRefundWindowDays: 7,
+  retryDiscountPct: 50,
+  maxRetriesPerGeneration: 3,
+  postprocessCostBrl: 0,
+  issueReviewThreshold: 5,
   effectiveFrom: "2026-10-01T00:00:00.000Z",
 };
 

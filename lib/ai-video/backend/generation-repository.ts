@@ -1,6 +1,10 @@
 import "server-only";
 import { getDb } from "@/lib/db/client";
 import type { AiVideoAspectRatio, AiVideoGenerationStatus, AiVideoTier } from "../types";
+import type { AiVideoOverlay } from "../overlays";
+
+/** Status em que a geração ainda está andando (cron/tela avançam). */
+const ACTIVE_STATUSES = "CREDIT_RESERVED,SUBMITTED,QUEUED,PROCESSING,AI_COMPLETED,POST_PROCESSING";
 
 /** Acesso a ai_video_generations — sempre restrito ao dono nas leituras do usuário. */
 
@@ -39,6 +43,15 @@ export interface AiVideoGenerationRecord {
   submittedAt: Date | null;
   startedAt: Date | null;
   completedAt: Date | null;
+  /** Textos/logos aplicados depois da IA (pós-processamento). */
+  preserveText: boolean;
+  overlays: AiVideoOverlay[];
+  parentGenerationId: string | null;
+  pricingKind: "FULL" | "RETRY_DISCOUNT";
+  /** Preço cheio de referência (na regeneração com desconto, creditCost < listCreditCost). */
+  listCreditCost: number | null;
+  postprocessAttempts: number;
+  userFeedback: "LIKED" | null;
 }
 
 const date = (value: unknown) => (value ? new Date(value as string) : null);
@@ -79,7 +92,27 @@ function mapGeneration(row: Record<string, unknown>): AiVideoGenerationRecord {
     submittedAt: date(row.submitted_at),
     startedAt: date(row.started_at),
     completedAt: date(row.completed_at),
+    preserveText: Boolean(row.preserve_text),
+    overlays: parseJsonArray<AiVideoOverlay>(row.overlays),
+    parentGenerationId: (row.parent_generation_id as string | null) ?? null,
+    pricingKind: row.pricing_kind === "RETRY_DISCOUNT" ? "RETRY_DISCOUNT" : "FULL",
+    listCreditCost: numOrNull(row.list_credit_cost),
+    postprocessAttempts: Number(row.postprocess_attempts ?? 0),
+    userFeedback: row.user_feedback === "LIKED" ? "LIKED" : null,
   };
+}
+
+function parseJsonArray<T>(value: unknown): T[] {
+  if (Array.isArray(value)) return value as T[];
+  if (typeof value === "string") {
+    try {
+      const parsed = JSON.parse(value);
+      return Array.isArray(parsed) ? (parsed as T[]) : [];
+    } catch {
+      return [];
+    }
+  }
+  return [];
 }
 
 export interface InsertGenerationInput {
@@ -101,6 +134,11 @@ export interface InsertGenerationInput {
   revenueAllocatedBrl: number;
   errorCode?: string | null;
   errorMessage?: string | null;
+  preserveText?: boolean;
+  overlays?: AiVideoOverlay[];
+  parentGenerationId?: string | null;
+  pricingKind?: "FULL" | "RETRY_DISCOUNT";
+  listCreditCost?: number | null;
 }
 
 /** Insere a geração — idempotente por (user_id, idempotency_key): devolve `created: false` com a linha que já existia. */
@@ -110,12 +148,15 @@ export async function insertGenerationOnce(input: InsertGenerationInput): Promis
     insert into ai_video_generations (
       user_id, idempotency_key, tier, provider, provider_model, prompt, input_image_url, duration_seconds,
       aspect_ratio, resolution, credit_cost, status, provider_estimated_cost_usd, exchange_rate_reference,
-      estimated_cost_brl, revenue_allocated_brl, error_code, error_message
+      estimated_cost_brl, revenue_allocated_brl, error_code, error_message,
+      preserve_text, overlays, parent_generation_id, pricing_kind, list_credit_cost
     ) values (
       ${input.userId}, ${input.idempotencyKey}, ${input.tier}, ${input.provider}, ${input.providerModel}, ${input.prompt},
       ${input.inputImageUrl}, ${input.durationSeconds}, ${input.aspectRatio}, ${input.resolution}, ${input.creditCost},
       ${input.status}, ${input.providerEstimatedCostUsd}, ${input.exchangeRateReference}, ${input.estimatedCostBrl},
-      ${input.revenueAllocatedBrl}, ${input.errorCode ?? null}, ${input.errorMessage ?? null}
+      ${input.revenueAllocatedBrl}, ${input.errorCode ?? null}, ${input.errorMessage ?? null},
+      ${input.preserveText ?? false}, ${JSON.stringify(input.overlays ?? [])}::jsonb, ${input.parentGenerationId ?? null},
+      ${input.pricingKind ?? "FULL"}, ${input.listCreditCost ?? null}
     )
     on conflict (user_id, idempotency_key) do nothing
     returning *
@@ -182,7 +223,7 @@ export async function sumProviderSpendUsdSince(since: Date): Promise<number> {
     select coalesce(sum(coalesce(provider_actual_cost_usd, provider_estimated_cost_usd)), 0) as total
     from ai_video_generations
     where created_at >= ${since.toISOString()}
-      and (status in ('CREDIT_RESERVED', 'SUBMITTED', 'QUEUED', 'PROCESSING', 'COMPLETED', 'EXPIRED') or provider_charged)
+      and (status = any(string_to_array(${ACTIVE_STATUSES + ",COMPLETED,EXPIRED"}, ',')) or provider_charged)
   `;
   return Number(rows[0]?.total ?? 0);
 }
@@ -199,7 +240,7 @@ export async function claimGeneration(id: string, lockToken: string, now: Date):
     where id = (
       select id from ai_video_generations
       where id = ${id}
-        and status in ('CREDIT_RESERVED', 'SUBMITTED', 'QUEUED', 'PROCESSING')
+        and status = any(string_to_array(${ACTIVE_STATUSES}, ','))
         and (next_check_at is null or next_check_at <= ${now.toISOString()})
         and (processing_lock_token is null or processing_lock_expires_at < ${now.toISOString()})
       for update skip locked
@@ -214,7 +255,7 @@ export async function listDueGenerationIds(now: Date, limit: number): Promise<st
   const db = getDb();
   const rows = await db`
     select id from ai_video_generations
-    where status in ('CREDIT_RESERVED', 'SUBMITTED', 'QUEUED', 'PROCESSING')
+    where status = any(string_to_array(${ACTIVE_STATUSES}, ','))
       and (next_check_at is null or next_check_at <= ${now.toISOString()})
       and (processing_lock_token is null or processing_lock_expires_at < ${now.toISOString()})
     order by next_check_at nulls first, created_at
@@ -240,6 +281,7 @@ export interface GenerationPatch {
   errorCode?: string | null;
   errorMessage?: string | null;
   expiresAt?: Date | null;
+  postprocessAttempts?: number;
 }
 
 /**
@@ -271,6 +313,7 @@ export async function updateGeneration(id: string, patch: GenerationPatch, lockT
       error_code = ${pick(patch.errorCode, current.errorCode)},
       error_message = ${pick(patch.errorMessage, current.errorMessage)},
       expires_at = ${iso(pick(patch.expiresAt, current.expiresAt))},
+      postprocess_attempts = ${pick(patch.postprocessAttempts, current.postprocessAttempts)},
       processing_lock_token = null,
       processing_lock_expires_at = null
     where id = ${id}
@@ -304,6 +347,8 @@ export interface AiVideoDraft {
   tier: string | null;
   durationSeconds: number | null;
   aspectRatio: string | null;
+  preserveText: boolean | null;
+  overlays: AiVideoOverlay[] | null;
 }
 
 export async function getDraft(userId: string): Promise<AiVideoDraft | null> {
@@ -317,21 +362,52 @@ export async function getDraft(userId: string): Promise<AiVideoDraft | null> {
     tier: (row.tier as string | null) ?? null,
     durationSeconds: row.duration_seconds === null ? null : Number(row.duration_seconds),
     aspectRatio: (row.aspect_ratio as string | null) ?? null,
+    preserveText: row.preserve_text === null || row.preserve_text === undefined ? null : Boolean(row.preserve_text),
+    overlays: row.overlays === null || row.overlays === undefined ? null : parseJsonArray<AiVideoOverlay>(row.overlays),
   };
 }
 
 export async function saveDraft(userId: string, draft: AiVideoDraft): Promise<void> {
   const db = getDb();
   await db`
-    insert into ai_video_drafts (user_id, input_image_url, prompt, tier, duration_seconds, aspect_ratio, updated_at)
-    values (${userId}, ${draft.inputImageUrl}, ${draft.prompt}, ${draft.tier}, ${draft.durationSeconds}, ${draft.aspectRatio}, now())
+    insert into ai_video_drafts (user_id, input_image_url, prompt, tier, duration_seconds, aspect_ratio, preserve_text, overlays, updated_at)
+    values (${userId}, ${draft.inputImageUrl}, ${draft.prompt}, ${draft.tier}, ${draft.durationSeconds}, ${draft.aspectRatio},
+      ${draft.preserveText}, ${draft.overlays === null ? null : JSON.stringify(draft.overlays)}::jsonb, now())
     on conflict (user_id) do update set
       input_image_url = excluded.input_image_url, prompt = excluded.prompt, tier = excluded.tier,
-      duration_seconds = excluded.duration_seconds, aspect_ratio = excluded.aspect_ratio, updated_at = now()
+      duration_seconds = excluded.duration_seconds, aspect_ratio = excluded.aspect_ratio,
+      preserve_text = excluded.preserve_text, overlays = excluded.overlays, updated_at = now()
   `;
 }
 
 export async function clearDraft(userId: string): Promise<void> {
   const db = getDb();
   await db`delete from ai_video_drafts where user_id = ${userId}`;
+}
+
+/** Quantas regenerações com desconto já saíram deste vídeo (exceto as que não chegaram a reservar). */
+export async function countRetriesOf(parentGenerationId: string): Promise<number> {
+  const db = getDb();
+  const rows = await db`
+    select count(*)::int as total from ai_video_generations
+    where parent_generation_id = ${parentGenerationId} and pricing_kind = 'RETRY_DISCOUNT'
+      and status not in ('CREATED', 'PRICE_GUARD_BLOCKED')
+  `;
+  return Number(rows[0]?.total ?? 0);
+}
+
+export async function markGenerationLiked(id: string, userId: string): Promise<boolean> {
+  const db = getDb();
+  const rows = await db`
+    update ai_video_generations set user_feedback = 'LIKED'
+    where id = ${id} and user_id = ${userId} and status in ('COMPLETED', 'EXPIRED')
+    returning id
+  `;
+  return rows.length > 0;
+}
+
+/** Troca só o status (para a tela mostrar a etapa) SEM liberar o lock do passo em andamento. */
+export async function setGenerationStatusKeepingLock(id: string, status: AiVideoGenerationStatus, lockToken: string): Promise<void> {
+  const db = getDb();
+  await db`update ai_video_generations set status = ${status} where id = ${id} and processing_lock_token = ${lockToken}`;
 }

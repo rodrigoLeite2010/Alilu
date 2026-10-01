@@ -11,9 +11,19 @@ import {
   type PointerEvent,
   type SyntheticEvent,
 } from "react";
+import { useRouter } from "next/navigation";
 import { uploadPresigned } from "@vercel/blob/client";
-import { ArrowLeftRight, Download, Move, Pause, Play, RotateCcw, Sparkles } from "lucide-react";
+import { ArrowLeftRight, Download, Move, Pause, Play, RotateCcw, Send, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import { ConnectInstagramDialog, buildConnectTarget } from "@/components/instagram/ConnectInstagramDialog";
+import { getBrowserTimeZone } from "@/lib/instagram/schedule-time";
+import {
+  describePublishOutcome,
+  fetchAccountStatus,
+  type AccountStatus,
+  type PublishOutcome,
+} from "@/lib/instagram/client/publication-api";
+import { buildMediaPathnamePrefix, MAX_VIDEO_UPLOAD_BYTES } from "@/lib/instagram/backend/media-service";
 import {
   MAX_OUTPUT_DURATION_SECONDS,
   MAX_VIDEO_INPUT_BYTES,
@@ -51,6 +61,7 @@ import {
  */
 
 type Stage = "idle" | "enviando" | "processando" | "sucesso" | "erro";
+type PublishStage = "idle" | "baixando" | "enviando" | "salvando" | "publicando" | "sucesso" | "erro";
 
 interface VideoSlotState {
   file: File | null;
@@ -99,6 +110,7 @@ const AUDIO_SOURCE_OPTIONS: { value: VideoAudioSource; label: string }[] = [
 
 const ACCEPT_ATTRIBUTE = VIDEO_INPUT_CONTENT_TYPES.join(",");
 const MAX_INPUT_MEGABYTES = Math.round(MAX_VIDEO_INPUT_BYTES / (1024 * 1024));
+const SPLIT_SCREEN_RESULT_DRAFT_KEY = "alilu.videos.splitScreenResult.v1";
 
 /**
  * Não há como saber o progresso real do FFmpeg no servidor sem uma fila de
@@ -150,6 +162,47 @@ async function readErrorMessage(response: Response, fallback: string): Promise<s
   } catch {
     return fallback;
   }
+}
+
+function buildResultFilename(prefix = "alilu-split-screen"): string {
+  return `${prefix}-${Date.now()}.mp4`;
+}
+
+function triggerBrowserDownload(blob: Blob, filename: string) {
+  const objectUrl = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = objectUrl;
+  anchor.download = filename;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+}
+
+async function fetchResultVideoBlob(resultUrl: string): Promise<Blob> {
+  const response = await fetch(resultUrl);
+  if (!response.ok) {
+    throw new Error("Não foi possível buscar o vídeo gerado. Tente gerar novamente.");
+  }
+  const blob = await response.blob();
+  return blob.type ? blob : new Blob([blob], { type: "video/mp4" });
+}
+
+async function uploadGeneratedVideoToInstagramMedia(userId: string, blob: Blob): Promise<string> {
+  if (blob.size > MAX_VIDEO_UPLOAD_BYTES) {
+    throw new Error("O vídeo gerado ficou grande demais para publicar no Instagram por este fluxo.");
+  }
+  const filename = buildResultFilename("split-screen");
+  const uploaded = await uploadPresigned(`${buildMediaPathnamePrefix(userId)}${filename}`, blob, {
+    access: "public",
+    handleUploadUrl: "/api/instagram/media/upload",
+    clientPayload: JSON.stringify({
+      originalFilename: filename,
+      fileSizeBytes: blob.size,
+      contentType: "video/mp4",
+    }),
+  });
+  return uploaded.url;
 }
 
 /** Valida um corte (início/fim em texto "mm:ss") contra a duração real conhecida do vídeo. Retorna a mensagem de erro amigável, ou null se estiver tudo certo. */
@@ -414,7 +467,32 @@ function FramingPreviewPane({
   );
 }
 
-export function VideoSplitScreenEditor() {
+function readStoredResultDraft(): { resultUrl: string; caption: string } | null {
+  if (typeof window === "undefined") return null;
+  const raw = window.sessionStorage.getItem(SPLIT_SCREEN_RESULT_DRAFT_KEY);
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw) as { resultUrl?: unknown; caption?: unknown };
+    if (typeof parsed.resultUrl !== "string" || !parsed.resultUrl) return null;
+    return { resultUrl: parsed.resultUrl, caption: typeof parsed.caption === "string" ? parsed.caption : "" };
+  } catch {
+    window.sessionStorage.removeItem(SPLIT_SCREEN_RESULT_DRAFT_KEY);
+    return null;
+  }
+}
+
+export function VideoSplitScreenEditor({
+  userId,
+  instagramConnected = null,
+  igUsername = null,
+}: {
+  userId: string | null;
+  instagramConnected?: boolean | null;
+  igUsername?: string | null;
+}) {
+  const router = useRouter();
+  const captionId = useId();
+  const [storedDraft] = useState(readStoredResultDraft);
   const [primary, setPrimary] = useState<VideoSlotState>(EMPTY_SLOT);
   const [secondary, setSecondary] = useState<VideoSlotState>(EMPTY_SLOT);
   const [outputFormat, setOutputFormat] = useState<VideoOutputFormat>("vertical");
@@ -426,7 +504,14 @@ export function VideoSplitScreenEditor() {
   const [stage, setStage] = useState<Stage>("idle");
   const [processingLabel, setProcessingLabel] = useState<"Processando..." | "Finalizando...">("Processando...");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [resultUrl, setResultUrl] = useState<string | null>(null);
+  const [resultUrl, setResultUrl] = useState<string | null>(storedDraft?.resultUrl ?? null);
+  const [caption, setCaption] = useState(storedDraft?.caption ?? "");
+  const [publishStage, setPublishStage] = useState<PublishStage>("idle");
+  const [publishMessage, setPublishMessage] = useState<string | null>(
+    storedDraft ? "Vídeo restaurado. Revise a legenda e publique quando quiser." : null,
+  );
+  const [gateOpen, setGateOpen] = useState(false);
+  const [accountStatus, setAccountStatus] = useState<AccountStatus | null>(null);
   const [isPreviewPlaying, setIsPreviewPlaying] = useState(false);
   const [activeFramingSlot, setActiveFramingSlot] = useState<VideoSlotKey>("primary");
   const [primaryFraming, setPrimaryFraming] = useState<VideoFraming>(DEFAULT_VIDEO_FRAMING);
@@ -436,6 +521,23 @@ export function VideoSplitScreenEditor() {
   const secondaryVideoRef = useRef<HTMLVideoElement>(null);
 
   const busy = stage === "enviando" || stage === "processando";
+  const publishBusy =
+    publishStage === "baixando" || publishStage === "enviando" || publishStage === "salvando" || publishStage === "publicando";
+  const effectiveUserId = accountStatus?.userId ?? userId;
+  const isInstagramConnected = accountStatus?.connected ?? instagramConnected;
+  const effectiveIgUsername = accountStatus?.username ?? igUsername;
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchAccountStatus()
+      .then((status) => {
+        if (!cancelled) setAccountStatus(status);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     return () => {
@@ -479,6 +581,8 @@ export function VideoSplitScreenEditor() {
     setStage("idle");
     setErrorMessage(null);
     setResultUrl(null);
+    setPublishStage("idle");
+    setPublishMessage(null);
     resetFraming();
   }
 
@@ -506,6 +610,8 @@ export function VideoSplitScreenEditor() {
     setStage("idle");
     setErrorMessage(null);
     setResultUrl(null);
+    setPublishStage("idle");
+    setPublishMessage(null);
   }
 
   function applySatisfyingPreset() {
@@ -644,9 +750,85 @@ export function VideoSplitScreenEditor() {
       const data = (await response.json()) as { url: string };
       setResultUrl(data.url);
       setStage("sucesso");
+      setPublishStage("idle");
+      setPublishMessage(null);
+      window.sessionStorage.removeItem(SPLIT_SCREEN_RESULT_DRAFT_KEY);
     } catch (error) {
       setStage("erro");
       setErrorMessage(error instanceof Error ? error.message : "Erro inesperado ao gerar o vídeo.");
+    }
+  }
+
+  async function handleDownloadResult() {
+    if (!resultUrl) return;
+    try {
+      const blob = await fetchResultVideoBlob(resultUrl);
+      triggerBrowserDownload(blob, buildResultFilename());
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : "Não foi possível baixar o vídeo.");
+      setStage("erro");
+    }
+  }
+
+  function requireInstagramConnection(): boolean {
+    if (effectiveUserId && isInstagramConnected !== false) return true;
+    setGateOpen(true);
+    return false;
+  }
+
+  function goConnectInstagram() {
+    if (resultUrl) {
+      window.sessionStorage.setItem(SPLIT_SCREEN_RESULT_DRAFT_KEY, JSON.stringify({ resultUrl, caption }));
+    }
+    router.push(buildConnectTarget(Boolean(effectiveUserId), "/videos/editor-split-screen?continuar=1"));
+  }
+
+  async function handlePublishReel() {
+    if (!resultUrl || publishBusy) return;
+    if (!requireInstagramConnection()) return;
+
+    try {
+      setPublishMessage(null);
+      setPublishStage("baixando");
+      const blob = await fetchResultVideoBlob(resultUrl);
+      setPublishStage("enviando");
+      const mediaUrl = await uploadGeneratedVideoToInstagramMedia(effectiveUserId as string, blob);
+
+      setPublishStage("salvando");
+      const createResponse = await fetch("/api/instagram/posts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          postType: "reels",
+          mediaUrl,
+          caption: caption.trim(),
+          scheduledAt: null,
+          timezone: getBrowserTimeZone(),
+        }),
+      });
+      if (!createResponse.ok) {
+        throw new Error(await readErrorMessage(createResponse, "Não foi possível criar o Reel."));
+      }
+      const { postId } = (await createResponse.json()) as { postId: string };
+
+      setPublishStage("publicando");
+      const publishResponse = await fetch(`/api/instagram/posts/${postId}/publish`, { method: "POST" });
+      if (!publishResponse.ok) {
+        throw new Error(await readErrorMessage(publishResponse, "Não foi possível publicar o Reel."));
+      }
+      const { status } = (await publishResponse.json()) as { status: PublishOutcome };
+      setPublishStage("sucesso");
+      setPublishMessage(
+        status === "PUBLISHED"
+          ? "Reel publicado com sucesso."
+          : status === "PROCESSING"
+            ? "O Instagram ainda está processando o vídeo. A publicação será concluída automaticamente — acompanhe em Minhas publicações."
+            : describePublishOutcome(status),
+      );
+      window.sessionStorage.removeItem(SPLIT_SCREEN_RESULT_DRAFT_KEY);
+    } catch (error) {
+      setPublishStage("erro");
+      setPublishMessage(error instanceof Error ? error.message : "Erro inesperado ao publicar no Instagram.");
     }
   }
 
@@ -943,17 +1125,94 @@ export function VideoSplitScreenEditor() {
         {stage === "sucesso" && resultUrl ? (
           <div className="space-y-3 rounded-md bg-white p-3">
             <video data-testid="result-video" src={resultUrl} controls playsInline className="w-full rounded-md bg-black" />
-            <a
-              href={resultUrl}
-              download
+            <button
+              type="button"
+              onClick={() => void handleDownloadResult()}
               className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-md bg-zinc-900 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-zinc-800"
             >
               <Download className="size-4" aria-hidden />
               Baixar vídeo
-            </a>
+            </button>
+            <div className="space-y-3 border-t border-zinc-200 pt-3">
+              <div>
+                <h3 className="flex items-center gap-2 text-sm font-semibold text-zinc-900">
+                  <Send className="size-4" aria-hidden />
+                  Publicar no Instagram
+                </h3>
+                <p className="mt-1 text-xs text-zinc-500">
+                  {isInstagramConnected && effectiveIgUsername ? `Conta conectada: @${effectiveIgUsername}` : "Conecte sua conta na hora de publicar."}
+                </p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  aria-pressed="true"
+                  className="min-h-9 rounded-md bg-zinc-900 px-3 text-sm font-medium text-white"
+                >
+                  Reels
+                </button>
+                <button
+                  type="button"
+                  disabled
+                  title="Stories com vídeo ainda não estão liberados neste publicador."
+                  className="min-h-9 rounded-md bg-zinc-100 px-3 text-sm font-medium text-zinc-400 ring-1 ring-inset ring-zinc-200"
+                >
+                  Story
+                </button>
+              </div>
+
+              <label htmlFor={captionId} className="block text-sm font-medium text-zinc-800">
+                Legenda do Reel
+              </label>
+              <textarea
+                id={captionId}
+                value={caption}
+                disabled={publishBusy}
+                onChange={(event) => setCaption(event.target.value)}
+                rows={4}
+                placeholder="Escreva a legenda antes de publicar..."
+                className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm"
+              />
+
+              <Button type="button" className="w-full" disabled={publishBusy} onClick={() => void handlePublishReel()}>
+                {publishStage === "baixando"
+                  ? "Preparando vídeo..."
+                  : publishStage === "enviando"
+                    ? "Enviando vídeo..."
+                    : publishStage === "salvando"
+                      ? "Salvando Reel..."
+                      : publishStage === "publicando"
+                        ? "Publicando..."
+                        : "Publicar no Reels"}
+              </Button>
+
+              <p className="text-xs text-zinc-500">
+                Story com vídeo ainda não está disponível neste fluxo; por enquanto, publique o resultado como Reel.
+              </p>
+
+              {publishMessage ? (
+                <p
+                  role={publishStage === "erro" ? "alert" : "status"}
+                  className={
+                    publishStage === "erro"
+                      ? "rounded-md bg-red-50 px-3 py-2 text-sm text-red-700"
+                      : "rounded-md bg-teal-50 px-3 py-2 text-sm text-teal-800"
+                  }
+                >
+                  {publishMessage}
+                </p>
+              ) : null}
+            </div>
           </div>
         ) : null}
       </aside>
+      <ConnectInstagramDialog
+        open={gateOpen}
+        authenticated={Boolean(effectiveUserId)}
+        onClose={() => setGateOpen(false)}
+        onConnect={goConnectInstagram}
+      />
     </div>
   );
 }

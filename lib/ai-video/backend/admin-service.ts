@@ -50,14 +50,21 @@ export interface PricingAdminView {
   config: AiPricingConfig;
   models: ModelPricingView[];
   packages: PackageView[];
-  provider: { provider: string; currentEstimatedBalanceUsd: number | null; autoRechargeEnabled: boolean; lowBalanceThresholdUsd: number } | null;
+  providers: ProviderAccountView[];
+}
+
+export interface ProviderAccountView {
+  provider: string;
+  currentEstimatedBalanceUsd: number | null;
+  autoRechargeEnabled: boolean;
+  lowBalanceThresholdUsd: number;
 }
 
 export async function getPricingAdminView(): Promise<PricingAdminView> {
   const [config, rows, packages] = await Promise.all([getActivePricingConfig(), listModelPricing(), listPackages()]);
   const costPerCredit = worstCostPerCredit(config, rows);
   const db = getDb();
-  const providerRows = await db`select * from ai_provider_accounts where provider = 'runway'`;
+  const providerRows = await db`select * from ai_provider_accounts order by provider desc`;
   return {
     config,
     models: rows.map((row) => {
@@ -75,15 +82,12 @@ export async function getPricingAdminView(): Promise<PricingAdminView> {
       };
     }),
     packages: packages.map((pkg) => ({ pkg, ...analyzePackage(config, pkg, costPerCredit) })),
-    provider: providerRows[0]
-      ? {
-          provider: providerRows[0].provider as string,
-          currentEstimatedBalanceUsd:
-            providerRows[0].current_estimated_balance_usd === null ? null : Number(providerRows[0].current_estimated_balance_usd),
-          autoRechargeEnabled: Boolean(providerRows[0].auto_recharge_enabled),
-          lowBalanceThresholdUsd: Number(providerRows[0].low_balance_threshold_usd),
-        }
-      : null,
+    providers: providerRows.map((row) => ({
+      provider: row.provider as string,
+      currentEstimatedBalanceUsd: row.current_estimated_balance_usd === null ? null : Number(row.current_estimated_balance_usd),
+      autoRechargeEnabled: Boolean(row.auto_recharge_enabled),
+      lowBalanceThresholdUsd: Number(row.low_balance_threshold_usd),
+    })),
   };
 }
 
@@ -117,6 +121,10 @@ export async function updatePricingConfig(input: Record<string, unknown>): Promi
     retentionDaysFree: Math.round(assertFiniteRange(input.retentionDaysFree ?? current.retentionDaysFree, 1, 365, "Retenção (grátis)")),
     retentionDaysPaid: Math.round(assertFiniteRange(input.retentionDaysPaid ?? current.retentionDaysPaid, 1, 365, "Retenção (pagos)")),
     purchaseRefundWindowDays: Math.round(assertFiniteRange(input.purchaseRefundWindowDays ?? current.purchaseRefundWindowDays, 7, 365, "Prazo de reembolso")),
+    retryDiscountPct: assertFiniteRange(input.retryDiscountPct ?? current.retryDiscountPct, 0, 90, "Desconto para gerar novamente"),
+    maxRetriesPerGeneration: Math.round(assertFiniteRange(input.maxRetriesPerGeneration ?? current.maxRetriesPerGeneration, 0, 20, "Regenerações por vídeo")),
+    postprocessCostBrl: assertFiniteRange(input.postprocessCostBrl ?? current.postprocessCostBrl, 0, 100, "Custo do pós-processamento"),
+    issueReviewThreshold: Math.round(assertFiniteRange(input.issueReviewThreshold ?? current.issueReviewThreshold, 1, 1000, "Reportes para revisão")),
   };
   if (merged.minimumGrossMarginPct > merged.targetGrossMarginPct) {
     throw new AdminPricingError("A margem mínima não pode ser maior que a margem alvo.");
@@ -130,15 +138,19 @@ export async function updateModelPricingAdmin(id: string, input: Record<string, 
   if (!row) throw new AdminPricingError("Linha de preço não encontrada.");
   const config = await getActivePricingConfig();
   const aliluCreditCost = Math.round(assertFiniteRange(input.aliluCreditCost ?? row.aliluCreditCost, 1, 100000, "Créditos"));
-  const providerCreditsPerSecond = assertFiniteRange(input.providerCreditsPerSecond ?? row.providerCreditsPerSecond, 0.01, 1000, "Créditos do provedor por segundo");
+  const providerCreditsPerSecond = assertFiniteRange(input.providerCreditsPerSecond ?? row.providerCreditsPerSecond, 0, 1000, "Créditos do provedor por segundo");
+  const providerFixedCredits = assertFiniteRange(input.providerFixedCredits ?? row.providerFixedCredits, 0, 100000, "Créditos fixos do provedor");
+  if (providerCreditsPerSecond <= 0 && providerFixedCredits <= 0) {
+    throw new AdminPricingError("Informe o custo do provedor (por segundo ou fixo por vídeo).");
+  }
   const isActive = typeof input.isActive === "boolean" ? input.isActive : row.isActive;
-  const economics = economicsForCredits(config, { ...row, providerCreditsPerSecond }, aliluCreditCost);
+  const economics = economicsForCredits(config, { ...row, providerCreditsPerSecond, providerFixedCredits }, aliluCreditCost);
   if (isActive && economics.grossMarginPct < config.minimumGrossMarginPct) {
     throw new AdminPricingError(
       `Com ${aliluCreditCost} créditos a margem fica em ${economics.grossMarginPct.toFixed(1)}%, abaixo da mínima (${config.minimumGrossMarginPct}%).`,
     );
   }
-  await updateModelPricing(id, { aliluCreditCost, isActive, providerCreditsPerSecond });
+  await updateModelPricing(id, { aliluCreditCost, isActive, providerCreditsPerSecond, providerFixedCredits });
 }
 
 /** Ajusta um pacote — recusa ativar abaixo da margem mínima (pior modelo ativo). */
@@ -167,11 +179,12 @@ export async function updateProviderAccountAdmin(input: Record<string, unknown>)
     : assertFiniteRange(input.currentEstimatedBalanceUsd, 0, 10_000_000, "Saldo");
   const threshold = assertFiniteRange(input.lowBalanceThresholdUsd ?? 20, 0, 1_000_000, "Limite de saldo baixo");
   const autoRecharge = Boolean(input.autoRechargeEnabled);
+  const provider = input.provider === "fal" ? "fal" : "runway";
   await db`
     update ai_provider_accounts
     set current_estimated_balance_usd = ${balance}, low_balance_threshold_usd = ${threshold},
         auto_recharge_enabled = ${autoRecharge}, last_balance_check_at = now(), updated_at = now()
-    where provider = 'runway'
+    where provider = ${provider}
   `;
 }
 
@@ -192,9 +205,17 @@ export interface CostPeriodSummary {
   purchasesRevenueBrl: number;
   purchasesCount: number;
   providerSpendUsd: number;
+  /** Falhas ÷ gerações (exceto bloqueadas pela trava). */
+  errorRatePct: number;
+  /** "Gerar novamente com desconto" ÷ gerações concluídas. */
+  retries: number;
+  retryRatePct: number;
+  issuesReported: number;
+  liked: number;
 }
 
 export interface CostByModel {
+  tier: string;
   provider: string;
   model: string;
   generations: number;
@@ -220,13 +241,18 @@ async function summarize(since: Date): Promise<CostPeriodSummary> {
       coalesce(sum(estimated_cost_brl) filter (where status in ('COMPLETED', 'EXPIRED')), 0) as api_cost,
       coalesce(sum(estimated_cost_brl) filter (where status in ('FAILED', 'REFUNDED') and provider_charged), 0) as failure_cost,
       coalesce(sum(coalesce(provider_actual_cost_usd, 0)) filter (where provider_charged), 0) as provider_spend_usd,
-      avg(extract(epoch from (completed_at - created_at))) filter (where status in ('COMPLETED', 'EXPIRED')) as avg_seconds
+      avg(extract(epoch from (completed_at - created_at))) filter (where status in ('COMPLETED', 'EXPIRED')) as avg_seconds,
+      count(*) filter (where pricing_kind = 'RETRY_DISCOUNT' and status <> 'PRICE_GUARD_BLOCKED')::int as retries,
+      count(*) filter (where user_feedback = 'LIKED')::int as liked
     from ai_video_generations
     where created_at >= ${since.toISOString()}
   `;
   const [purchases] = await db`
     select count(*)::int as total, coalesce(sum(price_cents), 0) as cents
     from ai_credit_purchases where status = 'PAID' and paid_at >= ${since.toISOString()}
+  `;
+  const [issues] = await db`
+    select count(*)::int as total from ai_video_generation_issues where created_at >= ${since.toISOString()}
   `;
   const revenue = Number(gen.revenue);
   const apiCost = Number(gen.api_cost);
@@ -251,6 +277,11 @@ async function summarize(since: Date): Promise<CostPeriodSummary> {
     purchasesRevenueBrl: Number(purchases.cents) / 100,
     purchasesCount: Number(purchases.total),
     providerSpendUsd: Number(gen.provider_spend_usd),
+    errorRatePct: Number(gen.generations) > 0 ? (Number(gen.failed) / Number(gen.generations)) * 100 : 0,
+    retries: Number(gen.retries),
+    retryRatePct: completed > 0 ? (Number(gen.retries) / completed) * 100 : 0,
+    issuesReported: Number(issues.total),
+    liked: Number(gen.liked),
   };
 }
 
@@ -261,6 +292,7 @@ export async function getCostsDashboard(now: Date = new Date()): Promise<{
   unrecoveredCredits: number;
   welcomeBonusCredits: number;
   alerts: string[];
+  usersForReview: Array<{ email: string; reports: number; refunds: number }>;
 }> {
   const today = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
   const month = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
@@ -269,14 +301,14 @@ export async function getCostsDashboard(now: Date = new Date()): Promise<{
   const config = await getActivePricingConfig();
   const netFactor = 1 - config.paymentFeePct / 100 - config.taxPct / 100;
   const modelRows = await db`
-    select provider, provider_model, count(*)::int as generations,
+    select tier, provider, provider_model, count(*)::int as generations,
       coalesce(avg(estimated_cost_brl), 0) as avg_cost,
       coalesce(sum(credit_cost), 0) as credits,
       coalesce(sum(revenue_allocated_brl), 0) as revenue,
       coalesce(sum(estimated_cost_brl), 0) as cost
     from ai_video_generations
     where status in ('COMPLETED', 'EXPIRED') and created_at >= ${month.toISOString()}
-    group by provider, provider_model
+    group by tier, provider, provider_model
     order by generations desc
   `;
   const [extra] = await db`
@@ -303,6 +335,20 @@ export async function getCostsDashboard(now: Date = new Date()): Promise<{
   `;
   if (Number(blocked.total) > 0) alerts.push(`${blocked.total} geração(ões) bloqueadas hoje pela trava de preço/limite de gasto.`);
 
+  // Reportes manuais acima do limite em 30 dias → revisão (sem bloqueio automático).
+  const reviewSince = new Date(now.getTime() - 30 * 24 * 3600_000);
+  const reviewRows = await db`
+    select u.email, count(*)::int as reports,
+      count(*) filter (where i.resolution = 'REFUNDED')::int as refunds
+    from ai_video_generation_issues i join users u on u.id = i.user_id
+    where i.created_at >= ${reviewSince.toISOString()}
+    group by u.email
+    having count(*) >= ${config.issueReviewThreshold}
+    order by reports desc
+    limit 50
+  `;
+  if (reviewRows.length > 0) alerts.push(`${reviewRows.length} usuário(s) com muitos reportes de problema nos últimos 30 dias — revisar.`);
+
   return {
     today: todaySummary,
     month: monthSummary,
@@ -310,6 +356,7 @@ export async function getCostsDashboard(now: Date = new Date()): Promise<{
       const revenue = Number(row.revenue);
       const profit = revenue * netFactor - Number(row.cost);
       return {
+        tier: row.tier as string,
         provider: row.provider as string,
         model: row.provider_model as string,
         generations: Number(row.generations),
@@ -320,6 +367,7 @@ export async function getCostsDashboard(now: Date = new Date()): Promise<{
         grossMarginPct: revenue > 0 ? (profit / revenue) * 100 : 0,
       };
     }),
+    usersForReview: reviewRows.map((row) => ({ email: row.email as string, reports: Number(row.reports), refunds: Number(row.refunds) })),
     unrecoveredCredits: Number(extra.unrecovered),
     welcomeBonusCredits: Number(extra.bonus),
     alerts,

@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
-import { analyzePackage, costBreakdown, economicsForCredits, formatBrl, suggestedCreditCost, worstCostPerCredit } from "@/lib/ai-video/pricing";
+import { analyzePackage, costBreakdown, economicsForCredits, formatBrl, retryCreditCost, suggestedCreditCost, worstCostPerCredit } from "@/lib/ai-video/pricing";
 import { AI_VIDEO_TIER_LABEL, type AiCreditPackage, type AiPricingConfig, type AiVideoModelPricing } from "@/lib/ai-video/types";
 import { readErrorMessage } from "../client-utils";
 
@@ -27,6 +27,10 @@ const CONFIG_FIELDS: { key: keyof AiPricingConfig; label: string; step: string; 
   { key: "retentionDaysFree", label: "Retenção do vídeo (sem compra)", step: "1", suffix: "dias" },
   { key: "retentionDaysPaid", label: "Retenção do vídeo (com compra)", step: "1", suffix: "dias" },
   { key: "purchaseRefundWindowDays", label: "Prazo de reembolso de compra (mín. 7)", step: "1", suffix: "dias" },
+  { key: "retryDiscountPct", label: "Desconto em “Gerar novamente” (nunca abaixo do custo)", step: "1", suffix: "%" },
+  { key: "maxRetriesPerGeneration", label: "Regenerações com desconto por vídeo", step: "1" },
+  { key: "postprocessCostBrl", label: "Custo do pós-processamento (só registro)", step: "0.01", suffix: "R$" },
+  { key: "issueReviewThreshold", label: "Reportes em 30 dias para marcar revisão", step: "1" },
 ];
 
 function pct(value: number): string {
@@ -37,23 +41,18 @@ export function AiPricingAdmin({
   config,
   models,
   packages,
-  provider,
+  providers,
 }: {
   config: AiPricingConfig;
   models: AiVideoModelPricing[];
   packages: AiCreditPackage[];
-  provider: { currentEstimatedBalanceUsd: number | null; autoRechargeEnabled: boolean; lowBalanceThresholdUsd: number } | null;
+  providers: ProviderAccountDto[];
 }) {
   const router = useRouter();
   const [configDraft, setConfigDraft] = useState<AiPricingConfig>(config);
   const [modelDrafts, setModelDrafts] = useState<AiVideoModelPricing[]>(models);
   const [packageDrafts, setPackageDrafts] = useState<AiCreditPackage[]>(packages);
   const [simulation, setSimulation] = useState<Record<string, string>>({});
-  const [providerDraft, setProviderDraft] = useState({
-    balance: provider?.currentEstimatedBalanceUsd === null || provider?.currentEstimatedBalanceUsd === undefined ? "" : String(provider.currentEstimatedBalanceUsd),
-    threshold: String(provider?.lowBalanceThresholdUsd ?? 20),
-    autoRecharge: provider?.autoRechargeEnabled ?? false,
-  });
   const [busy, setBusy] = useState<string | null>(null);
   const [message, setMessage] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
 
@@ -99,6 +98,7 @@ export function AiPricingAdmin({
                 <th className="px-2 py-2">Qualidade / modelo</th>
                 <th className="px-2 py-2">Duração</th>
                 <th className="px-2 py-2">Créd. provedor/s</th>
+                <th className="px-2 py-2">Créd. fixos/vídeo</th>
                 <th className="px-2 py-2">Custo API</th>
                 <th className="px-2 py-2">Custo R$</th>
                 <th className="px-2 py-2">Protegido</th>
@@ -107,6 +107,7 @@ export function AiPricingAdmin({
                 <th className="px-2 py-2">Preço comercial</th>
                 <th className="px-2 py-2">Margem</th>
                 <th className="px-2 py-2">Sugerido</th>
+                <th className="px-2 py-2">Gerar novamente</th>
                 <th className="px-2 py-2">Simular</th>
                 <th className="px-2 py-2">Ativo</th>
                 <th className="px-2 py-2" />
@@ -140,6 +141,17 @@ export function AiPricingAdmin({
                         className="w-16 rounded border border-zinc-300 px-1 py-0.5"
                       />
                     </td>
+                    <td className="px-2 py-2">
+                      <input
+                        type="number"
+                        step="1"
+                        value={row.providerFixedCredits}
+                        onChange={(event) =>
+                          setModelDrafts((list) => list.map((item, i) => (i === index ? { ...item, providerFixedCredits: Number(event.target.value) } : item)))
+                        }
+                        className="w-16 rounded border border-zinc-300 px-1 py-0.5"
+                      />
+                    </td>
                     <td className="px-2 py-2">US$ {costs.providerCostUsd.toFixed(3)}</td>
                     <td className="px-2 py-2">{formatBrl(costs.providerCostBrl)}</td>
                     <td className="px-2 py-2">{formatBrl(costs.protectedProviderCostBrl)}</td>
@@ -158,6 +170,7 @@ export function AiPricingAdmin({
                     <td className="px-2 py-2">{formatBrl(economics.revenueBrl)}</td>
                     <td className={`px-2 py-2 font-medium ${below ? "text-red-700" : "text-teal-800"}`}>{pct(economics.grossMarginPct)}</td>
                     <td className="px-2 py-2">{suggested ?? "—"}</td>
+                    <td className="px-2 py-2">{retryCreditCost(configDraft, row)}</td>
                     <td className="px-2 py-2">
                       <input
                         type="number"
@@ -190,6 +203,7 @@ export function AiPricingAdmin({
                             id: row.id,
                             aliluCreditCost: row.aliluCreditCost,
                             providerCreditsPerSecond: row.providerCreditsPerSecond,
+                            providerFixedCredits: row.providerFixedCredits,
                             isActive: row.isActive,
                           })
                         }
@@ -310,42 +324,79 @@ export function AiPricingAdmin({
       </section>
 
       <section>
-        <h2 className="text-lg font-semibold text-zinc-900">Conta no provedor (Runway)</h2>
+        <h2 className="text-lg font-semibold text-zinc-900">Contas nos provedores</h2>
         <p className="mt-1 text-xs text-zinc-500">
-          O Alilu paga o provedor com saldo próprio (créditos comprados no portal de desenvolvedor da Runway, com recarga
-          automática configurada lá). Atualize aqui o saldo que aparece no portal para receber o alerta de saldo baixo.
+          O Alilu paga cada provedor com saldo próprio (créditos comprados no portal de cada um, com recarga automática configurada
+          lá). Atualize aqui o saldo que aparece no portal para receber o alerta de saldo baixo.
         </p>
-        <div className="mt-3 grid gap-3 sm:grid-cols-3">
-          <label className="block text-sm">
-            <span className="mb-1 block text-zinc-700">Saldo atual (US$)</span>
-            <input value={providerDraft.balance} onChange={(event) => setProviderDraft((d) => ({ ...d, balance: event.target.value }))} className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm" />
-          </label>
-          <label className="block text-sm">
-            <span className="mb-1 block text-zinc-700">Alertar abaixo de (US$)</span>
-            <input value={providerDraft.threshold} onChange={(event) => setProviderDraft((d) => ({ ...d, threshold: event.target.value }))} className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm" />
-          </label>
-          <label className="flex items-center gap-2 pt-6 text-sm text-zinc-700">
-            <input type="checkbox" checked={providerDraft.autoRecharge} onChange={(event) => setProviderDraft((d) => ({ ...d, autoRecharge: event.target.checked }))} />
-            Recarga automática ligada no portal
-          </label>
+        <div className="mt-3 space-y-4">
+          {providers.map((account) => (
+            <ProviderAccountCard key={account.provider} account={account} busy={busy} save={save} />
+          ))}
         </div>
-        <Button
-          type="button"
-          variant="secondary"
-          className="mt-4"
-          disabled={busy !== null}
-          onClick={() =>
-            save("provider", {
-              action: "provider",
-              currentEstimatedBalanceUsd: providerDraft.balance === "" ? null : Number(providerDraft.balance),
-              lowBalanceThresholdUsd: Number(providerDraft.threshold),
-              autoRechargeEnabled: providerDraft.autoRecharge,
-            })
-          }
-        >
-          Salvar conta do provedor
-        </Button>
       </section>
+    </div>
+  );
+}
+
+interface ProviderAccountDto {
+  provider: string;
+  currentEstimatedBalanceUsd: number | null;
+  autoRechargeEnabled: boolean;
+  lowBalanceThresholdUsd: number;
+}
+
+const PROVIDER_LABEL: Record<string, string> = { runway: "Runway (dev.runwayml.com)", fal: "fal.ai (fal.ai/dashboard)" };
+
+function ProviderAccountCard({
+  account,
+  busy,
+  save,
+}: {
+  account: ProviderAccountDto;
+  busy: string | null;
+  save: (key: string, body: Record<string, unknown>) => Promise<void>;
+}) {
+  const [draft, setDraft] = useState({
+    balance: account.currentEstimatedBalanceUsd === null ? "" : String(account.currentEstimatedBalanceUsd),
+    threshold: String(account.lowBalanceThresholdUsd),
+    autoRecharge: account.autoRechargeEnabled,
+  });
+  const key = `provider-${account.provider}`;
+  return (
+    <div className="rounded-md border border-zinc-200 p-3">
+      <p className="text-sm font-medium text-zinc-900">{PROVIDER_LABEL[account.provider] ?? account.provider}</p>
+      <div className="mt-2 grid gap-3 sm:grid-cols-3">
+        <label className="block text-sm">
+          <span className="mb-1 block text-zinc-700">Saldo atual (US$)</span>
+          <input value={draft.balance} onChange={(event) => setDraft((d) => ({ ...d, balance: event.target.value }))} className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm" />
+        </label>
+        <label className="block text-sm">
+          <span className="mb-1 block text-zinc-700">Alertar abaixo de (US$)</span>
+          <input value={draft.threshold} onChange={(event) => setDraft((d) => ({ ...d, threshold: event.target.value }))} className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm" />
+        </label>
+        <label className="flex items-center gap-2 pt-6 text-sm text-zinc-700">
+          <input type="checkbox" checked={draft.autoRecharge} onChange={(event) => setDraft((d) => ({ ...d, autoRecharge: event.target.checked }))} />
+          Recarga automática ligada no portal
+        </label>
+      </div>
+      <Button
+        type="button"
+        variant="secondary"
+        className="mt-3"
+        disabled={busy !== null}
+        onClick={() =>
+          save(key, {
+            action: "provider",
+            provider: account.provider,
+            currentEstimatedBalanceUsd: draft.balance === "" ? null : Number(draft.balance),
+            lowBalanceThresholdUsd: Number(draft.threshold),
+            autoRechargeEnabled: draft.autoRecharge,
+          })
+        }
+      >
+        {busy === key ? "Salvando…" : "Salvar"}
+      </Button>
     </div>
   );
 }
