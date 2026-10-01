@@ -61,7 +61,7 @@ export function UserMenu({ user }: { user: HeaderUser }) {
         aria-haspopup="menu"
         aria-expanded={open}
         aria-controls="menu-conta"
-        className="flex h-11 items-center gap-2 rounded-md px-2 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
+        className="flex h-11 items-center gap-2 rounded-md px-2 text-sm font-medium text-brand-primary transition-colors hover:bg-brand-primary-soft focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-accent"
       >
         {user.image ? (
           // eslint-disable-next-line @next/next/no-img-element -- avatar externo (Google); o projeto não usa next/image em nenhum outro lugar.
@@ -74,7 +74,7 @@ export function UserMenu({ user }: { user: HeaderUser }) {
             referrerPolicy="no-referrer"
           />
         ) : (
-          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-zinc-100 text-zinc-500">
+          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand-primary-soft text-brand-primary">
             <Icon name="user" className="h-4 w-4" />
           </span>
         )}

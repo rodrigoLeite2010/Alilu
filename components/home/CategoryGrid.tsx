@@ -23,13 +23,13 @@ export function CategoryGrid() {
           Aparece primeiro na lista de categorias. */}
       <Link
         href={INSTAGRAM_CATEGORY.path}
-        className="group flex h-full flex-col gap-3 rounded-lg border border-zinc-200 bg-white p-5 transition-colors hover:border-teal-700/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
+        className="group flex h-full flex-col gap-3 rounded-lg border border-zinc-200 bg-white p-5 transition-colors hover:border-brand-primary/40 hover:shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-accent"
       >
-        <span className="flex h-11 w-11 items-center justify-center rounded-md bg-zinc-100 text-zinc-700 transition-colors group-hover:bg-teal-50 group-hover:text-teal-800">
+        <span className="flex h-11 w-11 items-center justify-center rounded-md bg-brand-primary-soft text-brand-primary transition-colors group-hover:bg-brand-accent-soft group-hover:text-brand-accent-dark">
           <Icon name={INSTAGRAM_CATEGORY.icon} className="h-5 w-5" />
         </span>
         <div>
-          <p className="text-lg font-semibold text-zinc-900 group-hover:text-teal-800">
+          <p className="text-lg font-semibold text-zinc-900 group-hover:text-brand-primary">
             {INSTAGRAM_CATEGORY.name}
           </p>
           <p className="mt-1 text-sm text-zinc-600">{INSTAGRAM_CATEGORY.description}</p>
@@ -45,13 +45,13 @@ export function CategoryGrid() {
           não se encaixa no registro 100% client-side de data/categories.ts. */}
       <Link
         href={VIDEOS_CATEGORY.path}
-        className="group flex h-full flex-col gap-3 rounded-lg border border-zinc-200 bg-white p-5 transition-colors hover:border-teal-700/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
+        className="group flex h-full flex-col gap-3 rounded-lg border border-zinc-200 bg-white p-5 transition-colors hover:border-brand-primary/40 hover:shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-accent"
       >
-        <span className="flex h-11 w-11 items-center justify-center rounded-md bg-zinc-100 text-zinc-700 transition-colors group-hover:bg-teal-50 group-hover:text-teal-800">
+        <span className="flex h-11 w-11 items-center justify-center rounded-md bg-brand-primary-soft text-brand-primary transition-colors group-hover:bg-brand-accent-soft group-hover:text-brand-accent-dark">
           <Icon name={VIDEOS_CATEGORY.icon} className="h-5 w-5" />
         </span>
         <div>
-          <p className="text-lg font-semibold text-zinc-900 group-hover:text-teal-800">{VIDEOS_CATEGORY.name}</p>
+          <p className="text-lg font-semibold text-zinc-900 group-hover:text-brand-primary">{VIDEOS_CATEGORY.name}</p>
           <p className="mt-1 text-sm text-zinc-600">{VIDEOS_CATEGORY.description}</p>
         </div>
         <p className="mt-auto text-xs font-medium text-zinc-500">

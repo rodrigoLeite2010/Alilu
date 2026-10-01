@@ -26,7 +26,7 @@ export function HeaderAuthArea() {
         ) : (
           <Link
             href="/entrar"
-            className="flex h-11 items-center rounded-md px-3 py-2 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
+            className="flex h-11 items-center rounded-md px-3 py-2 text-sm font-medium text-brand-primary transition-colors hover:bg-brand-primary-soft focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-accent"
           >
             Entrar
           </Link>

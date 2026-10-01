@@ -17,6 +17,8 @@ export interface AccountOption {
 function emptyDay(dayOfWeek: DayOfWeek): DayFormState {
   return {
     dayOfWeek,
+    slotIndex: 0,
+    contentCategory: null,
     enabled: false,
     contentType: "POST",
     contentMode: "AI",
@@ -72,7 +74,10 @@ export function AutomationWizard({ userId, accounts }: { userId: string; account
   const leadId = useId();
 
   const enabledCount = useMemo(() => days.filter((day) => day.enabled).length, [days]);
-  const needsImage = useMemo(() => days.some((day) => day.enabled && (day.contentType === "POST" || day.contentType === "CAROUSEL")), [days]);
+  const needsImage = useMemo(
+    () => days.some((day) => day.enabled && (day.contentType === "POST" || day.contentType === "CAROUSEL" || day.contentType === "STORY")),
+    [days],
+  );
   const needsVideo = useMemo(() => days.some((day) => day.enabled && day.contentType === "REEL"), [days]);
 
   function updateDay(dayOfWeek: DayOfWeek, patch: Partial<DayFormState>) {
@@ -86,6 +91,13 @@ export function AutomationWizard({ userId, accounts }: { userId: string; account
       if (enabledCount === 0) return "Habilite pelo menos um dia da semana.";
       for (const day of days) {
         if (!day.enabled) continue;
+        if (day.contentType === "STORY") {
+          // Story: texto manual é opcional (vazio = só a imagem); no modo IA precisa do prompt.
+          if (day.contentMode !== "MANUAL" && !day.prompt.trim()) {
+            return `Defina o que o Story de ${DAY_OF_WEEK_LABEL[day.dayOfWeek]} deve dizer.`;
+          }
+          continue;
+        }
         if (day.contentMode === "MANUAL") {
           if (!day.manualCaption.trim()) {
             return `Escreva a legenda manual de ${DAY_OF_WEEK_LABEL[day.dayOfWeek]}.`;
@@ -99,14 +111,14 @@ export function AutomationWizard({ userId, accounts }: { userId: string; account
           return `Defina o que publicar em ${DAY_OF_WEEK_LABEL[day.dayOfWeek]}.`;
         }
       }
-      if (needsImage && !fixedImageMediaId && days.every((day) => !day.enabled || (day.contentType !== "POST" && day.contentType !== "CAROUSEL") || day.imageMediaId)) {
+      if (needsImage && !fixedImageMediaId && days.every((day) => !day.enabled || (day.contentType !== "POST" && day.contentType !== "CAROUSEL" && day.contentType !== "STORY") || day.imageMediaId)) {
         // cada dia POST/CAROUSEL já tem imagem própria — ok mesmo sem imagem padrão
       } else if (
         needsImage &&
         !fixedImageMediaId &&
-        days.some((day) => day.enabled && (day.contentType === "POST" || day.contentType === "CAROUSEL") && !day.imageMediaId)
+        days.some((day) => day.enabled && (day.contentType === "POST" || day.contentType === "CAROUSEL" || day.contentType === "STORY") && !day.imageMediaId)
       ) {
-        return "Defina a imagem padrão da automação ou uma imagem específica para cada dia de Post/Carrossel.";
+        return "Defina a imagem padrão da automação ou uma imagem específica para cada dia de Post/Carrossel/Story.";
       }
       if (needsVideo && !fixedVideoMediaId && days.some((day) => day.enabled && day.contentType === "REEL" && !day.videoMediaId)) {
         return "Defina o vídeo padrão da automação ou um vídeo específico para cada dia de Reel.";
@@ -163,6 +175,7 @@ export function AutomationWizard({ userId, accounts }: { userId: string; account
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             enabled: true,
+            contentCategory: day.contentCategory,
             contentType: day.contentType,
             contentMode: day.contentMode,
             prompt: day.prompt,
@@ -390,7 +403,7 @@ export function AutomationWizard({ userId, accounts }: { userId: string; account
             </p>
             {needsImage ? (
               <div className="mt-3">
-                <p className="mb-1 text-xs font-medium text-zinc-700">Imagem padrão (para dias de Post)</p>
+                <p className="mb-1 text-xs font-medium text-zinc-700">Imagem padrão (para dias de Post, Carrossel e Story)</p>
                 <MediaPicker userId={userId} mediaType="image" value={fixedImageMediaId} onChange={setFixedImageMediaId} />
               </div>
             ) : null}
@@ -414,9 +427,14 @@ export function AutomationWizard({ userId, accounts }: { userId: string; account
                 imageMode={imageMode}
                 defaultImageMediaId={fixedImageMediaId}
                 onChange={(patch) => updateDay(day.dayOfWeek, patch)}
+                previewContext={{ instagramAccountId, automationName: name, brandContext }}
               />
             ))}
           </div>
+          <p className="text-xs text-zinc-500">
+            Precisa de mais de um horário no mesmo dia (ex.: Stories às 08:00, 12:00 e 19:00)? Crie a automação e use
+            “+ Adicionar horário” na tela de edição.
+          </p>
         </section>
       ) : null}
 
@@ -451,7 +469,7 @@ export function AutomationWizard({ userId, accounts }: { userId: string; account
                   .map((day) => (
                     <tr key={day.dayOfWeek} className="border-t border-zinc-100">
                       <td className="px-3 py-2 font-medium text-zinc-900">{DAY_OF_WEEK_LABEL[day.dayOfWeek]}</td>
-                      <td className="px-3 py-2">{day.contentType === "POST" ? "Post" : day.contentType === "CAROUSEL" ? "Carrossel" : "Reel"}</td>
+                      <td className="px-3 py-2">{day.contentType === "POST" ? "Post" : day.contentType === "CAROUSEL" ? "Carrossel" : day.contentType === "STORY" ? "Story" : "Reel"}</td>
                       <td className="px-3 py-2">{day.publishTime}</td>
                       <td className="px-3 py-2">{day.contentMode === "MANUAL" ? "Manual" : "IA"}</td>
                       <td className="max-w-xs truncate px-3 py-2 text-zinc-600">

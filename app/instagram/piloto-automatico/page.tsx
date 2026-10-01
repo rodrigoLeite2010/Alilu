@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { auth } from "@/auth";
-import { listAutomations } from "@/lib/content-automation/backend/automation-service";
+import { getAutomationDashboard, listAutomations } from "@/lib/content-automation/backend/automation-service";
 import { canUseAutomation } from "@/lib/billing/backend/automation-access-service";
 import { serializeAccessResult } from "@/lib/billing/backend/billing-dto";
 import { LinkButton } from "@/components/ui/Button";
@@ -28,9 +28,10 @@ export default async function ContentAutomationDashboardPage() {
     );
   }
 
-  const [automations, access] = await Promise.all([
+  const [automations, access, dashboard] = await Promise.all([
     listAutomations(session.user.id),
     canUseAutomation(session.user.id),
+    getAutomationDashboard(session.user.id),
   ]);
   const dto: AutomationListItemDto[] = automations.map((item) => ({
     id: item.id,
@@ -50,7 +51,7 @@ export default async function ContentAutomationDashboardPage() {
         <div>
           <h1 className="text-xl font-semibold text-zinc-900">Piloto Automático</h1>
           <p className="mt-1 text-sm text-zinc-600">
-            Suas automações de conteúdo semanal — geração, aprovação e publicação no Instagram.
+            Suas automações de conteúdo semanal — Posts, Carrosséis, Stories e Reels, com geração, aprovação e publicação no Instagram.
           </p>
         </div>
         <LinkButton href="/instagram/piloto-automatico/nova">Criar automação</LinkButton>
@@ -58,7 +59,21 @@ export default async function ContentAutomationDashboardPage() {
 
       <AutomationBillingBanner initialAccess={serializeAccessResult(access)} />
 
-      <AutomationsOverview initialAutomations={dto} />
+      <AutomationsOverview
+        initialAutomations={dto}
+        dashboard={{
+          next: dashboard.next
+            ? {
+                automationName: dashboard.next.automationName,
+                contentType: dashboard.next.contentType,
+                publishTime: dashboard.next.publishTime,
+                date: dashboard.next.date,
+                isToday: dashboard.next.isToday,
+              }
+            : null,
+          today: dashboard.today,
+        }}
+      />
     </div>
   );
 }

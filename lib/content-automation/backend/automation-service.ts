@@ -31,9 +31,10 @@ import {
   getRunOwnedByUser,
   listRunsForAutomationOwnedByUser,
   listRunHistoryForAutomationOwnedByUser,
+  listRecentRunsForUser,
   setRunStatus,
 } from "./automation-run-repository";
-import { publishInstantUtc, zonedToday } from "./automation-time";
+import { findNextSlot, publishInstantUtc, zonedToday } from "./automation-time";
 import {
   CONTENT_CATEGORIES,
   DAY_OF_WEEK_LABEL,
@@ -512,3 +513,67 @@ export async function rejectAutomationRun(runId: string, userId: string): Promis
 }
 
 export { zonedToday };
+
+export interface AutomationDashboardSummary {
+  /** Próximo horário habilitado entre as automações ATIVAS. */
+  next: {
+    automationId: string;
+    automationName: string;
+    contentType: AutomationContentType;
+    date: string;
+    publishTime: string;
+    atUtc: string;
+    timezone: string;
+    isToday: boolean;
+  } | null;
+  /** Contagem de "hoje" (no fuso de cada automação). */
+  today: {
+    published: number;
+    storiesPublished: number;
+    scheduled: number;
+    waitingApproval: number;
+    errors: number;
+  };
+}
+
+/** Painel do Piloto Automático: próximo conteúdo + números do dia (Stories incluídos). */
+export async function getAutomationDashboard(userId: string, now: Date = new Date()): Promise<AutomationDashboardSummary> {
+  const items = await listAutomationsForUserInDb(userId);
+  let next: AutomationDashboardSummary["next"] = null;
+  for (const item of items.filter((candidate) => candidate.status === "ACTIVE")) {
+    const automation = await getAutomationForUser(item.id, userId);
+    if (!automation) continue;
+    const found = findNextSlot(automation.days, now, automation.timezone);
+    if (!found) continue;
+    if (!next || found.atUtc.toISOString() < next.atUtc) {
+      next = {
+        automationId: automation.id,
+        automationName: automation.name,
+        contentType: found.slot.contentType,
+        date: found.date,
+        publishTime: found.slot.publishTime,
+        atUtc: found.atUtc.toISOString(),
+        timezone: automation.timezone,
+        isToday: found.daysAhead === 0,
+      };
+    }
+  }
+
+  const since = new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  const runs = await listRecentRunsForUser(userId, since);
+  const today = { published: 0, storiesPublished: 0, scheduled: 0, waitingApproval: 0, errors: 0 };
+  for (const run of runs) {
+    if (run.runDate !== zonedToday(now, run.timezone).date) continue;
+    if (run.publicationStatus === "PUBLISHED") {
+      today.published += 1;
+      if (run.contentType === "STORY") today.storiesPublished += 1;
+    } else if (run.publicationStatus === "FAILED" || run.publicationStatus === "NEEDS_REVIEW" || run.runStatus === "FAILED") {
+      today.errors += 1;
+    } else if (run.runStatus === "WAITING_APPROVAL") {
+      today.waitingApproval += 1;
+    } else if (run.publicationStatus === "SCHEDULED" || run.publicationStatus === "PROCESSING" || run.runStatus === "SCHEDULED") {
+      today.scheduled += 1;
+    }
+  }
+  return { next, today };
+}

@@ -16,6 +16,7 @@ import {
   createCarouselContainer,
   createCarouselItemContainer,
   createImageMediaContainer,
+  createStoryMediaContainer,
   exchangeCodeForShortLivedToken,
   exchangeForLongLivedToken,
   fetchInstagramProfile,
@@ -516,5 +517,40 @@ describe("createCarouselContainer", () => {
     await expect(
       createCarouselContainer({ igUserId: "ig-1", accessToken: "t", childrenContainerIds: ["a", "b"], caption: "" }),
     ).rejects.toThrow(InstagramGraphApiError);
+  });
+});
+
+describe("createStoryMediaContainer", () => {
+  const originalFetch = global.fetch;
+  const fetchMock = vi.fn();
+  beforeEach(() => {
+    global.fetch = fetchMock as unknown as typeof fetch;
+    fetchMock.mockReset();
+  });
+  afterEach(() => {
+    global.fetch = originalFetch;
+  });
+
+  it("faz POST em /{ig-user-id}/media com media_type=STORIES + image_url, sem legenda", async () => {
+    fetchMock.mockResolvedValue(jsonResponse(200, { id: "story-container-1" }));
+
+    await expect(
+      createStoryMediaContainer({ igUserId: "17841", accessToken: "tok", imageUrl: "https://blob.example.com/s.jpg" }),
+    ).resolves.toBe("story-container-1");
+
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe(`https://graph.instagram.com/${GRAPH_API_VERSION}/17841/media`);
+    expect(init.method).toBe("POST");
+    const body = init.body as URLSearchParams;
+    expect(body.get("media_type")).toBe("STORIES");
+    expect(body.get("image_url")).toBe("https://blob.example.com/s.jpg");
+    expect(body.has("caption")).toBe(false);
+  });
+
+  it("lança InstagramGraphApiError quando a Meta recusa", async () => {
+    fetchMock.mockResolvedValue(jsonResponse(400, { error: { code: 100, message: "bad" } }));
+    await expect(
+      createStoryMediaContainer({ igUserId: "17841", accessToken: "tok", imageUrl: "https://blob.example.com/s.jpg" }),
+    ).rejects.toBeInstanceOf(InstagramGraphApiError);
   });
 });

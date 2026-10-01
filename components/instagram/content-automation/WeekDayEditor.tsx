@@ -2,9 +2,12 @@
 
 import { useId, useState } from "react";
 import {
+  CONTENT_CATEGORIES,
+  CONTENT_CATEGORY_LABEL,
   DAY_OF_WEEK_LABEL,
   MAX_VISUAL_TEXT_LENGTH,
   MAX_CAROUSEL_VISUAL_TEXT_LENGTH,
+  type AutomationContentCategory,
   type AutomationContentMode,
   type AutomationContentType,
   type DayOfWeek,
@@ -14,9 +17,17 @@ import { POST_TEMPLATES } from "@/lib/instagram/templates";
 import { MediaPicker } from "./MediaPicker";
 import { autoResizeTextarea } from "./textarea-utils";
 import { ColorSwatchInput } from "@/components/tools/instagram-post-creator/ColorSwatchInput";
+import { PROMPT_VARIABLES } from "@/lib/content-automation/prompt-variables";
+import { suggestedPromptFor } from "@/lib/content-automation/category-prompts";
 
 export interface DayFormState {
+  /** Id do horário (content_automation_days.id) — ausente só no assistente de criação, antes de a automação existir. */
+  id?: string;
   dayOfWeek: DayOfWeek;
+  /** 0 = horário principal do dia; 1, 2, … = horários extras ("+ Adicionar horário"). */
+  slotIndex: number;
+  /** Categoria opcional (Motivacional, Financeiro…) — alimenta {{categoria}} e sugere um prompt. */
+  contentCategory: AutomationContentCategory | null;
   enabled: boolean;
   contentType: AutomationContentType;
   /** "AI" (padrão) gera a legenda a partir de `prompt`; "MANUAL" publica `manualCaption` tal como escrito, sem chamar IA. */
@@ -38,6 +49,20 @@ export interface DayFormState {
 
 const OVERLAY_LEVELS = [0, 0.1, 0.2, 0.3, 0.4] as const;
 
+const CONTENT_TYPE_LABEL: Record<AutomationContentType, string> = {
+  POST: "Post",
+  CAROUSEL: "Carrossel",
+  STORY: "Story",
+  REEL: "Reel",
+};
+
+/** Contexto opcional só para a prévia do Story resolver {{nomeConta}}/{{tema}} e o contexto da marca. */
+export interface StoryPreviewContext {
+  instagramAccountId?: string | null;
+  automationName?: string;
+  brandContext?: string;
+}
+
 /**
  * Um card por dia da semana (seção 6 do briefing): liga/desliga, formato
  * (Post/Reel), horário e "o que publicar". A mídia (imagem/vídeo) do dia
@@ -50,6 +75,8 @@ export function WeekDayEditor({
   imageMode,
   defaultImageMediaId = null,
   onChange,
+  onRemove,
+  previewContext,
 }: {
   userId: string;
   day: DayFormState;
@@ -58,6 +85,9 @@ export function WeekDayEditor({
   /** Imagem padrão da automação (usada quando o dia não tem uma própria) — só para a prévia da arte saber qual foto usar. */
   defaultImageMediaId?: string | null;
   onChange: (patch: Partial<DayFormState>) => void;
+  /** Só para horários extras (slotIndex > 0): mostra "Remover horário". */
+  onRemove?: () => void;
+  previewContext?: StoryPreviewContext;
 }) {
   const [overrideMedia, setOverrideMedia] = useState(Boolean(day.imageMediaId || day.videoMediaId));
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -76,10 +106,53 @@ export function WeekDayEditor({
   const overlayId = useId();
   const colorId = useId();
   const timeId = useId();
+  const categoryId = useId();
+  const [storyPreviewUrl, setStoryPreviewUrl] = useState<string | null>(null);
+  const [storyPreviewText, setStoryPreviewText] = useState<string | null>(null);
+  const [storyPreviewLoading, setStoryPreviewLoading] = useState(false);
+  const [storyPreviewError, setStoryPreviewError] = useState<string | null>(null);
   const isCarousel = day.contentType === "CAROUSEL";
+  const isStory = day.contentType === "STORY";
+  const radioPrefix = `${day.dayOfWeek}-${day.slotIndex}`;
   const isAutoTemplateImage = imageMode === "AUTO_TEMPLATE" && (day.contentType === "POST" || isCarousel);
   const previewImageMediaId = day.imageMediaId ?? defaultImageMediaId;
   const visualTextMaxLength = isCarousel ? MAX_CAROUSEL_VISUAL_TEXT_LENGTH : MAX_VISUAL_TEXT_LENGTH;
+
+  async function handlePreviewStory() {
+    if (!previewImageMediaId) return;
+    setStoryPreviewLoading(true);
+    setStoryPreviewError(null);
+    setStoryPreviewUrl(null);
+    setStoryPreviewText(null);
+    try {
+      const response = await fetch("/api/content-automation/media/preview-story", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          imageMediaId: previewImageMediaId,
+          mode: day.contentMode,
+          visualText: day.visualText,
+          prompt: day.prompt,
+          dayOfWeek: day.dayOfWeek,
+          publishTime: day.publishTime,
+          contentCategory: day.contentCategory,
+          overlayOpacity: day.overlayOpacity,
+          visualTextColor: day.visualTextColor,
+          instagramAccountId: previewContext?.instagramAccountId ?? null,
+          automationName: previewContext?.automationName ?? "",
+          brandContext: previewContext?.brandContext ?? "",
+        }),
+      });
+      const payload = (await response.json()) as { dataUrl?: string; visualText?: string; error?: string };
+      if (!response.ok || !payload.dataUrl) throw new Error(payload.error || "Não foi possível gerar a prévia do Story.");
+      setStoryPreviewUrl(payload.dataUrl);
+      setStoryPreviewText(payload.visualText ?? null);
+    } catch (error) {
+      setStoryPreviewError(error instanceof Error ? error.message : "Não foi possível gerar a prévia do Story.");
+    } finally {
+      setStoryPreviewLoading(false);
+    }
+  }
 
   async function handlePreview() {
     if (!previewImageMediaId || !day.visualText.trim()) return;
@@ -167,9 +240,12 @@ export function WeekDayEditor({
 
   return (
     <fieldset className={`rounded-lg border p-4 transition-colors ${day.enabled ? "border-teal-300 bg-teal-50/30" : "border-zinc-200"}`}>
-      <legend className="px-1 text-sm font-semibold text-zinc-900">{DAY_OF_WEEK_LABEL[day.dayOfWeek]}</legend>
+      <legend className="px-1 text-sm font-semibold text-zinc-900">
+        {DAY_OF_WEEK_LABEL[day.dayOfWeek]}
+        {day.slotIndex > 0 ? <span className="font-normal text-zinc-600"> · horário extra ({day.publishTime})</span> : null}
+      </legend>
 
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <input
           id={checkboxId}
           type="checkbox"
@@ -178,32 +254,46 @@ export function WeekDayEditor({
           className="h-4 w-4 rounded border-zinc-300 text-teal-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
         />
         <label htmlFor={checkboxId} className="text-sm text-zinc-800">
-          Publicar neste dia
+          {day.slotIndex > 0 ? "Publicar neste horário" : "Publicar neste dia"}
         </label>
+        {onRemove ? (
+          <button
+            type="button"
+            onClick={onRemove}
+            className="ml-auto text-xs font-medium text-red-700 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
+          >
+            Remover horário
+          </button>
+        ) : null}
       </div>
 
       {day.enabled ? (
         <div className="mt-3 space-y-3">
           <div>
             <span className="mb-1 block text-xs font-medium text-zinc-700">Formato</span>
-            <div className="flex gap-3 text-sm">
+            <div className="flex flex-wrap gap-3 text-sm">
               {(
                 imageMode === "AUTO_TEMPLATE"
-                  ? (["POST", "CAROUSEL", "REEL"] as AutomationContentType[])
-                  : (["POST", "REEL"] as AutomationContentType[])
+                  ? (["POST", "CAROUSEL", "STORY", "REEL"] as AutomationContentType[])
+                  : (["POST", "STORY", "REEL"] as AutomationContentType[])
               ).map((type) => (
                 <label key={type} className="inline-flex items-center gap-1.5">
                   <input
                     type="radio"
-                    name={`${day.dayOfWeek}-content-type`}
+                    name={`${radioPrefix}-content-type`}
                     checked={day.contentType === type}
                     onChange={() => onChange({ contentType: type })}
                     className="h-4 w-4 border-zinc-300 text-teal-700"
                   />
-                  {type === "POST" ? "Post" : type === "CAROUSEL" ? "Carrossel" : "Reel"}
+                  {CONTENT_TYPE_LABEL[type]}
                 </label>
               ))}
             </div>
+            {isStory ? (
+              <p className="mt-1 text-xs text-zinc-500">
+                Story 9:16 (1080×1920) com o texto grande no centro, longe das bordas cobertas pelo Instagram. Stories não têm legenda e somem depois de 24 horas.
+              </p>
+            ) : null}
             {isCarousel ? (
               <p className="mt-1 text-xs text-zinc-500">
                 Um texto comprido (IA ou escrito à mão) é dividido automaticamente em vários slides — exatamente como o Carrossel automático manual.
@@ -225,12 +315,40 @@ export function WeekDayEditor({
           </div>
 
           <div>
-            <span className="mb-1 block text-xs font-medium text-zinc-700">Como gerar a legenda</span>
+            <label htmlFor={categoryId} className="mb-1 block text-xs font-medium text-zinc-700">
+              Tipo de conteúdo (opcional)
+            </label>
+            <select
+              id={categoryId}
+              value={day.contentCategory ?? ""}
+              onChange={(event) => {
+                const category = (event.target.value || null) as AutomationContentCategory | null;
+                const patch: Partial<DayFormState> = { contentCategory: category };
+                // Sugere um prompt pronto só quando o campo ainda está vazio — nunca apaga o que o usuário escreveu.
+                if (category && !day.prompt.trim()) {
+                  const suggestion = suggestedPromptFor(category, day.contentType);
+                  if (suggestion) patch.prompt = suggestion;
+                }
+                onChange(patch);
+              }}
+              className="w-full min-h-11 rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm"
+            >
+              <option value="">Sem categoria</option>
+              {CONTENT_CATEGORIES.map((category) => (
+                <option key={category} value={category}>
+                  {CONTENT_CATEGORY_LABEL[category]}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <span className="mb-1 block text-xs font-medium text-zinc-700">{isStory ? "Como gerar o texto do Story" : "Como gerar a legenda"}</span>
             <div className="flex gap-3 text-sm">
               <label className="inline-flex items-center gap-1.5">
                 <input
                   type="radio"
-                  name={`${day.dayOfWeek}-content-mode`}
+                  name={`${radioPrefix}-content-mode`}
                   checked={day.contentMode === "AI"}
                   onChange={() => onChange({ contentMode: "AI" })}
                   className="h-4 w-4 border-zinc-300 text-teal-700"
@@ -240,7 +358,7 @@ export function WeekDayEditor({
               <label className="inline-flex items-center gap-1.5">
                 <input
                   type="radio"
-                  name={`${day.dayOfWeek}-content-mode`}
+                  name={`${radioPrefix}-content-mode`}
                   checked={day.contentMode === "MANUAL"}
                   onChange={() => onChange({ contentMode: "MANUAL" })}
                   className="h-4 w-4 border-zinc-300 text-teal-700"
@@ -250,7 +368,25 @@ export function WeekDayEditor({
             </div>
           </div>
 
-          {day.contentMode === "MANUAL" ? (
+          {isStory && day.contentMode === "MANUAL" ? (
+            <div>
+              <label htmlFor={visualTextId} className="mb-1 block text-xs font-medium text-zinc-700">
+                Texto do Story (opcional)
+              </label>
+              <textarea
+                id={visualTextId}
+                value={day.visualText}
+                onChange={(event) => onChange({ visualText: event.target.value })}
+                rows={3}
+                maxLength={MAX_VISUAL_TEXT_LENGTH}
+                placeholder="Frase curta, desenhada grande no centro do Story. Deixe em branco para publicar só a imagem."
+                className="w-full min-h-[96px] resize-y rounded-md border border-zinc-300 px-3 py-2 text-sm leading-relaxed"
+              />
+              <p className="mt-1 text-xs text-zinc-500">
+                {day.visualText.length}/{MAX_VISUAL_TEXT_LENGTH} — textos curtos ficam maiores e mais legíveis no celular.
+              </p>
+            </div>
+          ) : day.contentMode === "MANUAL" ? (
             <div>
               <label htmlFor={manualCaptionId} className="mb-1 block text-xs font-medium text-zinc-700">
                 Legenda final
@@ -285,7 +421,9 @@ export function WeekDayEditor({
                 rows={6}
                 maxLength={800}
                 placeholder={
-                  day.contentType === "POST"
+                  isStory
+                    ? `Descreva o texto curto do Story. Ex.: Hoje é {{diaSemana}}. Crie uma frase motivacional curta para começar bem o dia. Máximo 20 palavras, sem hashtags.`
+                    : day.contentType === "POST"
                     ? `Descreva o conteúdo que deve ser criado para este dia. Ex.: Crie uma frase motivacional para ${DAY_OF_WEEK_LABEL[day.dayOfWeek].toLowerCase()} com tom leve, inspirador e humano.`
                     : isCarousel
                       ? `Descreva o carrossel que deve ser criado para este dia. Ex.: Conte, em vários parágrafos, uma história inspiradora sobre superação, para ${DAY_OF_WEEK_LABEL[day.dayOfWeek].toLowerCase()} — a IA escreve um texto comprido, dividido automaticamente entre os slides.`
@@ -296,8 +434,67 @@ export function WeekDayEditor({
               <p className="mt-1 text-xs text-zinc-500">
                 {day.prompt.length}/800 — a IA usa exatamente {DAY_OF_WEEK_LABEL[day.dayOfWeek]} como o dia deste conteúdo, nunca outro dia.
               </p>
+              <p className="mt-1 text-xs text-zinc-500">
+                Variáveis: {PROMPT_VARIABLES.map((name) => `{{${name}}}`).join(" ")}
+              </p>
             </div>
           )}
+
+          {isStory ? (
+            <div className="rounded-md border border-teal-200 bg-teal-50/40 p-3 space-y-3">
+              <div>
+                <label htmlFor={overlayId} className="mb-1 block text-xs font-medium text-zinc-700">
+                  Véu sobre a foto (legibilidade do texto)
+                </label>
+                <select
+                  id={overlayId}
+                  value={day.overlayOpacity === null ? "" : String(day.overlayOpacity)}
+                  onChange={(event) => onChange({ overlayOpacity: event.target.value === "" ? null : Number(event.target.value) })}
+                  className="w-full min-h-11 rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm"
+                >
+                  <option value="">Padrão (20%)</option>
+                  {OVERLAY_LEVELS.map((level) => (
+                    <option key={level} value={level}>
+                      {Math.round(level * 100)}%{level === 0.2 ? " (recomendado)" : ""}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <ColorSwatchInput
+                  id={colorId}
+                  label="Cor do texto"
+                  value={day.visualTextColor ?? "#ffffff"}
+                  onChange={(value) => onChange({ visualTextColor: value })}
+                />
+              </div>
+              <div>
+                <button
+                  type="button"
+                  onClick={handlePreviewStory}
+                  disabled={storyPreviewLoading || !previewImageMediaId || (day.contentMode === "AI" && !day.prompt.trim())}
+                  className="min-h-9 rounded-md border border-teal-300 bg-white px-3 py-1.5 text-xs font-medium text-teal-800 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {storyPreviewLoading ? "Gerando prévia…" : day.contentMode === "AI" ? "Gerar prévia (executa o prompt, não publica)" : "Gerar prévia"}
+                </button>
+                {!previewImageMediaId ? (
+                  <span className="ml-2 text-xs text-zinc-500">Selecione uma imagem de fundo (padrão da automação ou deste horário).</span>
+                ) : null}
+                {storyPreviewError ? <p className="mt-1 text-xs text-red-600">{storyPreviewError}</p> : null}
+                {storyPreviewText && day.contentMode === "AI" ? (
+                  <p className="mt-2 text-xs text-zinc-600">Texto gerado nesta prévia: “{storyPreviewText}”</p>
+                ) : null}
+                {storyPreviewUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element -- prévia é um data: URL gerado no servidor, nunca uma imagem otimizável pelo next/image.
+                  <img
+                    src={storyPreviewUrl}
+                    alt={`Prévia do Story de ${DAY_OF_WEEK_LABEL[day.dayOfWeek]} às ${day.publishTime}`}
+                    className="mt-2 w-full max-w-[220px] rounded-md border border-zinc-200 shadow-sm"
+                  />
+                ) : null}
+              </div>
+            </div>
+          ) : null}
 
           {isAutoTemplateImage ? (
             <div className="rounded-md border border-teal-200 bg-teal-50/40 p-3 space-y-3">
@@ -462,11 +659,11 @@ export function WeekDayEditor({
                 }}
                 className="h-4 w-4 rounded border-zinc-300 text-teal-700"
               />
-              Usar {day.contentType === "POST" || isCarousel ? "uma imagem" : "um vídeo"} diferente do padrão da automação neste dia
+              Usar {day.contentType === "POST" || isCarousel || isStory ? "uma imagem" : "um vídeo"} diferente do padrão da automação neste {day.slotIndex > 0 ? "horário" : "dia"}
             </label>
             {overrideMedia ? (
               <div className="mt-2">
-                {day.contentType === "POST" || isCarousel ? (
+                {day.contentType === "POST" || isCarousel || isStory ? (
                   <MediaPicker
                     userId={userId}
                     mediaType="image"

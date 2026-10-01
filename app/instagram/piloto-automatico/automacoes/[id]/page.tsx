@@ -56,6 +56,7 @@ export default async function AutomationDetailPage({ params }: PageProps) {
         userId={userId}
         automation={{
           id: automation.id,
+          instagramAccountId: automation.instagramAccountId,
           name: automation.name,
           description: automation.description,
           status: automation.status,
@@ -68,7 +69,10 @@ export default async function AutomationDetailPage({ params }: PageProps) {
           fixedImageMediaId: automation.fixedImageMediaId,
           fixedVideoMediaId: automation.fixedVideoMediaId,
           days: automation.days.map((day) => ({
+            id: day.id,
             dayOfWeek: day.dayOfWeek,
+            slotIndex: day.slotIndex,
+            contentCategory: day.contentCategory,
             enabled: day.enabled,
             contentType: day.contentType,
             contentMode: day.contentMode,

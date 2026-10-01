@@ -4,8 +4,8 @@ type BadgeTone = "neutral" | "brand" | "warning";
 
 const toneClasses: Record<BadgeTone, string> = {
   neutral: "bg-zinc-100 text-zinc-700",
-  brand: "bg-teal-50 text-teal-800",
-  warning: "bg-amber-50 text-amber-800",
+  brand: "bg-brand-primary-soft text-brand-primary",
+  warning: "bg-brand-accent-soft text-brand-accent-dark",
 };
 
 export function Badge({

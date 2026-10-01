@@ -18,13 +18,13 @@ export function SearchField({
       <span className="relative flex items-center">
         <Icon
           name="search"
-          className="pointer-events-none absolute left-3 h-5 w-5 text-zinc-400"
+          className="pointer-events-none absolute left-3 h-5 w-5 text-brand-primary/65"
         />
         <input
           type="search"
           placeholder={label}
           inputMode="search"
-          className="w-full rounded-lg border border-zinc-300 bg-white py-3 pl-10 pr-4 text-base text-zinc-900 placeholder:text-zinc-400 focus:border-teal-700 focus:outline-none focus:ring-2 focus:ring-teal-700/20"
+          className="w-full rounded-lg border border-brand-primary/20 bg-white py-3 pl-10 pr-4 text-base text-zinc-900 placeholder:text-zinc-400 focus:border-brand-primary focus:outline-none focus:ring-2 focus:ring-brand-primary/20"
           {...rest}
         />
       </span>

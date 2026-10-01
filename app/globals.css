@@ -6,13 +6,25 @@
  * redesign de layout (fundo branco fixo, visual limpo e moderno).
  */
 :root {
-  --background: #ffffff;
-  --foreground: #18181b;
+  --background: #fbfcfc;
+  --foreground: #162023;
+  --brand-primary: #004b5a;
+  --brand-primary-dark: #003946;
+  --brand-primary-soft: #e6f3f5;
+  --brand-accent: #ff9f2a;
+  --brand-accent-dark: #d97706;
+  --brand-accent-soft: #fff4df;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-brand-primary: var(--brand-primary);
+  --color-brand-primary-dark: var(--brand-primary-dark);
+  --color-brand-primary-soft: var(--brand-primary-soft);
+  --color-brand-accent: var(--brand-accent);
+  --color-brand-accent-dark: var(--brand-accent-dark);
+  --color-brand-accent-soft: var(--brand-accent-soft);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
@@ -59,7 +71,7 @@ body {
 }
 
 .legal-content a {
-  color: #0f766e;
+  color: var(--brand-primary);
   text-decoration: underline;
   text-underline-offset: 2px;
 }

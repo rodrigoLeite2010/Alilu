@@ -10,13 +10,13 @@ import { HomeSearch } from "@/components/home/HomeSearch";
  */
 export function HomeHero() {
   return (
-    <section className="border-b border-zinc-200 bg-white">
+    <section className="border-b border-brand-primary/10 bg-[linear-gradient(180deg,#ffffff_0%,#f2f8f9_100%)]">
       <Container className="py-16 sm:py-24">
         <div className="max-w-2xl">
-          <p className="text-sm font-semibold uppercase tracking-wider text-teal-800">
+          <p className="text-sm font-semibold uppercase tracking-wider text-brand-accent-dark">
             Grátis e em português
           </p>
-          <h1 className="mt-3 text-3xl font-bold tracking-tight text-balance text-zinc-900 sm:text-5xl">
+          <h1 className="mt-3 text-3xl font-bold tracking-tight text-balance text-brand-primary-dark sm:text-5xl">
             Ferramentas simples para facilitar o seu dia a dia.
           </h1>
           <p className="mt-4 text-lg text-zinc-600">

@@ -54,3 +54,38 @@ export function isDueForGeneration(
   const leadMs = generationLeadMinutes * 60_000;
   return now.getTime() >= publishAtUtc.getTime() - leadMs;
 }
+
+export interface NextSlotInput {
+  dayOfWeek: DayOfWeek;
+  publishTime: string;
+  enabled: boolean;
+}
+
+/**
+ * Próximo horário habilitado (de qualquer tipo) a partir de `now`, no fuso
+ * da automação — procura até 7 dias à frente. Devolve a data civil, o
+ * instante UTC e o próprio horário; `null` se nenhum horário está ligado.
+ * Usado pelo painel ("Próximo Story: hoje às 19:00").
+ */
+export function findNextSlot<T extends NextSlotInput>(
+  slots: T[],
+  now: Date,
+  timeZone: string,
+): { slot: T; date: string; atUtc: Date; daysAhead: number } | null {
+  const enabled = slots.filter((slot) => slot.enabled);
+  if (enabled.length === 0) return null;
+  const { date: today } = zonedToday(now, timeZone);
+  for (let offset = 0; offset <= 7; offset += 1) {
+    const base = new Date(`${today}T12:00:00Z`);
+    base.setUTCDate(base.getUTCDate() + offset);
+    const date = base.toISOString().slice(0, 10);
+    const dayOfWeek = DAY_INDEX[base.getUTCDay()];
+    const candidates = enabled
+      .filter((slot) => slot.dayOfWeek === dayOfWeek)
+      .map((slot) => ({ slot, atUtc: publishInstantUtc(date, slot.publishTime, timeZone) }))
+      .filter((candidate) => candidate.atUtc.getTime() > now.getTime())
+      .sort((a, b) => a.atUtc.getTime() - b.atUtc.getTime());
+    if (candidates[0]) return { slot: candidates[0].slot, date, atUtc: candidates[0].atUtc, daysAhead: offset };
+  }
+  return null;
+}

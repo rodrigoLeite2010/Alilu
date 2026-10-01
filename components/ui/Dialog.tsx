@@ -82,7 +82,7 @@ export function Dialog({
             data-dialog-close
             onClick={onClose}
             aria-label="Fechar"
-            className="-m-2 rounded-md p-2 text-zinc-500 hover:bg-zinc-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-700"
+            className="-m-2 rounded-md p-2 text-zinc-500 hover:bg-brand-primary-soft focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-accent"
           >
             ✕
           </button>

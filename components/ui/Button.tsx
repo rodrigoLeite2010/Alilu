@@ -4,14 +4,14 @@ import type { AnchorHTMLAttributes, ButtonHTMLAttributes, ReactNode } from "reac
 type Variant = "primary" | "secondary" | "ghost";
 
 const variantClasses: Record<Variant, string> = {
-  primary: "bg-zinc-900 text-white hover:bg-zinc-800 active:bg-zinc-950",
+  primary: "bg-brand-primary text-white hover:bg-brand-primary-dark active:bg-brand-primary-dark",
   secondary:
-    "bg-white text-zinc-900 ring-1 ring-inset ring-zinc-300 hover:bg-zinc-50",
-  ghost: "text-zinc-700 hover:bg-zinc-100",
+    "bg-white text-brand-primary ring-1 ring-inset ring-brand-primary/25 hover:bg-brand-primary-soft",
+  ghost: "text-brand-primary hover:bg-brand-primary-soft",
 };
 
 const baseClasses =
-  "inline-flex min-h-11 items-center justify-center gap-2 rounded-md px-4 py-2.5 text-sm font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700";
+  "inline-flex min-h-11 items-center justify-center gap-2 rounded-md px-4 py-2.5 text-sm font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-accent";
 
 export function LinkButton({
   href,

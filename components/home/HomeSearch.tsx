@@ -46,7 +46,7 @@ export function HomeSearch() {
         onChange={(event) => setQuery(event.target.value)}
       />
       {showResults ? (
-        <div className="mt-2 overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-sm" role="region" aria-live="polite">
+        <div className="mt-2 overflow-hidden rounded-lg border border-brand-primary/15 bg-white shadow-sm" role="region" aria-live="polite">
           {results.length === 0 ? (
             <p className="px-4 py-3 text-sm text-zinc-500">
               Nenhuma ferramenta encontrada para &ldquo;{query.trim()}&rdquo;. Tente outro termo.
@@ -57,9 +57,9 @@ export function HomeSearch() {
                 <li key={item.id}>
                   <Link
                     href={item.href}
-                    className="flex items-center gap-3 px-4 py-2.5 transition-colors hover:bg-zinc-50 focus-visible:bg-zinc-50 focus-visible:outline-none"
+                    className="flex items-center gap-3 px-4 py-2.5 transition-colors hover:bg-brand-primary-soft/60 focus-visible:bg-brand-primary-soft/60 focus-visible:outline-none"
                   >
-                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-zinc-100 text-zinc-600">
+                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-brand-primary-soft text-brand-primary">
                       <Icon name={item.icon} className="h-4 w-4" />
                     </span>
                     <span className="min-w-0">

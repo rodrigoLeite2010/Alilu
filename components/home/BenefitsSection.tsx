@@ -16,7 +16,7 @@ const BENEFITS = [
  */
 export function BenefitsSection() {
   return (
-    <section className="border-b border-zinc-200 bg-zinc-50/70">
+    <section className="border-b border-brand-primary/10 bg-brand-primary-soft/35">
       <Container className="py-12 sm:py-16">
         <div className="max-w-2xl">
           <h2 className="text-2xl font-bold tracking-tight text-zinc-900">Tudo em um só lugar</h2>
@@ -26,8 +26,8 @@ export function BenefitsSection() {
         </div>
         <ul className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {BENEFITS.map((benefit) => (
-            <li key={benefit} className="flex items-center gap-2.5 rounded-lg border border-zinc-200 bg-white px-4 py-3">
-              <Icon name="shield-check" className="h-4 w-4 shrink-0 text-teal-700" />
+            <li key={benefit} className="flex items-center gap-2.5 rounded-lg border border-brand-primary/15 bg-white px-4 py-3">
+              <Icon name="shield-check" className="h-4 w-4 shrink-0 text-brand-primary" />
               <span className="text-sm font-medium text-zinc-800">{benefit}</span>
             </li>
           ))}

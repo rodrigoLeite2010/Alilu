@@ -32,14 +32,14 @@ export function LogoutNotice() {
   if (!visible) return null;
 
   return (
-    <div role="status" className="border-b border-teal-200 bg-teal-50 print:hidden">
-      <div className="mx-auto flex max-w-[90rem] items-center justify-between gap-3 px-4 py-2 text-sm text-teal-900 sm:px-6 lg:px-8">
+    <div role="status" className="border-b border-brand-primary/20 bg-brand-primary-soft print:hidden">
+      <div className="mx-auto flex max-w-[90rem] items-center justify-between gap-3 px-4 py-2 text-sm text-brand-primary sm:px-6 lg:px-8">
         <span>Você saiu da sua conta.</span>
         <button
           type="button"
           onClick={() => setVisible(false)}
           aria-label="Fechar aviso"
-          className="rounded p-1 text-teal-700 hover:bg-teal-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
+          className="rounded p-1 text-brand-primary hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-accent"
         >
           <Icon name="close" className="h-4 w-4" />
         </button>

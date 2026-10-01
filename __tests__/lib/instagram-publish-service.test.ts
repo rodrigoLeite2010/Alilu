@@ -19,6 +19,7 @@ const meta = {
   createCarouselItemContainer: vi.fn(),
   createCarouselContainer: vi.fn(),
   createReelMediaContainer: vi.fn(),
+  createStoryMediaContainer: vi.fn(),
   getMediaContainerStatus: vi.fn(),
   publishMediaContainer: vi.fn(),
 };
@@ -260,5 +261,67 @@ describe("música (resolveRequestedMusic/resolveMusicApplication no publish)", (
     const musicLine = logs.map((line) => JSON.parse(line)).find((entry) => entry.event === "music.resolved");
     expect(musicLine).toMatchObject({ musicMode: "CUSTOM", musicApplied: false });
     expect(musicLine.musicReason).toMatch(/não reproduz áudio/);
+  });
+});
+
+describe("Stories (post_type 'story')", () => {
+  const storyPost = () =>
+    post({ postType: "story", caption: "", items: [{ mediaId: "m1", storageUrl: "https://blob/story.jpg", mediaType: "image", position: 0 }] });
+
+  it("cria o container com createStoryMediaContainer (sem legenda) e publica pelo mesmo media_publish", async () => {
+    repo.getPostForPublish.mockResolvedValue(storyPost());
+    meta.createStoryMediaContainer.mockResolvedValue("story-c1");
+    meta.getMediaContainerStatus.mockResolvedValue("FINISHED");
+    meta.publishMediaContainer.mockResolvedValue("story-media-1");
+
+    await expect(publishPost("post-1", "user-1")).resolves.toBe("PUBLISHED");
+
+    expect(meta.createStoryMediaContainer).toHaveBeenCalledWith({
+      igUserId: "ig-1",
+      accessToken: "token-secreto",
+      imageUrl: "https://blob/story.jpg",
+    });
+    expect(meta.createImageMediaContainer).not.toHaveBeenCalled();
+    expect(repo.markPostPublished).toHaveBeenCalledWith("post-1", "story-media-1", expect.any(String));
+  });
+
+  it("Story com mídia de vídeo falha na validação sem chamar a Meta", async () => {
+    repo.getPostForPublish.mockResolvedValue(
+      post({ postType: "story", items: [{ mediaId: "v1", storageUrl: "https://blob/v.mp4", mediaType: "video", position: 0 }] }),
+    );
+    await expect(publishPost("post-1", "user-1")).rejects.toThrow(/não é uma imagem/);
+    expect(meta.createStoryMediaContainer).not.toHaveBeenCalled();
+  });
+
+  it("container do Story ainda processando: libera para retomar depois, sem criar outro container", async () => {
+    repo.getPostForPublish.mockResolvedValue({ ...storyPost(), metaContainerId: "story-c1" });
+    meta.getMediaContainerStatus.mockResolvedValue("IN_PROGRESS");
+
+    const outcome = await publishInstagramPublication("post-1", "user-1", {
+      trigger: "scheduler",
+      claimed: { post: { ...claimed, postType: "story" as never }, lockToken: "l" },
+      pollIntervalMs: 0,
+    });
+
+    expect(outcome).toBe("PROCESSING");
+    expect(meta.createStoryMediaContainer).not.toHaveBeenCalled();
+    expect(repo.releasePostForResume).toHaveBeenCalled();
+  });
+
+  it("429/limite da Meta agenda nova tentativa (retry com backoff)", async () => {
+    repo.getPostForPublish.mockResolvedValue(storyPost());
+    meta.createStoryMediaContainer.mockRejectedValue(new FakeInstagramGraphApiError("x", { error: { code: 4 } }));
+    await expect(publishPost("post-1", "user-1")).resolves.toBe("RETRY_SCHEDULED");
+    expect(repo.schedulePostRetry).toHaveBeenCalled();
+  });
+
+  it("token expirado não fica tentando de novo: falha definitiva pedindo para reconectar a conta", async () => {
+    repo.getPostForPublish.mockResolvedValue(storyPost());
+    meta.createStoryMediaContainer.mockRejectedValue(
+      new FakeInstagramGraphApiError("x", { error: { code: 190, message: "Error validating access token" } }),
+    );
+    await expect(publishPost("post-1", "user-1")).rejects.toThrow(/precisa ser renovada/);
+    expect(repo.schedulePostRetry).not.toHaveBeenCalled();
+    expect(repo.markPostFailed).toHaveBeenCalledWith("post-1", expect.stringMatching(/precisa ser renovada/), expect.any(String));
   });
 });

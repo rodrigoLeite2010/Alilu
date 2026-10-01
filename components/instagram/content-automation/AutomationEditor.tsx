@@ -7,10 +7,67 @@ import { Button } from "@/components/ui/Button";
 import { MediaPicker } from "./MediaPicker";
 import { WeekDayEditor, type DayFormState } from "./WeekDayEditor";
 import { autoResizeTextarea } from "./textarea-utils";
-import { DAYS_OF_WEEK, type AutomationStatus, type DayOfWeek, type ImageMode } from "@/lib/content-automation/backend/automation-types";
+import {
+  DAYS_OF_WEEK,
+  MAX_SLOTS_PER_DAY,
+  type AutomationContentCategory,
+  type AutomationContentMode,
+  type AutomationContentType,
+  type AutomationStatus,
+  type DayOfWeek,
+  type ImageMode,
+} from "@/lib/content-automation/backend/automation-types";
+
+/** Forma do horário como a API devolve (serializeDay) — convertida para o estado do formulário. */
+interface SerializedDayDto {
+  id: string;
+  dayOfWeek: DayOfWeek;
+  slotIndex: number;
+  contentCategory: AutomationContentCategory | null;
+  enabled: boolean;
+  contentType: AutomationContentType;
+  contentMode: AutomationContentMode;
+  prompt: string;
+  manualCaption: string | null;
+  visualText: string | null;
+  templateId: string | null;
+  overlayOpacity: number | null;
+  visualTextColor: string | null;
+  publishTime: string;
+  imageMediaId: string | null;
+  videoMediaId: string | null;
+}
+
+function toDayFormState(day: SerializedDayDto): DayFormState {
+  return {
+    id: day.id,
+    dayOfWeek: day.dayOfWeek,
+    slotIndex: day.slotIndex,
+    contentCategory: day.contentCategory,
+    enabled: day.enabled,
+    contentType: day.contentType,
+    contentMode: day.contentMode,
+    prompt: day.prompt,
+    manualCaption: day.manualCaption ?? "",
+    visualText: day.visualText ?? "",
+    templateId: day.templateId,
+    overlayOpacity: day.overlayOpacity,
+    visualTextColor: day.visualTextColor,
+    publishTime: day.publishTime,
+    imageMediaId: day.imageMediaId,
+    videoMediaId: day.videoMediaId,
+  };
+}
+
+/** Chave estável de um horário no formulário — o id quando existe, senão dia + posição. */
+function slotKey(day: DayFormState): string {
+  return day.id ?? `${day.dayOfWeek}-${day.slotIndex}`;
+}
 
 export interface AutomationDetailDto {
   id: string;
+  /** Conta da automação — só para a prévia do Story resolver {{nomeConta}}. */
+  instagramAccountId?: string;
   name: string;
   description: string;
   status: AutomationStatus;
@@ -80,8 +137,44 @@ export function AutomationEditor({
   const contextId = useId();
   const leadId = useId();
 
-  function updateDay(dayOfWeek: DayOfWeek, patch: Partial<DayFormState>) {
-    setDays((list) => list.map((day) => (day.dayOfWeek === dayOfWeek ? { ...day, ...patch } : day)));
+  const [slotBusy, setSlotBusy] = useState<string | null>(null);
+
+  function updateDay(key: string, patch: Partial<DayFormState>) {
+    setDays((list) => list.map((day) => (slotKey(day) === key ? { ...day, ...patch } : day)));
+  }
+
+  async function addSlot(dayOfWeek: DayOfWeek) {
+    setSlotBusy(dayOfWeek);
+    setError(null);
+    setNotice(null);
+    try {
+      const response = await fetch(`/api/content-automation/automations/${automation.id}/days/${dayOfWeek}`, { method: "POST" });
+      if (!response.ok) throw new Error(await readErrorMessage(response, "Não foi possível adicionar o horário."));
+      const payload = (await response.json()) as { slotId: string; automation: { days: SerializedDayDto[] } };
+      const created = payload.automation.days.find((day) => day.id === payload.slotId);
+      // Só acrescenta o horário novo — nunca descarta edições ainda não salvas dos outros horários.
+      if (created) setDays((list) => [...list, toDayFormState(created)]);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Não foi possível adicionar o horário.");
+    } finally {
+      setSlotBusy(null);
+    }
+  }
+
+  async function removeSlot(day: DayFormState) {
+    if (!day.id || day.slotIndex === 0) return;
+    setSlotBusy(day.id);
+    setError(null);
+    setNotice(null);
+    try {
+      const response = await fetch(`/api/content-automation/automations/${automation.id}/days/${day.id}`, { method: "DELETE" });
+      if (!response.ok) throw new Error(await readErrorMessage(response, "Não foi possível remover o horário."));
+      setDays((list) => list.filter((candidate) => candidate.id !== day.id));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Não foi possível remover o horário.");
+    } finally {
+      setSlotBusy(null);
+    }
   }
 
   async function saveConfig() {
@@ -119,11 +212,12 @@ export function AutomationEditor({
     setNotice(null);
     try {
       for (const day of days) {
-        const response = await fetch(`/api/content-automation/automations/${automation.id}/days/${day.dayOfWeek}`, {
+        const response = await fetch(`/api/content-automation/automations/${automation.id}/days/${day.id ?? day.dayOfWeek}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             enabled: day.enabled,
+            contentCategory: day.contentCategory,
             contentType: day.contentType,
             contentMode: day.contentMode,
             prompt: day.prompt,
@@ -187,7 +281,9 @@ export function AutomationEditor({
     }
   }
 
-  const needsImage = days.some((day) => day.enabled && (day.contentType === "POST" || day.contentType === "CAROUSEL"));
+  const needsImage = days.some(
+    (day) => day.enabled && (day.contentType === "POST" || day.contentType === "CAROUSEL" || day.contentType === "STORY"),
+  );
   const needsVideo = days.some((day) => day.enabled && day.contentType === "REEL");
 
   return (
@@ -369,17 +465,35 @@ export function AutomationEditor({
         <h2 className="text-lg font-semibold text-zinc-900">Semana</h2>
         <div className="space-y-3">
           {DAYS_OF_WEEK.map((dow) => {
-            const day = days.find((candidate) => candidate.dayOfWeek === dow);
-            if (!day) return null;
+            const slots = days
+              .filter((candidate) => candidate.dayOfWeek === dow)
+              .sort((a, b) => a.slotIndex - b.slotIndex);
+            if (slots.length === 0) return null;
             return (
-              <WeekDayEditor
-                key={dow}
-                userId={userId}
-                day={day}
-                imageMode={imageMode}
-                defaultImageMediaId={fixedImageMediaId}
-                onChange={(patch) => updateDay(dow, patch)}
-              />
+              <div key={dow} className="space-y-2">
+                {slots.map((day) => (
+                  <WeekDayEditor
+                    key={slotKey(day)}
+                    userId={userId}
+                    day={day}
+                    imageMode={imageMode}
+                    defaultImageMediaId={fixedImageMediaId}
+                    onChange={(patch) => updateDay(slotKey(day), patch)}
+                    onRemove={day.slotIndex > 0 && day.id ? () => removeSlot(day) : undefined}
+                    previewContext={{ instagramAccountId: automation.instagramAccountId ?? null, automationName: name, brandContext }}
+                  />
+                ))}
+                {slots.length < MAX_SLOTS_PER_DAY ? (
+                  <button
+                    type="button"
+                    onClick={() => addSlot(dow)}
+                    disabled={slotBusy !== null}
+                    className="text-sm font-medium text-teal-800 hover:underline disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
+                  >
+                    {slotBusy === dow ? "Adicionando…" : "+ Adicionar horário"}
+                  </button>
+                ) : null}
+              </div>
             );
           })}
         </div>

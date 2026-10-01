@@ -16,30 +16,30 @@ import { HeaderAuthArea } from "@/components/layout/HeaderAuthArea";
  */
 export function Header() {
   return (
-    <header className="sticky top-0 z-30 border-b border-zinc-200 bg-white/95 backdrop-blur print:hidden">
+    <header className="sticky top-0 z-30 border-b border-brand-primary/15 bg-white/95 backdrop-blur print:hidden">
       <Container className="flex h-16 max-w-[90rem] items-center justify-between gap-4">
         <Link
           href="/"
-          className="flex min-w-0 items-center gap-2.5 rounded-md text-base font-semibold tracking-tight text-zinc-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
+          className="flex min-w-0 items-center rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-accent"
+          aria-label={SITE_NAME}
         >
-          {/* eslint-disable-next-line @next/next/no-img-element -- ícone
-              pequeno e fixo (32x32); o projeto não usa next/image em
+          {/* eslint-disable-next-line @next/next/no-img-element -- marca
+              local e fixa; o projeto não usa next/image em
               nenhum outro lugar (só ícones Lucide como componente), então
               uma <img> simples evita introduzir a config de otimização de
               imagens só para este caso. */}
           <img
-            src="/logo-icon.png"
-            alt=""
-            width={32}
-            height={32}
-            className="h-8 w-8 rounded-md"
+            src="/logo-banner.png"
+            alt={SITE_NAME}
+            width={240}
+            height={60}
+            className="h-10 w-auto max-w-[11rem] sm:max-w-[13rem]"
           />
-          <span className="truncate whitespace-nowrap">{SITE_NAME}</span>
         </Link>
         <div className="flex items-center gap-2">
           <Link
             href="/utilitarios"
-            className="hidden rounded-md px-3 py-2 text-sm font-medium text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-zinc-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700 xl:block"
+            className="hidden rounded-md px-3 py-2 text-sm font-medium text-brand-primary transition-colors hover:bg-brand-primary-soft focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-accent xl:block"
           >
             Catálogo completo
           </Link>

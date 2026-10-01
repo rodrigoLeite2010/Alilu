@@ -17,10 +17,11 @@ export function Footer() {
   const year = new Date().getFullYear();
 
   return (
-    <footer className="border-t border-zinc-200 bg-zinc-50 print:hidden">
+    <footer className="border-t border-brand-primary/15 bg-white print:hidden">
       <Container className="grid gap-8 py-12 sm:grid-cols-2 md:grid-cols-4">
         <div>
-          <p className="text-base font-semibold text-zinc-900">{SITE_NAME}</p>
+          {/* eslint-disable-next-line @next/next/no-img-element -- ativo local simples da identidade visual. */}
+          <img src="/logo-banner.png" alt={SITE_NAME} width={240} height={60} className="h-11 w-auto max-w-[12rem]" />
           <p className="mt-2 text-sm text-zinc-600">
             Calculadoras e utilitários gratuitos para o seu dia a dia.
           </p>
@@ -32,7 +33,7 @@ export function Footer() {
             <li>
               <Link
                 href={INSTAGRAM_CATEGORY.path}
-                className="text-sm text-zinc-600 hover:text-zinc-900 hover:underline"
+                className="text-sm text-zinc-600 hover:text-brand-primary hover:underline"
               >
                 {INSTAGRAM_CATEGORY.name}
               </Link>
@@ -41,7 +42,7 @@ export function Footer() {
               <li key={category.id}>
                 <Link
                   href={`/utilitarios/${category.id}`}
-                  className="text-sm text-zinc-600 hover:text-zinc-900 hover:underline"
+                  className="text-sm text-zinc-600 hover:text-brand-primary hover:underline"
                 >
                   {category.name}
                 </Link>
@@ -56,7 +57,7 @@ export function Footer() {
             <li>
               <Link
                 href="/utilitarios"
-                className="text-sm text-zinc-600 hover:text-zinc-900 hover:underline"
+                className="text-sm text-zinc-600 hover:text-brand-primary hover:underline"
               >
                 Todas as ferramentas
               </Link>
@@ -71,7 +72,7 @@ export function Footer() {
               <li key={link.href}>
                 <Link
                   href={link.href}
-                  className="text-sm text-zinc-600 hover:text-zinc-900 hover:underline"
+                  className="text-sm text-zinc-600 hover:text-brand-primary hover:underline"
                 >
                   {link.label}
                 </Link>
@@ -81,13 +82,13 @@ export function Footer() {
         </div>
       </Container>
 
-      <div className="border-t border-zinc-200 py-6">
+      <div className="border-t border-brand-primary/10 bg-brand-primary-soft/40 py-6">
         <Container>
           <DonationCard />
         </Container>
       </div>
 
-      <div className="border-t border-zinc-200 py-4">
+      <div className="border-t border-brand-primary/10 py-4">
         <Container>
           <p className="text-xs text-zinc-500">
             © {year} {SITE_NAME}. Todos os direitos reservados.

@@ -81,16 +81,16 @@ function NavigationItem({
         href={link.href}
         aria-current={isActive ? "page" : undefined}
         onClick={onNavigate}
-        className={`group flex min-h-11 items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700 ${
+        className={`group flex min-h-11 items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-accent ${
           isActive
-            ? "bg-teal-50 text-teal-900"
+            ? "bg-brand-primary-soft text-brand-primary"
             : "text-zinc-600 hover:bg-white hover:text-zinc-950"
         }`}
       >
         <span
           className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-md transition-colors ${
             isActive
-              ? "bg-teal-100 text-teal-800"
+              ? "bg-white text-brand-primary shadow-sm ring-1 ring-brand-primary/15"
               : "bg-zinc-100 text-zinc-500 group-hover:bg-zinc-200 group-hover:text-zinc-800"
           }`}
         >
@@ -121,11 +121,11 @@ function InstagramSubLinks({ pathname, onNavigate }: { pathname: string; onNavig
               href={link.href}
               onClick={onNavigate}
               aria-current={active ? "page" : undefined}
-              className={`flex min-h-9 items-center rounded-md px-2 text-sm transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-700 ${
+              className={`flex min-h-9 items-center rounded-md px-2 text-sm transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-accent ${
                 active
-                  ? "bg-teal-50 font-medium text-teal-900"
+                  ? "bg-brand-primary-soft font-medium text-brand-primary"
                   : isPublishing
-                    ? "font-medium text-teal-800 hover:bg-white"
+                    ? "font-medium text-brand-primary hover:bg-white"
                     : "text-zinc-600 hover:bg-white hover:text-zinc-950"
               }`}
             >
@@ -255,7 +255,7 @@ export function SiteSidebar() {
   const pathname = usePathname();
 
   return (
-    <aside className="hidden w-64 shrink-0 border-r border-zinc-200 bg-zinc-50/80 xl:block print:hidden">
+    <aside className="hidden w-64 shrink-0 border-r border-brand-primary/10 bg-[#f7fbfb] xl:block print:hidden">
       <nav
         aria-label="Navegação principal"
         className="sticky top-16 h-[calc(100vh-4rem)] overflow-y-auto px-3 py-5"
@@ -338,7 +338,7 @@ export function MobileNavigation({ auth }: { auth: HeaderAuthState }) {
         aria-expanded={open}
         aria-controls="menu-mobile"
         aria-label="Abrir menu de navegação"
-        className="flex h-11 w-11 items-center justify-center rounded-md text-zinc-700 transition-colors hover:bg-zinc-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
+        className="flex h-11 w-11 items-center justify-center rounded-md text-brand-primary transition-colors hover:bg-brand-primary-soft focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-accent"
       >
         <Icon name="menu" className="h-5 w-5" />
       </button>
@@ -368,7 +368,7 @@ export function MobileNavigation({ auth }: { auth: HeaderAuthState }) {
                     type="button"
                     onClick={closeNavigation}
                     aria-label="Fechar menu de navegação"
-                    className="flex h-11 w-11 items-center justify-center rounded-md text-zinc-700 transition-colors hover:bg-zinc-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
+                    className="flex h-11 w-11 items-center justify-center rounded-md text-brand-primary transition-colors hover:bg-brand-primary-soft focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-accent"
                   >
                     <Icon name="close" className="h-5 w-5" />
                   </button>

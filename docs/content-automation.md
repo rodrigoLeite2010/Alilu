@@ -153,3 +153,17 @@ Ver `.env.example` (seção "Piloto Automático de Conteúdo"): `CONTENT_AI_PROV
 - Manual: `npm run dev`, criar uma automação com um dia habilitado para "agora + poucos minutos" (ajustando `generation_lead_minutes` para um valor pequeno) e disparar:
   `curl -X POST -H "Authorization: Bearer $CRON_SECRET" http://localhost:3000/api/cron/content-automation`.
   Atenção: isso chama a API de IA de verdade (custo real) e, em modo automático com uma conta real conectada, o cron de publicação subsequente **publica de verdade**.
+
+## 11. Stories e vários horários no mesmo dia (migração 0018)
+
+Não existe um "piloto de Stories" separado: o MESMO motor (automações → horários → `automation_runs` → cron de geração → agendador de publicação) passou a aceitar mais um tipo de mídia e mais de um horário por dia.
+
+- **Tipo `STORY`** (`content_automation_days.content_type`): arte 1080×1920 (formato `stories`) gerada por `renderAndStoreAutomationArt({ formatId: "stories" })` — o mesmo desenho do Post (foto em tela cheia + texto grande centralizado, até 62% da altura e 78% da largura, longe das áreas cobertas pela interface do Instagram). Vira uma linha `instagram_posts.post_type = 'story'`, sem legenda. O texto é sempre desenhado quando existe (IA ou manual); modo manual com texto vazio publica só a foto, sem véu.
+- **Publicação**: `createStoryMediaContainer` (`POST /{ig-user-id}/media` com `media_type=STORIES` + `image_url`, Instagram API with Instagram Login) e depois o mesmo fluxo de sempre — `status_code` até `FINISHED`, `media_publish`, `meta_media_id` salvo, retry com backoff (5/15/60 min) para erros temporários, falha definitiva com "Sua conexão com o Instagram precisa ser renovada" para token inválido (códigos 102/190/463/467), sem novas tentativas.
+- **Vários horários por dia**: `content_automation_days.slot_index` (0 = horário principal, sempre existe; 1…5 = extras, "+ Adicionar horário", máximo 6 por dia). Unicidade: `(automation_id, day_of_week, slot_index)`. A trava de idempotência do cron passou de `(automation_id, run_date)` para `(automation_day_id, run_date)` — cada horário gera no máximo uma execução por dia.
+- **API**: `PATCH /api/content-automation/automations/{id}/days/{dia|slotId}` (dia da semana = horário principal, como antes; uuid = qualquer horário), `POST …/days/{dia}` adiciona horário, `DELETE …/days/{slotId}` remove um horário extra.
+- **Variáveis de prompt** (`lib/content-automation/prompt-variables.ts`): `{{diaSemana}} {{data}} {{hora}} {{nomeConta}} {{tema}} {{categoria}} {{urlSite}}` — substituídas no prompt, na legenda manual e no texto visual antes da geração. Variável desconhecida fica como está.
+- **Categoria** (`content_category`, opcional): Motivacional, Financeiro, Utilidades, Curiosidade, Divulgação, Personalizado — alimenta `{{categoria}}` e sugere um prompt pronto na tela quando o prompt está vazio.
+- **Prévia de Story**: `POST /api/content-automation/media/preview-story` — modo manual desenha o texto; modo IA executa o prompt de verdade (só para quem pode usar o Piloto agora, sem consumir uso do dia). Nada é gravado nem publicado.
+- **Cobrança**: cada Story gerado consome 1 dos 3 usos diários do teste grátis, igual a Post/Carrossel/Reel.
+- **Limites da Meta**: Stories somem depois de 24 h; a conta precisa ser profissional; o Instagram limita a 100 publicações via API por 24 h (todas as publicações da conta somadas).

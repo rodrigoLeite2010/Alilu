@@ -21,12 +21,12 @@ export function FinanceHighlight() {
   const highlightTools = getToolsByIds(FINANCE_HIGHLIGHT_TOOL_IDS);
 
   return (
-    <section className="border-b border-zinc-200 bg-zinc-50/70">
+    <section className="border-b border-brand-primary/10 bg-brand-primary-soft/35">
       <Container className="py-12 sm:py-16">
-        <div className="rounded-xl border border-zinc-200 bg-white p-6 sm:p-8">
+        <div className="rounded-xl border border-brand-primary/15 bg-white p-6 sm:p-8">
           <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
             <div className="max-w-xl">
-              <p className="text-sm font-semibold uppercase tracking-wider text-teal-800">Financeiro</p>
+              <p className="text-sm font-semibold uppercase tracking-wider text-brand-accent-dark">Financeiro</p>
               <h2 className="mt-2 text-2xl font-bold tracking-tight text-zinc-900">
                 Organize melhor suas finanças
               </h2>
@@ -49,9 +49,9 @@ export function FinanceHighlight() {
                 <li key={tool.id}>
                   <Link
                     href={`/utilitarios/${tool.category}/${tool.slug}`}
-                    className="flex h-full items-center gap-2.5 rounded-lg border border-zinc-200 bg-zinc-50/60 px-3 py-2.5 text-sm font-medium text-zinc-800 transition-colors hover:border-teal-700/40 hover:text-teal-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
+                    className="flex h-full items-center gap-2.5 rounded-lg border border-zinc-200 bg-zinc-50/60 px-3 py-2.5 text-sm font-medium text-zinc-800 transition-colors hover:border-brand-primary/40 hover:text-brand-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-accent"
                   >
-                    <Icon name={tool.icon} className="h-4 w-4 shrink-0 text-teal-700" />
+                    <Icon name={tool.icon} className="h-4 w-4 shrink-0 text-brand-primary" />
                     {tool.shortName}
                   </Link>
                 </li>

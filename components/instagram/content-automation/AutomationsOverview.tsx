@@ -8,6 +8,32 @@ import { ConfirmDialog } from "@/components/instagram/ConfirmDialog";
 import { formatInTimeZone } from "@/lib/instagram/schedule-time";
 import type { AutomationStatus } from "@/lib/content-automation/backend/automation-types";
 
+/** Resumo calculado no servidor (getAutomationDashboard) — próximo conteúdo e números do dia. */
+export interface AutomationDashboardDto {
+  next: {
+    automationName: string;
+    contentType: "POST" | "REEL" | "CAROUSEL" | "STORY";
+    publishTime: string;
+    date: string;
+    isToday: boolean;
+  } | null;
+  today: {
+    published: number;
+    storiesPublished: number;
+    scheduled: number;
+    waitingApproval: number;
+    errors: number;
+  };
+}
+
+const CONTENT_TYPE_LABEL = { POST: "Post", REEL: "Reel", CAROUSEL: "Carrossel", STORY: "Story" } as const;
+
+function formatNextDate(date: string, isToday: boolean): string {
+  if (isToday) return "Hoje";
+  const [year, month, day] = date.split("-");
+  return `${day}/${month}/${year}`;
+}
+
 export interface AutomationListItemDto {
   id: string;
   name: string;
@@ -48,7 +74,13 @@ async function readErrorMessage(response: Response, fallback: string): Promise<s
  * componente client, sobre a lista já carregada pelo servidor — mesmo
  * padrão de PublicationsManager.
  */
-export function AutomationsOverview({ initialAutomations }: { initialAutomations: AutomationListItemDto[] }) {
+export function AutomationsOverview({
+  initialAutomations,
+  dashboard = null,
+}: {
+  initialAutomations: AutomationListItemDto[];
+  dashboard?: AutomationDashboardDto | null;
+}) {
   const [automations, setAutomations] = useState(initialAutomations);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -145,11 +177,31 @@ export function AutomationsOverview({ initialAutomations }: { initialAutomations
         </div>
         <div className="col-span-2 rounded-md border border-zinc-200 p-3 sm:col-span-2">
           <p className="text-xs text-zinc-500">Próxima publicação</p>
-          <p className="text-sm font-medium text-zinc-900">
-            {stats.next ? formatInTimeZone(stats.next.nextRunAt, stats.next.timezone) : "Nenhuma agendada"}
-          </p>
+          {dashboard?.next ? (
+            <>
+              <p className="text-sm font-medium text-zinc-900">
+                {formatNextDate(dashboard.next.date, dashboard.next.isToday)} às {dashboard.next.publishTime} ·{" "}
+                {CONTENT_TYPE_LABEL[dashboard.next.contentType]}
+              </p>
+              <p className="truncate text-xs text-zinc-500">{dashboard.next.automationName}</p>
+            </>
+          ) : (
+            <p className="text-sm font-medium text-zinc-900">
+              {stats.next ? formatInTimeZone(stats.next.nextRunAt, stats.next.timezone) : "Nenhuma agendada"}
+            </p>
+          )}
         </div>
       </div>
+
+      {dashboard ? (
+        <p className="text-sm text-zinc-600">
+          <strong className="font-medium text-zinc-900">Hoje:</strong> {dashboard.today.published} publicado(s)
+          {dashboard.today.storiesPublished > 0 ? ` (${dashboard.today.storiesPublished} Story/Stories)` : ""} ·{" "}
+          {dashboard.today.scheduled} agendado(s)
+          {dashboard.today.waitingApproval > 0 ? ` · ${dashboard.today.waitingApproval} aguardando aprovação` : ""} ·{" "}
+          <span className={dashboard.today.errors > 0 ? "font-medium text-red-700" : undefined}>{dashboard.today.errors} erro(s)</span>
+        </p>
+      ) : null}
 
       {error ? (
         <p role="alert" className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">

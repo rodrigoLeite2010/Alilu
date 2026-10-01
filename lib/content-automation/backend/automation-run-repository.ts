@@ -280,3 +280,34 @@ export async function setRunStatus(runId: string, status: AutomationRunStatus): 
   const db = getDb();
   await db`update automation_runs set status = ${status}, completed_at = now() where id = ${runId}`;
 }
+
+/** Execuções recentes de TODAS as automações do usuário (painel "hoje") — só o necessário para contar. */
+export interface UserRecentRunSummary {
+  automationId: string;
+  timezone: string;
+  runDate: string;
+  runStatus: AutomationRunStatus;
+  contentType: string | null;
+  publicationStatus: string | null;
+}
+
+export async function listRecentRunsForUser(userId: string, sinceDate: string): Promise<UserRecentRunSummary[]> {
+  const db = getDb();
+  const rows = await db`
+    select r.automation_id, a.timezone, r.run_date, r.status as run_status,
+      d.content_type, p.status as publication_status
+    from automation_runs r
+    join content_automations a on a.id = r.automation_id
+    left join content_automation_days d on d.id = r.automation_day_id
+    left join instagram_posts p on p.id = r.publication_id
+    where a.user_id = ${userId} and r.run_date >= ${sinceDate}
+  `;
+  return rows.map((row) => ({
+    automationId: row.automation_id as string,
+    timezone: row.timezone as string,
+    runDate: normalizeRunDate(row.run_date),
+    runStatus: row.run_status as AutomationRunStatus,
+    contentType: (row.content_type as string | null) ?? null,
+    publicationStatus: (row.publication_status as string | null) ?? null,
+  }));
+}
