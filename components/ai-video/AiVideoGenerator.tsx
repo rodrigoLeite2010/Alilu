@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { uploadPresigned } from "@vercel/blob/client";
 import { Button, LinkButton } from "@/components/ui/Button";
@@ -199,7 +199,7 @@ export function AiVideoGenerator({
     }
   }
 
-  const saveDraftAndBuy = useCallback(async () => {
+  async function saveDraftAndBuy() {
     try {
       await fetch("/api/ai-video/draft", {
         method: "PUT",
@@ -211,7 +211,7 @@ export function AiVideoGenerator({
     }
     const required = insufficient?.required ?? cost ?? 0;
     router.push(`/minha-conta/creditos-ia?voltar=${encodeURIComponent("/videos/imagem-para-video")}&custo=${required}`);
-  }, [imageUrl, prompt, tier, duration, aspectRatio, preserveText, overlays, insufficient, cost, router]);
+  }
 
   /** Carrega um vídeo anterior no formulário (para "gerar novamente" ou "versão final"). */
   function loadFrom(generation: AiVideoGenerationClientDto, options_: { retry: boolean; tier?: AiVideoTier }) {
@@ -428,7 +428,8 @@ export function AiVideoGenerator({
               <span className="block font-medium text-zinc-900">Preservar textos e logotipos</span>
               <span className="block text-xs text-zinc-500">
                 Modelos de IA podem gerar variações inesperadas em letras e logos. Com esta opção, seus textos e seu logo são aplicados
-                pela finalização automática do Alilu, depois da IA — saem exatamente como você digitou. Deixe os campos vazios para só animar a imagem.
+                pela finalização automática do Alilu, depois da IA — saem exatamente como você digitou. Se a sua imagem já tem textos, prefira enviá-la sem eles e digitá-los
+                aqui. Deixe os campos vazios para só animar a imagem.
               </span>
             </span>
           </label>

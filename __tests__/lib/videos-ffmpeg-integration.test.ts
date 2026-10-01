@@ -42,6 +42,28 @@ function runFfprobe(args: string[]) {
   return spawnSync(ffprobePath, args, { encoding: "utf-8" });
 }
 
+function readBottomFrameMd5s(videoPath: string, frameA: number, frameB: number): string[] {
+  const result = runFfmpeg([
+    "-v",
+    "error",
+    "-i",
+    videoPath,
+    "-vf",
+    `crop=1080:960:0:960,select=eq(n\\,${frameA})+eq(n\\,${frameB})`,
+    "-vsync",
+    "0",
+    "-f",
+    "framemd5",
+    "-",
+  ]);
+  expect(result.status, `framemd5 falhou: ${result.stderr}`).toBe(0);
+  return result.stdout
+    .split(/\r?\n/)
+    .filter((line) => line && !line.startsWith("#"))
+    .map((line) => line.split(",").at(-1)?.trim() ?? "")
+    .filter(Boolean);
+}
+
 beforeAll(() => {
   if (!ffmpegAvailable || !ffprobeAvailable) return;
 
@@ -193,5 +215,54 @@ describe("Integração real com FFmpeg — split-screen com loop do complementar
     // opcional (1:a?) não deve falhar, e a saída simplesmente sai muda.
     const audioStream = parsed.streams.find((stream) => stream.codec_type === "audio");
     expect(audioStream).toBeUndefined();
+  }, 30_000);
+
+  it("complementar preparado como segmento de loop continua mudando depois do primeiro ciclo", () => {
+    if (!ffmpegAvailable || !ffprobeAvailable) {
+      expect.fail("Binário do ffmpeg-static/ffprobe-static não disponível neste ambiente de teste.");
+      return;
+    }
+
+    const segmentPath = path.join(workDir, "secondary-loop-segment.mkv");
+    const preparedOutputPath = path.join(workDir, "output-prepared-loop.mp4");
+    const segment = runFfmpeg([
+      "-y",
+      "-ss",
+      "0",
+      "-t",
+      "1",
+      "-i",
+      secondaryPath,
+      "-map",
+      "0",
+      "-c",
+      "copy",
+      "-avoid_negative_ts",
+      "make_zero",
+      segmentPath,
+    ]);
+    expect(segment.status, `falha ao preparar segmento: ${segment.stderr}`).toBe(0);
+
+    const args = buildSplitScreenFfmpegArgs({
+      primaryInputPath: primaryPath,
+      secondaryInputPath: segmentPath,
+      outputPath: preparedOutputPath,
+      outputFormat: "vertical",
+      layoutRatio: "50-50",
+      primaryTrim: { startSeconds: 0, endSeconds: 3 },
+      secondaryTrim: { startSeconds: 0, endSeconds: 1 },
+      durationMode: "loop",
+      audio: { source: "primary" },
+      primaryHasAudio: true,
+      secondaryHasAudio: false,
+      secondaryInputIsLoopSegment: true,
+    });
+
+    const result = runFfmpeg(args);
+    expect(result.status, `ffmpeg falhou: ${result.stderr}`).toBe(0);
+
+    const md5s = readBottomFrameMd5s(preparedOutputPath, 15, 20);
+    expect(md5s).toHaveLength(2);
+    expect(md5s[0]).not.toBe(md5s[1]);
   }, 30_000);
 });

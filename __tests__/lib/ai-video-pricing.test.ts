@@ -121,3 +121,27 @@ describe("pacotes", () => {
     expect(analyzePackage(config, { credits: 5000, bonusCredits: 0, priceCents: 14990 }, worst).belowMinimum).toBe(true);
   });
 });
+
+describe("gerar novamente com desconto", () => {
+  it("aplica o desconto configurado em múltiplos de 5", async () => {
+    const { retryCreditCost } = await import("@/lib/ai-video/pricing");
+    expect(retryCreditCost(config, row({ providerCreditsPerSecond: 12, aliluCreditCost: 230 }))).toBe(115);
+  });
+
+  it("nunca fica abaixo do custo (piso no ponto de equilíbrio) nem acima do preço cheio", async () => {
+    const { retryCreditCost } = await import("@/lib/ai-video/pricing");
+    const padrao = row({ aliluCreditCost: 100 });
+    const credits = retryCreditCost({ ...config, retryDiscountPct: 90 }, padrao);
+    expect(credits).toBe(50);
+    expect(economicsForCredits(config, padrao, credits).grossProfitBrl).toBeGreaterThanOrEqual(0);
+    expect(economicsForCredits(config, padrao, credits - 5).grossProfitBrl).toBeLessThan(0);
+    expect(retryCreditCost({ ...config, retryDiscountPct: 0 }, padrao)).toBe(100);
+  });
+
+  it("Econômico do fal.ai (US$ 0,15 por vídeo) sai por 65 créditos com 50% de margem", () => {
+    const econ = row({ provider: "fal", providerModel: "fal-ai/wan/v2.2-5b/image-to-video", providerCreditsPerSecond: 0, providerFixedCredits: 15, aliluCreditCost: 65 });
+    expect(providerCostUsd(econ)).toBeCloseTo(0.15);
+    expect(suggestedCreditCost(config, econ)).toBe(65);
+    expect(economicsForCredits(config, econ, 65).grossMarginPct).toBeGreaterThanOrEqual(50);
+  });
+});

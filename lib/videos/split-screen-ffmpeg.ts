@@ -127,6 +127,13 @@ export interface BuildSplitScreenFfmpegArgsInput {
   primaryHasAudio: boolean;
   /** Medido via ffprobe no arquivo já baixado — nunca inferido do lado do cliente. */
   secondaryHasAudio: boolean;
+  /**
+   * Usado pelo serviço quando o complementar mais curto já foi recortado
+   * para um arquivo temporário contendo exatamente o trecho escolhido pelo
+   * usuário. Nesse caso, o input 1 não recebe -ss/-to de novo; só entra
+   * com -stream_loop -1 e a saída global corta na duração final.
+   */
+  secondaryInputIsLoopSegment?: boolean;
 }
 
 function trimDurationSeconds(trim: VideoTrimRange): number {
@@ -230,7 +237,9 @@ export function buildSplitScreenFfmpegArgs(input: BuildSplitScreenFfmpegArgsInpu
   if (needsLoop) {
     args.push("-stream_loop", "-1");
   }
-  args.push("-ss", String(input.secondaryTrim.startSeconds), "-to", String(input.secondaryTrim.endSeconds));
+  if (!input.secondaryInputIsLoopSegment) {
+    args.push("-ss", String(input.secondaryTrim.startSeconds), "-to", String(input.secondaryTrim.endSeconds));
+  }
   args.push("-i", input.secondaryInputPath);
 
   const filters: string[] = [

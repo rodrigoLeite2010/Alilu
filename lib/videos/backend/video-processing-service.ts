@@ -148,6 +148,7 @@ export async function processSplitScreenVideo(request: SplitScreenRequestBody): 
   const workDir = await mkdtemp(path.join(tmpdir(), "alilu-videos-"));
   const primaryInputPath = path.join(workDir, "primary-input");
   const secondaryInputPath = path.join(workDir, "secondary-input");
+  const secondaryLoopSegmentPath = path.join(workDir, "secondary-loop-segment.mkv");
   const outputPath = path.join(workDir, `${randomUUID()}.mp4`);
   const inputBlobUrls = [request.primaryBlobUrl, request.secondaryBlobUrl];
 
@@ -181,20 +182,61 @@ export async function processSplitScreenVideo(request: SplitScreenRequestBody): 
         );
       }
 
+      const primaryTrimDuration = request.primaryTrim.endSeconds - request.primaryTrim.startSeconds;
+      const secondaryTrimDuration = request.secondaryTrim.endSeconds - request.secondaryTrim.startSeconds;
+      const needsSecondaryLoop = request.durationMode === "loop" && secondaryTrimDuration < primaryTrimDuration;
+      let effectiveSecondaryInputPath = secondaryInputPath;
+      let effectiveSecondaryTrim = request.secondaryTrim;
+      let secondaryInputIsLoopSegment = false;
+
+      if (needsSecondaryLoop) {
+        const loopSegmentStartedAt = Date.now();
+        try {
+          await runProcess(ffmpegPath, [
+            "-y",
+            "-ss",
+            String(request.secondaryTrim.startSeconds),
+            "-t",
+            String(secondaryTrimDuration),
+            "-i",
+            secondaryInputPath,
+            "-map",
+            "0",
+            "-c",
+            "copy",
+            "-avoid_negative_ts",
+            "make_zero",
+            secondaryLoopSegmentPath,
+          ]);
+        } catch (error) {
+          logStructuredError("split-screen.secondary-loop-segment-failed", {
+            message: error instanceof Error ? error.message : String(error),
+          });
+          throw new VideoProcessingError("Não foi possível preparar o loop do vídeo complementar.");
+        }
+        logStructuredTiming("split-screen.secondary-loop-segment-done", loopSegmentStartedAt, {
+          segmentDurationSeconds: secondaryTrimDuration,
+        });
+        effectiveSecondaryInputPath = secondaryLoopSegmentPath;
+        effectiveSecondaryTrim = { startSeconds: 0, endSeconds: secondaryTrimDuration };
+        secondaryInputIsLoopSegment = true;
+      }
+
       const args = buildSplitScreenFfmpegArgs({
         primaryInputPath,
-        secondaryInputPath,
+        secondaryInputPath: effectiveSecondaryInputPath,
         outputPath,
         outputFormat: request.outputFormat,
         layoutRatio: request.layoutRatio,
         primaryTrim: request.primaryTrim,
-        secondaryTrim: request.secondaryTrim,
+        secondaryTrim: effectiveSecondaryTrim,
         primaryFraming: request.primaryFraming,
         secondaryFraming: request.secondaryFraming,
         durationMode: request.durationMode,
         audio: request.audio,
         primaryHasAudio: primaryInfo.hasAudio,
         secondaryHasAudio: secondaryInfo.hasAudio,
+        secondaryInputIsLoopSegment,
       });
 
       const ffmpegStartedAt = Date.now();

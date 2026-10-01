@@ -192,6 +192,21 @@ describe("buildSplitScreenFfmpegArgs — modos de duração", () => {
     expect(streamLoopIndex).toBeLessThan(secondInputIndex);
     expect(args[secondInputIndex + 1]).toBe(BASE_INPUT.secondaryInputPath);
   });
+
+  it("quando o complementar já é um segmento preparado para loop, não aplica -ss/-to de novo no input 1", () => {
+    const args = buildSplitScreenFfmpegArgs({
+      ...BASE_INPUT,
+      durationMode: "loop",
+      primaryTrim: { startSeconds: 0, endSeconds: 10 },
+      secondaryTrim: { startSeconds: 0, endSeconds: 4 },
+      secondaryInputIsLoopSegment: true,
+    });
+
+    const firstInputIndex = args.indexOf("-i");
+    const secondInputIndex = args.indexOf("-i", firstInputIndex + 1);
+    expect(args.slice(firstInputIndex + 2, secondInputIndex)).toEqual(["-stream_loop", "-1"]);
+    expect(args[secondInputIndex + 1]).toBe(BASE_INPUT.secondaryInputPath);
+  });
 });
 
 describe("computeOutputDurationSeconds", () => {
