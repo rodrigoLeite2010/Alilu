@@ -2,6 +2,7 @@ import "server-only";
 import { timingSafeEqual } from "node:crypto";
 import { recordWebhookEventOnce, markWebhookEventProcessed } from "./asaas-webhook-events-repository";
 import { getAsaasPayment, getAsaasSubscription } from "./asaas-client";
+import { handleCreditPurchasePaymentEvent } from "@/lib/ai-video/backend/credit-purchase-service";
 import {
   getByAsaasSubscriptionId,
   markActiveFromPayment,
@@ -57,6 +58,9 @@ export function assertValidWebhookToken(providedToken: string | null): void {
 const PAYMENT_CONFIRMATION_EVENTS = new Set(["PAYMENT_CONFIRMED", "PAYMENT_RECEIVED"]);
 const PAYMENT_OVERDUE_EVENTS = new Set(["PAYMENT_OVERDUE"]);
 const SUBSCRIPTION_CANCEL_EVENTS = new Set(["SUBSCRIPTION_DELETED", "SUBSCRIPTION_INACTIVATED"]);
+// Cobranças AVULSAS de compra de créditos de IA (ai_credit_purchases) —
+// além de confirmação, precisam de estorno, contestação e exclusão.
+const CREDIT_PURCHASE_EXTRA_EVENTS = new Set(["PAYMENT_REFUNDED", "PAYMENT_CHARGEBACK_REQUESTED", "PAYMENT_DELETED"]);
 
 export interface WebhookProcessingResult {
   status: "processed" | "duplicate" | "ignored";
@@ -93,8 +97,12 @@ export async function processAsaasWebhookEvent(
 }
 
 async function routeEvent(eventType: string, payload: Record<string, unknown>, now: Date): Promise<void> {
-  if (PAYMENT_CONFIRMATION_EVENTS.has(eventType) || PAYMENT_OVERDUE_EVENTS.has(eventType)) {
-    await handlePaymentEvent(eventType, payload);
+  if (
+    PAYMENT_CONFIRMATION_EVENTS.has(eventType) ||
+    PAYMENT_OVERDUE_EVENTS.has(eventType) ||
+    CREDIT_PURCHASE_EXTRA_EVENTS.has(eventType)
+  ) {
+    await handlePaymentEvent(eventType, payload, now);
     return;
   }
 
@@ -106,7 +114,7 @@ async function routeEvent(eventType: string, payload: Record<string, unknown>, n
   // Evento fora do MVP — já ficou registrado em asaas_webhook_events pela chamada anterior; nada mais a fazer.
 }
 
-async function handlePaymentEvent(eventType: string, payload: Record<string, unknown>): Promise<void> {
+async function handlePaymentEvent(eventType: string, payload: Record<string, unknown>, now: Date): Promise<void> {
   const paymentRef = isRecord(payload.payment) ? payload.payment : null;
   const paymentId = paymentRef && typeof paymentRef.id === "string" ? paymentRef.id : null;
   // O corpo do Webhook só traz `{ payment: { object, id } }` — nunca confiamos só nisso: buscamos
@@ -114,7 +122,14 @@ async function handlePaymentEvent(eventType: string, payload: Record<string, unk
   if (!paymentId) return;
 
   const payment = await getAsaasPayment(paymentId);
-  if (!payment.subscription) return; // cobrança avulsa, não ligada a uma assinatura — não é deste módulo.
+  if (!payment.subscription) {
+    // Cobrança avulsa: hoje, só a compra de créditos de IA usa. Se não for
+    // uma compra conhecida, o evento só fica registrado (auditoria).
+    await handleCreditPurchasePaymentEvent(eventType, payment, now);
+    return;
+  }
+  // Estorno/contestação/exclusão de cobrança de ASSINATURA continuam fora do escopo (só registrados).
+  if (CREDIT_PURCHASE_EXTRA_EVENTS.has(eventType)) return;
 
   const subscriptionRow = await getByAsaasSubscriptionId(payment.subscription);
   if (!subscriptionRow) return; // assinatura não é do Piloto Automático (ou o usuário já não existe mais aqui).

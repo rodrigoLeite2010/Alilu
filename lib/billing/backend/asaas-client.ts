@@ -231,3 +231,47 @@ export async function listAsaasSubscriptionPayments(subscriptionId: string): Pro
     dueDate: String(item.dueDate ?? ""),
   }));
 }
+
+export interface AsaasOneTimePaymentInput {
+  customerId: string;
+  /** Em reais (ex.: 19.9). */
+  value: number;
+  /** "YYYY-MM-DD" — vencimento da cobrança. */
+  dueDate: string;
+  description?: string;
+  /** Liga a cobrança de volta à compra local (ai_credit_purchases.id). */
+  externalReference?: string;
+}
+
+export interface AsaasOneTimePayment {
+  id: string;
+  status: string;
+  /** Página de pagamento hospedada do Asaas (Pix/Boleto/Cartão). */
+  invoiceUrl: string | null;
+}
+
+/**
+ * POST /v3/payments — cobrança AVULSA (compra de créditos de IA). Mesmo
+ * billingType "UNDEFINED" da assinatura: a pessoa escolhe Pix, boleto ou
+ * cartão no checkout hospedado do Asaas — o Alilu nunca vê dado de
+ * cartão. Criar a cobrança NÃO libera créditos: só o Webhook confirmado.
+ */
+export async function createAsaasPayment(input: AsaasOneTimePaymentInput): Promise<AsaasOneTimePayment> {
+  const result = await asaasRequest<{ id: string; status: string; invoiceUrl?: string }>("/payments", {
+    method: "POST",
+    body: {
+      customer: input.customerId,
+      billingType: "UNDEFINED",
+      value: input.value,
+      dueDate: input.dueDate,
+      description: input.description,
+      externalReference: input.externalReference,
+    },
+  });
+  return { id: result.id, status: result.status, invoiceUrl: typeof result.invoiceUrl === "string" ? result.invoiceUrl : null };
+}
+
+/** POST /v3/payments/{id}/refund — estorno total de uma cobrança paga (reembolso de créditos não usados). */
+export async function refundAsaasPayment(paymentId: string): Promise<void> {
+  await asaasRequest(`/payments/${encodeURIComponent(paymentId)}/refund`, { method: "POST", body: {} });
+}

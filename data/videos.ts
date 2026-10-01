@@ -55,6 +55,16 @@ export const videoTools: VideoTool[] = [
     icon: "columns",
     status: "ativo",
   },
+  {
+    id: "imagem-para-video",
+    name: "Imagem para Vídeo com IA",
+    shortName: "Imagem → Vídeo IA",
+    path: "/videos/imagem-para-video",
+    description:
+      "Envie uma imagem, descreva o movimento e gere um vídeo curto com IA (Runway). Usa Créditos de IA da Alilu — o custo aparece antes de gerar.",
+    icon: "video",
+    status: "ativo",
+  },
 ];
 
 export function getVideoToolByPath(path: string): VideoTool | undefined {
