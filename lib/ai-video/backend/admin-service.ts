@@ -125,6 +125,9 @@ export async function updatePricingConfig(input: Record<string, unknown>): Promi
     maxRetriesPerGeneration: Math.round(assertFiniteRange(input.maxRetriesPerGeneration ?? current.maxRetriesPerGeneration, 0, 20, "Regenerações por vídeo")),
     postprocessCostBrl: assertFiniteRange(input.postprocessCostBrl ?? current.postprocessCostBrl, 0, 100, "Custo do pós-processamento"),
     issueReviewThreshold: Math.round(assertFiniteRange(input.issueReviewThreshold ?? current.issueReviewThreshold, 1, 1000, "Reportes para revisão")),
+    maxConcurrentGenerationsPerUser: Math.round(
+      assertFiniteRange(input.maxConcurrentGenerationsPerUser ?? current.maxConcurrentGenerationsPerUser, 1, 20, "Vídeos ao mesmo tempo por usuário"),
+    ),
   };
   if (merged.minimumGrossMarginPct > merged.targetGrossMarginPct) {
     throw new AdminPricingError("A margem mínima não pode ser maior que a margem alvo.");

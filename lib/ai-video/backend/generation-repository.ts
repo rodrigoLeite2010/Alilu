@@ -207,6 +207,16 @@ export async function countGenerationsSince(userId: string, since: Date): Promis
   return Number(rows[0]?.total ?? 0);
 }
 
+/** Quantas gerações do usuário estão em andamento agora (reservadas → finalizando). */
+export async function countActiveGenerations(userId: string): Promise<number> {
+  const db = getDb();
+  const rows = await db`
+    select count(*)::int as total from ai_video_generations
+    where user_id = ${userId} and status = any(string_to_array(${ACTIVE_STATUSES}, ','))
+  `;
+  return Number(rows[0]?.total ?? 0);
+}
+
 export async function countModerationFailuresSince(userId: string, since: Date): Promise<number> {
   const db = getDb();
   const rows = await db`

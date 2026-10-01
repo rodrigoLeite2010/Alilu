@@ -85,6 +85,8 @@ async function generateCompleted(userId: string, overrides: Record<string, unkno
 
 beforeEach(async () => {
   db = await createTestDb();
+  // Estes testes criam várias gerações em sequência; o limite "um vídeo por vez" tem teste próprio.
+  await db.sql`update ai_pricing_config set max_concurrent_generations_per_user = 10`;
   runway = makeProvider("runway");
   fal = makeProvider("fal");
   registry.__setImageToVideoProvidersForTests({ runway: runway as unknown as ImageToVideoProvider, fal: fal as unknown as ImageToVideoProvider });

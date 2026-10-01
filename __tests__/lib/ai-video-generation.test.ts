@@ -80,6 +80,8 @@ async function ledgerTypes(userId: string) {
 
 beforeEach(async () => {
   db = await createTestDb();
+  // Estes testes criam várias gerações em sequência; o limite "um vídeo por vez" tem teste próprio.
+  await db.sql`update ai_pricing_config set max_concurrent_generations_per_user = 10`;
   registry.__setImageToVideoProvidersForTests({
     runway: provider as unknown as ImageToVideoProvider,
     fal: provider as unknown as ImageToVideoProvider,
@@ -184,6 +186,25 @@ describe("geração", () => {
     expect(third.id).toBe(first.id);
     expect(provider.create).toHaveBeenCalledTimes(1);
     expect(await balance(userId)).toEqual({ available: 200, reserved: 100 });
+  });
+
+  it("um vídeo por vez: com um em andamento, um novo pedido é recusado (409) sem reservar; a mesma chave devolve o existente", async () => {
+    const userId = await seedUser(500);
+    await db.sql`update ai_pricing_config set max_concurrent_generations_per_user = 1`;
+    const first = await service.createGeneration(userId, input(userId), T0);
+    expect(first.status).toBe("SUBMITTED");
+    const again = await service.createGeneration(userId, input(userId), T0);
+    expect(again.id).toBe(first.id);
+    const error = await service.createGeneration(userId, input(userId, { idempotencyKey: "chave-outra-aba-01" }), T0).catch((e) => e);
+    expect(error).toMatchObject({ code: "GENERATION_IN_PROGRESS", httpStatus: 409 });
+    expect(provider.create).toHaveBeenCalledTimes(1);
+    expect(await balance(userId)).toEqual({ available: 400, reserved: 100 });
+
+    // Terminou → libera um novo vídeo.
+    provider.getStatus.mockResolvedValueOnce(status({ state: "SUCCEEDED", outputUrls: ["https://cdn.example.com/out.mp4"] }));
+    await service.refreshGenerationForUser(first.id, userId, at(20_000));
+    const next = await service.createGeneration(userId, input(userId, { idempotencyKey: "chave-outra-aba-01" }), at(30_000));
+    expect(next.id).not.toBe(first.id);
   });
 
   it("créditos insuficientes: 402 com quanto falta, sem chamar o provedor e sem deixar geração", async () => {

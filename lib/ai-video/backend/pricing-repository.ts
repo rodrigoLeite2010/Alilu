@@ -36,6 +36,7 @@ function mapConfig(row: Record<string, unknown>): AiPricingConfig {
     maxRetriesPerGeneration: num(row.max_retries_per_generation ?? 3),
     postprocessCostBrl: num(row.postprocess_cost_brl ?? 0),
     issueReviewThreshold: num(row.issue_review_threshold ?? 5),
+    maxConcurrentGenerationsPerUser: num(row.max_concurrent_generations_per_user ?? 1),
     effectiveFrom: new Date(row.effective_from as string).toISOString(),
   };
 }
@@ -97,7 +98,7 @@ export async function insertPricingConfig(input: AiPricingConfigInput): Promise<
       monthly_provider_spend_limit_usd, max_generations_per_user_per_hour,
       moderation_strikes_before_block, moderation_block_hours, retention_days_free,
       retention_days_paid, purchase_refund_window_days, retry_discount_pct, max_retries_per_generation,
-      postprocess_cost_brl, issue_review_threshold
+      postprocess_cost_brl, issue_review_threshold, max_concurrent_generations_per_user
     ) values (
       ${input.creditValueBrl}, ${input.targetGrossMarginPct}, ${input.minimumGrossMarginPct}, ${input.usdBrlReferenceRate},
       ${input.providerCostSafetyMultiplier}, ${input.paymentFeePct}, ${input.taxPct}, ${input.infraCostBrlPerGeneration},
@@ -105,7 +106,7 @@ export async function insertPricingConfig(input: AiPricingConfigInput): Promise<
       ${input.monthlyProviderSpendLimitUsd}, ${input.maxGenerationsPerUserPerHour},
       ${input.moderationStrikesBeforeBlock}, ${input.moderationBlockHours}, ${input.retentionDaysFree},
       ${input.retentionDaysPaid}, ${input.purchaseRefundWindowDays}, ${input.retryDiscountPct}, ${input.maxRetriesPerGeneration},
-      ${input.postprocessCostBrl}, ${input.issueReviewThreshold}
+      ${input.postprocessCostBrl}, ${input.issueReviewThreshold}, ${input.maxConcurrentGenerationsPerUser}
     )
     returning *
   `;

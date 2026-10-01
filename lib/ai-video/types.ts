@@ -138,6 +138,8 @@ export interface AiPricingConfig {
   postprocessCostBrl: number;
   /** Reportes manuais em 30 dias que marcam o usuário para revisão (sem bloquear). */
   issueReviewThreshold: number;
+  /** Vídeos gerando ao mesmo tempo por usuário (padrão 1). */
+  maxConcurrentGenerationsPerUser: number;
   effectiveFrom: string;
 }
 

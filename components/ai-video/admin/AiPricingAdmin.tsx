@@ -31,6 +31,7 @@ const CONFIG_FIELDS: { key: keyof AiPricingConfig; label: string; step: string; 
   { key: "maxRetriesPerGeneration", label: "Regenerações com desconto por vídeo", step: "1" },
   { key: "postprocessCostBrl", label: "Custo do pós-processamento (só registro)", step: "0.01", suffix: "R$" },
   { key: "issueReviewThreshold", label: "Reportes em 30 dias para marcar revisão", step: "1" },
+  { key: "maxConcurrentGenerationsPerUser", label: "Vídeos gerando ao mesmo tempo por usuário", step: "1" },
 ];
 
 function pct(value: number): string {

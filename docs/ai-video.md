@@ -213,7 +213,7 @@ Regras de execução:
   6. marca `COMPLETED`.
 - **Falha na finalização.** Download, FFmpeg ou storage falhando geram até 3 tentativas, com 30 s entre elas; depois, os créditos são devolvidos e o custo do provedor fica registrado.
 - **Timeout.** Se a IA não terminar em 30 min, a tarefa é cancelada no provedor e os créditos são devolvidos.
-- **Limites.** `max_generations_per_user_per_hour` e bloqueio por moderação.
+- **Limites.** `max_generations_per_user_per_hour`, bloqueio por moderação e **um vídeo por vez** (`max_concurrent_generations_per_user`, padrão 1, migração `0021`). Com um vídeo em andamento, a tela trava o botão "Gerar vídeo" (spinner + aviso "não precisa clicar de novo") e o servidor recusa um novo pedido com 409 `GENERATION_IN_PROGRESS` sem reservar créditos. A mesma requisição repetida (mesma chave) continua devolvendo a geração existente.
 - **Créditos insuficientes** (402): o rascunho guarda imagem, configurações e overlays; o usuário compra créditos e volta para a tela.
 
 ## 6.1 Textos e logotipos (pós-processamento)
@@ -298,7 +298,7 @@ Primeira implantação (etapa 10):
 
 Evolução (etapa 11, faixas, overlays e regeneração):
 
-1. `npm run db:migrate` (aplica a `0020_ai_video_tiers_overlays.sql`) **antes** do deploy. A migração renomeia as faixas: gen4_turbo vira Padrão, gen4.5 vira Premium, e entra o Econômico fal.ai.
+1. `npm run db:migrate` (aplica a `0020_ai_video_tiers_overlays.sql` e a `0021_ai_video_concurrency_limit.sql`) **antes** do deploy. A migração renomeia as faixas: gen4_turbo vira Padrão, gen4.5 vira Premium, e entra o Econômico fal.ai.
 2. Crie a conta no **fal.ai**, compre créditos (*billing*), gere uma chave em *Keys* e configure `FAL_KEY` na Vercel. Sem a chave, o Econômico falha e devolve os créditos; desative a linha no admin enquanto a chave não estiver pronta.
 3. Faça o deploy do código. O `next.config.ts` já inclui os binários do ffmpeg/ffprobe e as fontes nas rotas `**/api/cron/ai-video` e `**/api/ai-video/generations`.
 4. Teste um vídeo Econômico com "www.alilu.com.br" como URL e confira a legibilidade.

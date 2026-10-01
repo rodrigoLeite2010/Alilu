@@ -154,6 +154,11 @@ export function AiVideoGenerator({
   // Acompanha as gerações em andamento (a consulta também adianta o processamento no servidor).
   const inProgressIds = generations.filter((generation) => isInProgress(generation.status)).map((generation) => generation.id);
   const inProgressKey = inProgressIds.join(",");
+  // Um vídeo por vez: enquanto houver geração em andamento (ou o envio), o botão fica travado.
+  const hasGenerationInProgress = inProgressIds.length > 0;
+  const generateLocked = submitting || uploading || hasGenerationInProgress;
+  const submittingRef = useRef(false);
+  const historyRef = useRef<HTMLElement | null>(null);
   useEffect(() => {
     if (!inProgressKey) return;
     const timer = setInterval(async () => {
@@ -240,6 +245,8 @@ export function AiVideoGenerator({
   }
 
   async function handleGenerate() {
+    // Trava síncrona: dois cliques no mesmo instante nunca disparam dois envios.
+    if (submittingRef.current || hasGenerationInProgress) return;
     setError(null);
     if (!imageUrl) {
       setError("Envie uma imagem primeiro.");
@@ -257,6 +264,7 @@ export function AiVideoGenerator({
       setInsufficient({ required: cost, available });
       return;
     }
+    submittingRef.current = true;
     setSubmitting(true);
     try {
       const response = await fetch("/api/ai-video/generations", {
@@ -281,15 +289,32 @@ export function AiVideoGenerator({
         idempotencyKeyRef.current = newIdempotencyKey();
         return;
       }
+      if (response.status === 409) {
+        // Já existe um vídeo gerando (ex.: outra aba): sincroniza a lista para o botão travar e o progresso aparecer.
+        setError(await readErrorMessage(response, "Você já tem um vídeo sendo gerado."));
+        try {
+          const list = await fetch("/api/ai-video/generations", { cache: "no-store" });
+          if (list.ok) {
+            const data = (await list.json()) as { generations: AiVideoGenerationClientDto[]; wallet: { available: number } };
+            setGenerations(data.generations);
+            setAvailable(data.wallet.available);
+          }
+        } catch {
+          // a mensagem já orienta o usuário
+        }
+        return;
+      }
       if (!response.ok) throw new Error(await readErrorMessage(response, "Não foi possível iniciar a geração."));
       const payload = (await response.json()) as { generation: AiVideoGenerationClientDto; wallet: { available: number } };
       setGenerations((list) => [payload.generation, ...list.filter((item) => item.id !== payload.generation.id)]);
       setAvailable(payload.wallet.available);
       setRetryOf(null);
       idempotencyKeyRef.current = newIdempotencyKey();
+      historyRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Não foi possível iniciar a geração.");
     } finally {
+      submittingRef.current = false;
       setSubmitting(false);
     }
   }
@@ -461,9 +486,29 @@ export function AiVideoGenerator({
           </p>
         ) : null}
 
-        <Button type="button" onClick={handleGenerate} disabled={submitting || uploading} className="w-full justify-center sm:w-auto">
-          {submitting ? "Enviando…" : retryOf ? "Gerar novamente com desconto" : "Gerar vídeo"}
+        <Button
+          type="button"
+          onClick={handleGenerate}
+          disabled={generateLocked}
+          aria-busy={submitting || hasGenerationInProgress}
+          className="w-full justify-center sm:w-auto"
+        >
+          {submitting || hasGenerationInProgress ? (
+            <span className="inline-flex items-center gap-2">
+              <span aria-hidden className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
+              {submitting ? "Enviando…" : "Gerando seu vídeo…"}
+            </span>
+          ) : retryOf ? (
+            "Gerar novamente com desconto"
+          ) : (
+            "Gerar vídeo"
+          )}
         </Button>
+        {hasGenerationInProgress ? (
+          <p role="status" className="text-sm text-zinc-600">
+            Seu vídeo já está sendo gerado — não precisa clicar de novo. Assim que ele ficar pronto, o botão é liberado para um novo vídeo.
+          </p>
+        ) : null}
         <p className="text-xs text-zinc-500">
           A geração utiliza serviços externos de inteligência artificial. Não envie imagens de terceiros sem autorização nem
           conteúdo impróprio — pedidos recusados pela moderação bloqueiam novas gerações por algumas horas. Se o vídeo não
@@ -471,7 +516,7 @@ export function AiVideoGenerator({
         </p>
       </section>
 
-      <section>
+      <section ref={historyRef} className="scroll-mt-6">
         <h2 className="text-lg font-semibold text-zinc-900">Seus vídeos</h2>
         {generations.length === 0 ? (
           <p className="mt-3 rounded-md border border-dashed border-zinc-300 p-6 text-center text-sm text-zinc-600">Nenhum vídeo gerado ainda.</p>

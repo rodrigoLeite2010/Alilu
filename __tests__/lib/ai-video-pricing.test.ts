@@ -35,6 +35,7 @@ const config: AiPricingConfig = {
   maxRetriesPerGeneration: 3,
   postprocessCostBrl: 0,
   issueReviewThreshold: 5,
+  maxConcurrentGenerationsPerUser: 1,
   effectiveFrom: "2026-10-01T00:00:00.000Z",
 };
 

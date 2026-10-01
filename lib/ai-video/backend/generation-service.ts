@@ -16,6 +16,7 @@ import { getActiveModelPricing, getActivePricingConfig, listModelPricing } from 
 import { applyWalletMovement, ensureWallet, getWallet, grantWelcomeBonusOnce, type WalletRecord } from "./wallet-repository";
 import {
   claimGeneration,
+  countActiveGenerations,
   countGenerationsSince,
   countRetriesOf,
   findGenerationByIdempotencyKey,
@@ -235,6 +236,18 @@ export async function createGeneration(
     );
   }
   // Limite por hora.
+  // Um vídeo por vez (padrão): clique duplo / duas abas não gastam créditos em dobro.
+  // Repetir a MESMA requisição (mesma chave) continua devolvendo a geração já criada.
+  if (
+    !(await findGenerationByIdempotencyKey(userId, input.idempotencyKey)) &&
+    (await countActiveGenerations(userId)) >= config.maxConcurrentGenerationsPerUser
+  ) {
+    throw new AiVideoError(
+      "Você já tem um vídeo sendo gerado. Aguarde ele ficar pronto para gerar outro.",
+      "GENERATION_IN_PROGRESS",
+      409,
+    );
+  }
   if ((await countGenerationsSince(userId, new Date(now.getTime() - 3600_000))) >= config.maxGenerationsPerUserPerHour) {
     throw new AiVideoError("Você atingiu o limite de gerações por hora. Tente novamente em alguns minutos.", "HOURLY_LIMIT", 429);
   }
