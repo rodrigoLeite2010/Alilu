@@ -18,7 +18,7 @@ import { ConfirmDialog } from "@/components/instagram/ConfirmDialog";
 
 export interface AutomationAccessDto {
   allowed: boolean;
-  status: "NEW" | "TRIAL" | "PENDING_PAYMENT" | "ACTIVE" | "PAST_DUE" | "CANCELED" | "EXPIRED";
+  status: "NEW" | "TRIAL" | "PENDING_PAYMENT" | "ACTIVE" | "PAST_DUE" | "CANCELED" | "EXPIRED" | "EXEMPT";
   reason: string | null;
   trialEndsAt: string | null;
   remainingToday: number | null;
@@ -191,6 +191,17 @@ export function AutomationBillingBanner({ initialAccess }: { initialAccess: Auto
       </div>
     </Dialog>
   );
+
+  if (access.status === "EXEMPT") {
+    return (
+      <div className="mb-6 rounded-lg border border-teal-200 bg-teal-50 px-4 py-3">
+        <Badge tone="brand">Acesso liberado</Badge>
+        <p className="mt-1 text-sm text-teal-900">
+          Seu login tem uso ilimitado do Piloto Automático, sem limite diário e sem cobrança.
+        </p>
+      </div>
+    );
+  }
 
   if (access.status === "ACTIVE") {
     return (

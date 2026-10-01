@@ -58,7 +58,7 @@ export interface AutomationSubscriptionRecord {
 export interface AutomationAccessResult {
   allowed: boolean;
   /** "NEW" = usuário nunca usou o Piloto ainda — o trial começaria agora, na próxima utilização real. */
-  status: AutomationSubscriptionStatus | "NEW";
+  status: AutomationSubscriptionStatus | "NEW" | "EXEMPT";
   reason: string | null;
   trialEndsAt: Date | null;
   /** `null` quando a assinatura está ACTIVE (sem limite diário nesse caso). */

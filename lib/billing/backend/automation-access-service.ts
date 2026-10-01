@@ -1,4 +1,6 @@
 import "server-only";
+import { normalizeEmail } from "@/lib/instagram/backend/otp";
+import { getUserById } from "@/lib/instagram/backend/users-store";
 import {
   getSubscriptionByUserId,
   reserveTrialUsage,
@@ -24,6 +26,34 @@ import {
 
 function toDateStr(date: Date): string {
   return date.toISOString().slice(0, 10);
+}
+
+function getAutomationBillingExemptEmails(): Set<string> {
+  return new Set(
+    (process.env.AUTOMATION_BILLING_EXEMPT_EMAILS ?? "")
+      .split(",")
+      .map((email) => email.trim())
+      .filter(Boolean)
+      .map(normalizeEmail),
+  );
+}
+
+async function isBillingExemptUser(userId: string): Promise<boolean> {
+  const exemptEmails = getAutomationBillingExemptEmails();
+  if (exemptEmails.size === 0) return false;
+  const user = await getUserById(userId);
+  return Boolean(user?.email && exemptEmails.has(normalizeEmail(user.email)));
+}
+
+function buildExemptAccess(): AutomationAccessResult {
+  return {
+    allowed: true,
+    status: "EXEMPT",
+    reason: null,
+    trialEndsAt: null,
+    remainingToday: null,
+    currentPeriodEndsAt: null,
+  };
 }
 
 function evaluateAccess(existing: AutomationSubscriptionRecord | null, now: Date): AutomationAccessResult {
@@ -126,6 +156,9 @@ function evaluateAccess(existing: AutomationSubscriptionRecord | null, now: Date
 
 /** Somente leitura — usado pela tela do Piloto Automático para desenhar banners/avisos. Nunca reserva uso. */
 export async function canUseAutomation(userId: string, now: Date = new Date()): Promise<AutomationAccessResult> {
+  if (await isBillingExemptUser(userId)) {
+    return buildExemptAccess();
+  }
   const existing = await getSubscriptionByUserId(userId);
   return evaluateAccess(existing, now);
 }
@@ -146,6 +179,10 @@ export async function reserveAutomationUse(
   userId: string,
   now: Date = new Date(),
 ): Promise<AutomationUseReservation> {
+  if (await isBillingExemptUser(userId)) {
+    return { consumedTrialSlot: false };
+  }
+
   const existing = await getSubscriptionByUserId(userId);
 
   if (!existing || existing.status === "TRIAL") {

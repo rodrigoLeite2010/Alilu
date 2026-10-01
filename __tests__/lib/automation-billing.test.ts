@@ -9,6 +9,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createTestDb, type TestDb } from "../helpers/pglite-db";
 
 let db: TestDb;
+const originalExemptEmails = process.env.AUTOMATION_BILLING_EXEMPT_EMAILS;
 vi.mock("@/lib/db/client", () => ({
   getDb: () => db.sql,
   assertDatabaseConfigured: () => undefined,
@@ -41,10 +42,12 @@ async function seedUserWithMedia(suffix = "1") {
 
 beforeEach(async () => {
   db = await createTestDb();
+  process.env.AUTOMATION_BILLING_EXEMPT_EMAILS = originalExemptEmails;
 });
 
 afterEach(async () => {
   await db.close();
+  process.env.AUTOMATION_BILLING_EXEMPT_EMAILS = originalExemptEmails;
   vi.restoreAllMocks();
 });
 
@@ -274,5 +277,27 @@ describe("Status pós-trial (assinatura Asaas) — sem tocar no contador diário
     const afterPeriodEnds = await access.canUseAutomation(userId, new Date("2026-09-11T00:00:00.000Z"));
     expect(afterPeriodEnds.allowed).toBe(false);
     expect(afterPeriodEnds.status).toBe("EXPIRED");
+  });
+});
+
+describe("Isenção interna por e-mail", () => {
+  it("libera uso ilimitado sem criar trial nem assinatura para e-mails configurados", async () => {
+    process.env.AUTOMATION_BILLING_EXEMPT_EMAILS = " dono@alilu.com.br, outro@alilu.com.br ";
+    const [user] = await db.sql`insert into users (email) values ('Dono@Alilu.com.br') returning id`;
+    const userId = user.id as string;
+    const now = new Date("2026-09-01T12:00:00.000Z");
+
+    const status = await access.canUseAutomation(userId, now);
+    expect(status.allowed).toBe(true);
+    expect(status.status).toBe("EXEMPT");
+    expect(status.remainingToday).toBeNull();
+
+    for (let i = 0; i < TRIAL_DAILY_LIMIT + 2; i += 1) {
+      const reservation = await access.reserveAutomationUse(userId, now);
+      expect(reservation.consumedTrialSlot).toBe(false);
+    }
+
+    const rows = await db.sql`select * from automation_subscriptions where user_id = ${userId}`;
+    expect(rows).toHaveLength(0);
   });
 });
