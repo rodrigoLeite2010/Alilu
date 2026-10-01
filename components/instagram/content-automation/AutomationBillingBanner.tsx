@@ -56,6 +56,9 @@ export function AutomationBillingBanner({ initialAccess }: { initialAccess: Auto
   const [cancelOpen, setCancelOpen] = useState(false);
   const [cancelBusy, setCancelBusy] = useState(false);
   const [cancelError, setCancelError] = useState<string | null>(null);
+  const [reactivateOpen, setReactivateOpen] = useState(false);
+  const [reactivateBusy, setReactivateBusy] = useState(false);
+  const [reactivateError, setReactivateError] = useState<string | null>(null);
 
   async function refreshAccess() {
     try {
@@ -107,6 +110,28 @@ export function AutomationBillingBanner({ initialAccess }: { initialAccess: Auto
       setCancelError("Não foi possível conectar. Tente novamente.");
     } finally {
       setCancelBusy(false);
+    }
+  }
+
+  async function confirmReactivate() {
+    setReactivateBusy(true);
+    setReactivateError(null);
+    try {
+      const response = await fetch("/api/billing/automation-subscription", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "reactivate" }),
+      });
+      if (!response.ok) {
+        setReactivateError(await readErrorMessage(response, "Não foi possível reativar agora."));
+        return;
+      }
+      setReactivateOpen(false);
+      await refreshAccess();
+    } catch {
+      setReactivateError("Não foi possível conectar. Tente novamente.");
+    } finally {
+      setReactivateBusy(false);
     }
   }
 
@@ -195,12 +220,27 @@ export function AutomationBillingBanner({ initialAccess }: { initialAccess: Auto
   }
 
   if (access.status === "CANCELED" && access.allowed) {
+    const periodEnd = formatDatePtBr(access.currentPeriodEndsAt) ?? "o fim do período já pago";
     return (
-      <div className="mb-6 rounded-lg border border-zinc-200 bg-zinc-50 px-4 py-3">
-        <Badge tone="neutral">Assinatura cancelada</Badge>
-        <p className="mt-1 text-sm text-zinc-600">
-          Você ainda tem acesso ao Piloto Automático até {formatDatePtBr(access.currentPeriodEndsAt) ?? "o fim do período já pago"}.
-        </p>
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-zinc-200 bg-zinc-50 px-4 py-3">
+        <div>
+          <Badge tone="neutral">Assinatura cancelada</Badge>
+          <p className="mt-1 text-sm text-zinc-600">
+            Você ainda tem acesso ao Piloto Automático até {periodEnd}.
+          </p>
+        </div>
+        <Button type="button" onClick={() => setReactivateOpen(true)}>
+          Reativar assinatura
+        </Button>
+        <ConfirmDialog
+          open={reactivateOpen}
+          title="Reativar assinatura?"
+          description={`Você não paga nada agora. Seu acesso continua normalmente e a próxima cobrança de R$ 19,00 será em ${periodEnd}, renovando todo mês.${reactivateError ? ` ${reactivateError}` : ""}`}
+          confirmLabel="Reativar assinatura"
+          busy={reactivateBusy}
+          onConfirm={confirmReactivate}
+          onClose={() => setReactivateOpen(false)}
+        />
       </div>
     );
   }

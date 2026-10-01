@@ -109,6 +109,37 @@ export async function markCanceled(userId: string, now: Date): Promise<Automatio
 }
 
 /**
+ * Reativa uma assinatura CANCELED que ainda está dentro do período já
+ * pago (subscription-service.reactivateAutomationSubscription é o ÚNICO
+ * chamador, e só depois de criar a assinatura NOVA no Asaas com a 1ª
+ * cobrança marcada para current_period_ends_at). Volta para ACTIVE sem
+ * cobrar nada agora — o usuário já pagou até current_period_ends_at —,
+ * troca asaas_subscription_id pela assinatura nova e limpa canceled_at.
+ * Se a próxima cobrança não for paga, o Webhook PAYMENT_OVERDUE bloqueia
+ * normalmente (markPastDue). Devolve null se a linha não está mais
+ * elegível (não é CANCELED, ou o período pago já acabou).
+ */
+export async function markReactivated(
+  userId: string,
+  newAsaasSubscriptionId: string,
+  now: Date,
+): Promise<AutomationSubscriptionRecord | null> {
+  const db = getDb();
+  const rows = await db`
+    update automation_subscriptions
+    set status = 'ACTIVE',
+        asaas_subscription_id = ${newAsaasSubscriptionId},
+        canceled_at = null,
+        updated_at = now()
+    where user_id = ${userId}
+      and status = 'CANCELED'
+      and current_period_ends_at > ${now.toISOString()}
+    returning *
+  `;
+  return rows[0] ? mapSubscriptionRow(rows[0]) : null;
+}
+
+/**
  * Libera o acesso (status ACTIVE) depois de um PAYMENT_CONFIRMED/
  * PAYMENT_RECEIVED confirmado pelo processamento do Webhook —
  * asaas-webhook-service.ts é o ÚNICO chamador. started_at só é gravado

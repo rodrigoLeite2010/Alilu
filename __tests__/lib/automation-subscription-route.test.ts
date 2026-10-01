@@ -11,9 +11,11 @@ vi.mock("@/auth", () => ({ auth: (...args: unknown[]) => authMock(...args) }));
 
 const startAutomationCheckoutMock = vi.fn();
 const cancelAutomationSubscriptionMock = vi.fn();
+const reactivateAutomationSubscriptionMock = vi.fn();
 vi.mock("@/lib/billing/backend/subscription-service", () => ({
   startAutomationCheckout: (...args: unknown[]) => startAutomationCheckoutMock(...args),
   cancelAutomationSubscription: (...args: unknown[]) => cancelAutomationSubscriptionMock(...args),
+  reactivateAutomationSubscription: (...args: unknown[]) => reactivateAutomationSubscriptionMock(...args),
 }));
 
 const { SubscriptionBusinessError } = await import("@/lib/billing/backend/billing-types");
@@ -41,6 +43,7 @@ beforeEach(() => {
   authMock.mockReset();
   startAutomationCheckoutMock.mockReset();
   cancelAutomationSubscriptionMock.mockReset();
+  reactivateAutomationSubscriptionMock.mockReset();
   vi.spyOn(console, "error").mockImplementation(() => undefined);
 });
 
@@ -124,6 +127,27 @@ describe("POST /api/billing/automation-subscription", () => {
       cancelAutomationSubscriptionMock.mockRejectedValue(new AsaasApiError("Assinatura não encontrada.", 404));
       const response = await POST(jsonRequest({ action: "cancel" }));
       expect(response.status).toBe(400);
+    });
+  });
+
+  describe("action: reactivate", () => {
+    beforeEach(() => authMock.mockResolvedValue({ user: { id: "user-1" } }));
+
+    it("devolve a assinatura reativada serializada", async () => {
+      reactivateAutomationSubscriptionMock.mockResolvedValue({ ...fakeSubscription, status: "ACTIVE" });
+      const response = await POST(jsonRequest({ action: "reactivate" }));
+      const body = await response.json();
+      expect(response.status).toBe(200);
+      expect(reactivateAutomationSubscriptionMock).toHaveBeenCalledWith("user-1");
+      expect(body.subscription.status).toBe("ACTIVE");
+    });
+
+    it("mapeia SubscriptionBusinessError (ex.: período pago já acabou) para 400", async () => {
+      reactivateAutomationSubscriptionMock.mockRejectedValue(new SubscriptionBusinessError("O período já pago terminou."));
+      const response = await POST(jsonRequest({ action: "reactivate" }));
+      const body = await response.json();
+      expect(response.status).toBe(400);
+      expect(body.error).toBe("O período já pago terminou.");
     });
   });
 });

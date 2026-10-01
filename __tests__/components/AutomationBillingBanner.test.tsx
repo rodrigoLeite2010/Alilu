@@ -100,6 +100,36 @@ describe("AutomationBillingBanner", () => {
     );
   });
 
+  it("assinatura cancelada dentro do período pago: reativar pede confirmação e depois mostra assinatura ativa", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ subscription: { status: "ACTIVE" } }) })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => access({ status: "ACTIVE", allowed: true, remainingToday: null, currentPeriodEndsAt: "2026-10-15T00:00:00.000Z" }),
+      });
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    render(
+      <AutomationBillingBanner
+        initialAccess={access({ status: "CANCELED", allowed: true, remainingToday: null, currentPeriodEndsAt: "2026-10-15T00:00:00.000Z" })}
+      />,
+    );
+
+    expect(screen.getByText("Assinatura cancelada")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Reativar assinatura" }));
+    const dialog = screen.getByRole("dialog");
+    expect(within(dialog).getByText(/Você não paga nada agora/)).toBeInTheDocument();
+    fireEvent.click(within(dialog).getByRole("button", { name: "Reativar assinatura" }));
+
+    await waitFor(() => expect(screen.getByText("Assinatura ativa")).toBeInTheDocument());
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      "/api/billing/automation-subscription",
+      expect.objectContaining({ method: "POST", body: JSON.stringify({ action: "reactivate" }) }),
+    );
+  });
+
   it("pagamento pendente e atrasado mostram avisos informativos, sem pedir ação do usuário", () => {
     const pending = render(<AutomationBillingBanner initialAccess={access({ status: "PENDING_PAYMENT", allowed: false })} />);
     expect(screen.getByText("Pagamento aguardando confirmação")).toBeInTheDocument();

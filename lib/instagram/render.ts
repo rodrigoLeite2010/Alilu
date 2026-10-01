@@ -351,6 +351,8 @@ function drawDecoration(
       ctx.fillRect(format.width * 0.08, format.height * 0.22, min * 0.045, min * 0.045);
       break;
     }
+    case "none":
+      break;
     case "quote-marks": {
       ctx.globalAlpha = 0.22;
       ctx.fillStyle = accentColor;
@@ -568,6 +570,14 @@ export function drawPost(
 
   ctx.clearRect(0, 0, format.width, format.height);
   ctx.save();
+
+  if (template.imageOnly) {
+    // "Somente imagem": só a imagem do usuário (ou o fundo liso, enquanto
+    // nenhuma imagem foi enviada) — sem véu, decoração nem textos.
+    drawBackground(ctx, { ...state, backgroundImage: { ...state.backgroundImage, overlayOpacity: 0 } }, format, template, uploadedImage);
+    ctx.restore();
+    return {};
+  }
 
   drawBackground(ctx, state, format, template, uploadedImage);
   drawDecoration(ctx, format, template, state.accentColor);

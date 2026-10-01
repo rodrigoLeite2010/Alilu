@@ -66,8 +66,10 @@ export interface WebhookProcessingResult {
 /**
  * Processa um evento já autenticado (assertValidWebhookToken deve ter
  * sido chamado antes, pela rota). Sempre grava o evento primeiro (trava
- * de idempotência) — se já existia, devolve "duplicate" sem tocar em
- * mais nada.
+ * de idempotência) — se já existia E já foi processado, devolve
+ * "duplicate" sem tocar em mais nada. Se já existia mas o processamento
+ * anterior falhou (processed_at nulo), processa de novo — é assim que a
+ * reentrega automática do Asaas recupera uma falha momentânea.
  */
 export async function processAsaasWebhookEvent(
   rawBody: unknown,

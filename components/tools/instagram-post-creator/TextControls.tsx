@@ -20,6 +20,15 @@ export function TextControls({
 }) {
   const template = getTemplateById(state.templateId);
 
+  if (template.imageOnly) {
+    return (
+      <p className="rounded-md border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-zinc-600">
+        Template <strong>Somente imagem</strong>: nenhum texto é desenhado — só a imagem que você enviar. Para
+        adicionar textos, escolha outro template.
+      </p>
+    );
+  }
+
   return (
     <div className="space-y-4">
       {TEXT_SLOT_IDS.map((slotId) => (

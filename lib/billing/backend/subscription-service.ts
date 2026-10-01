@@ -3,6 +3,7 @@ import {
   getSubscriptionByUserId,
   saveCheckoutStart,
   markCanceled,
+  markReactivated,
 } from "./automation-subscription-repository";
 import {
   createAsaasCustomer,
@@ -125,6 +126,65 @@ export async function cancelAutomationSubscription(
   const updated = await markCanceled(userId, now);
   if (!updated) {
     throw new SubscriptionBusinessError("Não foi possível registrar o cancelamento. Tente novamente.");
+  }
+  return updated;
+}
+
+/**
+ * Reativa uma assinatura cancelada que ainda está dentro do período já
+ * pago — sem cobrar nada agora e sem cortar o acesso. A assinatura antiga
+ * foi removida no Asaas (DELETE /subscriptions/{id} não tem volta), então
+ * criamos uma NOVA para o mesmo cliente, com a 1ª cobrança marcada para o
+ * dia em que o período pago termina (current_period_ends_at). Assim o
+ * usuário não paga duas vezes pelo mesmo mês.
+ *
+ * Diferente do checkout, aqui o status vai direto para ACTIVE: o acesso
+ * até current_period_ends_at já foi pago e confirmado por Webhook antes do
+ * cancelamento. Se a cobrança nova não for paga no vencimento, o Webhook
+ * PAYMENT_OVERDUE bloqueia normalmente (PAST_DUE).
+ *
+ * Período pago já acabou → não é reativação: o usuário usa o checkout
+ * normal ("Assinar por R$ 19/mês"), que cobra na hora.
+ */
+export async function reactivateAutomationSubscription(
+  userId: string,
+  now: Date = new Date(),
+): Promise<AutomationSubscriptionRecord> {
+  const existing = await getSubscriptionByUserId(userId);
+  if (!existing || existing.status !== "CANCELED") {
+    throw new SubscriptionBusinessError("Não há assinatura cancelada para reativar.");
+  }
+  if (!existing.currentPeriodEndsAt || existing.currentPeriodEndsAt <= now) {
+    throw new SubscriptionBusinessError(
+      "O período já pago terminou. Assine novamente para continuar usando o Piloto Automático.",
+    );
+  }
+  if (!existing.asaasCustomerId) {
+    throw new SubscriptionBusinessError(
+      "Não foi possível reativar automaticamente. Assine novamente para continuar.",
+    );
+  }
+
+  // current_period_ends_at vem do nextDueDate do Asaas (meia-noite UTC do
+  // dia da próxima cobrança) — a parte de data é exatamente esse dia.
+  const nextDueDate = existing.currentPeriodEndsAt.toISOString().slice(0, 10);
+  const firstDueDate = nextDueDate > todayDateStr(now) ? nextDueDate : todayDateStr(now);
+
+  const created = await createAsaasSubscription({
+    customerId: existing.asaasCustomerId,
+    value: MONTHLY_PRICE_CENTS / 100,
+    nextDueDate: firstDueDate,
+    description: "Alilu - Postagens Automáticas com IA",
+    externalReference: userId,
+  });
+
+  const updated = await markReactivated(userId, created.id, now);
+  if (!updated) {
+    // A linha mudou entre a leitura e a gravação (ex.: o período acabou
+    // exatamente agora) — desfaz no Asaas para não deixar uma assinatura
+    // órfã gerando cobrança.
+    await cancelAsaasSubscription(created.id).catch(() => undefined);
+    throw new SubscriptionBusinessError("Não foi possível reativar agora. Tente novamente.");
   }
   return updated;
 }

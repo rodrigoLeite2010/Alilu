@@ -88,6 +88,40 @@ describe("idempotência", () => {
   });
 });
 
+describe("reprocessamento após falha", () => {
+  it("evento gravado mas com processamento falho é processado de novo na reentrega do Asaas", async () => {
+    const userId = await seedUser();
+    const subscriptionId = await seedSubscription(userId);
+    const event = { id: "evt_falhou_1", event: "PAYMENT_CONFIRMED", dateCreated: "2026-09-15", payment: { object: "payment", id: "pay_1" } };
+
+    // 1ª entrega: o Asaas cai na consulta servidor-servidor (a rota responderia 500).
+    fetchMock.mockResolvedValueOnce(jsonResponse(503, { errors: [{ description: "Serviço indisponível" }] }));
+    await expect(webhook.processAsaasWebhookEvent(event)).rejects.toThrow();
+
+    const [pending] = await db.sql`select processed_at from asaas_webhook_events where event_id = 'evt_falhou_1'`;
+    expect(pending.processed_at).toBeNull();
+    const [stillPending] = await db.sql`select status from automation_subscriptions where user_id = ${userId}`;
+    expect(stillPending.status).toBe("PENDING_PAYMENT");
+
+    // 2ª entrega (reenvio automático do Asaas): agora processa e libera o acesso.
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse(200, { id: "pay_1", status: "CONFIRMED", subscription: subscriptionId }))
+      .mockResolvedValueOnce(jsonResponse(200, { id: subscriptionId, status: "ACTIVE", nextDueDate: "2026-10-15" }));
+    const retry = await webhook.processAsaasWebhookEvent(event);
+    expect(retry.status).toBe("processed");
+
+    const [row] = await db.sql`select status from automation_subscriptions where user_id = ${userId}`;
+    expect(row.status).toBe("ACTIVE");
+    const events = await db.sql`select processed_at from asaas_webhook_events where event_id = 'evt_falhou_1'`;
+    expect(events).toHaveLength(1);
+    expect(events[0].processed_at).not.toBeNull();
+
+    // 3ª entrega do mesmo evento, já processado: aí sim é duplicado.
+    const third = await webhook.processAsaasWebhookEvent(event);
+    expect(third.status).toBe("duplicate");
+  });
+});
+
 describe("PAYMENT_CONFIRMED / PAYMENT_RECEIVED", () => {
   it("libera o acesso (ACTIVE) e grava current_period_ends_at a partir do nextDueDate da assinatura", async () => {
     const userId = await seedUser();

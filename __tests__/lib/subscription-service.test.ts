@@ -159,3 +159,67 @@ describe("cancelAutomationSubscription", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 });
+
+describe("reactivateAutomationSubscription", () => {
+  async function seedCanceled(userId: string, periodEndsAt: string) {
+    await db.sql`
+      insert into automation_subscriptions (user_id, status, cpf_cnpj, asaas_customer_id, asaas_subscription_id, started_at, current_period_ends_at, canceled_at)
+      values (${userId}, 'CANCELED', '12345678900', 'cus_000001', 'sub_antiga', '2026-09-01T12:00:00.000Z', ${periodEndsAt}, '2026-09-10T12:00:00.000Z')
+    `;
+  }
+
+  it("cria assinatura nova com a 1ª cobrança no fim do período pago e volta para ACTIVE sem cobrar agora", async () => {
+    const userId = await seedUser();
+    await seedCanceled(userId, "2026-10-01T00:00:00.000Z");
+    fetchMock.mockResolvedValueOnce(jsonResponse(200, { id: "sub_nova", status: "ACTIVE", nextDueDate: "2026-10-01" }));
+
+    const result = await service.reactivateAutomationSubscription(userId, new Date("2026-09-15T12:00:00.000Z"));
+
+    expect(result.status).toBe("ACTIVE");
+    expect(result.asaasSubscriptionId).toBe("sub_nova");
+    expect(result.canceledAt).toBeNull();
+    expect(result.currentPeriodEndsAt?.toISOString()).toBe("2026-10-01T00:00:00.000Z");
+    expect(fetchMock).toHaveBeenCalledTimes(1); // só POST /subscriptions — nunca cria cliente novo
+
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe("https://api-sandbox.asaas.com/v3/subscriptions");
+    const body = JSON.parse(init.body as string);
+    expect(body.customer).toBe("cus_000001");
+    expect(body.nextDueDate).toBe("2026-10-01");
+    expect(body.value).toBe(19);
+    expect(body.cycle).toBe("MONTHLY");
+  });
+
+  it("recusa quando o período pago já acabou (deve usar o checkout normal), sem chamar o Asaas", async () => {
+    const userId = await seedUser();
+    await seedCanceled(userId, "2026-09-01T00:00:00.000Z");
+    await expect(
+      service.reactivateAutomationSubscription(userId, new Date("2026-09-15T12:00:00.000Z")),
+    ).rejects.toBeInstanceOf(SubscriptionBusinessError);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("recusa quando não há assinatura cancelada (ex.: ACTIVE ou trial)", async () => {
+    const userId = await seedUser();
+    await db.sql`insert into automation_subscriptions (user_id, status, asaas_customer_id, asaas_subscription_id) values (${userId}, 'ACTIVE', 'cus_1', 'sub_1')`;
+    await expect(service.reactivateAutomationSubscription(userId)).rejects.toBeInstanceOf(SubscriptionBusinessError);
+
+    const otherUser = await seedUser("2");
+    await expect(service.reactivateAutomationSubscription(otherUser)).rejects.toBeInstanceOf(SubscriptionBusinessError);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("não muda nada localmente se o Asaas recusar a criação da assinatura", async () => {
+    const userId = await seedUser();
+    await seedCanceled(userId, "2026-10-01T00:00:00.000Z");
+    fetchMock.mockResolvedValueOnce(jsonResponse(400, { errors: [{ description: "Cliente inválido." }] }));
+
+    await expect(
+      service.reactivateAutomationSubscription(userId, new Date("2026-09-15T12:00:00.000Z")),
+    ).rejects.toThrow("Cliente inválido.");
+
+    const [row] = await db.sql`select status, asaas_subscription_id from automation_subscriptions where user_id = ${userId}`;
+    expect(row.status).toBe("CANCELED");
+    expect(row.asaas_subscription_id).toBe("sub_antiga");
+  });
+});

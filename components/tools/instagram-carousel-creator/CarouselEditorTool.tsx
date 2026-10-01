@@ -36,6 +36,7 @@ import {
   cloneBackgroundImage,
   cloneSlideState,
   createCarouselStateFromImages,
+  applyTemplateToAllSlides,
   createInitialCarouselState,
   GENERATED_CAROUSEL_TEXT_SLOT,
   getSelectedSlide,
@@ -210,6 +211,11 @@ export function CarouselEditorTool({
   const handleTemplateChange = useCallback(
     (templateId: PostTemplateId) =>
       commit((prev) => updateSelectedSlideState(prev, (s) => applyTemplateToState(s, templateId))),
+    [commit]
+  );
+
+  const handleApplyTemplateToAll = useCallback(
+    (templateId: PostTemplateId) => commit((prev) => applyTemplateToAllSlides(prev, templateId)),
     [commit]
   );
 
@@ -732,6 +738,7 @@ export function CarouselEditorTool({
               templateId={selectedSlide.state.templateId}
               onFormatChange={handleFormatChange}
               onTemplateChange={handleTemplateChange}
+              onApplyTemplateToAll={handleApplyTemplateToAll}
               onApplyPreset={handleApplyPreset}
             />
           </div>

@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { startAutomationCheckout, cancelAutomationSubscription } from "@/lib/billing/backend/subscription-service";
+import {
+  startAutomationCheckout,
+  cancelAutomationSubscription,
+  reactivateAutomationSubscription,
+} from "@/lib/billing/backend/subscription-service";
 import { serializeSubscription } from "@/lib/billing/backend/billing-dto";
 import { SubscriptionBusinessError } from "@/lib/billing/backend/billing-types";
 import { AsaasApiError, AsaasConfigError } from "@/lib/billing/backend/asaas-client";
@@ -50,6 +54,11 @@ export async function POST(request: Request): Promise<NextResponse> {
 
     if (action === "cancel") {
       const subscription = await cancelAutomationSubscription(userId);
+      return NextResponse.json({ subscription: serializeSubscription(subscription) });
+    }
+
+    if (action === "reactivate") {
+      const subscription = await reactivateAutomationSubscription(userId);
       return NextResponse.json({ subscription: serializeSubscription(subscription) });
     }
 

@@ -17,13 +17,14 @@
 
 import {
   clearBackgroundImage,
+  applyTemplateToState,
   createInitialEditorState,
   setFormat as setPostFormat,
   updateTextValue,
   type BackgroundImageState,
   type PostEditorState,
 } from "../editor-state";
-import type { PostTemplateId, TextSlotId } from "../templates";
+import { IMAGE_ONLY_TEMPLATE_ID, type PostTemplateId, type TextSlotId } from "../templates";
 import type { PostFormatId } from "../formats";
 import { revokeImageObjectUrl } from "../image-utils";
 
@@ -277,6 +278,25 @@ export function updateSelectedSlideState(
  * Posts — os elementos se adaptam proporcionalmente porque o layout de
  * cada template já é definido em frações (0..1), não em pixels fixos.
  */
+/**
+ * "Aplicar a todos os slides": usa o mesmo template em todos os slides de
+ * uma vez (mesma regra de applyTemplateToState slide a slide — textos
+ * editados e imagens de cada slide são preservados).
+ */
+export function applyTemplateToAllSlides(
+  state: CarouselEditorState,
+  templateId: PostTemplateId
+): CarouselEditorState {
+  let changed = false;
+  const slides = state.slides.map((slide) => {
+    const next = applyTemplateToState(slide.state, templateId);
+    if (Object.is(next, slide.state)) return slide;
+    changed = true;
+    return { ...slide, state: next };
+  });
+  return changed ? { ...state, slides } : state;
+}
+
 export function setCarouselFormat(
   state: CarouselEditorState,
   formatId: CarouselFormatId
@@ -467,7 +487,10 @@ export function createCarouselStateFromImages(
 
   const slides = reindex(
     inputs.map(({ image, caption }) => {
-      const slide = createCarouselSlide(formatId, GENERATED_CAROUSEL_TEMPLATE_ID);
+      // Sem legenda → "Somente imagem": o slide é só a foto enviada, sem as
+      // aspas decorativas nem o véu escuro do template de frase.
+      const templateId = caption.trim() ? GENERATED_CAROUSEL_TEMPLATE_ID : IMAGE_ONLY_TEMPLATE_ID;
+      const slide = createCarouselSlide(formatId, templateId);
       const stateWithImage: PostEditorState = { ...slide.state, backgroundImage: image };
       const stateWithText = updateTextValue(stateWithImage, GENERATED_CAROUSEL_TEXT_SLOT, caption);
       return { ...slide, state: stateWithText };

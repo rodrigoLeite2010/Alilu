@@ -312,7 +312,8 @@ export function WeekDayEditor({
                   className="w-full min-h-11 rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm"
                 >
                   <option value="">Padrão (Motivação Clean — foto inteira + frase central)</option>
-                  {POST_TEMPLATES.map((template) => (
+                  {/* "Somente imagem" fica de fora: aqui a arte existe justamente para levar o texto gerado. */}
+                  {POST_TEMPLATES.filter((template) => !template.imageOnly).map((template) => (
                     <option key={template.id} value={template.id}>
                       {template.name}
                     </option>

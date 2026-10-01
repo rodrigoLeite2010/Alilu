@@ -20,12 +20,15 @@ export function CarouselStructureControls({
   templateId,
   onFormatChange,
   onTemplateChange,
+  onApplyTemplateToAll,
   onApplyPreset,
 }: {
   formatId: CarouselFormatId;
   templateId: PostTemplateId;
   onFormatChange: (formatId: CarouselFormatId) => void;
   onTemplateChange: (templateId: PostTemplateId) => void;
+  /** Opcional: quando presente, mostra "Aplicar a todos os slides" logo abaixo da grade de templates. */
+  onApplyTemplateToAll?: (templateId: PostTemplateId) => void;
   onApplyPreset: (presetId: string) => void;
 }) {
   return (
@@ -71,6 +74,15 @@ export function CarouselStructureControls({
             </button>
           ))}
         </div>
+        {onApplyTemplateToAll ? (
+          <button
+            type="button"
+            onClick={() => onApplyTemplateToAll(templateId)}
+            className="mt-2 text-sm font-medium text-teal-800 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
+          >
+            Aplicar este template a todos os slides
+          </button>
+        ) : null}
       </div>
 
       <div>

@@ -247,7 +247,7 @@ describe("carousel-state — modo 'Várias imagens': createCarouselStateFromImag
     expect(state.originalText).toBeUndefined();
   });
 
-  it("usa o template gerado e sobrescreve o slot de texto com a legenda (mesmo vazia), nunca com o valor padrão do template", () => {
+  it("sem legenda usa 'Somente imagem'; com legenda usa o template gerado com a legenda no slot de texto", () => {
     const state = createCarouselStateFromImages(
       [
         { image: seed("a.jpg"), caption: "" },
@@ -256,8 +256,9 @@ describe("carousel-state — modo 'Várias imagens': createCarouselStateFromImag
       DEFAULT_CAROUSEL_FORMAT_ID
     );
 
-    expect(state.slides[0].state.templateId).toBe(GENERATED_CAROUSEL_TEMPLATE_ID);
+    expect(state.slides[0].state.templateId).toBe("somente-imagem");
     expect(state.slides[0].state.texts[GENERATED_CAROUSEL_TEXT_SLOT].value).toBe("");
+    expect(state.slides[1].state.templateId).toBe(GENERATED_CAROUSEL_TEMPLATE_ID);
     expect(state.slides[1].state.texts[GENERATED_CAROUSEL_TEXT_SLOT].value).toBe("Minha legenda");
   });
 
@@ -298,5 +299,27 @@ describe("carousel-state — modo 'Várias imagens': createCarouselStateFromImag
 
     expect(state.formatId).toBe(otherFormat);
     expect(state.slides[0].state.formatId).toBe(otherFormat);
+  });
+});
+
+describe("carousel-state — applyTemplateToAllSlides", () => {
+  it("aplica o template a todos os slides, preservando a imagem de cada um", async () => {
+    const { applyTemplateToAllSlides } = await import("@/lib/instagram/carousel/carousel-state");
+    const seedImage = (fileName: string) =>
+      buildSeedBackgroundImage({ url: `blob:${fileName}`, fileName, naturalWidth: 1080, naturalHeight: 1080 });
+    const state = createCarouselStateFromImages(
+      [
+        { image: seedImage("1.jpg"), caption: "Legenda 1" },
+        { image: seedImage("2.jpg"), caption: "Legenda 2" },
+      ],
+      DEFAULT_CAROUSEL_FORMAT_ID
+    );
+
+    const updated = applyTemplateToAllSlides(state, "somente-imagem");
+
+    expect(updated.slides.map((slide) => slide.state.templateId)).toEqual(["somente-imagem", "somente-imagem"]);
+    expect(updated.slides.map((slide) => slide.state.backgroundImage.fileName)).toEqual(["1.jpg", "2.jpg"]);
+    // Aplicar de novo o mesmo template não muda nada (mesma referência).
+    expect(applyTemplateToAllSlides(updated, "somente-imagem")).toBe(updated);
   });
 });

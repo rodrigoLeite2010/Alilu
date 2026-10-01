@@ -10,15 +10,28 @@ import { getColorComboById } from "@/lib/instagram/colors";
 import { getFontById } from "@/lib/instagram/fonts";
 
 describe("lib/instagram/templates", () => {
-  it("define exatamente os cinco templates profissionais da ETAPA 4", () => {
-    expect(POST_TEMPLATES).toHaveLength(5);
+  it("define os cinco templates profissionais da ETAPA 4 + o 'Somente imagem'", () => {
+    expect(POST_TEMPLATES).toHaveLength(6);
     expect(POST_TEMPLATES.map((template) => template.id)).toEqual([
       "promocao",
       "restaurante",
       "aniversario",
       "comunicado",
       "frase-motivacional",
+      "somente-imagem",
     ]);
+  });
+
+  it("'Somente imagem' é o único imageOnly, sem decoração, véu nem texto padrão", () => {
+    const imageOnly = POST_TEMPLATES.filter((template) => template.imageOnly);
+    expect(imageOnly.map((template) => template.id)).toEqual(["somente-imagem"]);
+    const template = imageOnly[0];
+    expect(template.decoration).toBe("none");
+    expect(template.scrimOverBackgroundImage).toBe(false);
+    expect(template.imageArea).toBeNull();
+    for (const slotId of TEXT_SLOT_IDS) {
+      expect(template.slots[slotId].defaultValue).toBe("");
+    }
   });
 
   it("cada template tem um id único", () => {
@@ -65,7 +78,7 @@ describe("lib/instagram/templates", () => {
   });
 
   it("apenas o slot badge pode iniciar oculto por padrão (os demais sempre têm um valor padrão)", () => {
-    for (const template of POST_TEMPLATES) {
+    for (const template of POST_TEMPLATES.filter((candidate) => !candidate.imageOnly)) {
       expect(template.slots.heading.defaultValue.length).toBeGreaterThan(0);
       expect(template.slots.footer.defaultValue.length + 1).toBeGreaterThan(0); // footer pode ser opcional em algum template
     }

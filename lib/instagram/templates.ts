@@ -22,6 +22,8 @@
  *   - Comunicado: badge = rótulo curto, heading = título,
  *     body = mensagem principal (multilinha), footer = nome da empresa.
  *   - Frase motivacional: heading = frase (multilinha), footer = autor.
+ *   - Somente imagem: nenhum slot é desenhado (`imageOnly`) — só a imagem
+ *     enviada pelo usuário, sem véu nem decoração.
  *
  * Um slot cujo valor fica vazio nunca é desenhado (ETAPA 4: "preservar uma
  * margem de segurança para textos" e nunca desenhar espaço reservado
@@ -33,7 +35,8 @@ export type PostTemplateId =
   | "restaurante"
   | "aniversario"
   | "comunicado"
-  | "frase-motivacional";
+  | "frase-motivacional"
+  | "somente-imagem";
 
 export type TextSlotId = "badge" | "heading" | "body" | "footer";
 
@@ -77,7 +80,7 @@ export interface ImageAreaConfig {
   cornerRadiusFrac: number;
 }
 
-export type TemplateDecoration = "ribbon" | "frame" | "dots" | "clean" | "quote-marks";
+export type TemplateDecoration = "ribbon" | "frame" | "dots" | "clean" | "quote-marks" | "none";
 
 export interface PostTemplate {
   id: PostTemplateId;
@@ -102,6 +105,14 @@ export interface PostTemplate {
   imageArea: ImageAreaConfig | null;
   scrimOverBackgroundImage: boolean;
   decoration: TemplateDecoration;
+  /**
+   * "Somente imagem": o slide é SÓ a imagem enviada pelo usuário — nenhum
+   * texto, véu escuro, decoração (aspas, faixas, bolinhas) ou área de foto
+   * é desenhado por cima, mesmo que algum texto tenha ficado no estado
+   * (ver drawPost em render.ts). Os textos do estado são preservados, para
+   * voltarem caso o usuário troque para outro template depois.
+   */
+  imageOnly?: boolean;
 }
 
 const baseSlotDefaults = {
@@ -344,7 +355,56 @@ export const POST_TEMPLATES: PostTemplate[] = [
       },
     },
   },
+  {
+    id: "somente-imagem",
+    name: "Somente imagem",
+    audience: "Só a imagem que você enviar",
+    description: "Nenhum texto, véu ou decoração — o slide fica exatamente com a imagem importada.",
+    defaultColorComboId: "midnight",
+    defaultFontId: "sans-ui",
+    imageArea: null,
+    scrimOverBackgroundImage: false,
+    decoration: "none",
+    imageOnly: true,
+    slots: {
+      badge: {
+        label: "Rótulo",
+        placeholder: "",
+        defaultValue: "",
+        maxLength: baseSlotDefaults.badgeMaxLength,
+        multiline: false,
+        enabledByDefault: false,
+        layout: { xFrac: 0.5, yFrac: 0.28, maxWidthFrac: 0.8, align: "center", fontSizeFrac: 0.03, fontWeight: "bold", lineHeight: 1.2 },
+      },
+      heading: {
+        label: "Título",
+        placeholder: "",
+        defaultValue: "",
+        maxLength: 160,
+        multiline: true,
+        layout: { xFrac: 0.5, yFrac: 0.48, maxWidthFrac: 0.78, align: "center", fontSizeFrac: 0.062, fontWeight: "bold", lineHeight: 1.35 },
+      },
+      body: {
+        label: "Texto",
+        placeholder: "",
+        defaultValue: "",
+        maxLength: baseSlotDefaults.bodyMaxLength,
+        multiline: true,
+        layout: { xFrac: 0.5, yFrac: 0.68, maxWidthFrac: 0.78, align: "center", fontSizeFrac: 0.036, fontWeight: "normal", lineHeight: 1.4 },
+      },
+      footer: {
+        label: "Rodapé",
+        placeholder: "",
+        defaultValue: "",
+        maxLength: baseSlotDefaults.footerMaxLength,
+        multiline: false,
+        layout: { xFrac: 0.5, yFrac: 0.82, maxWidthFrac: 0.7, align: "center", fontSizeFrac: 0.036, fontWeight: "normal", lineHeight: 1.2 },
+      },
+    },
+  },
 ];
+
+export const IMAGE_ONLY_TEMPLATE_ID: PostTemplateId = "somente-imagem";
 
 export const DEFAULT_TEMPLATE_ID: PostTemplateId = "promocao";
 
