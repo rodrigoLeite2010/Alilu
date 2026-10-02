@@ -25,7 +25,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const { code } = await requestOtp(email);
+    const { code } = await requestOtp(email, { ip: clientIp(request) });
     await sendOtpEmail(normalizeEmail(email), code);
   } catch (error) {
     if (error instanceof OtpRateLimitError) {
@@ -40,4 +40,11 @@ export async function POST(request: Request) {
   }
 
   return NextResponse.json({ ok: true });
+}
+
+/** IP do cliente (Vercel: primeiro valor de x-forwarded-for) — só para o limite por IP. */
+function clientIp(request: Request): string | null {
+  const forwarded = request.headers.get("x-forwarded-for");
+  const ip = forwarded?.split(",")[0]?.trim() || request.headers.get("x-real-ip")?.trim() || null;
+  return ip && ip.length <= 64 ? ip : null;
 }

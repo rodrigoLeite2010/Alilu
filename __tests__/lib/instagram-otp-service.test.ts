@@ -13,11 +13,13 @@ const repositoryMocks = vi.hoisted(() => ({
   findLatestOtpForEmail: vi.fn(),
   incrementOtpAttempts: vi.fn(),
   markOtpConsumed: vi.fn(),
+  invalidateActiveOtps: vi.fn(),
+  countRecentOtpRequestsByIp: vi.fn(),
 }));
 
 vi.mock("@/lib/instagram/backend/otp-repository", () => repositoryMocks);
 
-const { hashOtpCode } = await import("@/lib/instagram/backend/otp");
+const { hashOtpCode, verifyOtpCode } = await import("@/lib/instagram/backend/otp");
 const {
   OtpExpiredError,
   OtpInvalidError,
@@ -51,7 +53,9 @@ beforeEach(() => {
   repositoryMocks.countRecentOtpRequests.mockResolvedValue(0);
   repositoryMocks.insertOtpCode.mockResolvedValue(undefined);
   repositoryMocks.incrementOtpAttempts.mockResolvedValue(undefined);
-  repositoryMocks.markOtpConsumed.mockResolvedValue(undefined);
+  repositoryMocks.markOtpConsumed.mockResolvedValue(true);
+  repositoryMocks.invalidateActiveOtps.mockResolvedValue(undefined);
+  repositoryMocks.countRecentOtpRequestsByIp.mockResolvedValue(0);
 });
 
 describe("requestOtp", () => {
@@ -133,5 +137,49 @@ describe("verifyOtp", () => {
     await verifyOtp(`  ${EMAIL.toUpperCase()}  `, "123456");
 
     expect(repositoryMocks.findLatestOtpForEmail).toHaveBeenCalledWith(EMAIL);
+  });
+});
+
+describe("requestOtp — proteções novas (cooldown, IP, código único ativo)", () => {
+  it("bloqueia novo pedido antes de 60 s e não grava nada", async () => {
+    repositoryMocks.findLatestOtpForEmail.mockResolvedValue({ ...makeRecord(), createdAt: new Date(Date.now() - 20_000) });
+
+    await expect(requestOtp(EMAIL)).rejects.toThrow(/Aguarde um minuto/);
+    expect(repositoryMocks.insertOtpCode).not.toHaveBeenCalled();
+  });
+
+  it("permite novo pedido depois de 60 s, invalida o anterior e grava o IP", async () => {
+    repositoryMocks.findLatestOtpForEmail.mockResolvedValue({ ...makeRecord(), createdAt: new Date(Date.now() - 61_000) });
+
+    await requestOtp(EMAIL, { ip: "203.0.113.9" });
+
+    expect(repositoryMocks.invalidateActiveOtps).toHaveBeenCalledWith(EMAIL);
+    expect(repositoryMocks.invalidateActiveOtps.mock.invocationCallOrder[0]).toBeLessThan(repositoryMocks.insertOtpCode.mock.invocationCallOrder[0]);
+    expect(repositoryMocks.insertOtpCode.mock.calls[0][3]).toBe("203.0.113.9");
+  });
+
+  it("bloqueia quando o mesmo IP pediu códigos demais na última hora", async () => {
+    repositoryMocks.findLatestOtpForEmail.mockResolvedValue(null);
+    repositoryMocks.countRecentOtpRequestsByIp.mockResolvedValue(20);
+
+    await expect(requestOtp(EMAIL, { ip: "203.0.113.9" })).rejects.toBeInstanceOf(OtpRateLimitError);
+    expect(repositoryMocks.insertOtpCode).not.toHaveBeenCalled();
+  });
+
+  it("o código salvo é só o hash (nunca o código em claro)", async () => {
+    repositoryMocks.findLatestOtpForEmail.mockResolvedValue(null);
+    const { code } = await requestOtp(EMAIL);
+    const stored = repositoryMocks.insertOtpCode.mock.calls[0][1] as string;
+    expect(stored).not.toContain(code);
+    expect(verifyOtpCode(code, stored)).toBe(true);
+  });
+});
+
+describe("verifyOtp — uso único com corrida", () => {
+  it("se outra requisição consumiu o código primeiro, a segunda falha", async () => {
+    repositoryMocks.findLatestOtpForEmail.mockResolvedValue(makeRecord());
+    repositoryMocks.markOtpConsumed.mockResolvedValue(false);
+
+    await expect(verifyOtp(EMAIL, "123456")).rejects.toBeInstanceOf(OtpInvalidError);
   });
 });

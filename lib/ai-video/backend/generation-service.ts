@@ -13,9 +13,10 @@ import {
 import { economicsForCredits, providerCostUsd, retryCreditCost } from "../pricing";
 import { OverlayValidationError, validateOverlays, type AiVideoOverlay } from "../overlays";
 import { getActiveModelPricing, getActivePricingConfig, listModelPricing } from "./pricing-repository";
-import { applyWalletMovement, ensureWallet, getWallet, grantWelcomeBonusOnce, type WalletRecord } from "./wallet-repository";
+import { applyWalletMovement, consumeDeliveredGeneration, ensureWallet, getWallet, grantWelcomeBonusOnce, type WalletRecord } from "./wallet-repository";
 import {
   claimGeneration,
+  claimRecoverableGeneration,
   countActiveGenerations,
   countGenerationsSince,
   countRetriesOf,
@@ -292,7 +293,7 @@ export async function createGeneration(
   }
 
   const { created, generation } = await insertGenerationOnce({ ...base, status: "CREATED" });
-  if (!created) return generation;
+  if (!created) return (await recoverCompletedProviderResult(generation, now)) ?? generation;
 
   const reserve = await applyWalletMovement({
     userId,
@@ -485,15 +486,20 @@ async function finalizeGeneration(generation: AiVideoGenerationRecord, lockToken
   const grossProfitBrl = generation.revenueAllocatedBrl * netFactor - generation.estimatedCostBrl - postprocessCost;
 
   // Consome PRIMEIRO (idempotente pela referência) — mesmo raciocínio da devolução.
-  await applyWalletMovement({
+  const consume = await consumeDeliveredGeneration({
     userId: generation.userId,
-    type: "CONSUME",
-    availableDelta: 0,
-    reservedDelta: -generation.creditCost,
+    credits: generation.creditCost,
     referenceType: "ai_video_generation",
     referenceId: generation.id,
     description: `Vídeo de ${generation.durationSeconds}s gerado`,
   });
+  if (consume.unrecovered > 0) {
+    console.warn("[ai-video] recuperação entregou vídeo com créditos já usados", {
+      generationId: generation.id,
+      userId: generation.userId,
+      unrecoveredCredits: consume.unrecovered,
+    });
+  }
   await updateGeneration(
     generation.id,
     {
@@ -525,6 +531,72 @@ async function finalizeGeneration(generation: AiVideoGenerationRecord, lockToken
     externalTaskId: generation.externalTaskId,
     latencyMs: now.getTime() - generation.createdAt.getTime(),
   });
+}
+
+function isRecoverableLocalError(generation: AiVideoGenerationRecord): boolean {
+  return (
+    (generation.status === "FAILED" || generation.status === "REFUNDED") &&
+    generation.externalTaskId !== null &&
+    generation.storageVideoUrl === null
+  );
+}
+
+/**
+ * Recuperação de resultado: se a geração falhou/reembolsou localmente, mas
+ * ainda há externalTaskId, consulta o provedor. Se ele concluiu, não cria
+ * nova geração: baixa o resultado já pago, salva output_video_url e entrega.
+ */
+async function recoverCompletedProviderResult(generation: AiVideoGenerationRecord, now: Date): Promise<AiVideoGenerationRecord | null> {
+  if (!isRecoverableLocalError(generation)) return null;
+  const provider = getImageToVideoProvider(generation.provider);
+  if (!provider || !generation.externalTaskId) return null;
+
+  let status;
+  try {
+    status = await provider.getStatus(generation.externalTaskId);
+  } catch (error) {
+    console.warn("[ai-video] recuperação não conseguiu consultar provedor", {
+      generationId: generation.id,
+      provider: generation.provider,
+      message: (error as Error)?.message,
+    });
+    return null;
+  }
+  if (status.state !== "SUCCEEDED") return null;
+
+  const outputUrl = status.outputUrls[0];
+  if (!outputUrl) return null;
+
+  const lockToken = randomUUID();
+  const claimed = await claimRecoverableGeneration(generation.id, lockToken, now);
+  if (!claimed) return getGenerationById(generation.id);
+  await updateGeneration(
+    generation.id,
+    {
+      status: "AI_COMPLETED",
+      outputVideoUrl: outputUrl,
+      nextCheckAt: now,
+      errorKind: null,
+      errorCode: null,
+      errorMessage: null,
+      providerCharged: true,
+      providerActualCostUsd: generation.providerEstimatedCostUsd,
+    },
+    lockToken,
+  );
+
+  const reclaimed = await claimGeneration(generation.id, lockToken, now);
+  if (reclaimed) await finalizeGeneration(reclaimed, lockToken, now);
+
+  const recovered = await getGenerationById(generation.id);
+  console.info("[ai-video] resultado recuperado do provedor", {
+    generationId: generation.id,
+    userId: generation.userId,
+    provider: generation.provider,
+    externalTaskId: generation.externalTaskId,
+    status: recovered?.status,
+  });
+  return recovered;
 }
 
 /** Um passo da máquina de estados — chamado com o lock da geração já obtido. */
@@ -668,7 +740,9 @@ export async function refreshGenerationForUser(id: string, userId: string, now: 
   const lockToken = randomUUID();
   const claimed = await claimGeneration(id, lockToken, now);
   if (claimed) await advanceGeneration(claimed, lockToken, now);
-  return getGenerationForUser(id, userId);
+  const latest = await getGenerationForUser(id, userId);
+  if (!latest) return null;
+  return (await recoverCompletedProviderResult(latest, now)) ?? latest;
 }
 
 export interface AiVideoCronResult {

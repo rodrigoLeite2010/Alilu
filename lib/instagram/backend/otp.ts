@@ -7,9 +7,19 @@ import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
  */
 
 export const OTP_CODE_LENGTH = 6;
-export const OTP_EXPIRY_MINUTES = 10;
+function readPositiveInt(raw: string | undefined, fallback: number, max: number): number {
+  const value = Number(raw);
+  return Number.isInteger(value) && value > 0 && value <= max ? value : fallback;
+}
+
+/** Validade do código (LOGIN_CODE_EXPIRATION_MINUTES, padrão 10). */
+export const OTP_EXPIRY_MINUTES = readPositiveInt(process.env.LOGIN_CODE_EXPIRATION_MINUTES, 10, 60);
 export const OTP_MAX_ATTEMPTS = 5;
 export const OTP_MAX_REQUESTS_PER_HOUR = 5;
+/** Intervalo mínimo entre dois envios para o mesmo e-mail. */
+export const OTP_RESEND_COOLDOWN_SECONDS = 60;
+/** Pedidos de código por IP por hora (barra varredura de muitos e-mails). */
+export const OTP_MAX_REQUESTS_PER_IP_PER_HOUR = 20;
 
 /** Gera um código numérico de OTP_CODE_LENGTH dígitos, sempre com zeros à esquerda. */
 export function generateOtpCode(): string {

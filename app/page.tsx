@@ -12,6 +12,7 @@ import { PdfHighlight } from "@/components/home/PdfHighlight";
 import { VideoHighlight } from "@/components/home/VideoHighlight";
 import { BenefitsSection } from "@/components/home/BenefitsSection";
 import { HomeCTA } from "@/components/home/HomeCTA";
+import { AgendaHomeCard } from "@/components/agenda/AgendaHomeCard";
 
 export const metadata: Metadata = buildPageMetadata({
   title: "Alilu — Ferramentas Online Grátis: PDF, Financeiro e Instagram",
@@ -49,6 +50,9 @@ export default function HomePage() {
         />
         <CategoryGrid />
       </Container>
+
+      {/* Só aparece para quem está logado (busca no navegador — a home continua estática). */}
+      <AgendaHomeCard />
 
       <FeaturedTools />
       <InstagramHighlight />

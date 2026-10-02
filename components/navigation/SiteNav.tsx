@@ -56,6 +56,9 @@ const videosCategoryLink: NavigationLink = {
   icon: VIDEOS_CATEGORY.icon,
 };
 
+// Agenda pessoal (/agenda) — compromissos com lembrete por e-mail.
+const agendaLink: NavigationLink = { href: "/agenda", label: "Agenda", icon: "calendar" };
+
 function isActiveLink(pathname: string, href: string) {
   if (href === "/" || href === "/utilitarios") {
     return pathname === href;
@@ -238,6 +241,7 @@ function NavigationList({
         <InstagramSubLinks pathname={pathname} onNavigate={onNavigate} />
         <NavigationItem link={lotteriesCategoryLink} pathname={pathname} onNavigate={onNavigate} />
         <NavigationItem link={videosCategoryLink} pathname={pathname} onNavigate={onNavigate} />
+        <NavigationItem link={agendaLink} pathname={pathname} onNavigate={onNavigate} />
         {categoryLinks.map((link) => (
           <NavigationItem
             key={link.href}

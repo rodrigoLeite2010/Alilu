@@ -1,15 +1,19 @@
 import "server-only";
 import {
   countRecentOtpRequests,
+  countRecentOtpRequestsByIp,
   findLatestOtpForEmail,
   incrementOtpAttempts,
   insertOtpCode,
+  invalidateActiveOtps,
   markOtpConsumed,
 } from "./otp-repository";
 import {
   OTP_EXPIRY_MINUTES,
   OTP_MAX_ATTEMPTS,
   OTP_MAX_REQUESTS_PER_HOUR,
+  OTP_MAX_REQUESTS_PER_IP_PER_HOUR,
+  OTP_RESEND_COOLDOWN_SECONDS,
   generateOtpCode,
   hashOtpCode,
   normalizeEmail,
@@ -27,8 +31,15 @@ export class OtpInvalidError extends Error {}
 export class OtpExpiredError extends Error {}
 export class OtpTooManyAttemptsError extends Error {}
 
-export async function requestOtp(rawEmail: string): Promise<{ code: string }> {
+export async function requestOtp(rawEmail: string, options: { ip?: string | null } = {}): Promise<{ code: string }> {
   const email = normalizeEmail(rawEmail);
+  const ip = options.ip?.trim() || null;
+
+  // 1 envio a cada 60 s por e-mail.
+  const latest = await findLatestOtpForEmail(email);
+  if (latest?.createdAt && Date.now() - latest.createdAt.getTime() < OTP_RESEND_COOLDOWN_SECONDS * 1000) {
+    throw new OtpRateLimitError("Aguarde um minuto antes de pedir um novo código.");
+  }
 
   const recentCount = await countRecentOtpRequests(email, 60);
   if (recentCount >= OTP_MAX_REQUESTS_PER_HOUR) {
@@ -37,11 +48,17 @@ export async function requestOtp(rawEmail: string): Promise<{ code: string }> {
     );
   }
 
+  if (ip && (await countRecentOtpRequestsByIp(ip, 60)) >= OTP_MAX_REQUESTS_PER_IP_PER_HOUR) {
+    throw new OtpRateLimitError("Muitos pedidos de código a partir desta conexão. Tente novamente mais tarde.");
+  }
+
   const code = generateOtpCode();
   const codeHash = hashOtpCode(code);
   const expiresAt = new Date(Date.now() + OTP_EXPIRY_MINUTES * 60_000);
 
-  await insertOtpCode(email, codeHash, expiresAt);
+  // Novo código: os anteriores ainda ativos deixam de valer.
+  await invalidateActiveOtps(email);
+  await insertOtpCode(email, codeHash, expiresAt, ip);
 
   return { code };
 }
@@ -69,5 +86,8 @@ export async function verifyOtp(rawEmail: string, submittedCode: string): Promis
     throw new OtpInvalidError("Código incorreto.");
   }
 
-  await markOtpConsumed(record.id);
+  const consumed = await markOtpConsumed(record.id);
+  if (consumed === false) {
+    throw new OtpInvalidError("Este código já foi usado. Peça um novo código.");
+  }
 }

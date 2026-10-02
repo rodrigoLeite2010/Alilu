@@ -124,6 +124,61 @@ describe("checkout", () => {
   });
 });
 
+describe("carteira de geração recuperada", () => {
+  it("consome do reservado ou, após reembolso local, debita do disponível sem duplicar", async () => {
+    const userId = await seedUser("rec");
+    await wallet.applyWalletMovement({
+      userId,
+      type: "ADMIN_ADJUSTMENT",
+      availableDelta: 100,
+      reservedDelta: 0,
+      referenceType: "seed",
+      referenceId: userId,
+      description: "seed",
+    });
+    await wallet.applyWalletMovement({
+      userId,
+      type: "RESERVE",
+      availableDelta: -65,
+      reservedDelta: 65,
+      referenceType: "ai_video_generation",
+      referenceId: "gen-rec",
+      description: "Reserva",
+    });
+    await wallet.applyWalletMovement({
+      userId,
+      type: "REFUND",
+      availableDelta: 65,
+      reservedDelta: -65,
+      referenceType: "ai_video_generation",
+      referenceId: "gen-rec",
+      description: "Devolução",
+    });
+
+    const consumed = await wallet.consumeDeliveredGeneration({
+      userId,
+      credits: 65,
+      referenceType: "ai_video_generation",
+      referenceId: "gen-rec",
+      description: "Vídeo recuperado",
+    });
+    const duplicate = await wallet.consumeDeliveredGeneration({
+      userId,
+      credits: 65,
+      referenceType: "ai_video_generation",
+      referenceId: "gen-rec",
+      description: "Vídeo recuperado",
+    });
+
+    expect(consumed).toMatchObject({ status: "applied", unrecovered: 0 });
+    expect(duplicate.status).toBe("duplicate");
+    expect(await wallet.getWallet(userId)).toMatchObject({ available: 35, reserved: 0, unrecoveredCredits: 0 });
+    const rows = await db.sql`select type, amount, reserved_delta from ai_credit_transactions where user_id = ${userId} order by created_at, id`;
+    expect(rows.map((row) => row.type)).toEqual(["ADMIN_ADJUSTMENT", "RESERVE", "REFUND", "CONSUME"]);
+    expect(rows.at(-1)).toMatchObject({ amount: -65, reserved_delta: 0 });
+  });
+});
+
 describe("Webhook", () => {
   it("credita só com pagamento confirmado no Asaas, uma única vez (reentrega e RECEIVED depois de CONFIRMED)", async () => {
     const userId = await seedUser();

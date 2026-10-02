@@ -306,6 +306,27 @@ describe("geração", () => {
     expect(await balance(userId)).toEqual({ available: 100, reserved: 0 });
   });
 
+  it("recupera resultado já pago: erro local com externalTaskId consulta provedor e entrega sem criar nova geração", async () => {
+    const userId = await seedUser(100);
+    const generation = await service.createGeneration(userId, input(userId), T0);
+
+    const timedOut = await service.refreshGenerationForUser(generation.id, userId, at(31 * 60_000));
+    expect(timedOut?.status).toBe("REFUNDED");
+    expect(await balance(userId)).toEqual({ available: 100, reserved: 0 });
+
+    provider.getStatus.mockResolvedValueOnce(status({ state: "SUCCEEDED", outputUrls: ["https://cdn.example.com/recovered.mp4"] }));
+    const recovered = await service.refreshGenerationForUser(generation.id, userId, at(32 * 60_000));
+
+    expect(recovered?.id).toBe(generation.id);
+    expect(recovered?.status).toBe("COMPLETED");
+    expect(recovered?.outputVideoUrl).toBe("https://cdn.example.com/recovered.mp4");
+    expect(recovered?.storageVideoUrl).toContain("vercel-storage.com");
+    expect(provider.create).toHaveBeenCalledTimes(1);
+    expect(blobPut).toHaveBeenCalledTimes(1);
+    expect(await balance(userId)).toEqual({ available: 0, reserved: 0 });
+    expect(await ledgerTypes(userId)).toEqual(["ADMIN_ADJUSTMENT", "RESERVE", "REFUND", "CONSUME"]);
+  });
+
   it("vídeo pronto mas download falhando: tenta de novo e, esgotadas as tentativas, devolve e registra o custo do provedor", async () => {
     const userId = await seedUser(100);
     const generation = await service.createGeneration(userId, input(userId), T0);
