@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { prepareImageForUpload } from "@/lib/ai-video/prepare-image";
 import { useRouter } from "next/navigation";
 import { uploadPresigned } from "@vercel/blob/client";
 import { Button, LinkButton } from "@/components/ui/Button";
@@ -128,6 +129,10 @@ export function AiVideoGenerator({
   const [available, setAvailable] = useState(initialAvailable);
   const router = useRouter();
   const [imageUrl, setImageUrl] = useState<string | null>(draft?.inputImageUrl ?? null);
+  /** Prévia local enquanto a imagem sobe (celular). */
+  const [localPreviewUrl, setLocalPreviewUrl] = useState<string | null>(null);
+  /** URL cuja prévia não carregou (mostra aviso em vez do ícone quebrado). */
+  const [failedPreviewUrl, setFailedPreviewUrl] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [prompt, setPrompt] = useState(draft?.prompt ?? "");
@@ -217,19 +222,17 @@ export function AiVideoGenerator({
     return () => clearInterval(timer);
   }, [generations, inProgressKey]);
 
-  async function handleFile(file: File | null) {
-    if (!file) return;
+  async function handleFile(picked: File | null) {
+    if (!picked) return;
     setUploadError(null);
-    if (!AI_VIDEO_IMAGE_CONTENT_TYPES.includes(file.type)) {
-      setUploadError("Use uma imagem JPG, PNG ou WebP.");
-      return;
-    }
-    if (file.size > AI_VIDEO_MAX_IMAGE_BYTES) {
-      setUploadError("A imagem pode ter no máximo 16 MB.");
-      return;
-    }
     setUploading(true);
+    // Prévia imediata (no celular o upload pode levar alguns segundos).
+    const localPreview = URL.createObjectURL(picked);
+    setLocalPreviewUrl(localPreview);
     try {
+      // Celular: HEIC do iPhone, tipo vazio no Android, fotos enormes — converte no próprio navegador.
+      const file = await prepareImageForUpload(picked, AI_VIDEO_MAX_IMAGE_BYTES);
+      if (!AI_VIDEO_IMAGE_CONTENT_TYPES.includes(file.type)) throw new Error("Use uma imagem JPG, PNG ou WebP.");
       const extension = file.type === "image/png" ? "png" : file.type === "image/webp" ? "webp" : "jpg";
       const uploaded = await uploadPresigned(`ai-video/${userId}/input/${slugFileName(file.name, extension)}`, file, {
         access: "public",
@@ -241,6 +244,8 @@ export function AiVideoGenerator({
       setUploadError(err instanceof Error ? err.message : "Não foi possível enviar a imagem.");
     } finally {
       setUploading(false);
+      setLocalPreviewUrl(null);
+      URL.revokeObjectURL(localPreview);
     }
   }
 
@@ -391,9 +396,23 @@ export function AiVideoGenerator({
         <div>
           <p className="mb-2 text-sm font-medium text-zinc-800">Imagem</p>
           <div className="flex flex-wrap items-start gap-4">
-            {imageUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element -- prévia da imagem enviada (Vercel Blob).
-              <img src={imageUrl} alt="Imagem enviada" className="h-32 w-auto max-w-[200px] rounded-md border border-zinc-200 object-contain" />
+            {localPreviewUrl || imageUrl ? (
+              !localPreviewUrl && failedPreviewUrl === imageUrl ? (
+                <span className="flex h-32 w-32 items-center justify-center rounded-md border border-dashed border-zinc-300 px-2 text-center text-xs text-zinc-500">
+                  Não foi possível mostrar a imagem. Envie de novo.
+                </span>
+              ) : (
+                // eslint-disable-next-line @next/next/no-img-element -- prévia da imagem enviada (Vercel Blob) ou local, durante o envio.
+                <img
+                  key={localPreviewUrl ?? imageUrl ?? ""}
+                  src={localPreviewUrl ?? imageUrl ?? ""}
+                  alt="Imagem enviada"
+                  onError={() => {
+                    if (!localPreviewUrl) setFailedPreviewUrl(imageUrl);
+                  }}
+                  className={`h-32 w-auto max-w-[200px] rounded-md border border-zinc-200 object-contain ${localPreviewUrl ? "opacity-60" : ""}`}
+                />
+              )
             ) : null}
             <label
               className={`inline-flex min-h-11 cursor-pointer items-center rounded-md border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-800 hover:bg-zinc-50 ${retryOf ? "pointer-events-none opacity-50" : ""}`}
@@ -401,14 +420,19 @@ export function AiVideoGenerator({
               {uploading ? "Enviando…" : imageUrl ? "Trocar imagem" : "Enviar imagem"}
               <input
                 type="file"
-                accept={AI_VIDEO_IMAGE_CONTENT_TYPES.join(",")}
+                // image/* abre a galeria certa no celular; HEIC e afins são convertidos antes do envio.
+                accept="image/*"
                 className="sr-only"
                 disabled={uploading || retryOf !== null}
-                onChange={(event) => handleFile(event.target.files?.[0] ?? null)}
+                onChange={(event) => {
+                  const file = event.target.files?.[0] ?? null;
+                  event.target.value = ""; // permite escolher a mesma foto de novo
+                  void handleFile(file);
+                }}
               />
             </label>
           </div>
-          <p className="mt-1 text-xs text-zinc-500">JPG, PNG ou WebP, até 16 MB.</p>
+          <p className="mt-1 text-xs text-zinc-500">JPG, PNG, WebP ou foto do celular (convertida automaticamente).</p>
           {uploadError ? <p className="mt-1 text-sm text-red-600">{uploadError}</p> : null}
         </div>
 

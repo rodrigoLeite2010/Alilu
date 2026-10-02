@@ -11,6 +11,7 @@ import {
   type SimpleOverlayInput,
 } from "@/lib/ai-video/overlays";
 import { AI_VIDEO_IMAGE_CONTENT_TYPES, type AiVideoAspectRatio } from "@/lib/ai-video/types";
+import { prepareImageForUpload } from "@/lib/ai-video/prepare-image";
 import { slugFileName } from "./client-utils";
 
 const POSITIONS = Object.keys(OVERLAY_POSITION_LABEL) as OverlayPosition[];
@@ -63,19 +64,16 @@ export function OverlayEditor({
   const set = (patch: Partial<SimpleOverlayInput>) => onChange({ ...value, ...patch });
   const overlays: AiVideoOverlay[] = buildSimpleOverlays(value);
 
-  async function handleLogo(file: File | null) {
-    if (!file) return;
+  async function handleLogo(picked: File | null) {
+    if (!picked) return;
     setLogoError(null);
-    if (!AI_VIDEO_IMAGE_CONTENT_TYPES.includes(file.type)) {
-      setLogoError("Use um logo PNG (de preferência com fundo transparente), JPG ou WebP.");
-      return;
-    }
-    if (file.size > MAX_LOGO_BYTES) {
-      setLogoError("O logo pode ter no máximo 4 MB.");
-      return;
-    }
     setUploading(true);
     try {
+      // Celular: corrige tipo vazio/HEIC e reduz imagens grandes (mantém a transparência do PNG).
+      const file = await prepareImageForUpload(picked, MAX_LOGO_BYTES);
+      if (!AI_VIDEO_IMAGE_CONTENT_TYPES.includes(file.type)) {
+        throw new Error("Use um logo PNG (de preferência com fundo transparente), JPG ou WebP.");
+      }
       const extension = file.type === "image/png" ? "png" : file.type === "image/webp" ? "webp" : "jpg";
       const uploaded = await uploadPresigned(`ai-video/${userId}/input/logo-${slugFileName(file.name, extension)}`, file, {
         access: "public",
@@ -99,10 +97,14 @@ export function OverlayEditor({
               {uploading ? "Enviando…" : value.logoUrl ? "Trocar logo" : "Enviar logo"}
               <input
                 type="file"
-                accept={AI_VIDEO_IMAGE_CONTENT_TYPES.join(",")}
+                accept="image/*"
                 className="sr-only"
                 disabled={uploading}
-                onChange={(event) => handleLogo(event.target.files?.[0] ?? null)}
+                onChange={(event) => {
+                  const file = event.target.files?.[0] ?? null;
+                  event.target.value = "";
+                  void handleLogo(file);
+                }}
               />
             </label>
             {value.logoUrl ? (
