@@ -3,8 +3,10 @@ import {
   createAsaasCustomer,
   createAsaasPayment,
   refundAsaasPayment,
+  AsaasApiError,
   type AsaasPayment,
 } from "@/lib/billing/backend/asaas-client";
+import { SITE_URL } from "@/lib/seo/site";
 import { getBillingCustomer, saveBillingCustomer } from "@/lib/billing/backend/billing-customer-repository";
 import { getSubscriptionByUserId } from "@/lib/billing/backend/automation-subscription-repository";
 import { analyzePackage, worstCostPerCredit } from "../pricing";
@@ -55,6 +57,18 @@ export interface StartCreditCheckoutInput {
   name: string;
   cpfCnpj: string;
   email?: string;
+  /** Caminho interno para onde voltar depois de pagar (ex.: a tela de geração). Já validado na rota. */
+  returnTo?: string | null;
+  /** Custo da geração que trouxe a pessoa até aqui. */
+  requiredCredits?: number | null;
+}
+
+/** Página do Alilu para onde o Asaas manda a pessoa depois de pagar. */
+export function buildCreditSuccessUrl(purchaseId: string, returnTo?: string | null, requiredCredits?: number | null): string {
+  const params = new URLSearchParams({ pagamento: purchaseId });
+  if (returnTo && returnTo.startsWith("/") && !returnTo.startsWith("//")) params.set("voltar", returnTo);
+  if (requiredCredits && requiredCredits > 0) params.set("custo", String(Math.round(requiredCredits)));
+  return `${SITE_URL.replace(/\/$/, "")}/minha-conta/creditos-ia?${params}`;
 }
 
 async function resolveAsaasCustomerId(userId: string, input: StartCreditCheckoutInput): Promise<string> {
@@ -111,13 +125,29 @@ export async function startCreditCheckout(
     bonusCredits: pkg.bonusCredits,
     priceCents: pkg.priceCents,
   });
-  const payment = await createAsaasPayment({
+  const paymentInput = {
     customerId,
     value: pkg.priceCents / 100,
     dueDate: dueDateStr(now),
     description: `Alilu - ${pkg.credits + pkg.bonusCredits} créditos de IA (${pkg.name})`,
     externalReference: purchase.id,
-  });
+  };
+  let payment;
+  try {
+    payment = await createAsaasPayment({
+      ...paymentInput,
+      callback: { successUrl: buildCreditSuccessUrl(purchase.id, input.returnTo, input.requiredCredits), autoRedirect: true },
+    });
+  } catch (error) {
+    // Domínio da successUrl ainda não cadastrado no Asaas (Minha Conta › Informações):
+    // não trava a venda — cria sem o retorno automático e avisa no log.
+    if (!(error instanceof AsaasApiError) || error.status !== 400) throw error;
+    console.warn("[ai-video] Asaas recusou o callback de retorno; criando cobrança sem redirecionamento", {
+      purchaseId: purchase.id,
+      message: error.message.slice(0, 200),
+    });
+    payment = await createAsaasPayment(paymentInput);
+  }
   await attachAsaasPayment(purchase.id, payment.id, payment.invoiceUrl);
   if (!payment.invoiceUrl) throw new CreditPurchaseError("Não foi possível gerar o link de pagamento agora. Tente novamente.", 502);
 

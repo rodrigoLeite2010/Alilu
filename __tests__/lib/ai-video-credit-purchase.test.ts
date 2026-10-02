@@ -105,6 +105,45 @@ describe("checkout", () => {
     expect(await purchases.hasBillingCustomer(userId)).toBe(true);
   });
 
+  it("pede ao Asaas para voltar ao Alilu depois de pagar (callback.successUrl com a compra e a tela de origem)", async () => {
+    const userId = await seedUser();
+    let sentBody: Record<string, unknown> | null = null;
+    const original = routes["POST /payments"];
+    routes["POST /payments"] = (body) => {
+      sentBody = body;
+      return original(body);
+    };
+    const result = await purchases.startCreditCheckout(
+      userId,
+      { packageCode: "BASICO", name: "Maria Teste", cpfCnpj: "529.982.247-25", returnTo: "/videos/imagem-para-video", requiredCredits: 50 },
+      T0,
+    );
+    const callback = (sentBody as unknown as { callback: { successUrl: string; autoRedirect: boolean } }).callback;
+    expect(callback.autoRedirect).toBe(true);
+    const url = new URL(callback.successUrl);
+    expect(url.pathname).toBe("/minha-conta/creditos-ia");
+    expect(url.searchParams.get("pagamento")).toBe(result.purchaseId);
+    expect(url.searchParams.get("voltar")).toBe("/videos/imagem-para-video");
+    expect(url.searchParams.get("custo")).toBe("50");
+  });
+
+  it("se o Asaas recusar o callback (domínio não cadastrado), cria a cobrança sem ele em vez de travar a compra", async () => {
+    const userId = await seedUser();
+    const original = routes["POST /payments"];
+    routes["POST /payments"] = (body) =>
+      body?.callback ? { status: 400, body: { errors: [{ code: "invalid_callback", description: "O domínio da URL de sucesso não está cadastrado." }] } } : original(body);
+    vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const result = await checkout(userId);
+    expect(result.checkoutUrl).toBe("https://sandbox.asaas.com/i/1");
+    expect(calls.filter((call) => call === "POST /payments")).toHaveLength(2);
+  });
+
+  it("nunca monta successUrl apontando para fora do site", () => {
+    const url = new URL(purchases.buildCreditSuccessUrl("p1", "//evil.com/x", null));
+    expect(url.searchParams.get("voltar")).toBeNull();
+    expect(url.pathname).toBe("/minha-conta/creditos-ia");
+  });
+
   it("reaproveita a cobrança pendente e o cliente já criado", async () => {
     const userId = await seedUser();
     const first = await checkout(userId);

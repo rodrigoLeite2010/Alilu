@@ -23,6 +23,9 @@ export async function POST(request: Request): Promise<NextResponse> {
       name: typeof body.name === "string" ? body.name : "",
       cpfCnpj: typeof body.cpfCnpj === "string" ? body.cpfCnpj : "",
       email: typeof body.email === "string" ? body.email : undefined,
+      // Só caminhos internos (nunca redireciona para fora do site).
+      returnTo: typeof body.returnTo === "string" && body.returnTo.startsWith("/") && !body.returnTo.startsWith("//") ? body.returnTo.slice(0, 500) : null,
+      requiredCredits: Number.isFinite(Number(body.requiredCredits)) ? Number(body.requiredCredits) : null,
     });
     return NextResponse.json(result);
   } catch (error) {

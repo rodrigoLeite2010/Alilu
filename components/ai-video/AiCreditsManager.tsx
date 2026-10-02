@@ -64,6 +64,7 @@ export function AiCreditsManager({
   returnTo,
   requiredCredits,
   refundWindowDays,
+  returnedFromPayment = false,
 }: {
   initialAvailable: number;
   initialReserved: number;
@@ -76,6 +77,8 @@ export function AiCreditsManager({
   /** Custo da geração que levou a pessoa até aqui (para saber quando já dá para voltar). */
   requiredCredits: number | null;
   refundWindowDays: number;
+  /** Chegou aqui de volta do checkout do Asaas (?pagamento=…). */
+  returnedFromPayment?: boolean;
 }) {
   const router = useRouter();
   const [available, setAvailable] = useState(initialAvailable);
@@ -89,7 +92,11 @@ export function AiCreditsManager({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [refundTarget, setRefundTarget] = useState<CreditPurchaseDto | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(
+    returnedFromPayment ? "Pagamento enviado! Assim que o Asaas confirmar, seus créditos aparecem aqui sozinhos — normalmente em poucos segundos no Pix e no cartão." : null,
+  );
+  /** Link do checkout quando o navegador bloqueou a nova aba. */
+  const [blockedCheckoutUrl, setBlockedCheckoutUrl] = useState<string | null>(null);
   const hasPending = purchases.some((purchase) => purchase.status === "PENDING");
   const readyToReturn = returnTo !== null && requiredCredits !== null && requiredCredits > 0 && available >= requiredCredits;
   const needed = requiredCredits ? Math.max(0, requiredCredits - available) : 0;
@@ -128,19 +135,43 @@ export function AiCreditsManager({
     }
   }, [readyToReturn, returnTo, router]);
 
+  /**
+   * O checkout do Asaas abre em NOVA ABA — o Alilu continua aberto aqui e
+   * acompanha a confirmação sozinho. A aba é aberta já no clique (antes do
+   * fetch), senão o navegador bloqueia o pop-up; depois recebe o endereço.
+   */
   async function startCheckout(pkg: CreditPackageDto) {
     setBusy(true);
     setError(null);
+    setBlockedCheckoutUrl(null);
+    const tab = typeof window !== "undefined" ? window.open("", "_blank") : null;
+    if (tab) {
+      try {
+        tab.document.title = "Abrindo pagamento…";
+        tab.document.body.innerHTML = '<p style="font-family:sans-serif;padding:24px">Abrindo o pagamento seguro do Asaas…</p>';
+      } catch {
+        // aba de outra origem/política do navegador: só segue
+      }
+    }
     try {
       const response = await fetch("/api/ai-video/credits/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ packageCode: pkg.code, name, cpfCnpj, email: email || undefined }),
+        body: JSON.stringify({ packageCode: pkg.code, name, cpfCnpj, email: email || undefined, returnTo, requiredCredits }),
       });
       if (!response.ok) throw new Error(await readErrorMessage(response, "Não foi possível iniciar o pagamento."));
       const payload = (await response.json()) as { checkoutUrl: string };
-      window.location.assign(payload.checkoutUrl);
+      if (tab && !tab.closed) {
+        tab.opener = null;
+        tab.location.href = payload.checkoutUrl;
+        setNotice("O pagamento abriu em uma nova aba. Pode pagar lá — esta página atualiza o saldo sozinha quando o pagamento for confirmado.");
+      } else {
+        setBlockedCheckoutUrl(payload.checkoutUrl);
+      }
+      setCheckoutPackage(null);
+      await refresh();
     } catch (err) {
+      if (tab && !tab.closed) tab.close();
       setError(err instanceof Error ? err.message : "Não foi possível iniciar o pagamento.");
     } finally {
       setBusy(false);
@@ -216,6 +247,15 @@ export function AiCreditsManager({
           {error}
         </p>
       ) : null}
+      {blockedCheckoutUrl ? (
+        <div role="status" className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+          O navegador bloqueou a nova aba.{" "}
+          <a href={blockedCheckoutUrl} target="_blank" rel="noopener noreferrer" className="font-semibold underline" onClick={() => setBlockedCheckoutUrl(null)}>
+            Abrir o pagamento
+          </a>{" "}
+          — esta página continua aberta e atualiza o saldo sozinha.
+        </div>
+      ) : null}
       {notice ? (
         <p role="status" className="rounded-md bg-teal-50 px-3 py-2 text-sm text-teal-800">
           {notice}
@@ -263,7 +303,7 @@ export function AiCreditsManager({
                 <span className="flex items-center gap-2">
                   <Badge tone={PURCHASE_STATUS[purchase.status].tone}>{PURCHASE_STATUS[purchase.status].label}</Badge>
                   {purchase.status === "PENDING" && purchase.invoiceUrl ? (
-                    <LinkButton href={purchase.invoiceUrl} variant="ghost">
+                    <LinkButton href={purchase.invoiceUrl} variant="ghost" target="_blank" rel="noopener noreferrer">
                       Pagar
                     </LinkButton>
                   ) : null}

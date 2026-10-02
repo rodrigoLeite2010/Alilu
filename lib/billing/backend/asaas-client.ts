@@ -241,6 +241,13 @@ export interface AsaasOneTimePaymentInput {
   description?: string;
   /** Liga a cobrança de volta à compra local (ai_credit_purchases.id). */
   externalReference?: string;
+  /**
+   * Volta para o site depois de pagar (docs.asaas.com › "Redirecionamento após
+   * o pagamento"): a successUrl precisa ser do domínio cadastrado em Minha
+   * Conta › Informações (dados comerciais). Pix/cartão: redireciona sozinho
+   * depois de ~5 s; boleto: mostra o botão "Ir para o site".
+   */
+  callback?: { successUrl: string; autoRedirect: boolean };
 }
 
 export interface AsaasOneTimePayment {
@@ -266,6 +273,7 @@ export async function createAsaasPayment(input: AsaasOneTimePaymentInput): Promi
       dueDate: input.dueDate,
       description: input.description,
       externalReference: input.externalReference,
+      ...(input.callback ? { callback: input.callback } : {}),
     },
   });
   return { id: result.id, status: result.status, invoiceUrl: typeof result.invoiceUrl === "string" ? result.invoiceUrl : null };

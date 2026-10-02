@@ -19,7 +19,7 @@ export const metadata: Metadata = {
 };
 
 interface PageProps {
-  searchParams: Promise<{ voltar?: string; custo?: string }>;
+  searchParams: Promise<{ voltar?: string; custo?: string; pagamento?: string }>;
 }
 
 /** Só caminhos internos — nunca redireciona para fora do site. */
@@ -88,6 +88,7 @@ export default async function AiCreditsPage({ searchParams }: PageProps) {
           returnTo={returnTo}
           requiredCredits={Number.isFinite(required) && required > 0 ? Math.round(required) : null}
           refundWindowDays={config.purchaseRefundWindowDays}
+          returnedFromPayment={typeof params.pagamento === "string" && params.pagamento.length > 0}
         />
       </div>
     </Container>
