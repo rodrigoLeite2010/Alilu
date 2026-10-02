@@ -112,6 +112,22 @@ function inProgressMessage(generation: AiVideoGenerationClientDto, nowMs: number
  * rascunho no servidor e leva para a compra, voltando depois com tudo
  * preenchido.
  */
+function withTimeout<T>(promise: Promise<T>, ms: number, message: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(message)), ms);
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (error: unknown) => {
+        clearTimeout(timer);
+        reject(error);
+      },
+    );
+  });
+}
+
 export function AiVideoGenerator({
   userId,
   initialAvailable,
@@ -131,6 +147,7 @@ export function AiVideoGenerator({
   const [imageUrl, setImageUrl] = useState<string | null>(draft?.inputImageUrl ?? null);
   /** Prévia local enquanto a imagem sobe (celular). */
   const [localPreviewUrl, setLocalPreviewUrl] = useState<string | null>(null);
+  const [uploadStage, setUploadStage] = useState<string | null>(null);
   /** URL cuja prévia não carregou (mostra aviso em vez do ícone quebrado). */
   const [failedPreviewUrl, setFailedPreviewUrl] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -226,26 +243,46 @@ export function AiVideoGenerator({
     if (!picked) return;
     setUploadError(null);
     setUploading(true);
-    // Prévia imediata (no celular o upload pode levar alguns segundos).
-    const localPreview = URL.createObjectURL(picked);
-    setLocalPreviewUrl(localPreview);
+    setUploadStage("Preparando a foto…");
+    let stage = "preparo";
+    let localPreview: string | null = null;
     try {
       // Celular: HEIC do iPhone, tipo vazio no Android, fotos enormes — converte no próprio navegador.
-      const file = await prepareImageForUpload(picked, AI_VIDEO_MAX_IMAGE_BYTES);
+      const file = await withTimeout(prepareImageForUpload(picked, AI_VIDEO_MAX_IMAGE_BYTES), 30_000, "A foto demorou demais para abrir. Se ela estiver só na nuvem (Google Fotos/iCloud), baixe para o celular e tente de novo.");
       if (!AI_VIDEO_IMAGE_CONTENT_TYPES.includes(file.type)) throw new Error("Use uma imagem JPG, PNG ou WebP.");
+      // Prévia só do arquivo já preparado (sempre um formato que o navegador mostra).
+      localPreview = URL.createObjectURL(file);
+      setLocalPreviewUrl(localPreview);
+      stage = "envio";
+      setUploadStage("Enviando… 0%");
       const extension = file.type === "image/png" ? "png" : file.type === "image/webp" ? "webp" : "jpg";
-      const uploaded = await uploadPresigned(`ai-video/${userId}/input/${slugFileName(file.name, extension)}`, file, {
-        access: "public",
-        handleUploadUrl: "/api/ai-video/upload",
-      });
+      const uploaded = await withTimeout(
+        uploadPresigned(`ai-video/${userId}/input/${slugFileName(file.name, extension)}`, file, {
+          access: "public",
+          handleUploadUrl: "/api/ai-video/upload",
+          onUploadProgress: ({ percentage }) => setUploadStage(`Enviando… ${Math.round(percentage)}%`),
+        }),
+        180_000,
+        "O envio demorou demais. Confira a conexão (Wi-Fi/4G) e tente de novo.",
+      );
       setImageUrl(uploaded.url);
+      setFailedPreviewUrl(null);
       idempotencyKeyRef.current = newIdempotencyKey();
     } catch (err) {
-      setUploadError(err instanceof Error ? err.message : "Não foi possível enviar a imagem.");
+      const message = err instanceof Error ? err.message : "Não foi possível enviar a imagem.";
+      const ext = picked.name.includes(".") ? picked.name.split(".").pop()?.toLowerCase() ?? "" : "";
+      // Detalhe técnico curto: ajuda a entender o problema pelo print da tela.
+      setUploadError(`${message} (etapa: ${stage} · tipo: ${picked.type || "desconhecido"} · ${(picked.size / 1024 / 1024).toFixed(1)} MB)`);
+      void fetch("/api/ai-video/upload-diagnostic", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ stage, message, fileType: picked.type, fileSize: picked.size, fileExt: ext }),
+      }).catch(() => undefined);
     } finally {
       setUploading(false);
+      setUploadStage(null);
       setLocalPreviewUrl(null);
-      URL.revokeObjectURL(localPreview);
+      if (localPreview) URL.revokeObjectURL(localPreview);
     }
   }
 
@@ -417,7 +454,7 @@ export function AiVideoGenerator({
             <label
               className={`inline-flex min-h-11 cursor-pointer items-center rounded-md border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-800 hover:bg-zinc-50 ${retryOf ? "pointer-events-none opacity-50" : ""}`}
             >
-              {uploading ? "Enviando…" : imageUrl ? "Trocar imagem" : "Enviar imagem"}
+              {uploading ? (uploadStage ?? "Enviando…") : imageUrl ? "Trocar imagem" : "Enviar imagem"}
               <input
                 type="file"
                 // image/* abre a galeria certa no celular; HEIC e afins são convertidos antes do envio.
@@ -425,9 +462,12 @@ export function AiVideoGenerator({
                 className="sr-only"
                 disabled={uploading || retryOf !== null}
                 onChange={(event) => {
-                  const file = event.target.files?.[0] ?? null;
-                  event.target.value = ""; // permite escolher a mesma foto de novo
-                  void handleFile(file);
+                  const input = event.currentTarget;
+                  const file = input.files?.[0] ?? null;
+                  // Limpa só DEPOIS de ler a foto: em alguns Androids, limpar antes invalida o arquivo.
+                  void handleFile(file).finally(() => {
+                    input.value = "";
+                  });
                 }}
               />
             </label>

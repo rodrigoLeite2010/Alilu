@@ -101,9 +101,11 @@ export function OverlayEditor({
                 className="sr-only"
                 disabled={uploading}
                 onChange={(event) => {
-                  const file = event.target.files?.[0] ?? null;
-                  event.target.value = "";
-                  void handleLogo(file);
+                  const input = event.currentTarget;
+                  const file = input.files?.[0] ?? null;
+                  void handleLogo(file).finally(() => {
+                    input.value = "";
+                  });
                 }}
               />
             </label>
