@@ -18,6 +18,8 @@ import {
   claimGeneration,
   claimGenerationNow,
   claimRecoverableGeneration,
+  deferRecoveryCheck,
+  listRecoverableGenerations,
   countActiveGenerations,
   countGenerationsSince,
   countRetriesOf,
@@ -72,6 +74,9 @@ const POLL_INTERVAL_MS = 10_000;
 const THROTTLED_POLL_INTERVAL_MS = 30_000;
 /** Depois disso sem terminar, vira falha técnica com devolução dos créditos. */
 const MAX_PROCESSING_MS = 30 * 60 * 1000;
+/** Recuperação de resultado já pago: janela e intervalo entre tentativas. */
+const RECOVERY_WINDOW_DAYS = 7;
+const RECOVERY_RECHECK_MS = 30 * 60 * 1000;
 
 function startOfUtcDay(now: Date): Date {
   return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
@@ -534,11 +539,14 @@ async function finalizeGeneration(generation: AiVideoGenerationRecord, lockToken
   });
 }
 
+/** Só falha TÉCNICA (prazo, erro de consulta, falha do serviço) — moderação/imagem inválida não são recuperadas. */
 function isRecoverableLocalError(generation: AiVideoGenerationRecord): boolean {
   return (
     (generation.status === "FAILED" || generation.status === "REFUNDED") &&
     generation.externalTaskId !== null &&
-    generation.storageVideoUrl === null
+    generation.storageVideoUrl === null &&
+    generation.errorKind === "TECHNICAL_ERROR" &&
+    generation.errorCode !== "MODERATION"
   );
 }
 
@@ -561,12 +569,15 @@ async function recoverCompletedProviderResult(generation: AiVideoGenerationRecor
       provider: generation.provider,
       message: (error as Error)?.message,
     });
+    await deferRecoveryCheck(generation.id, new Date(now.getTime() + RECOVERY_RECHECK_MS));
     return null;
   }
-  if (status.state !== "SUCCEEDED") return null;
-
-  const outputUrl = status.outputUrls[0];
-  if (!outputUrl) return null;
+  const outputUrl = status.state === "SUCCEEDED" ? status.outputUrls[0] : undefined;
+  if (!outputUrl) {
+    // Ainda não (ou falhou de verdade): não consulta de novo a cada tela/cron.
+    await deferRecoveryCheck(generation.id, new Date(now.getTime() + RECOVERY_RECHECK_MS));
+    return null;
+  }
 
   const lockToken = randomUUID();
   const claimed = await claimRecoverableGeneration(generation.id, lockToken, now);
@@ -669,6 +680,18 @@ export async function advanceGeneration(generation: AiVideoGenerationRecord, loc
 
   const submittedAt = generation.submittedAt ?? generation.createdAt;
   if (now.getTime() - submittedAt.getTime() > MAX_PROCESSING_MS) {
+    // Última consulta antes de desistir: se o provedor terminou (e cobrou), entrega.
+    try {
+      const last = await provider.getStatus(generation.externalTaskId);
+      if (last.state === "SUCCEEDED" && last.outputUrls[0]) {
+        await updateGeneration(generation.id, { status: "AI_COMPLETED", outputVideoUrl: last.outputUrls[0], nextCheckAt: now }, lockToken);
+        const reclaimed = await claimGeneration(generation.id, lockToken, now);
+        if (reclaimed) await finalizeGeneration(reclaimed, lockToken, now);
+        return;
+      }
+    } catch {
+      // sem resposta: segue para o prazo esgotado (a recuperação automática ainda tenta depois)
+    }
     await provider.cancel(generation.externalTaskId);
     await refundGeneration(generation, lockToken, now, {
       kind: "TECHNICAL_ERROR",
@@ -752,12 +775,17 @@ export async function refreshGenerationForUser(
   if (claimed) await advanceGeneration(claimed, lockToken, now);
   const latest = await getGenerationForUser(id, userId);
   if (!latest) return null;
+  // Recuperação só para o que JÁ estava como falha antes desta consulta
+  // (acabou de falhar agora = o provedor acabou de ser consultado).
+  if (!isRecoverableLocalError(generation)) return latest;
+  if (generation.nextCheckAt && generation.nextCheckAt > now && !options.forceProviderCheck) return latest;
   return (await recoverCompletedProviderResult(latest, now)) ?? latest;
 }
 
 export interface AiVideoCronResult {
   processed: number;
   expired: number;
+  recovered: number;
 }
 
 /** Cron: avança as gerações em andamento e aplica a retenção dos vídeos guardados. */
@@ -782,6 +810,21 @@ export async function runAiVideoCron(options: { now?: () => Date; limit?: number
     }
   }
 
+  // Recuperação: vídeos que o provedor gerou (e cobrou) mas que ficaram como
+  // falha técnica aqui — busca o resultado e entrega, sem nova geração.
+  let recovered = 0;
+  if (Date.now() - startedAt <= budget) {
+    for (const generation of await listRecoverableGenerations(now(), RECOVERY_WINDOW_DAYS, 10)) {
+      if (Date.now() - startedAt > budget) break;
+      try {
+        const result = await recoverCompletedProviderResult(generation, now());
+        if (result?.status === "COMPLETED") recovered += 1;
+      } catch (error) {
+        console.error("[ai-video] falha ao recuperar resultado", { generationId: generation.id, message: (error as Error)?.message });
+      }
+    }
+  }
+
   let expired = 0;
   for (const generation of await listExpiredStoredGenerations(now(), 50)) {
     if (Date.now() - startedAt > budget) break;
@@ -794,7 +837,7 @@ export async function runAiVideoCron(options: { now?: () => Date; limit?: number
     }
   }
 
-  return { processed, expired };
+  return { processed, expired, recovered };
 }
 
 export interface AiVideoOption {

@@ -18,6 +18,12 @@ import type { AiVideoAspectRatio } from "../../types";
  *     (COMPLETED pode vir com `error`/`error_type` quando falhou);
  *   - GET  …/{model-id}/requests/{id} → resultado ({ video: { url } });
  *   - PUT  …/{model-id}/requests/{id}/cancel.
+ * ATENÇÃO (confirmado em 02/10/2026): o envio usa o id COMPLETO do modelo
+ * (fal-ai/wan/v2.2-5b/image-to-video), mas status, resultado e cancelamento
+ * usam só "dono/app" (fal-ai/wan) — igual ao cliente oficial @fal-ai/client
+ * (queue.status/result/cancel montam a URL com owner/alias, sem o subcaminho).
+ * Com o caminho completo, a fila responde 405 para sempre: o vídeo era gerado
+ * (e cobrado) no fal.ai, mas nunca chegava ao Alilu.
  * Modelo do Econômico: fal-ai/wan/v2.2-5b/image-to-video — US$ 0,15 por
  * vídeo (até 5 s, 720p, 24 fps), uso comercial permitido. Parâmetros:
  * image_url, prompt, num_frames (17–161), frames_per_second, resolution
@@ -70,6 +76,21 @@ export function decodeFalTaskId(externalTaskId: string): { model: string; reques
     throw new ImageToVideoProviderError("Tarefa inválida.", "TECHNICAL", false, null, "BAD_TASK_ID");
   }
   return { model, requestId };
+}
+
+/** Prefixos de namespace aceitos pelo fal (ex.: "workflows/dono/app"). */
+const FAL_NAMESPACES = new Set(["workflows", "comfy"]);
+
+/** "fal-ai/wan/v2.2-5b/image-to-video" → "fal-ai/wan" (base da fila para status/resultado/cancelamento). */
+export function falQueueAppId(model: string): string {
+  const parts = model.split("/").filter(Boolean);
+  const take = FAL_NAMESPACES.has(parts[0]) ? 3 : 2;
+  return parts.slice(0, take).join("/");
+}
+
+/** URL base de uma requisição na fila: https://queue.fal.run/{dono}/{app}/requests/{id} */
+export function falRequestBaseUrl(model: string, requestId: string): string {
+  return `${FAL_QUEUE_BASE_URL}/${falQueueAppId(model)}/requests/${requestId}`;
 }
 
 function errorText(payload: unknown): string {
@@ -170,18 +191,18 @@ function throwForHttp(status: number, payload: unknown): never {
 }
 
 async function getFalResult(base: string): Promise<VideoGenerationStatus | null> {
-  let result = await falRequest(base, "GET");
-  if (result.status === 405) {
-    result = await falRequest(base, "POST");
-  }
+  // Só GET: a fila nunca recebe POST aqui (POST na fila = nova geração paga).
+  const result = await falRequest(base, "GET");
   if (result.status >= 200 && result.status < 300) {
     const url = extractVideoUrl(result.payload);
     if (url) return { state: "SUCCEEDED", outputUrls: [url], failureCode: null, failureMessage: null, failureKind: null };
     return null;
   }
   if (result.status === 429 || result.status >= 500) throwForHttp(result.status, result.payload);
+  // 404/405 = resultado ainda não disponível nesta URL (não é falha do vídeo).
+  if (result.status === 404 || result.status === 405) return null;
   const detail = errorText(result.payload);
-  if (!detail && (result.status === 400 || result.status === 404)) return null;
+  if (!detail && result.status === 400) return null;
   return {
     state: "FAILED",
     outputUrls: [],
@@ -222,13 +243,15 @@ export const falImageToVideoProvider: ImageToVideoProvider = {
 
   async getStatus(externalTaskId: string): Promise<VideoGenerationStatus> {
     const { model, requestId } = decodeFalTaskId(externalTaskId);
-    const base = `${FAL_QUEUE_BASE_URL}/${model}/requests/${requestId}`;
+    const base = falRequestBaseUrl(model, requestId);
     const statusResponse = await falRequest(`${base}/status`, "GET");
     if (statusResponse.status < 200 || statusResponse.status >= 300) {
       const recovered = await getFalResult(base);
       if (recovered) return recovered;
-      if (statusResponse.status === 404) {
-        return { state: "FAILED", outputUrls: [], failureCode: "NOT_FOUND", failureMessage: "Tarefa não encontrada.", failureKind: "TECHNICAL" };
+      // 404/405 aqui é problema de consulta, não prova que o vídeo falhou:
+      // erro "tentar de novo" — o serviço reagenda e, no limite, o prazo decide.
+      if (statusResponse.status === 404 || statusResponse.status === 405) {
+        throw new ImageToVideoProviderError("Não foi possível consultar o vídeo agora.", "TECHNICAL", true, statusResponse.status, `HTTP_${statusResponse.status}`);
       }
       throwForHttp(statusResponse.status, statusResponse.payload);
     }
@@ -250,15 +273,16 @@ export const falImageToVideoProvider: ImageToVideoProvider = {
       return { state: "FAILED", outputUrls: [], failureCode: errorType ?? "FAILED", failureMessage: statusError, failureKind: classifyFalFailure(statusError, errorType, null) };
     }
 
-    return (
-      (await getFalResult(base)) ?? { state: "SUCCEEDED", outputUrls: [], failureCode: null, failureMessage: null, failureKind: null }
-    );
+    const result = await getFalResult(base);
+    if (result) return result;
+    // Concluído, mas o resultado ainda não veio: tenta de novo no próximo ciclo.
+    throw new ImageToVideoProviderError("O vídeo ficou pronto, mas ainda não foi possível buscá-lo.", "TECHNICAL", true, null, "RESULT_PENDING");
   },
 
   async cancel(externalTaskId: string): Promise<void> {
     try {
       const { model, requestId } = decodeFalTaskId(externalTaskId);
-      await falRequest(`${FAL_QUEUE_BASE_URL}/${model}/requests/${requestId}/cancel`, "PUT");
+      await falRequest(`${falRequestBaseUrl(model, requestId)}/cancel`, "PUT");
     } catch {
       // melhor esforço
     }

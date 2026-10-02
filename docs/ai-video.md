@@ -315,3 +315,19 @@ Evolução (etapa 11, faixas, overlays e regeneração):
 | `__tests__/lib/ai-video-tiers-retry-issues.test.ts` | Roteamento das faixas e preços, overlays aplicados antes de consumir, overlays ignorados sem a opção, logo de outro usuário, falha do FFmpeg, MP4 inválido, regeneração com desconto (piso no custo, limite, mesma imagem, trava), reportar problema (devolução confirmada, válido, revisão) e dois crons simultâneos. |
 
 Neste ambiente os testes rodam com `npx vitest run <arquivo> --environment node --pool threads`.
+
+## fal.ai: URLs da fila e recuperação de vídeos já pagos (02/10/2026)
+
+- **Envio** usa o id completo do modelo: `POST https://queue.fal.run/fal-ai/wan/v2.2-5b/image-to-video`.
+- **Status, resultado e cancelamento** usam só `dono/app`, como o cliente oficial `@fal-ai/client`:
+  - `GET https://queue.fal.run/fal-ai/wan/requests/{id}/status`
+  - `GET https://queue.fal.run/fal-ai/wan/requests/{id}`
+  - `PUT …/requests/{id}/cancel`
+- Com o caminho completo, a fila responde **405** sempre. Foi isso que fez vídeos serem gerados (e cobrados) no fal.ai sem chegar ao Alilu.
+- A consulta **nunca** faz POST na fila, porque POST significa uma nova geração paga.
+- Quando a consulta dá 404/405, ou quando o status é "concluído" mas o resultado ainda não está disponível, a resposta é "tentar de novo", não falha.
+- Antes de desistir por **prazo** (30 min), o sistema faz uma última consulta. Se o vídeo ficou pronto, ele é entregue.
+- **Recuperação automática** (cron `/api/cron/ai-video`):
+  - Gerações com **falha técnica** nos últimos 7 dias que ainda têm `external_task_id` são consultadas no provedor, no máximo a cada 30 min.
+  - Se o vídeo existir, ele é baixado, guardado e entregue, sem criar nova geração. Os créditos devolvidos são consumidos de novo, uma única vez (ledger `CONSUME`).
+  - Moderação e imagem inválida não entram na recuperação.

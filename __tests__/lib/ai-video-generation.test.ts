@@ -295,21 +295,65 @@ describe("geração", () => {
     expect(blocked.httpStatus).toBe(429);
   });
 
-  it("timeout: cancela no provedor e devolve os créditos", async () => {
+  it("timeout: faz uma última consulta, cancela no provedor e devolve os créditos", async () => {
     const userId = await seedUser(100);
     const generation = await service.createGeneration(userId, input(userId), T0);
+    provider.getStatus.mockResolvedValueOnce(status({ state: "PROCESSING" }));
     const after = await service.refreshGenerationForUser(generation.id, userId, at(31 * 60_000));
     expect(after?.status).toBe("REFUNDED");
     expect(after?.errorCode).toBe("TIMEOUT");
     expect(provider.cancel).toHaveBeenCalledWith("task-1");
-    expect(provider.getStatus).not.toHaveBeenCalled();
+    expect(provider.getStatus).toHaveBeenCalledTimes(1);
     expect(await balance(userId)).toEqual({ available: 100, reserved: 0 });
+  });
+
+  it("timeout, mas o provedor terminou: entrega o vídeo em vez de devolver", async () => {
+    const userId = await seedUser(100);
+    const generation = await service.createGeneration(userId, input(userId), T0);
+    provider.getStatus.mockResolvedValueOnce(status({ state: "SUCCEEDED", outputUrls: ["https://cdn.example.com/late.mp4"] }));
+    const after = await service.refreshGenerationForUser(generation.id, userId, at(31 * 60_000));
+    expect(after?.status).toBe("COMPLETED");
+    expect(provider.cancel).not.toHaveBeenCalled();
+    expect(await balance(userId)).toEqual({ available: 0, reserved: 0 });
+  });
+
+  it("cron recupera sozinho um vídeo que ficou como falha técnica (sem a tela aberta), só uma vez", async () => {
+    const userId = await seedUser(100);
+    const generation = await service.createGeneration(userId, input(userId), T0);
+    provider.getStatus.mockRejectedValueOnce(new Error("sem resposta"));
+    await service.refreshGenerationForUser(generation.id, userId, at(31 * 60_000)); // timeout → REFUNDED
+
+    // ainda não pronto: adia a próxima tentativa (não consulta a cada minuto)
+    provider.getStatus.mockResolvedValueOnce(status({ state: "PROCESSING" }));
+    expect((await service.runAiVideoCron({ now: () => at(32 * 60_000) })).recovered).toBe(0);
+    const calls = provider.getStatus.mock.calls.length;
+    expect((await service.runAiVideoCron({ now: () => at(40 * 60_000) })).recovered).toBe(0);
+    expect(provider.getStatus.mock.calls.length).toBe(calls);
+
+    provider.getStatus.mockResolvedValueOnce(status({ state: "SUCCEEDED", outputUrls: ["https://cdn.example.com/rec.mp4"] }));
+    expect((await service.runAiVideoCron({ now: () => at(63 * 60_000) })).recovered).toBe(1);
+    const [row] = await db.sql`select status from ai_video_generations where id = ${generation.id}`;
+    expect(row.status).toBe("COMPLETED");
+    expect(provider.create).toHaveBeenCalledTimes(1);
+    expect((await service.runAiVideoCron({ now: () => at(64 * 60_000) })).recovered).toBe(0);
+  });
+
+  it("moderação não é 'recuperada' (não consulta o provedor de novo)", async () => {
+    const userId = await seedUser(100);
+    const generation = await service.createGeneration(userId, input(userId), T0);
+    provider.getStatus.mockResolvedValueOnce(status({ state: "FAILED", failureKind: "MODERATION", failureCode: "content_policy" }));
+    await service.refreshGenerationForUser(generation.id, userId, at(20_000));
+    const calls = provider.getStatus.mock.calls.length;
+    await service.refreshGenerationForUser(generation.id, userId, at(60 * 60_000));
+    expect((await service.runAiVideoCron({ now: () => at(61 * 60_000) })).recovered).toBe(0);
+    expect(provider.getStatus.mock.calls.length).toBe(calls);
   });
 
   it("recupera resultado já pago: erro local com externalTaskId consulta provedor e entrega sem criar nova geração", async () => {
     const userId = await seedUser(100);
     const generation = await service.createGeneration(userId, input(userId), T0);
 
+    provider.getStatus.mockResolvedValueOnce(status({ state: "PROCESSING" }));
     const timedOut = await service.refreshGenerationForUser(generation.id, userId, at(31 * 60_000));
     expect(timedOut?.status).toBe("REFUNDED");
     expect(await balance(userId)).toEqual({ available: 100, reserved: 0 });

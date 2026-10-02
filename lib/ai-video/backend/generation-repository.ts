@@ -301,6 +301,38 @@ export async function claimRecoverableGeneration(id: string, lockToken: string, 
   return rows[0] ? mapGeneration(rows[0]) : null;
 }
 
+/**
+ * Falhas técnicas recentes que ainda têm tarefa no provedor e nenhum vídeo
+ * guardado — candidatas à recuperação do resultado (cron). next_check_at
+ * aqui serve só para espaçar as tentativas (esses status não estão na fila normal).
+ */
+export async function listRecoverableGenerations(now: Date, windowDays: number, limit: number): Promise<AiVideoGenerationRecord[]> {
+  const db = getDb();
+  const since = new Date(now.getTime() - windowDays * 86_400_000).toISOString();
+  const rows = await db`
+    select * from ai_video_generations
+    where status in ('FAILED', 'REFUNDED')
+      and error_kind = 'TECHNICAL_ERROR'
+      and coalesce(error_code, '') <> 'MODERATION'
+      and external_task_id is not null
+      and storage_video_url is null
+      and created_at >= ${since}
+      and (next_check_at is null or next_check_at <= ${now.toISOString()})
+    order by created_at desc
+    limit ${limit}
+  `;
+  return rows.map(mapGeneration);
+}
+
+/** Adia a próxima tentativa de recuperação (não mexe em lock nem status). */
+export async function deferRecoveryCheck(id: string, until: Date): Promise<void> {
+  const db = getDb();
+  await db`
+    update ai_video_generations set next_check_at = ${until.toISOString()}
+    where id = ${id} and status in ('FAILED', 'REFUNDED')
+  `;
+}
+
 /** Ids das gerações em andamento prontas para consulta (cron). */
 export async function listDueGenerationIds(now: Date, limit: number): Promise<string[]> {
   const db = getDb();

@@ -5,6 +5,8 @@ const fal = await import("@/lib/ai-video/backend/providers/fal-provider");
 const { ImageToVideoProviderError } = await import("@/lib/ai-video/backend/providers/provider");
 
 const MODEL = "fal-ai/wan/v2.2-5b/image-to-video";
+/** Status/resultado/cancelamento usam só dono/app (como o @fal-ai/client). */
+const APP = "fal-ai/wan";
 const originalFetch = global.fetch;
 const originalKey = process.env.FAL_KEY;
 const fetchMock = vi.fn();
@@ -62,8 +64,8 @@ describe("fal.ai", () => {
       .mockResolvedValueOnce(json(200, { video: { url: "https://v3.fal.media/out.mp4" } }));
     const done = await fal.falImageToVideoProvider.getStatus(id);
     expect(done).toMatchObject({ state: "SUCCEEDED", outputUrls: ["https://v3.fal.media/out.mp4"] });
-    expect(fetchMock.mock.calls.at(-2)?.[0]).toBe(`https://queue.fal.run/${MODEL}/requests/abc-123/status`);
-    expect(fetchMock.mock.calls.at(-1)?.[0]).toBe(`https://queue.fal.run/${MODEL}/requests/abc-123`);
+    expect(fetchMock.mock.calls.at(-2)?.[0]).toBe(`https://queue.fal.run/${APP}/requests/abc-123/status`);
+    expect(fetchMock.mock.calls.at(-1)?.[0]).toBe(`https://queue.fal.run/${APP}/requests/abc-123`);
   });
 
   it("aceita formatos alternativos de URL de vídeo do fal.ai", async () => {
@@ -82,20 +84,42 @@ describe("fal.ai", () => {
       .mockResolvedValueOnce(json(200, { video: { url: "https://v3.fal.media/recovered.mp4" } }));
     const recovered = await fal.falImageToVideoProvider.getStatus(id);
     expect(recovered).toMatchObject({ state: "SUCCEEDED", outputUrls: ["https://v3.fal.media/recovered.mp4"] });
-    expect(fetchMock.mock.calls.at(-2)?.[0]).toBe(`https://queue.fal.run/${MODEL}/requests/abc-123/status`);
-    expect(fetchMock.mock.calls.at(-1)?.[0]).toBe(`https://queue.fal.run/${MODEL}/requests/abc-123`);
+    expect(fetchMock.mock.calls.at(-2)?.[0]).toBe(`https://queue.fal.run/${APP}/requests/abc-123/status`);
+    expect(fetchMock.mock.calls.at(-1)?.[0]).toBe(`https://queue.fal.run/${APP}/requests/abc-123`);
   });
 
-  it("tenta POST no resultado quando o fal.ai responde 405 para GET", async () => {
+  it("nunca faz POST na fila ao consultar; 405/404 viram 'tentar de novo', não falha", async () => {
     const id = `${MODEL}::abc-123`;
     fetchMock
-      .mockResolvedValueOnce(json(200, { status: "COMPLETED" }))
       .mockResolvedValueOnce(json(405, { detail: "Method Not Allowed" }))
-      .mockResolvedValueOnce(json(200, { video: { url: "https://v3.fal.media/post-result.mp4" } }));
-    const recovered = await fal.falImageToVideoProvider.getStatus(id);
-    expect(recovered).toMatchObject({ state: "SUCCEEDED", outputUrls: ["https://v3.fal.media/post-result.mp4"] });
-    expect(fetchMock.mock.calls.at(-2)?.[1]?.method).toBe("GET");
-    expect(fetchMock.mock.calls.at(-1)?.[1]?.method).toBe("POST");
+      .mockResolvedValueOnce(json(405, { detail: "Method Not Allowed" }));
+    const error = await fal.falImageToVideoProvider.getStatus(id).catch((e) => e);
+    expect(error).toBeInstanceOf(ImageToVideoProviderError);
+    expect(error.retryable).toBe(true);
+    expect(fetchMock.mock.calls.every(([, init]) => init.method === "GET")).toBe(true);
+  });
+
+  it("concluído mas resultado ainda indisponível: tenta de novo (não reembolsa como vazio)", async () => {
+    const id = `${MODEL}::abc-123`;
+    fetchMock.mockResolvedValueOnce(json(200, { status: "COMPLETED" })).mockResolvedValueOnce(json(404, { detail: "Request not found" }));
+    const error = await fal.falImageToVideoProvider.getStatus(id).catch((e) => e);
+    expect(error).toBeInstanceOf(ImageToVideoProviderError);
+    expect(error.code).toBe("RESULT_PENDING");
+    expect(error.retryable).toBe(true);
+  });
+
+  it("base da fila: dono/app, com namespace quando houver", () => {
+    expect(fal.falQueueAppId(MODEL)).toBe("fal-ai/wan");
+    expect(fal.falQueueAppId("fal-ai/flux/dev")).toBe("fal-ai/flux");
+    expect(fal.falQueueAppId("workflows/dono/app/sub")).toBe("workflows/dono/app");
+    expect(fal.falRequestBaseUrl(MODEL, "r1")).toBe("https://queue.fal.run/fal-ai/wan/requests/r1");
+  });
+
+  it("cancelamento usa a base dono/app", async () => {
+    fetchMock.mockResolvedValueOnce(json(200, {}));
+    await fal.falImageToVideoProvider.cancel(`${MODEL}::abc-123`);
+    expect(fetchMock.mock.calls[0][0]).toBe(`https://queue.fal.run/${APP}/requests/abc-123/cancel`);
+    expect(fetchMock.mock.calls[0][1].method).toBe("PUT");
   });
 
   it("falhas: moderação, imagem inválida, técnica e 5xx temporário", async () => {
