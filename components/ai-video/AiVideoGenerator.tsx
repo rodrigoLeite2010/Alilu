@@ -6,6 +6,7 @@ import { uploadPresigned } from "@vercel/blob/client";
 import { Button, LinkButton } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { Dialog } from "@/components/instagram/Dialog";
+import { ConfirmDialog } from "@/components/instagram/ConfirmDialog";
 import {
   AI_VIDEO_ASPECT_LABEL,
   AI_VIDEO_ASPECT_RATIOS,
@@ -134,6 +135,25 @@ export function AiVideoGenerator({
   const [retryOf, setRetryOf] = useState<AiVideoGenerationClientDto | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [issueFor, setIssueFor] = useState<AiVideoGenerationClientDto | null>(null);
+  const [deleteFor, setDeleteFor] = useState<AiVideoGenerationClientDto | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  async function confirmDeleteVideo() {
+    if (!deleteFor) return;
+    setDeleting(true);
+    try {
+      const response = await fetch(`/api/ai-video/generations/${deleteFor.id}`, { method: "DELETE" });
+      if (!response.ok) throw new Error(await readErrorMessage(response, "Não foi possível excluir o vídeo."));
+      const removedId = deleteFor.id;
+      setGenerations((list) => list.filter((item) => item.id !== removedId));
+      setNotice("Vídeo excluído do Alilu.");
+    } catch (err) {
+      setNotice(err instanceof Error ? err.message : "Não foi possível excluir o vídeo.");
+    } finally {
+      setDeleting(false);
+      setDeleteFor(null);
+    }
+  }
   const formRef = useRef<HTMLElement | null>(null);
 
   const selected = options.find((option) => option.tier === tier && option.durationSeconds === duration) ?? null;
@@ -577,11 +597,29 @@ export function AiVideoGenerator({
                     ) : null}
                   </div>
                 ) : null}
+                {!isInProgress(generation.status) ? (
+                  <div className="mt-2 flex justify-end">
+                    <button type="button" onClick={() => setDeleteFor(generation)} className="text-xs font-medium text-zinc-500 underline hover:text-red-700">
+                      Excluir vídeo
+                    </button>
+                  </div>
+                ) : null}
               </li>
             ))}
           </ul>
         )}
       </section>
+
+      <ConfirmDialog
+        open={deleteFor !== null}
+        title="Excluir este vídeo?"
+        description="O arquivo é apagado do Alilu e sai do seu histórico. Se ainda não baixou, baixe antes. Isso não devolve créditos."
+        confirmLabel="Excluir vídeo"
+        destructive
+        busy={deleting}
+        onConfirm={confirmDeleteVideo}
+        onClose={() => setDeleteFor(null)}
+      />
 
       <IssueDialog
         generation={issueFor}

@@ -192,7 +192,8 @@ export async function getGenerationForUser(id: string, userId: string): Promise<
 export async function listGenerationsForUser(userId: string, limit = 20): Promise<AiVideoGenerationRecord[]> {
   const db = getDb();
   const rows = await db`
-    select * from ai_video_generations where user_id = ${userId} and status <> 'PRICE_GUARD_BLOCKED'
+    select * from ai_video_generations
+    where user_id = ${userId} and status <> 'PRICE_GUARD_BLOCKED' and user_deleted_at is null
     order by created_at desc limit ${limit}
   `;
   return rows.map(mapGeneration);
@@ -420,4 +421,23 @@ export async function markGenerationLiked(id: string, userId: string): Promise<b
 export async function setGenerationStatusKeepingLock(id: string, status: AiVideoGenerationStatus, lockToken: string): Promise<void> {
   const db = getDb();
   await db`update ai_video_generations set status = ${status} where id = ${id} and processing_lock_token = ${lockToken}`;
+}
+
+/**
+ * "Excluir vídeo" pelo usuário: só vídeos que já terminaram (nunca em
+ * andamento). Esconde do histórico e devolve a URL guardada para apagar do Blob.
+ */
+export async function markGenerationDeletedByUser(id: string, userId: string): Promise<{ storageVideoUrl: string | null } | null> {
+  const db = getDb();
+  const rows = await db`
+    update ai_video_generations g set
+      user_deleted_at = now(),
+      storage_video_url = null,
+      status = case when g.status = 'COMPLETED' then 'EXPIRED' else g.status end
+    from (select id, storage_video_url as old_url from ai_video_generations where id = ${id} and user_id = ${userId}) old
+    where g.id = old.id and g.user_deleted_at is null
+      and g.status in ('COMPLETED', 'EXPIRED', 'REFUNDED', 'FAILED')
+    returning old.old_url
+  `;
+  return rows[0] ? { storageVideoUrl: (rows[0].old_url as string | null) ?? null } : null;
 }

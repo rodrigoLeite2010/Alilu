@@ -68,7 +68,7 @@ export default async function MinhaContaPage() {
 
       <section className="mt-6">
         <h2 className="text-sm font-semibold uppercase tracking-wider text-zinc-500">Suas áreas</h2>
-        <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+        <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
           <LinkButton href="/financeiro/educacao-financeira" variant="secondary" className="sm:flex-1">
             Controle financeiro
           </LinkButton>
@@ -77,6 +77,9 @@ export default async function MinhaContaPage() {
           </LinkButton>
           <LinkButton href="/minha-conta/creditos-ia" variant="secondary" className="sm:flex-1">
             Créditos de IA
+          </LinkButton>
+          <LinkButton href="/minha-conta/midias" variant="secondary" className="sm:flex-1">
+            Minhas mídias
           </LinkButton>
         </div>
       </section>
