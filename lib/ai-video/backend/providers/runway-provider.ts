@@ -58,6 +58,10 @@ export function classifyRunwayFailure(code: string | null): VideoGenerationStatu
   const value = (code ?? "").toUpperCase();
   if (value.startsWith("SAFETY")) return "MODERATION";
   if (value.startsWith("INPUT_PREPROCESSING") || value.startsWith("ASSET")) return "USER_ERROR";
+  // INTERNAL.BAD_OUTPUT.*: a Runway descartou o resultado. Causas comuns
+  // (docs.dev.runwayml.com/errors/task-failures): logotipo, marca d'água ou
+  // texto na imagem, ou prompt pedindo texto. Corrigível pelo usuário.
+  if (value.startsWith("INTERNAL.BAD_OUTPUT")) return "USER_ERROR";
   return "TECHNICAL";
 }
 

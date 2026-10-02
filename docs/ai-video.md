@@ -331,3 +331,16 @@ Neste ambiente os testes rodam com `npx vitest run <arquivo> --environment node 
   - Gerações com **falha técnica** nos últimos 7 dias que ainda têm `external_task_id` são consultadas no provedor, no máximo a cada 30 min.
   - Se o vídeo existir, ele é baixado, guardado e entregue, sem criar nova geração. Os créditos devolvidos são consumidos de novo, uma única vez (ledger `CONSUME`).
   - Moderação e imagem inválida não entram na recuperação.
+
+## Runway (Padrão): falha `INTERNAL.BAD_OUTPUT.*`
+
+A Runway pode descartar o próprio resultado. Segundo a documentação (docs.dev.runwayml.com/errors/task-failures), as causas comuns são:
+
+- **logotipo, marca d'água ou texto na imagem**;
+- prompt pedindo para escrever texto.
+
+Como o Alilu trata esse caso:
+
+- A falha conta como **erro do usuário**, não como falha técnica. Os créditos voltam, mas a geração não entra na recuperação automática nem no bloqueio de moderação.
+- A tela explica o motivo e sugere trocar a imagem ou usar a qualidade Econômica.
+- O prompt enviado à Runway **não** fala em "text/letters/logos". Lá, a proteção de texto e logo é feita só pelas faixas (overlays) aplicadas depois.

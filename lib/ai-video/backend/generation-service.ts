@@ -122,9 +122,22 @@ const MAX_POSTPROCESS_ATTEMPTS = 3;
 const PRESERVE_TEXT_PROMPT_SUFFIX =
   " Keep any existing text, letters and logos static and unchanged. Do not add new text. Prefer subtle, stable camera motion.";
 
-export function buildProviderPrompt(prompt: string, preserveText: boolean): string {
+/**
+ * Runway: a documentação lista "prompt pedindo texto" como causa comum de
+ * INTERNAL.BAD_OUTPUT — mencionar "text/letters/logos" no prompt atrapalha.
+ * Lá o texto/logo é protegido só pelas faixas (overlays) aplicadas depois.
+ */
+const RUNWAY_PRESERVE_PROMPT_SUFFIX = " Prefer subtle, stable camera motion.";
+
+export function buildProviderPrompt(prompt: string, preserveText: boolean, provider?: string): string {
   if (!preserveText) return prompt;
-  return `${prompt.slice(0, AI_VIDEO_MAX_PROMPT_LENGTH - PRESERVE_TEXT_PROMPT_SUFFIX.length)}${PRESERVE_TEXT_PROMPT_SUFFIX}`;
+  const suffix = provider === "runway" ? RUNWAY_PRESERVE_PROMPT_SUFFIX : PRESERVE_TEXT_PROMPT_SUFFIX;
+  return `${prompt.slice(0, AI_VIDEO_MAX_PROMPT_LENGTH - suffix.length)}${suffix}`;
+}
+
+/** A IA descartou o próprio resultado (Runway INTERNAL.BAD_OUTPUT.*) — logo/texto na imagem ou pedido de texto. */
+function isRejectedOutput(code: string | null): boolean {
+  return (code ?? "").toUpperCase().startsWith("INTERNAL.BAD_OUTPUT");
 }
 
 export interface GenerationQuote {
@@ -631,7 +644,7 @@ export async function advanceGeneration(generation: AiVideoGenerationRecord, loc
       const { externalTaskId } = await provider.create({
         model: generation.providerModel,
         imageUrl: generation.inputImageUrl,
-        prompt: buildProviderPrompt(generation.prompt, generation.preserveText),
+        prompt: buildProviderPrompt(generation.prompt, generation.preserveText, generation.provider),
         durationSeconds: generation.durationSeconds,
         aspectRatio: generation.aspectRatio,
       });
@@ -747,8 +760,9 @@ export async function advanceGeneration(generation: AiVideoGenerationRecord, loc
   await refundGeneration(generation, lockToken, now, {
     kind: status.failureKind === "TECHNICAL" ? "TECHNICAL_ERROR" : "USER_ERROR",
     code: status.failureKind === "MODERATION" ? "MODERATION" : status.failureCode ?? "PROVIDER_FAILED",
-    message:
-      status.failureKind === "MODERATION"
+    message: isRejectedOutput(status.failureCode)
+      ? "A IA descartou o resultado — isso costuma acontecer quando a imagem tem logotipo, marca d'água ou texto, ou quando o pedido fala em escrever texto. Tente uma imagem sem logo/texto ou a qualidade Econômica. Seus créditos foram devolvidos."
+      : status.failureKind === "MODERATION"
         ? "A imagem ou o texto foi recusado pela moderação de conteúdo. Seus créditos foram devolvidos."
         : status.failureKind === "USER_ERROR"
           ? "A imagem não pôde ser usada. Tente outra imagem — seus créditos foram devolvidos."

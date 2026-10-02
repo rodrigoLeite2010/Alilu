@@ -338,6 +338,26 @@ describe("geração", () => {
     expect((await service.runAiVideoCron({ now: () => at(64 * 60_000) })).recovered).toBe(0);
   });
 
+  it("Runway INTERNAL.BAD_OUTPUT: mensagem específica (logo/texto), erro do usuário, sem bloqueio nem recuperação", async () => {
+    const userId = await seedUser(100);
+    const generation = await service.createGeneration(userId, input(userId), T0);
+    provider.getStatus.mockResolvedValueOnce(status({ state: "FAILED", failureKind: "USER_ERROR", failureCode: "INTERNAL.BAD_OUTPUT.CODE01" }));
+    const after = await service.refreshGenerationForUser(generation.id, userId, at(20_000));
+    expect(after?.status).toBe("REFUNDED");
+    expect(after?.errorKind).toBe("USER_ERROR");
+    expect(after?.errorMessage).toContain("logotipo");
+    expect(await balance(userId)).toEqual({ available: 100, reserved: 0 });
+    const calls = provider.getStatus.mock.calls.length;
+    expect((await service.runAiVideoCron({ now: () => at(60 * 60_000) })).recovered).toBe(0);
+    expect(provider.getStatus.mock.calls.length).toBe(calls);
+  });
+
+  it("prompt enviado à Runway não fala em texto/logos (causa de BAD_OUTPUT)", async () => {
+    expect(service.buildProviderPrompt("zoom lento", true, "runway")).toBe("zoom lento Prefer subtle, stable camera motion.");
+    expect(service.buildProviderPrompt("zoom lento", true, "fal")).toContain("logos");
+    expect(service.buildProviderPrompt("zoom lento", false, "runway")).toBe("zoom lento");
+  });
+
   it("moderação não é 'recuperada' (não consulta o provedor de novo)", async () => {
     const userId = await seedUser(100);
     const generation = await service.createGeneration(userId, input(userId), T0);
