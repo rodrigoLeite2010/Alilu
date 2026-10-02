@@ -170,7 +170,10 @@ function throwForHttp(status: number, payload: unknown): never {
 }
 
 async function getFalResult(base: string): Promise<VideoGenerationStatus | null> {
-  const result = await falRequest(base, "GET");
+  let result = await falRequest(base, "GET");
+  if (result.status === 405) {
+    result = await falRequest(base, "POST");
+  }
   if (result.status >= 200 && result.status < 300) {
     const url = extractVideoUrl(result.payload);
     if (url) return { state: "SUCCEEDED", outputUrls: [url], failureCode: null, failureMessage: null, failureKind: null };
