@@ -89,6 +89,21 @@ function isInProgress(status: AiVideoGenerationStatus): boolean {
   return AI_VIDEO_IN_PROGRESS_STATUSES.includes(status);
 }
 
+const SLOW_GENERATION_MS = 8 * 60 * 1000;
+const MAX_GENERATION_WAIT_MS = 30 * 60 * 1000;
+
+function inProgressMessage(generation: AiVideoGenerationClientDto, nowMs: number): string {
+  const elapsedMs = nowMs - new Date(generation.createdAt).getTime();
+  if (elapsedMs >= SLOW_GENERATION_MS) {
+    if (elapsedMs >= MAX_GENERATION_WAIT_MS) {
+      return "A fila do serviço externo passou do tempo esperado. Estamos fazendo a última checagem; se não finalizar, os créditos voltam automaticamente.";
+    }
+    const remainingMinutes = Math.max(1, Math.ceil((MAX_GENERATION_WAIT_MS - elapsedMs) / 60_000));
+    return `A fila do serviço externo está demorando mais que o normal. Pode sair desta tela — continuamos tentando e, se não finalizar em cerca de ${remainingMinutes} min, os créditos voltam automaticamente.`;
+  }
+  return "Isso costuma levar de 1 a 3 minutos. Pode sair desta tela — o vídeo continua sendo gerado.";
+}
+
 /**
  * "Vídeos > Imagem para vídeo com IA". O custo mostrado aqui é só
  * informativo — o servidor sempre recalcula. Sem saldo, a requisição
@@ -137,6 +152,7 @@ export function AiVideoGenerator({
   const [issueFor, setIssueFor] = useState<AiVideoGenerationClientDto | null>(null);
   const [deleteFor, setDeleteFor] = useState<AiVideoGenerationClientDto | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [nowMs, setNowMs] = useState(() => Date.now());
 
   async function confirmDeleteVideo() {
     if (!deleteFor) return;
@@ -181,7 +197,9 @@ export function AiVideoGenerator({
   const historyRef = useRef<HTMLElement | null>(null);
   useEffect(() => {
     if (!inProgressKey) return;
+    setNowMs(Date.now());
     const timer = setInterval(async () => {
+      setNowMs(Date.now());
       for (const id of inProgressKey.split(",")) {
         try {
           const response = await fetch(`/api/ai-video/generations/${id}`, { cache: "no-store" });
@@ -556,8 +574,7 @@ export function AiVideoGenerator({
                 <p className="mt-2 line-clamp-2 text-sm text-zinc-800">{generation.prompt}</p>
                 {isInProgress(generation.status) ? (
                   <p className="mt-2 text-xs text-zinc-500">
-                    <strong className="font-medium text-zinc-700">{generation.progressLabel}</strong> Isso costuma levar de 1 a 3 minutos. Pode
-                    sair desta tela — o vídeo continua sendo gerado.
+                    <strong className="font-medium text-zinc-700">{generation.progressLabel}</strong> {inProgressMessage(generation, nowMs)}
                   </p>
                 ) : null}
                 {generation.errorMessage ? <p className="mt-2 text-sm text-red-700">{generation.errorMessage}</p> : null}
