@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useId, useRef, useState, type ChangeEvent } from "react";
-import { Trash2 } from "lucide-react";
+import { Check, ImageOff, Trash2 } from "lucide-react";
 import { uploadPresigned } from "@vercel/blob/client";
 import { Button } from "@/components/ui/Button";
 import { ConfirmDialog } from "@/components/instagram/ConfirmDialog";
@@ -59,6 +59,12 @@ export function MediaPicker({
   const [error, setError] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<MediaItem | null>(null);
   const [deleting, setDeleting] = useState(false);
+  // Exclusão em massa: modo seleção + mídias cujo arquivo não carrega (sumiu do storage).
+  const [selecting, setSelecting] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [brokenIds, setBrokenIds] = useState<Set<string>>(new Set());
+  const [bulkConfirm, setBulkConfirm] = useState(false);
+  const [bulkResult, setBulkResult] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const inputId = useId();
 
@@ -125,6 +131,65 @@ export function MediaPicker({
     }
   }
 
+  function toggleSelected(id: string) {
+    setSelectedIds((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function markBroken(id: string) {
+    setBrokenIds((current) => (current.has(id) ? current : new Set(current).add(id)));
+  }
+
+  function exitSelecting() {
+    setSelecting(false);
+    setSelectedIds(new Set());
+  }
+
+  async function handleBulkDeleteConfirmed() {
+    const ids = [...selectedIds];
+    if (ids.length === 0) return;
+    setDeleting(true);
+    setError(null);
+    setBulkResult(null);
+    try {
+      const deleted: string[] = [];
+      const kept: Array<{ id: string; reason: string }> = [];
+      for (let i = 0; i < ids.length; i += 200) {
+        const response = await fetch("/api/content-automation/media/bulk-delete", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ids: ids.slice(i, i + 200) }),
+        });
+        if (!response.ok) throw new Error(await readErrorMessage(response, "Não foi possível apagar as mídias."));
+        const body = (await response.json()) as { deleted: string[]; kept: Array<{ id: string; reason: string }> };
+        deleted.push(...body.deleted);
+        kept.push(...body.kept);
+      }
+      const removed = new Set(deleted);
+      setItems((list) => list.filter((item) => !removed.has(item.id)));
+      if (value && removed.has(value)) onChange(null);
+      // As que ficaram continuam selecionadas, para a pessoa ver quais foram.
+      setSelectedIds(new Set(kept.map((item) => item.id)));
+      const reasons = [...new Set(kept.map((item) => item.reason))];
+      setBulkResult(
+        `${deleted.length} apagada${deleted.length === 1 ? "" : "s"}.` +
+          (kept.length > 0
+            ? ` ${kept.length} mantida${kept.length === 1 ? "" : "s"} (continuam marcadas): ${reasons.map((reason) => reason.replace(/\.$/, "")).join("; ")}.`
+            : ""),
+      );
+      if (kept.length === 0) setSelecting(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Não foi possível apagar as mídias.");
+    } finally {
+      setDeleting(false);
+      setBulkConfirm(false);
+    }
+  }
+
   async function handleDeleteConfirmed() {
     if (!deleteTarget) return;
     const target = deleteTarget;
@@ -147,35 +212,100 @@ export function MediaPicker({
 
   return (
     <div className="space-y-2">
+      {!loading && items.length > 0 ? (
+        <div className="flex flex-wrap items-center gap-2 text-xs">
+          {selecting ? (
+            <>
+              <span className="font-semibold text-zinc-700">{selectedIds.size} marcada{selectedIds.size === 1 ? "" : "s"}</span>
+              <button type="button" className="text-teal-800 underline" onClick={() => setSelectedIds(new Set(items.map((item) => item.id)))}>
+                Marcar todas
+              </button>
+              {brokenIds.size > 0 ? (
+                <button type="button" className="text-teal-800 underline" onClick={() => setSelectedIds(new Set(brokenIds))}>
+                  Marcar indisponíveis ({brokenIds.size})
+                </button>
+              ) : null}
+              <button type="button" className="text-teal-800 underline" onClick={() => setSelectedIds(new Set())}>
+                Desmarcar
+              </button>
+              <Button type="button" variant="secondary" disabled={selectedIds.size === 0 || deleting} onClick={() => setBulkConfirm(true)}>
+                <Trash2 className="mr-1 h-3.5 w-3.5" aria-hidden /> Excluir marcadas
+              </Button>
+              <Button type="button" variant="ghost" onClick={exitSelecting}>
+                Cancelar
+              </Button>
+            </>
+          ) : (
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => {
+                setBulkResult(null);
+                setSelecting(true);
+              }}
+            >
+              Excluir várias
+            </Button>
+          )}
+        </div>
+      ) : null}
+      {bulkResult ? (
+        <p role="status" className="text-xs text-zinc-700">
+          {bulkResult}
+        </p>
+      ) : null}
       {loading ? (
         <p className="text-xs text-zinc-500">Carregando mídias…</p>
       ) : items.length > 0 ? (
         <div className="grid grid-cols-4 gap-2 sm:grid-cols-6">
           {items.map((item) => {
             const selected = item.id === value;
+            const marked = selectedIds.has(item.id);
+            const broken = brokenIds.has(item.id);
             return (
               <div key={item.id} className="group relative aspect-square">
                 <button
                   type="button"
-                  onClick={() => onChange(item.id)}
+                  onClick={() => (selecting ? toggleSelected(item.id) : onChange(item.id))}
                   className={`absolute inset-0 overflow-hidden rounded-md ring-2 transition-shadow ${
-                    selected ? "ring-teal-600" : "ring-transparent hover:ring-zinc-300"
+                    selecting
+                      ? marked
+                        ? "ring-red-600"
+                        : "ring-transparent hover:ring-zinc-300"
+                      : selected
+                        ? "ring-teal-600"
+                        : "ring-transparent hover:ring-zinc-300"
                   }`}
-                  aria-pressed={selected}
-                  aria-label={item.originalFilename ?? "Selecionar mídia"}
+                  aria-pressed={selecting ? marked : selected}
+                  aria-label={selecting ? `Marcar ${item.originalFilename ?? "mídia"} para excluir` : item.originalFilename ?? "Selecionar mídia"}
                 >
-                  {item.mediaType === "image" ? (
+                  {broken ? (
+                    <span className="flex h-full w-full flex-col items-center justify-center gap-1 bg-zinc-100 px-1 text-center text-[11px] text-zinc-500">
+                      <ImageOff className="h-5 w-5" aria-hidden />
+                      Arquivo indisponível
+                    </span>
+                  ) : item.mediaType === "image" ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={item.storageUrl} alt="" className="h-full w-full object-cover" />
+                    <img src={item.storageUrl} alt="" loading="lazy" onError={() => markBroken(item.id)} className="h-full w-full object-cover" />
                   ) : (
-                    <video src={item.storageUrl} className="h-full w-full object-cover" muted />
+                    <video src={item.storageUrl} onError={() => markBroken(item.id)} className="h-full w-full object-cover" muted preload="metadata" />
                   )}
-                  {selected ? (
+                  {selecting ? (
+                    <span
+                      className={`absolute left-1 top-1 flex h-5 w-5 items-center justify-center rounded border ${
+                        marked ? "border-red-600 bg-red-600 text-white" : "border-white bg-black/30 text-transparent"
+                      }`}
+                      aria-hidden
+                    >
+                      <Check className="h-3.5 w-3.5" />
+                    </span>
+                  ) : selected ? (
                     <span className="absolute inset-0 flex items-center justify-center bg-teal-900/30 text-xs font-semibold text-white">
                       Selecionada
                     </span>
                   ) : null}
                 </button>
+                {selecting ? null : (
                 <button
                   type="button"
                   onClick={(event) => {
@@ -188,6 +318,7 @@ export function MediaPicker({
                 >
                   <Trash2 className="h-3.5 w-3.5" />
                 </button>
+                )}
               </div>
             );
           })}
@@ -230,6 +361,16 @@ export function MediaPicker({
         </p>
       ) : null}
 
+      <ConfirmDialog
+        open={bulkConfirm}
+        title={`Apagar ${selectedIds.size} mídia${selectedIds.size === 1 ? "" : "s"}`}
+        description="Os arquivos marcados saem da sua biblioteca para sempre. As mídias já usadas em publicações (ou definidas como padrão de uma automação) são mantidas automaticamente."
+        confirmLabel="Apagar marcadas"
+        destructive
+        busy={deleting}
+        onConfirm={handleBulkDeleteConfirmed}
+        onClose={() => setBulkConfirm(false)}
+      />
       <ConfirmDialog
         open={deleteTarget !== null}
         title="Apagar mídia"
