@@ -682,8 +682,12 @@ export async function advanceGeneration(generation: AiVideoGenerationRecord, loc
   let status;
   try {
     status = await provider.getStatus(generation.externalTaskId);
-  } catch {
-    await updateGeneration(generation.id, { nextCheckAt: new Date(now.getTime() + THROTTLED_POLL_INTERVAL_MS) }, lockToken);
+  } catch (error) {
+    await updateGeneration(
+      generation.id,
+      { nextCheckAt: new Date(now.getTime() + THROTTLED_POLL_INTERVAL_MS), errorMessage: (error as Error)?.message?.slice(0, 500) ?? "Falha ao consultar o provedor." },
+      lockToken,
+    );
     return;
   }
 

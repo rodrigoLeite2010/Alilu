@@ -85,6 +85,40 @@ function errorText(payload: unknown): string {
   return "";
 }
 
+function firstString(value: unknown): string | null {
+  return typeof value === "string" && value.trim() ? value : null;
+}
+
+function extractVideoUrl(payload: unknown): string | null {
+  if (!isRecord(payload)) return null;
+  const direct = firstString(payload.video_url) ?? firstString(payload.url);
+  if (direct) return direct;
+
+  const video = isRecord(payload.video) ? payload.video : null;
+  const videoUrl = video ? (firstString(video.url) ?? firstString(video.file_url)) : null;
+  if (videoUrl) return videoUrl;
+
+  const output = isRecord(payload.output) ? payload.output : null;
+  if (output) {
+    const outputDirect = firstString(output.video_url) ?? firstString(output.url);
+    if (outputDirect) return outputDirect;
+    const outputVideo = isRecord(output.video) ? output.video : null;
+    const outputVideoUrl = outputVideo ? (firstString(outputVideo.url) ?? firstString(outputVideo.file_url)) : null;
+    if (outputVideoUrl) return outputVideoUrl;
+    if (Array.isArray(output.videos)) {
+      const first = output.videos.find(isRecord);
+      const url = first ? (firstString(first.url) ?? firstString(first.file_url)) : null;
+      if (url) return url;
+    }
+  }
+
+  if (Array.isArray(payload.videos)) {
+    const first = payload.videos.find(isRecord);
+    return first ? (firstString(first.url) ?? firstString(first.file_url)) : null;
+  }
+  return null;
+}
+
 /** Moderação (safety checker / conteúdo) × imagem inválida × técnica. */
 export function classifyFalFailure(message: string, errorType: string | null, httpStatus: number | null): VideoGenerationStatus["failureKind"] {
   const text = `${message} ${errorType ?? ""}`.toLowerCase();
@@ -176,6 +210,8 @@ export const falImageToVideoProvider: ImageToVideoProvider = {
     }
     const payload = statusResponse.payload;
     const state = isRecord(payload) && typeof payload.status === "string" ? payload.status.toUpperCase() : "";
+    const statusVideoUrl = extractVideoUrl(payload);
+    if (!state && statusVideoUrl) return { state: "SUCCEEDED", outputUrls: [statusVideoUrl], failureCode: null, failureMessage: null, failureKind: null };
     if (state === "IN_QUEUE") return { state: "QUEUED", outputUrls: [], failureCode: null, failureMessage: null, failureKind: null };
     if (state === "IN_PROGRESS") return { state: "PROCESSING", outputUrls: [], failureCode: null, failureMessage: null, failureKind: null };
     if (state !== "COMPLETED") {
@@ -200,8 +236,7 @@ export const falImageToVideoProvider: ImageToVideoProvider = {
         failureKind: classifyFalFailure(detail, null, result.status),
       };
     }
-    const video = isRecord(result.payload) && isRecord(result.payload.video) ? result.payload.video : null;
-    const url = video && typeof video.url === "string" ? video.url : null;
+    const url = extractVideoUrl(result.payload);
     return { state: "SUCCEEDED", outputUrls: url ? [url] : [], failureCode: null, failureMessage: null, failureKind: null };
   },
 

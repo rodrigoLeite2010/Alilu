@@ -66,6 +66,15 @@ describe("fal.ai", () => {
     expect(fetchMock.mock.calls.at(-1)?.[0]).toBe(`https://queue.fal.run/${MODEL}/requests/abc-123`);
   });
 
+  it("aceita formatos alternativos de URL de vídeo do fal.ai", async () => {
+    const id = `${MODEL}::abc-123`;
+    fetchMock.mockResolvedValueOnce(json(200, { status: "COMPLETED" })).mockResolvedValueOnce(json(200, { output: { video: { url: "https://v3.fal.media/output.mp4" } } }));
+    await expect(fal.falImageToVideoProvider.getStatus(id)).resolves.toMatchObject({ state: "SUCCEEDED", outputUrls: ["https://v3.fal.media/output.mp4"] });
+
+    fetchMock.mockResolvedValueOnce(json(200, { output: { videos: [{ url: "https://v3.fal.media/from-status.mp4" }] } }));
+    await expect(fal.falImageToVideoProvider.getStatus(id)).resolves.toMatchObject({ state: "SUCCEEDED", outputUrls: ["https://v3.fal.media/from-status.mp4"] });
+  });
+
   it("falhas: moderação, imagem inválida, técnica e 5xx temporário", async () => {
     const id = `${MODEL}::abc-123`;
     fetchMock.mockResolvedValueOnce(json(200, { status: "COMPLETED", error: "NSFW content detected", error_type: "content_policy" }));
