@@ -169,6 +169,25 @@ function throwForHttp(status: number, payload: unknown): never {
   );
 }
 
+async function getFalResult(base: string): Promise<VideoGenerationStatus | null> {
+  const result = await falRequest(base, "GET");
+  if (result.status >= 200 && result.status < 300) {
+    const url = extractVideoUrl(result.payload);
+    if (url) return { state: "SUCCEEDED", outputUrls: [url], failureCode: null, failureMessage: null, failureKind: null };
+    return null;
+  }
+  if (result.status === 429 || result.status >= 500) throwForHttp(result.status, result.payload);
+  const detail = errorText(result.payload);
+  if (!detail && (result.status === 400 || result.status === 404)) return null;
+  return {
+    state: "FAILED",
+    outputUrls: [],
+    failureCode: `HTTP_${result.status}`,
+    failureMessage: detail || null,
+    failureKind: classifyFalFailure(detail, null, result.status),
+  };
+}
+
 export const falImageToVideoProvider: ImageToVideoProvider = {
   providerId: "fal",
 
@@ -203,6 +222,8 @@ export const falImageToVideoProvider: ImageToVideoProvider = {
     const base = `${FAL_QUEUE_BASE_URL}/${model}/requests/${requestId}`;
     const statusResponse = await falRequest(`${base}/status`, "GET");
     if (statusResponse.status < 200 || statusResponse.status >= 300) {
+      const recovered = await getFalResult(base);
+      if (recovered) return recovered;
       if (statusResponse.status === 404) {
         return { state: "FAILED", outputUrls: [], failureCode: "NOT_FOUND", failureMessage: "Tarefa não encontrada.", failureKind: "TECHNICAL" };
       }
@@ -215,6 +236,8 @@ export const falImageToVideoProvider: ImageToVideoProvider = {
     if (state === "IN_QUEUE") return { state: "QUEUED", outputUrls: [], failureCode: null, failureMessage: null, failureKind: null };
     if (state === "IN_PROGRESS") return { state: "PROCESSING", outputUrls: [], failureCode: null, failureMessage: null, failureKind: null };
     if (state !== "COMPLETED") {
+      const recovered = await getFalResult(base);
+      if (recovered) return recovered;
       throw new ImageToVideoProviderError("Resposta inesperada do serviço de vídeo.", "TECHNICAL", true, null, "BAD_RESPONSE");
     }
 
@@ -224,20 +247,9 @@ export const falImageToVideoProvider: ImageToVideoProvider = {
       return { state: "FAILED", outputUrls: [], failureCode: errorType ?? "FAILED", failureMessage: statusError, failureKind: classifyFalFailure(statusError, errorType, null) };
     }
 
-    const result = await falRequest(base, "GET");
-    if (result.status < 200 || result.status >= 300) {
-      if (result.status === 429 || result.status >= 500) throwForHttp(result.status, result.payload);
-      const detail = errorText(result.payload);
-      return {
-        state: "FAILED",
-        outputUrls: [],
-        failureCode: `HTTP_${result.status}`,
-        failureMessage: detail || null,
-        failureKind: classifyFalFailure(detail, null, result.status),
-      };
-    }
-    const url = extractVideoUrl(result.payload);
-    return { state: "SUCCEEDED", outputUrls: url ? [url] : [], failureCode: null, failureMessage: null, failureKind: null };
+    return (
+      (await getFalResult(base)) ?? { state: "SUCCEEDED", outputUrls: [], failureCode: null, failureMessage: null, failureKind: null }
+    );
   },
 
   async cancel(externalTaskId: string): Promise<void> {
