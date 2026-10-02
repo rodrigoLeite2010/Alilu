@@ -12,6 +12,7 @@ import {
   deletePublication,
   describePublishOutcome,
   publishPublicationNow,
+  readErrorMessage,
   reschedulePublication,
 } from "@/lib/instagram/client/publication-api";
 import {
@@ -76,6 +77,40 @@ type DialogKind = "schedule" | "edit" | "cancel" | "delete" | "error" | null;
 
 const SMALL = "min-h-9 px-3 py-1.5 text-xs";
 
+interface PreviewItem {
+  mediaId: string;
+  storageUrl: string;
+  mediaType: "image" | "video";
+  position: number;
+}
+
+async function fetchPostPreviewItems(postId: string): Promise<PreviewItem[]> {
+  const response = await fetch(`/api/instagram/posts/${postId}`);
+  if (!response.ok) {
+    throw new Error(await readErrorMessage(response, "Não foi possível carregar a prévia."));
+  }
+  const body = (await response.json()) as {
+    post?: {
+      items?: Array<{
+        mediaId?: unknown;
+        storageUrl?: unknown;
+        mediaType?: unknown;
+        position?: unknown;
+      }>;
+    };
+  };
+  const items = body.post?.items;
+  if (!Array.isArray(items)) return [];
+  return items
+    .filter((item): item is PreviewItem => (
+      typeof item.mediaId === "string" &&
+      typeof item.storageUrl === "string" &&
+      (item.mediaType === "image" || item.mediaType === "video") &&
+      typeof item.position === "number"
+    ))
+    .sort((a, b) => a.position - b.position);
+}
+
 /**
  * Uma publicação em "Minhas publicações", com as ações que fazem sentido
  * para o status atual:
@@ -104,6 +139,10 @@ export function CalendarPostCard({
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [schedule, setSchedule] = useState<ScheduleValue>({ date: "", time: "" });
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewBusy, setPreviewBusy] = useState(false);
+  const [previewError, setPreviewError] = useState<string | null>(null);
+  const [previewItems, setPreviewItems] = useState<PreviewItem[] | null>(null);
 
   const timeZone = current.timezone ?? "America/Sao_Paulo";
   const status = current.status;
@@ -177,6 +216,26 @@ export function CalendarPostCard({
       onRemove?.(current.id);
     });
 
+  async function openPreview() {
+    setPreviewOpen(true);
+    setPreviewError(null);
+    if (current.postType !== "carousel") return;
+    if (previewItems) return;
+
+    setPreviewBusy(true);
+    try {
+      const items = await fetchPostPreviewItems(current.id);
+      setPreviewItems(items);
+      if (items.length === 0) {
+        setPreviewError("Não foi possível encontrar as imagens deste carrossel.");
+      }
+    } catch (err) {
+      setPreviewError(err instanceof Error ? err.message : "Não foi possível carregar a prévia.");
+    } finally {
+      setPreviewBusy(false);
+    }
+  }
+
   if (removed) return null;
 
   const scheduledLabel = formatInTimeZone(current.scheduledAtUtc, timeZone);
@@ -188,6 +247,13 @@ export function CalendarPostCard({
   const typeLabel =
     current.postType === "carousel" ? `${TYPE_LABEL.carousel} · ${current.itemCount} fotos` : TYPE_LABEL[current.postType];
   const canEditArt = Boolean(current.hasTemplateData) && ["DRAFT", "SCHEDULED", "FAILED"].includes(status);
+  const canPreview = current.postType === "carousel" ? true : Boolean(current.mediaStorageUrl);
+  const visiblePreviewItems =
+    current.postType === "carousel"
+      ? previewItems ?? []
+      : current.mediaStorageUrl
+        ? [{ mediaId: current.id, storageUrl: current.mediaStorageUrl, mediaType: current.postType === "reels" ? "video" as const : "image" as const, position: 0 }]
+        : [];
 
   const deleteCopy =
     status === "PUBLISHED"
@@ -273,10 +339,10 @@ export function CalendarPostCard({
         ) : null}
 
         <div className="flex flex-wrap gap-1.5 pt-1">
-          {status === "PUBLISHED" && current.mediaStorageUrl ? (
-            <LinkButton href={current.mediaStorageUrl} target="_blank" rel="noopener noreferrer" variant="secondary" className={SMALL}>
+          {canPreview ? (
+            <Button type="button" variant="secondary" className={SMALL} onClick={() => void openPreview()} disabled={previewBusy}>
               Visualizar
-            </LinkButton>
+            </Button>
           ) : null}
           {status === "FAILED" ? (
             <Button type="button" variant="secondary" className={SMALL} onClick={() => setDialog("error")}>
@@ -360,6 +426,40 @@ export function CalendarPostCard({
           </a>
           .
         </p>
+      </Dialog>
+
+      <Dialog open={previewOpen} title={current.postType === "carousel" ? "Visualizar carrossel" : "Visualizar publicação"} onClose={() => setPreviewOpen(false)}>
+        {current.caption ? (
+          <p className="text-sm text-zinc-700">{current.caption}</p>
+        ) : null}
+
+        {previewBusy ? (
+          <p role="status" className="text-sm text-zinc-600">Carregando prévia...</p>
+        ) : null}
+
+        {previewError ? (
+          <p role="alert" className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{previewError}</p>
+        ) : null}
+
+        {!previewBusy && !previewError && visiblePreviewItems.length > 0 ? (
+          <div className="grid gap-3 sm:grid-cols-2">
+            {visiblePreviewItems.map((item, index) => (
+              <figure key={`${item.mediaId}-${item.position}`} className="overflow-hidden rounded-md border border-zinc-200 bg-zinc-50">
+                {item.mediaType === "video" ? (
+                  <video src={item.storageUrl} controls playsInline className="aspect-[9/16] w-full bg-black object-contain" />
+                ) : (
+                  // eslint-disable-next-line @next/next/no-img-element -- mídia hospedada no Vercel Blob (domínio dinâmico)
+                  <img src={item.storageUrl} alt={`Imagem ${index + 1} do carrossel`} className="aspect-square w-full object-contain" />
+                )}
+                {current.postType === "carousel" ? (
+                  <figcaption className="px-3 py-2 text-xs font-medium text-zinc-600">
+                    {index + 1} de {visiblePreviewItems.length}
+                  </figcaption>
+                ) : null}
+              </figure>
+            ))}
+          </div>
+        ) : null}
       </Dialog>
 
       <ConfirmDialog

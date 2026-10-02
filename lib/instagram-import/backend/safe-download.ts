@@ -97,7 +97,7 @@ export const safeLookup: LookupFn = (hostname, options, callback) => {
 };
 
 /** Validação sintática (antes de qualquer rede). */
-export function assertAllowedUrlShape(raw: string): URL {
+export function assertAllowedUrlShape(raw: string, allowAnyPort = false): URL {
   let url: URL;
   try {
     url = new URL(raw);
@@ -106,7 +106,7 @@ export function assertAllowedUrlShape(raw: string): URL {
   }
   if (url.protocol !== "https:" && url.protocol !== "http:") throw new SafeDownloadError("Protocolo não permitido.", "BLOCKED_URL");
   if (url.username || url.password) throw new SafeDownloadError("URL não permitida.", "BLOCKED_URL");
-  if (url.port && url.port !== "80" && url.port !== "443") throw new SafeDownloadError("Porta não permitida.", "BLOCKED_URL");
+  if (!allowAnyPort && url.port && url.port !== "80" && url.port !== "443") throw new SafeDownloadError("Porta não permitida.", "BLOCKED_URL");
   const host = url.hostname.replace(/^\[|\]$/g, "");
   if (host === "localhost" || host.endsWith(".localhost") || host.endsWith(".internal") || host.endsWith(".local")) {
     throw new SafeDownloadError("Endereço bloqueado.", "BLOCKED_URL");
@@ -150,14 +150,14 @@ function requestOnce(url: URL, options: SafeDownloadOptions, lookup: LookupFn): 
   });
 }
 
-async function download(raw: string, options: SafeDownloadOptions, lookup: LookupFn): Promise<SafeDownloadResult> {
-  let url = assertAllowedUrlShape(raw);
+async function download(raw: string, options: SafeDownloadOptions, lookup: LookupFn, allowAnyPort = false): Promise<SafeDownloadResult> {
+  let url = assertAllowedUrlShape(raw, allowAnyPort);
   const deadline = Date.now() + (options.timeoutMs ?? 45_000);
   for (let hop = 0; hop <= (options.maxRedirects ?? 3); hop += 1) {
     const { status, headers, body } = await requestOnce(url, options, lookup);
     if (status >= 300 && status < 400 && headers.location) {
       body.resume();
-      url = assertAllowedUrlShape(new URL(headers.location, url).toString());
+      url = assertAllowedUrlShape(new URL(headers.location, url).toString(), allowAnyPort);
       continue;
     }
     if (status < 200 || status >= 300) {
@@ -177,28 +177,36 @@ async function download(raw: string, options: SafeDownloadOptions, lookup: Looku
     return await new Promise<SafeDownloadResult>((resolve, reject) => {
       const chunks: Buffer[] = [];
       let total = 0;
-      const timer = setTimeout(() => body.destroy(new SafeDownloadError("Tempo esgotado ao baixar o arquivo.", "TIMEOUT")), Math.max(1, deadline - Date.now()));
+      let settled = false;
+      let failure: SafeDownloadError | null = null;
+      const finish = (error: SafeDownloadError | null) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        if (error) reject(error);
+        else resolve({ buffer: Buffer.concat(chunks), contentType, finalUrl: url.toString() });
+      };
+      const abort = (error: SafeDownloadError) => {
+        failure = failure ?? error;
+        body.destroy();
+        finish(failure);
+      };
+      const timer = setTimeout(() => abort(new SafeDownloadError("Tempo esgotado ao baixar o arquivo.", "TIMEOUT")), Math.max(1, deadline - Date.now()));
       body.on("data", (chunk: Buffer) => {
+        if (failure) return;
         total += chunk.length;
         if (total > options.maxBytes) {
-          body.destroy(new SafeDownloadError("Arquivo grande demais.", "TOO_LARGE"));
+          abort(new SafeDownloadError("Arquivo grande demais.", "TOO_LARGE"));
           return;
         }
         chunks.push(chunk);
       });
-      body.on("error", (error) => {
-        clearTimeout(timer);
-        reject(error instanceof SafeDownloadError ? error : new SafeDownloadError("O download foi interrompido.", "INTERRUPTED"));
-      });
-      body.on("aborted", () => {
-        clearTimeout(timer);
-        reject(new SafeDownloadError("O download foi interrompido.", "INTERRUPTED"));
-      });
+      const interrupted = () => finish(failure ?? new SafeDownloadError("O download foi interrompido.", "INTERRUPTED"));
+      body.on("error", interrupted);
+      body.on("aborted", interrupted);
       body.on("end", () => {
-        clearTimeout(timer);
-        if (!body.complete) return reject(new SafeDownloadError("O download foi interrompido.", "INTERRUPTED"));
-        if (Number.isFinite(declared) && total !== declared) return reject(new SafeDownloadError("O download foi interrompido.", "INTERRUPTED"));
-        resolve({ buffer: Buffer.concat(chunks), contentType, finalUrl: url.toString() });
+        if (!body.complete || (Number.isFinite(declared) && total !== declared)) return interrupted();
+        finish(null);
       });
     });
   }
@@ -209,7 +217,7 @@ export function safeDownload(url: string, options: SafeDownloadOptions): Promise
   return download(url, options, safeLookup);
 }
 
-/** Só para testes: troca a resolução de nomes (o resto — limites, tipos, redirecionamentos — é o mesmo código). */
+/** Só para testes: troca a resolução de nomes e aceita a porta do servidor local (limites, tipos e redirecionamentos são o mesmo código). */
 export function __downloadWithLookupForTests(url: string, options: SafeDownloadOptions, lookup: LookupFn): Promise<SafeDownloadResult> {
-  return download(url, options, lookup);
+  return download(url, options, lookup, true);
 }

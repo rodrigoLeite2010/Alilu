@@ -16,6 +16,7 @@ import { ConnectInstagramDialog, buildConnectTarget } from "./ConnectInstagramDi
 import { buildMediaPathnamePrefix, MAX_VIDEO_UPLOAD_BYTES, VIDEO_MEDIA_CONTENT_TYPES } from "@/lib/instagram/backend/media-service";
 import type { MusicMode } from "@/lib/instagram/backend/music-support";
 import { MusicSelector, type MusicSelectorAccountDefault } from "./MusicSelector";
+import { importIdFromLocation, loadImportedVideoFile } from "@/components/instagram-import/imported-media-client";
 
 type Stage = "idle" | "validando" | "enviando" | "salvando" | "publicando" | "sucesso" | "erro";
 type ActionMode = "draft" | "now" | "schedule";
@@ -122,6 +123,23 @@ export function ReelsComposer({
           : "Seu vídeo e sua legenda foram restaurados.",
       );
     });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Veio de "Importar do Instagram" (?importacao=<id>): já carrega o vídeo importado.
+  useEffect(() => {
+    const importId = importIdFromLocation();
+    if (!importId) return;
+    let cancelled = false;
+    loadImportedVideoFile(importId)
+      .then((imported) => {
+        if (cancelled || !imported) return;
+        setFile(imported);
+        setMessage("Vídeo importado carregado. Escreva a legenda e publique ou agende.");
+      })
+      .catch(() => undefined);
     return () => {
       cancelled = true;
     };

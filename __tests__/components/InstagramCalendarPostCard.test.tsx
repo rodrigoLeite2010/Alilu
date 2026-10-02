@@ -60,7 +60,7 @@ describe("CalendarPostCard", () => {
         onRemove={onRemove}
       />,
     );
-    expect(screen.getByRole("link", { name: "Visualizar" })).toHaveAttribute("href", "https://blob/x.jpg");
+    expect(screen.getByRole("button", { name: "Visualizar" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Excluir do Alilu" }));
 
     const dialog = await screen.findByRole("dialog", { name: "Excluir esta publicação do histórico do Alilu?" });
@@ -74,6 +74,44 @@ describe("CalendarPostCard", () => {
   it("post de carrossel mostra o indicativo \"Carrossel · N fotos\"; imagem única não mostra nada disso", () => {
     render(<CalendarPostCard post={post({ postType: "carousel", itemCount: 4 })} />);
     expect(screen.getByText("Carrossel · 4 fotos")).toBeInTheDocument();
+  });
+
+  it("carrossel agendado abre a prévia com todas as imagens em ordem", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({
+        post: {
+          items: [
+            { mediaId: "media-2", storageUrl: "https://blob.example.com/2.jpg", mediaType: "image", position: 1 },
+            { mediaId: "media-1", storageUrl: "https://blob.example.com/1.jpg", mediaType: "image", position: 0 },
+            { mediaId: "media-3", storageUrl: "https://blob.example.com/3.jpg", mediaType: "image", position: 2 },
+          ],
+        },
+      })),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(
+      <CalendarPostCard
+        post={post({
+          postType: "carousel",
+          status: "SCHEDULED",
+          itemCount: 3,
+          scheduledAtUtc: "2026-09-24T21:30:00.000Z",
+          mediaStorageUrl: "https://blob.example.com/1.jpg",
+        })}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Visualizar" }));
+
+    const dialog = await screen.findByRole("dialog", { name: "Visualizar carrossel" });
+    expect(fetchMock).toHaveBeenCalledWith("/api/instagram/posts/post-1");
+    expect(within(dialog).getByAltText("Imagem 1 do carrossel")).toHaveAttribute("src", "https://blob.example.com/1.jpg");
+    expect(within(dialog).getByAltText("Imagem 2 do carrossel")).toHaveAttribute("src", "https://blob.example.com/2.jpg");
+    expect(within(dialog).getByAltText("Imagem 3 do carrossel")).toHaveAttribute("src", "https://blob.example.com/3.jpg");
+    expect(within(dialog).getByText("1 de 3")).toBeInTheDocument();
+    expect(within(dialog).getByText("2 de 3")).toBeInTheDocument();
+    expect(within(dialog).getByText("3 de 3")).toBeInTheDocument();
   });
 
   it("post de imagem única não mostra o indicativo de carrossel", () => {

@@ -65,6 +65,16 @@ export const videoTools: VideoTool[] = [
     icon: "video",
     status: "ativo",
   },
+  {
+    id: "importar-instagram",
+    name: "Importar do Instagram",
+    shortName: "Importar do Instagram",
+    path: "/videos/importar-instagram",
+    description:
+      "Cole o link de um Reel, vídeo ou foto pública do Instagram (seu ou com autorização) e importe para usar no Split-Screen, publicar no Reels ou baixar.",
+    icon: "instagram",
+    status: "ativo",
+  },
 ];
 
 export function getVideoToolByPath(path: string): VideoTool | undefined {

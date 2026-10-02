@@ -80,6 +80,8 @@ const nextConfig: NextConfig = {
       "./node_modules/ffprobe-static/bin/linux/x64/ffprobe",
       "./lib/ai-video/backend/fonts/*.ttf",
     ],
+    // Importar do Instagram: validação do arquivo baixado com ffprobe.
+    "**/api/videos/instagram-import": ["./node_modules/ffprobe-static/bin/linux/x64/ffprobe"],
     "**/api/ai-video/generations": [
       "./node_modules/ffmpeg-static/ffmpeg",
       "./node_modules/ffprobe-static/bin/linux/x64/ffprobe",
