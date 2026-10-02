@@ -16,6 +16,7 @@ import { getActiveModelPricing, getActivePricingConfig, listModelPricing } from 
 import { applyWalletMovement, consumeDeliveredGeneration, ensureWallet, getWallet, grantWelcomeBonusOnce, type WalletRecord } from "./wallet-repository";
 import {
   claimGeneration,
+  claimGenerationNow,
   claimRecoverableGeneration,
   countActiveGenerations,
   countGenerationsSince,
@@ -738,11 +739,16 @@ export async function advanceGeneration(generation: AiVideoGenerationRecord, loc
 }
 
 /** Consulta da tela: avança a geração se estiver na hora (com lock), e devolve o estado atual. */
-export async function refreshGenerationForUser(id: string, userId: string, now: Date = new Date()): Promise<AiVideoGenerationRecord | null> {
+export async function refreshGenerationForUser(
+  id: string,
+  userId: string,
+  now: Date = new Date(),
+  options: { forceProviderCheck?: boolean } = {},
+): Promise<AiVideoGenerationRecord | null> {
   const generation = await getGenerationForUser(id, userId);
   if (!generation) return null;
   const lockToken = randomUUID();
-  const claimed = await claimGeneration(id, lockToken, now);
+  const claimed = options.forceProviderCheck ? await claimGenerationNow(id, lockToken, now) : await claimGeneration(id, lockToken, now);
   if (claimed) await advanceGeneration(claimed, lockToken, now);
   const latest = await getGenerationForUser(id, userId);
   if (!latest) return null;

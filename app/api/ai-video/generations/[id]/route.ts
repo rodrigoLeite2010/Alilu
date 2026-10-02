@@ -14,13 +14,14 @@ interface RouteParams {
 }
 
 /** GET: estado da geração — e, se estiver na hora, já consulta o provedor (com lock, nunca em dobro). */
-export async function GET(_request: Request, { params }: RouteParams): Promise<NextResponse> {
+export async function GET(request: Request, { params }: RouteParams): Promise<NextResponse> {
   const session = await auth();
   const userId = session?.user?.id;
   if (!userId) return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
   const { id } = await params;
+  const forceProviderCheck = new URL(request.url).searchParams.get("force") === "1";
   try {
-    const generation = await refreshGenerationForUser(id, userId);
+    const generation = await refreshGenerationForUser(id, userId, new Date(), { forceProviderCheck });
     if (!generation) return NextResponse.json({ error: "Geração não encontrada." }, { status: 404 });
     const wallet = await getWallet(userId);
     return NextResponse.json({ generation: serializeGenerationForUser(generation), wallet: serializeWallet(wallet) });

@@ -202,7 +202,9 @@ export function AiVideoGenerator({
       setNowMs(Date.now());
       for (const id of inProgressKey.split(",")) {
         try {
-          const response = await fetch(`/api/ai-video/generations/${id}`, { cache: "no-store" });
+          const generation = generations.find((item) => item.id === id);
+          const force = generation && Date.now() - new Date(generation.createdAt).getTime() >= SLOW_GENERATION_MS;
+          const response = await fetch(`/api/ai-video/generations/${id}${force ? "?force=1" : ""}`, { cache: "no-store" });
           if (!response.ok) continue;
           const payload = (await response.json()) as { generation: AiVideoGenerationClientDto; wallet: { available: number } };
           setGenerations((list) => list.map((item) => (item.id === id ? payload.generation : item)));
@@ -213,7 +215,7 @@ export function AiVideoGenerator({
       }
     }, 5000);
     return () => clearInterval(timer);
-  }, [inProgressKey]);
+  }, [generations, inProgressKey]);
 
   async function handleFile(file: File | null) {
     if (!file) return;

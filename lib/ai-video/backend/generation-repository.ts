@@ -261,6 +261,25 @@ export async function claimGeneration(id: string, lockToken: string, now: Date):
   return rows[0] ? mapGeneration(rows[0]) : null;
 }
 
+/** Claim imediato: usado por consulta explícita da tela quando a fila externa já está lenta. */
+export async function claimGenerationNow(id: string, lockToken: string, now: Date): Promise<AiVideoGenerationRecord | null> {
+  const db = getDb();
+  const rows = await db`
+    update ai_video_generations
+    set processing_lock_token = ${lockToken},
+        processing_lock_expires_at = ${new Date(now.getTime() + GENERATION_LOCK_TTL_SECONDS * 1000).toISOString()}
+    where id = (
+      select id from ai_video_generations
+      where id = ${id}
+        and status = any(string_to_array(${ACTIVE_STATUSES}, ','))
+        and (processing_lock_token is null or processing_lock_expires_at < ${now.toISOString()})
+      for update skip locked
+    )
+    returning *
+  `;
+  return rows[0] ? mapGeneration(rows[0]) : null;
+}
+
 /** Claim de recuperação: falha/reembolso local, mas o provedor pode ter concluído depois. */
 export async function claimRecoverableGeneration(id: string, lockToken: string, now: Date): Promise<AiVideoGenerationRecord | null> {
   const db = getDb();
