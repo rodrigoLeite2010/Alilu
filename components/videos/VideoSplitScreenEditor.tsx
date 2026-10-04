@@ -83,7 +83,7 @@ const EMPTY_SLOT: VideoSlotState = {
   videoWidth: null,
   videoHeight: null,
   trimStartText: "00:00",
-  trimEndText: "00:00",
+  trimEndText: "",
 };
 
 type VideoSlotKey = "primary" | "secondary";
@@ -222,8 +222,10 @@ async function uploadGeneratedVideoToInstagramMedia(userId: string, blob: Blob):
 function validateTrim(slot: VideoSlotState): string | null {
   if (!slot.file) return null;
   const start = parseClock(slot.trimStartText);
+  if (start === null) return "Use o formato mm:ss (ex.: 01:30).";
+  if (slot.durationSeconds === null && !slot.trimEndText.trim()) return null;
   const end = parseClock(slot.trimEndText);
-  if (start === null || end === null) return "Use o formato mm:ss (ex.: 01:30).";
+  if (end === null) return "Use o formato mm:ss (ex.: 01:30).";
   if (slot.durationSeconds === null && end === 0) return null;
   if (end <= start) return "O fim do corte precisa ser depois do início.";
   if (slot.durationSeconds !== null && end > slot.durationSeconds + 0.5) {
@@ -233,7 +235,7 @@ function validateTrim(slot: VideoSlotState): string | null {
 }
 
 function shouldUseAutomaticTrimEnd(slot: VideoSlotState): boolean {
-  return Boolean(slot.file) && slot.durationSeconds === null && parseClock(slot.trimEndText) === 0;
+  return Boolean(slot.file) && slot.durationSeconds === null && (!slot.trimEndText.trim() || parseClock(slot.trimEndText) === 0);
 }
 
 function buildRequestTrim(slot: VideoSlotState): { startSeconds: number; endSeconds: number | null } {
@@ -329,6 +331,7 @@ function VideoUploadSlot({
             <input
               id={endId}
               value={slot.trimEndText}
+              placeholder={slot.durationSeconds === null ? "Automático" : "00:05"}
               disabled={disabled}
               onChange={(event) => onTrimEndChange(event.target.value)}
               className="mt-1 h-10 w-full rounded-md border border-zinc-300 px-2 text-sm"
@@ -338,7 +341,7 @@ function VideoUploadSlot({
             <p className="col-span-2 text-xs text-zinc-500">Duração do arquivo enviado: {formatClock(slot.durationSeconds)}</p>
           ) : shouldUseAutomaticTrimEnd(slot) ? (
             <p className="col-span-2 text-xs text-zinc-500">
-              A duração será confirmada no servidor. Para cortar manualmente, preencha o fim do trecho.
+              O vídeo será usado inteiro; a duração será confirmada no servidor.
             </p>
           ) : null}
           {trimError ? (
@@ -616,7 +619,7 @@ export function VideoSplitScreenEditor({
         videoWidth: null,
         videoHeight: null,
         trimStartText: "00:00",
-        trimEndText: "00:00",
+        trimEndText: "",
       };
     });
     setStage("idle");
@@ -654,7 +657,7 @@ export function VideoSplitScreenEditor({
       durationSeconds,
       videoWidth,
       videoHeight,
-      trimEndText: previous.trimEndText === "00:00" ? formatClock(durationSeconds) : previous.trimEndText,
+      trimEndText: previous.trimEndText === "" || previous.trimEndText === "00:00" ? formatClock(durationSeconds) : previous.trimEndText,
     }));
   }
 
