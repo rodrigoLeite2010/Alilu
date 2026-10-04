@@ -4,6 +4,8 @@ import {
   MAX_VIDEO_INPUT_BYTES,
   SATISFYING_PRESET,
   VIDEO_INPUT_CONTENT_TYPES,
+  VIDEO_INPUT_FILE_EXTENSIONS,
+  inferVideoInputContentTypeFromFilename,
 } from "./config";
 import { VIDEO_LAYOUT_TOP_RATIO, VIDEO_OUTPUT_DIMENSIONS } from "./split-screen-ffmpeg";
 
@@ -32,6 +34,17 @@ describe("MAX_OUTPUT_DURATION_SECONDS", () => {
 describe("VIDEO_INPUT_CONTENT_TYPES", () => {
   it("aceita MP4, MOV (QuickTime) e WEBM — e nada além disso", () => {
     expect(VIDEO_INPUT_CONTENT_TYPES).toEqual(["video/mp4", "video/quicktime", "video/webm"]);
+  });
+
+  it("também lista extensões para celulares que não preenchem o MIME type", () => {
+    expect(VIDEO_INPUT_FILE_EXTENSIONS).toEqual([".mp4", ".mov", ".webm"]);
+  });
+
+  it("infere o content-type a partir do nome do arquivo quando o celular não envia type", () => {
+    expect(inferVideoInputContentTypeFromFilename("video.MP4")).toBe("video/mp4");
+    expect(inferVideoInputContentTypeFromFilename("video.mov")).toBe("video/quicktime");
+    expect(inferVideoInputContentTypeFromFilename("video.webm")).toBe("video/webm");
+    expect(inferVideoInputContentTypeFromFilename("video.txt")).toBeNull();
   });
 });
 

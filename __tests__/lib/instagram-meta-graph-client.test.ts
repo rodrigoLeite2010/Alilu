@@ -209,7 +209,7 @@ describe("fetchInstagramProfile", () => {
 
     const result = await fetchInstagramProfile("token-x");
 
-    expect(result).toEqual({ igUserId: "178414000", username: "alilu.tec" });
+    expect(result).toEqual({ igUserId: "178414000", username: "alilu.tec", accountType: null });
   });
 
   it("aceita o formato envolvido em { data: [...] }", async () => {
@@ -217,7 +217,7 @@ describe("fetchInstagramProfile", () => {
 
     const result = await fetchInstagramProfile("token-x");
 
-    expect(result).toEqual({ igUserId: "178414000", username: "alilu.tec" });
+    expect(result).toEqual({ igUserId: "178414000", username: "alilu.tec", accountType: null });
   });
 
   it("usa username null quando o campo não vem na resposta", async () => {
@@ -225,7 +225,7 @@ describe("fetchInstagramProfile", () => {
 
     const result = await fetchInstagramProfile("token-x");
 
-    expect(result).toEqual({ igUserId: "178414000", username: null });
+    expect(result).toEqual({ igUserId: "178414000", username: null, accountType: null });
   });
 
   it("lança InstagramGraphApiError quando a resposta HTTP não é ok", async () => {

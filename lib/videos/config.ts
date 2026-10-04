@@ -62,11 +62,20 @@ export const SATISFYING_PRESET: {
 
 /** Tipos de vídeo aceitos no upload (principal e complementar). */
 export const VIDEO_INPUT_CONTENT_TYPES = ["video/mp4", "video/quicktime", "video/webm"] as const;
+export const VIDEO_INPUT_FILE_EXTENSIONS = [".mp4", ".mov", ".webm"] as const;
 
 export type VideoInputContentType = (typeof VIDEO_INPUT_CONTENT_TYPES)[number];
 
 export function isAllowedVideoInputContentType(contentType: string): contentType is VideoInputContentType {
   return (VIDEO_INPUT_CONTENT_TYPES as readonly string[]).includes(contentType);
+}
+
+export function inferVideoInputContentTypeFromFilename(name: string): VideoInputContentType | null {
+  const lowerName = name.toLowerCase();
+  if (lowerName.endsWith(".mp4")) return "video/mp4";
+  if (lowerName.endsWith(".mov")) return "video/quicktime";
+  if (lowerName.endsWith(".webm")) return "video/webm";
+  return null;
 }
 
 /** Prefixo de pasta dos vídeos de entrada no Vercel Blob — apagados logo após o processamento (sucesso ou erro). */

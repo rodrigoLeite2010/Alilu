@@ -55,6 +55,7 @@ async function selectFile(label: string, previewTestId: string, file: File, dura
 beforeEach(() => {
   URL.createObjectURL = vi.fn(() => "blob:preview");
   URL.revokeObjectURL = vi.fn();
+  vi.spyOn(window.HTMLMediaElement.prototype, "load").mockImplementation(() => undefined);
   vi.spyOn(window.HTMLMediaElement.prototype, "play").mockResolvedValue(undefined);
   vi.spyOn(window.HTMLMediaElement.prototype, "pause").mockImplementation(() => undefined);
   uploadPresignedMock.mockReset();
@@ -89,10 +90,10 @@ describe("VideoSplitScreenEditor — upload dos dois vídeos", () => {
     renderEditor();
 
     fireEvent.change(screen.getByLabelText("Vídeo principal (fica em cima)"), {
-      target: { files: [makeVideoFile("celular-principal.mp4")] },
+      target: { files: [makeVideoFile("celular-principal.mp4", "")] },
     });
     fireEvent.change(screen.getByLabelText("Vídeo complementar (fica embaixo)"), {
-      target: { files: [makeVideoFile("celular-complementar.mp4")] },
+      target: { files: [makeVideoFile("celular-complementar.mp4", "")] },
     });
 
     expect(await screen.findByTestId("preview-video-primary")).toBeInTheDocument();
@@ -107,6 +108,8 @@ describe("VideoSplitScreenEditor — upload dos dois vídeos", () => {
     const body = JSON.parse(requestInit.body as string);
     expect(body.primaryTrim).toEqual({ startSeconds: 0, endSeconds: null });
     expect(body.secondaryTrim).toEqual({ startSeconds: 0, endSeconds: null });
+    expect(uploadPresignedMock.mock.calls[0][1]).toMatchObject({ type: "video/mp4" });
+    expect(uploadPresignedMock.mock.calls[1][1]).toMatchObject({ type: "video/mp4" });
   });
 
   it("rejeita um arquivo de formato não suportado, com mensagem amigável, e nunca cria o preview", () => {

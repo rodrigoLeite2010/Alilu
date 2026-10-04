@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 
+vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn(), push: vi.fn() }) }));
+
 const authMock = vi.fn();
 vi.mock("@/auth", () => ({ auth: (...args: unknown[]) => authMock(...args) }));
 
@@ -93,6 +95,6 @@ describe("InstagramPainelPage", () => {
     render(jsx);
 
     const link = screen.getByRole("link", { name: "Conectar Instagram" });
-    expect(link).toHaveAttribute("href", "/api/instagram/oauth/start");
+    expect(link).toHaveAttribute("href", "/api/instagram/oauth/start?returnTo=%2Finstagram%2Fpainel");
   });
 });

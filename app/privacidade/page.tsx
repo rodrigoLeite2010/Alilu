@@ -23,7 +23,7 @@ export default function PrivacyPolicyPage() {
         Política de Privacidade
       </h1>
       <p className="mt-2 text-sm text-zinc-500">
-        Última atualização: 17 de setembro de 2026.
+        Última atualização: 4 de outubro de 2026.
       </p>
 
       <div className="legal-content mt-6">
@@ -61,6 +61,19 @@ export default function PrivacyPolicyPage() {
           política será atualizada com as informações específicas sobre os
           parceiros de publicidade utilizados e os cookies que passarem a ser
           usados por eles.
+        </p>
+
+        <h2>Conta do Instagram conectada</h2>
+        <p>
+          Se você conectar uma conta profissional do Instagram para agendar e
+          publicar conteúdo, o {SITE_NAME} recebe da Meta, com a sua
+          autorização, o identificador e o @usuário da conta e um token de
+          acesso, guardado cifrado nos nossos servidores. Usamos esses dados
+          somente para publicar posts, carrosséis, Reels e Stories que você
+          criar ou agendar no {SITE_NAME}. Não lemos mensagens, comentários
+          nem dados de seguidores, e não vendemos nem compartilhamos esses
+          dados. Você pode desconectar a qualquer momento (o token é apagado
+          na hora) — veja <a href="/exclusao-de-dados">Exclusão de dados</a>.
         </p>
 
         <h2>Seus direitos e contato</h2>

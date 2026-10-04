@@ -28,8 +28,10 @@ import {
   MAX_OUTPUT_DURATION_SECONDS,
   MAX_VIDEO_INPUT_BYTES,
   SATISFYING_PRESET,
+  VIDEO_INPUT_FILE_EXTENSIONS,
   VIDEO_INPUT_CONTENT_TYPES,
   VIDEO_UPLOAD_PATH_PREFIX,
+  inferVideoInputContentTypeFromFilename,
   isAllowedVideoInputContentType,
   sanitizeOriginalFilename,
 } from "@/lib/videos/config";
@@ -109,7 +111,7 @@ const AUDIO_SOURCE_OPTIONS: { value: VideoAudioSource; label: string }[] = [
   { value: "both", label: "Ambos" },
 ];
 
-const ACCEPT_ATTRIBUTE = VIDEO_INPUT_CONTENT_TYPES.join(",");
+const ACCEPT_ATTRIBUTE = [...VIDEO_INPUT_CONTENT_TYPES, ...VIDEO_INPUT_FILE_EXTENSIONS].join(",");
 const MAX_INPUT_MEGABYTES = Math.round(MAX_VIDEO_INPUT_BYTES / (1024 * 1024));
 const SPLIT_SCREEN_RESULT_DRAFT_KEY = "alilu.videos.splitScreenResult.v1";
 
@@ -142,6 +144,16 @@ function parseClock(text: string): number | null {
 function buildUploadPathname(file: File): string {
   const uuid = typeof crypto.randomUUID === "function" ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`;
   return `${VIDEO_UPLOAD_PATH_PREFIX}${uuid}-${sanitizeOriginalFilename(file.name)}`;
+}
+
+function normalizeVideoInputFile(file: File): File | null {
+  const inferredType = inferVideoInputContentTypeFromFilename(file.name);
+  if (isAllowedVideoInputContentType(file.type)) return file;
+  if (!inferredType) return null;
+  return new File([file], file.name, {
+    type: inferredType,
+    lastModified: file.lastModified,
+  });
 }
 
 function clampFramingPosition(value: number): number {
@@ -258,8 +270,9 @@ function VideoUploadSlot({
   function handleChange(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0] ?? null;
     if (!file) return;
+    const normalizedFile = normalizeVideoInputFile(file);
 
-    if (!isAllowedVideoInputContentType(file.type)) {
+    if (!normalizedFile) {
       event.target.value = "";
       setLocalFileError("Formato não suportado. Envie um vídeo MP4, MOV ou WEBM.");
       onFileChange(null);
@@ -272,7 +285,7 @@ function VideoUploadSlot({
       return;
     }
     setLocalFileError(null);
-    onFileChange(file);
+    onFileChange(normalizedFile);
   }
 
   return (
@@ -285,6 +298,9 @@ function VideoUploadSlot({
         type="file"
         accept={ACCEPT_ATTRIBUTE}
         disabled={disabled}
+        onClick={(event) => {
+          event.currentTarget.value = "";
+        }}
         onChange={handleChange}
         className="mt-2 block w-full text-sm text-zinc-700 file:mr-3 file:rounded-md file:border-0 file:bg-zinc-900 file:px-3 file:py-2 file:text-sm file:font-semibold file:text-white"
       />
@@ -383,6 +399,11 @@ function FramingPreviewPane({
       ? computeVideoFramingLayout({ width: videoWidth, height: videoHeight }, { width: regionWidth, height: regionHeight }, framing)
       : null;
 
+  useEffect(() => {
+    if (!objectUrl) return;
+    videoRef.current?.load();
+  }, [objectUrl, videoRef]);
+
   function updatePosition(positionX: number, positionY: number) {
     onFramingChange({
       ...framing,
@@ -469,7 +490,9 @@ function FramingPreviewPane({
             muted
             loop={loop}
             playsInline
+            preload="metadata"
             onLoadedMetadata={onLoadedMetadata}
+            onDurationChange={onLoadedMetadata}
             className={layout ? "absolute max-w-none select-none" : "h-full w-full object-cover"}
             style={videoStyle}
           />
@@ -625,6 +648,7 @@ export function VideoSplitScreenEditor({
     videoWidth: number,
     videoHeight: number,
   ) {
+    if (!Number.isFinite(durationSeconds) || durationSeconds <= 0) return;
     setter((previous) => ({
       ...previous,
       durationSeconds,
