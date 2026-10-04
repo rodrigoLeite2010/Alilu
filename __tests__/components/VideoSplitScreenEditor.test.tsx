@@ -85,6 +85,30 @@ describe("VideoSplitScreenEditor — upload dos dois vídeos", () => {
     expect(within(secondarySlot).getByText(/Duração do arquivo enviado: 00:04/)).toBeInTheDocument();
   });
 
+  it("não mostra erro falso de corte quando o navegador ainda não leu a duração do vídeo", async () => {
+    renderEditor();
+
+    fireEvent.change(screen.getByLabelText("Vídeo principal (fica em cima)"), {
+      target: { files: [makeVideoFile("celular-principal.mp4")] },
+    });
+    fireEvent.change(screen.getByLabelText("Vídeo complementar (fica embaixo)"), {
+      target: { files: [makeVideoFile("celular-complementar.mp4")] },
+    });
+
+    expect(await screen.findByTestId("preview-video-primary")).toBeInTheDocument();
+    expect(await screen.findByTestId("preview-video-secondary")).toBeInTheDocument();
+    expect(screen.queryByText("O fim do corte precisa ser depois do início.")).not.toBeInTheDocument();
+    expect(screen.getByTestId("generate-button")).toBeEnabled();
+
+    fireEvent.click(screen.getByTestId("generate-button"));
+    await waitFor(() => expect(global.fetch).toHaveBeenCalledWith("/api/videos/split-screen", expect.anything()));
+
+    const requestInit = getSplitScreenRequestInit();
+    const body = JSON.parse(requestInit.body as string);
+    expect(body.primaryTrim).toEqual({ startSeconds: 0, endSeconds: null });
+    expect(body.secondaryTrim).toEqual({ startSeconds: 0, endSeconds: null });
+  });
+
   it("rejeita um arquivo de formato não suportado, com mensagem amigável, e nunca cria o preview", () => {
     renderEditor();
 

@@ -1,17 +1,25 @@
 import "server-only";
-import { encryptSecret } from "@/lib/instagram/backend/encryption";
+import { decryptSecret, encryptSecret } from "@/lib/instagram/backend/encryption";
 import {
   buildInstagramAuthorizeUrl,
+  describeMetaError,
   exchangeCodeForShortLivedToken,
   exchangeForLongLivedToken,
   fetchInstagramProfile,
   InstagramGraphApiError,
+  refreshLongLivedToken,
 } from "@/lib/instagram/backend/meta-graph-client";
 import {
   getInstagramAccountForUser,
+  listAccountsNeedingTokenRefresh,
+  markExpiredInstagramAccounts,
+  setInstagramAccountStatus,
+  updateInstagramAccountToken,
   upsertInstagramAccount,
   type InstagramAccountRecord,
 } from "@/lib/instagram/backend/instagram-account-repository";
+import { INSTAGRAM_PUBLISH_SCOPE } from "@/lib/instagram/backend/instagram-oauth-config";
+import { logInstagramOAuth } from "@/lib/instagram/backend/oauth-log";
 
 /**
  * Orquestra a conexão de uma conta do Instagram: credenciais do app →
@@ -27,11 +35,24 @@ export class InstagramOAuthConfigError extends Error {
   }
 }
 
+/** Motivo (código estável) — a rota converte em mensagem amigável; nunca mostra o texto da Meta. */
+export type InstagramConnectFailure = "exchange_failed" | "long_lived_failed" | "not_professional" | "missing_publish_permission";
+
 export class InstagramOAuthExchangeError extends Error {
-  constructor(message: string) {
+  readonly reason: InstagramConnectFailure;
+  constructor(message: string, reason: InstagramConnectFailure = "exchange_failed") {
     super(message);
     this.name = "InstagramOAuthExchangeError";
+    this.reason = reason;
   }
+}
+
+/** Contas profissionais (Criador ou Empresa) — as únicas que a API de publicação aceita. */
+const PROFESSIONAL_ACCOUNT_TYPES = new Set(["BUSINESS", "MEDIA_CREATOR", "CREATOR"]);
+
+function metaErrorFields(error: unknown) {
+  const meta = describeMetaError(error instanceof InstagramGraphApiError ? error.details : null);
+  return { errorCode: meta.code, errorSubcode: meta.subcode, errorType: meta.type, errorMessage: meta.message ?? (error as Error)?.message ?? null };
 }
 
 export interface InstagramAppCredentials {
@@ -85,10 +106,15 @@ export async function completeInstagramConnection(
       code: input.code,
     });
   } catch (error) {
-    console.error("[instagram-oauth-service] falha na troca do código por token de curta duração", error);
-    throw new InstagramOAuthExchangeError(
-      "Não foi possível concluir a conexão com o Instagram (troca do código de autorização falhou).",
-    );
+    await logInstagramOAuth("exchange", "Falha na troca do código por token", { userId: input.userId, outcome: "error", ...metaErrorFields(error) });
+    throw new InstagramOAuthExchangeError("Não foi possível concluir a conexão com o Instagram.", "exchange_failed");
+  }
+  await logInstagramOAuth("token", "Token obtido", { userId: input.userId, permissions: shortLived.permissions.join(",") });
+
+  // Permissão de publicar desmarcada na tela da Meta: sem ela o Alilu não serve para nada.
+  if (shortLived.permissions.length > 0 && !shortLived.permissions.includes(INSTAGRAM_PUBLISH_SCOPE)) {
+    await logInstagramOAuth("permissions", "Permissão de publicação não concedida", { userId: input.userId, outcome: "error", error: "missing_publish_permission" });
+    throw new InstagramOAuthExchangeError("A permissão de publicar não foi concedida.", "missing_publish_permission");
   }
 
   let longLived;
@@ -98,23 +124,25 @@ export async function completeInstagramConnection(
       shortLivedAccessToken: shortLived.accessToken,
     });
   } catch (error) {
-    console.error("[instagram-oauth-service] falha ao obter o token de longa duração", error);
-    throw new InstagramOAuthExchangeError(
-      "Não foi possível concluir a conexão com o Instagram (obtenção do token de longa duração falhou).",
-    );
+    await logInstagramOAuth("long_lived", "Falha ao obter token de longa duração", { userId: input.userId, outcome: "error", ...metaErrorFields(error) });
+    throw new InstagramOAuthExchangeError("Não foi possível concluir a conexão com o Instagram.", "long_lived_failed");
   }
 
-  let profile = { igUserId: shortLived.igUserId, username: null as string | null };
+  let profile: { igUserId: string; username: string | null; accountType?: string | null } = { igUserId: shortLived.igUserId, username: null };
   try {
     profile = await fetchInstagramProfile(longLived.accessToken);
   } catch (error) {
     // Já temos um token válido — não falha a conexão inteira por causa
     // disso, só ficamos sem o @username por ora (fallback ao ig_user_id).
-    console.error(
-      "[instagram-oauth-service] falha ao buscar o perfil (conexão prossegue sem username)",
-      error instanceof InstagramGraphApiError ? error.message : error,
-    );
+    await logInstagramOAuth("profile", "Falha ao buscar o perfil (segue sem @usuário)", { userId: input.userId, outcome: "error", ...metaErrorFields(error) });
   }
+
+  const accountType = profile.accountType?.toUpperCase() ?? null;
+  if (accountType && !PROFESSIONAL_ACCOUNT_TYPES.has(accountType)) {
+    await logInstagramOAuth("profile", "Conta não profissional", { userId: input.userId, outcome: "error", error: "not_professional", accountType });
+    throw new InstagramOAuthExchangeError("A conta do Instagram não é profissional.", "not_professional");
+  }
+  await logInstagramOAuth("profile", "Conta Instagram encontrada", { userId: input.userId, accountType, hasUsername: Boolean(profile.username) });
 
   const tokenExpiresAt = new Date(Date.now() + longLived.expiresInSeconds * 1000);
   const accessTokenEncrypted = encryptSecret(longLived.accessToken);
@@ -127,6 +155,37 @@ export async function completeInstagramConnection(
     tokenExpiresAt,
     scopes: shortLived.permissions,
   });
+}
+
+export interface TokenRefreshResult {
+  refreshed: number;
+  failed: number;
+  expired: number;
+}
+
+/**
+ * Renova os tokens de 60 dias antes de vencer (regra da Meta: o token precisa
+ * ter ao menos 24 h e ainda estar válido). Roda no cron do agendador. Conta
+ * que a Meta recusar (token revogado/expirado) vira "expired" — a tela pede
+ * para reconectar e nenhuma publicação tenta usar um token morto.
+ */
+export async function refreshExpiringInstagramTokens(options: { now?: Date; limit?: number } = {}): Promise<TokenRefreshResult> {
+  const now = options.now ?? new Date();
+  const result: TokenRefreshResult = { refreshed: 0, failed: 0, expired: await markExpiredInstagramAccounts(now) };
+  for (const account of await listAccountsNeedingTokenRefresh(now, options.limit ?? 20)) {
+    try {
+      const refreshed = await refreshLongLivedToken(decryptSecret(account.accessTokenEncrypted));
+      await updateInstagramAccountToken(account.id, encryptSecret(refreshed.accessToken), new Date(now.getTime() + refreshed.expiresInSeconds * 1000));
+      result.refreshed += 1;
+    } catch (error) {
+      result.failed += 1;
+      const meta = metaErrorFields(error);
+      // 190 = token inválido/expirado/revogado pela pessoa no Instagram.
+      if (meta.errorCode === 190) await setInstagramAccountStatus(account.id, "expired");
+      await logInstagramOAuth("refresh", "Falha ao renovar token", { userId: account.userId, outcome: "error", ...meta });
+    }
+  }
+  return result;
 }
 
 export { getInstagramAccountForUser };

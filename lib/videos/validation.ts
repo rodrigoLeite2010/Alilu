@@ -48,13 +48,23 @@ const VIDEO_AUDIO_SOURCES: VideoAudioSource[] = ["primary", "secondary", "both"]
 /** Teto de sanidade para qualquer limite de corte (1 hora) — não é o limite de duração do resultado (esse é MAX_OUTPUT_DURATION_SECONDS), só uma guarda contra valores absurdos chegando no FFmpeg como `-to`. */
 const MAX_TRIM_BOUNDARY_SECONDS = 60 * 60;
 
+export interface SplitScreenRequestTrimRange {
+  /** Segundos, relativo ao início real do arquivo. */
+  startSeconds: number;
+  /**
+   * Segundos, relativo ao início real do arquivo.
+   * `null` significa "usar a duração real medida via ffprobe no servidor".
+   */
+  endSeconds: number | null;
+}
+
 export interface SplitScreenRequestBody {
   primaryBlobUrl: string;
   secondaryBlobUrl: string;
   outputFormat: VideoOutputFormat;
   layoutRatio: VideoSplitLayoutRatio;
-  primaryTrim: VideoTrimRange;
-  secondaryTrim: VideoTrimRange;
+  primaryTrim: SplitScreenRequestTrimRange;
+  secondaryTrim: SplitScreenRequestTrimRange;
   primaryFraming?: VideoFraming;
   secondaryFraming?: VideoFraming;
   durationMode: VideoDurationMode;
@@ -71,7 +81,7 @@ function parseBlobUrl(raw: unknown, label: string): ParseResult<string> {
   return { ok: true, value: raw };
 }
 
-function parseTrim(raw: unknown, label: string): ParseResult<VideoTrimRange> {
+function parseTrim(raw: unknown, label: string): ParseResult<SplitScreenRequestTrimRange> {
   if (typeof raw !== "object" || raw === null) {
     return { ok: false, error: `Corte do ${label} inválido.` };
   }
@@ -82,13 +92,13 @@ function parseTrim(raw: unknown, label: string): ParseResult<VideoTrimRange> {
   if (typeof startSeconds !== "number" || !Number.isFinite(startSeconds) || startSeconds < 0) {
     return { ok: false, error: `Início do corte do ${label} inválido.` };
   }
-  if (typeof endSeconds !== "number" || !Number.isFinite(endSeconds)) {
+  if (endSeconds !== null && (typeof endSeconds !== "number" || !Number.isFinite(endSeconds))) {
     return { ok: false, error: `Fim do corte do ${label} inválido.` };
   }
-  if (endSeconds <= startSeconds) {
+  if (endSeconds !== null && endSeconds <= startSeconds) {
     return { ok: false, error: `O fim do corte do ${label} precisa ser depois do início.` };
   }
-  if (endSeconds > MAX_TRIM_BOUNDARY_SECONDS) {
+  if (endSeconds !== null && endSeconds > MAX_TRIM_BOUNDARY_SECONDS) {
     return { ok: false, error: `Corte do ${label} grande demais.` };
   }
 
@@ -204,16 +214,18 @@ export function parseSplitScreenRequest(body: unknown): ParseResult<SplitScreenR
   const audio = parseAudio(raw.audio);
   if (!audio.ok) return audio;
 
-  const estimatedDuration = computeOutputDurationSeconds(
-    primaryTrim.value,
-    secondaryTrim.value,
-    durationMode as VideoDurationMode,
-  );
-  if (estimatedDuration > MAX_OUTPUT_DURATION_SECONDS) {
-    return {
-      ok: false,
-      error: `O resultado ficaria com ${Math.round(estimatedDuration)}s — o limite desta ferramenta é ${MAX_OUTPUT_DURATION_SECONDS}s.`,
-    };
+  if (primaryTrim.value.endSeconds !== null && secondaryTrim.value.endSeconds !== null) {
+    const estimatedDuration = computeOutputDurationSeconds(
+      primaryTrim.value as VideoTrimRange,
+      secondaryTrim.value as VideoTrimRange,
+      durationMode as VideoDurationMode,
+    );
+    if (estimatedDuration > MAX_OUTPUT_DURATION_SECONDS) {
+      return {
+        ok: false,
+        error: `O resultado ficaria com ${Math.round(estimatedDuration)}s — o limite desta ferramenta é ${MAX_OUTPUT_DURATION_SECONDS}s.`,
+      };
+    }
   }
 
   return {

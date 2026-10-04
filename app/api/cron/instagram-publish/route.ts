@@ -4,6 +4,7 @@ import {
   parseSchedulerLimit,
   runInstagramScheduler,
 } from "@/lib/instagram/backend/instagram-scheduler";
+import { refreshExpiringInstagramTokens } from "@/lib/instagram/backend/instagram-oauth-service";
 
 export const maxDuration = 60;
 export const dynamic = "force-dynamic";
@@ -23,7 +24,9 @@ async function handle(request: Request): Promise<NextResponse> {
   }
   try {
     const results = await runInstagramScheduler({ limit: parseSchedulerLimit(request) });
-    return NextResponse.json({ processed: results.length, results });
+    // Renova tokens de 60 dias perto de vencer (sem isso as contas param de publicar).
+    const tokens = await refreshExpiringInstagramTokens({ limit: 10 }).catch(() => null);
+    return NextResponse.json({ processed: results.length, results, tokens });
   } catch {
     console.error(JSON.stringify({ scope: "instagram-publish", event: "scheduler.crash" }));
     return NextResponse.json({ error: "Falha ao executar o agendador." }, { status: 500 });

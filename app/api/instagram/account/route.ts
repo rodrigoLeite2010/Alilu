@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { getInstagramAccountForUser } from "@/lib/instagram/backend/instagram-account-repository";
+import { disconnectInstagramAccountsForUser, getInstagramAccountForUser } from "@/lib/instagram/backend/instagram-account-repository";
+import { logInstagramOAuth } from "@/lib/instagram/backend/oauth-log";
 
 export const dynamic = "force-dynamic";
 
@@ -35,4 +36,18 @@ export async function GET(): Promise<NextResponse> {
   } catch {
     return NextResponse.json({ authenticated: true, userId, connected: false, username: null, unavailable: true });
   }
+}
+
+/**
+ * DELETE: "Desconectar Instagram" — apaga o token guardado e marca a conta
+ * como desconectada (publicações/automações ficam, mas não publicam até
+ * reconectar). Sempre restrito ao usuário logado.
+ */
+export async function DELETE(): Promise<NextResponse> {
+  const session = await auth();
+  const userId = session?.user?.id;
+  if (!userId) return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
+  const count = await disconnectInstagramAccountsForUser(userId);
+  await logInstagramOAuth("disconnect", "Instagram desconectado pelo usuário", { userId, accounts: count });
+  return NextResponse.json({ disconnected: count });
 }

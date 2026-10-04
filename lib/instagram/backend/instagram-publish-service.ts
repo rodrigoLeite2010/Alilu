@@ -27,6 +27,7 @@ import {
 import {
   ContainerProcessingError,
   PublishValidationError,
+  RENEW_CONNECTION_MESSAGE,
   classifyPublishError,
   computeNextRetryAt,
 } from "@/lib/instagram/backend/publish-errors";
@@ -264,6 +265,8 @@ export async function publishInstagramPublication(
       }
     }
 
+    // Conta desconectada (token apagado): pede para reconectar, sem tentar a Meta.
+    if (!post.accessTokenEncrypted) throw new PublishValidationError(RENEW_CONNECTION_MESSAGE);
     const accessToken = decryptSecret(post.accessTokenEncrypted);
     const result = await executePublish({
       post,

@@ -1,4 +1,5 @@
 import "server-only";
+import { INSTAGRAM_OAUTH_SCOPES as CONFIG_SCOPES } from "./instagram-oauth-config";
 
 /**
  * Cliente cru da API da Meta usada pelo Instagram API with Instagram Login
@@ -21,15 +22,8 @@ export const CODE_EXCHANGE_URL = "https://api.instagram.com/oauth/access_token";
 export const LONG_LIVED_EXCHANGE_URL = "https://graph.instagram.com/access_token";
 export const REFRESH_URL = "https://graph.instagram.com/refresh_access_token";
 
-/**
- * Escopos exigidos para conectar a conta e futuramente publicar. Confirmado
- * na documentação do "Instagram API with Instagram Login": distintos dos
- * escopos do antigo Instagram Basic Display.
- */
-export const INSTAGRAM_OAUTH_SCOPES = [
-  "instagram_business_basic",
-  "instagram_business_content_publish",
-];
+/** Escopos: definidos e documentados em instagram-oauth-config.ts (mantido o export por compatibilidade). */
+export const INSTAGRAM_OAUTH_SCOPES: string[] = [...CONFIG_SCOPES];
 
 export class InstagramGraphApiError extends Error {
   readonly details: unknown;
@@ -214,6 +208,22 @@ export async function refreshLongLivedToken(accessToken: string): Promise<LongLi
 export interface InstagramProfile {
   igUserId: string;
   username: string | null;
+  /** "BUSINESS" | "MEDIA_CREATOR" (contas profissionais); outro valor/ausente = desconhecido ou pessoal. */
+  accountType?: string | null;
+}
+
+/** Extrai código/subcódigo/tipo/mensagem de um erro da Meta (os dois formatos: Graph e OAuth). Nunca inclui token. */
+export function describeMetaError(details: unknown): { code: number | null; subcode: number | null; type: string | null; message: string | null } {
+  const out = { code: null as number | null, subcode: null as number | null, type: null as string | null, message: null as string | null };
+  if (!isRecord(details)) return out;
+  const inner = isRecord(details.error) ? details.error : details;
+  if (typeof inner.code === "number") out.code = inner.code;
+  if (typeof inner.error_subcode === "number") out.subcode = inner.error_subcode;
+  const type = inner.type ?? inner.error_type;
+  if (typeof type === "string") out.type = type.slice(0, 80);
+  const message = inner.message ?? inner.error_message;
+  if (typeof message === "string") out.message = message.replace(/access_token=[^&\s]+/gi, "access_token=***").slice(0, 300);
+  return out;
 }
 
 /**
@@ -225,7 +235,7 @@ export interface InstagramProfile {
  */
 export async function fetchInstagramProfile(accessToken: string): Promise<InstagramProfile> {
   const url = new URL(`https://graph.instagram.com/${GRAPH_API_VERSION}/me`);
-  url.searchParams.set("fields", "user_id,username");
+  url.searchParams.set("fields", "user_id,username,account_type");
   url.searchParams.set("access_token", accessToken);
 
   const response = await fetch(url.toString());
@@ -248,6 +258,7 @@ export async function fetchInstagramProfile(accessToken: string): Promise<Instag
   return {
     igUserId: String(userId),
     username: typeof entry.username === "string" ? entry.username : null,
+    accountType: typeof entry.account_type === "string" ? entry.account_type : null,
   };
 }
 

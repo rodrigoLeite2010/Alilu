@@ -1,47 +1,51 @@
 // @vitest-environment node
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import {
   INSTAGRAM_OAUTH_STATE_COOKIE,
   OAUTH_STATE_MAX_AGE_SECONDS,
   generateOAuthState,
   isValidOAuthState,
+  verifySignedOAuthState,
 } from "@/lib/instagram/backend/oauth-state";
 
-describe("generateOAuthState", () => {
-  it("gera uma string hexadecimal não vazia", () => {
-    const state = generateOAuthState();
-    expect(state.length).toBeGreaterThan(0);
-    expect(state).toMatch(/^[0-9a-f]+$/);
+beforeEach(() => {
+  process.env.AUTH_SECRET = "segredo-de-teste-para-o-state-oauth";
+});
+
+describe("generateOAuthState / verifySignedOAuthState", () => {
+  it("gera state aleatório, assinado e preso ao usuário", () => {
+    const state = generateOAuthState("user-1");
+    expect(state.split(".")).toHaveLength(3);
+    expect(generateOAuthState("user-1")).not.toBe(state);
+    expect(verifySignedOAuthState(state, "user-1")).toBe("ok");
   });
 
-  it("gera valores diferentes a cada chamada", () => {
-    expect(generateOAuthState()).not.toBe(generateOAuthState());
+  it("recusa state de outro usuário (CSRF / ligar conta à pessoa errada)", () => {
+    expect(verifySignedOAuthState(generateOAuthState("atacante"), "vitima")).toBe("bad_signature");
+  });
+
+  it("expira em 10 minutos", () => {
+    const t0 = new Date("2026-10-04T12:00:00Z");
+    const state = generateOAuthState("user-1", t0);
+    expect(verifySignedOAuthState(state, "user-1", new Date(t0.getTime() + 9 * 60_000))).toBe("ok");
+    expect(verifySignedOAuthState(state, "user-1", new Date(t0.getTime() + 11 * 60_000))).toBe("expired");
+  });
+
+  it("recusa ausente, malformado e adulterado", () => {
+    expect(verifySignedOAuthState(null, "user-1")).toBe("missing");
+    expect(verifySignedOAuthState("abc", "user-1")).toBe("malformed");
+    const [nonce, issuedAt] = generateOAuthState("user-1").split(".");
+    expect(verifySignedOAuthState(`${nonce}.${issuedAt}.assinaturafalsa`, "user-1")).toBe("bad_signature");
   });
 });
 
-describe("isValidOAuthState", () => {
-  it("aceita quando o state do callback bate com o do cookie", () => {
-    const state = generateOAuthState();
+describe("isValidOAuthState (cookie)", () => {
+  it("aceita igual e recusa diferente/ausente sem lançar", () => {
+    const state = generateOAuthState("user-1");
     expect(isValidOAuthState(state, state)).toBe(true);
-  });
-
-  it("rejeita quando os valores são diferentes", () => {
-    expect(isValidOAuthState(generateOAuthState(), generateOAuthState())).toBe(false);
-  });
-
-  it("rejeita quando falta o state do callback", () => {
-    expect(isValidOAuthState(null, generateOAuthState())).toBe(false);
-    expect(isValidOAuthState(undefined, generateOAuthState())).toBe(false);
-    expect(isValidOAuthState("", generateOAuthState())).toBe(false);
-  });
-
-  it("rejeita quando falta o state do cookie", () => {
-    const state = generateOAuthState();
-    expect(isValidOAuthState(state, null)).toBe(false);
+    expect(isValidOAuthState(state, generateOAuthState("user-1"))).toBe(false);
+    expect(isValidOAuthState(null, state)).toBe(false);
     expect(isValidOAuthState(state, undefined)).toBe(false);
-  });
-
-  it("rejeita com segurança quando os tamanhos são diferentes (sem lançar)", () => {
     expect(isValidOAuthState("abc", "abcdef")).toBe(false);
   });
 });

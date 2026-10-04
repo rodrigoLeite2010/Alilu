@@ -212,11 +212,23 @@ function validateTrim(slot: VideoSlotState): string | null {
   const start = parseClock(slot.trimStartText);
   const end = parseClock(slot.trimEndText);
   if (start === null || end === null) return "Use o formato mm:ss (ex.: 01:30).";
+  if (slot.durationSeconds === null && end === 0) return null;
   if (end <= start) return "O fim do corte precisa ser depois do início.";
   if (slot.durationSeconds !== null && end > slot.durationSeconds + 0.5) {
     return `O vídeo enviado dura ${formatClock(slot.durationSeconds)} — o fim do corte não pode passar disso.`;
   }
   return null;
+}
+
+function shouldUseAutomaticTrimEnd(slot: VideoSlotState): boolean {
+  return Boolean(slot.file) && slot.durationSeconds === null && parseClock(slot.trimEndText) === 0;
+}
+
+function buildRequestTrim(slot: VideoSlotState): { startSeconds: number; endSeconds: number | null } {
+  return {
+    startSeconds: parseClock(slot.trimStartText) ?? 0,
+    endSeconds: shouldUseAutomaticTrimEnd(slot) ? null : parseClock(slot.trimEndText),
+  };
 }
 
 function VideoUploadSlot({
@@ -245,15 +257,16 @@ function VideoUploadSlot({
 
   function handleChange(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0] ?? null;
-    event.target.value = "";
     if (!file) return;
 
     if (!isAllowedVideoInputContentType(file.type)) {
+      event.target.value = "";
       setLocalFileError("Formato não suportado. Envie um vídeo MP4, MOV ou WEBM.");
       onFileChange(null);
       return;
     }
     if (file.size > MAX_VIDEO_INPUT_BYTES) {
+      event.target.value = "";
       setLocalFileError(`Esse vídeo é muito grande. Envie um arquivo de até ${MAX_INPUT_MEGABYTES} MB.`);
       onFileChange(null);
       return;
@@ -307,6 +320,10 @@ function VideoUploadSlot({
           </div>
           {slot.durationSeconds !== null ? (
             <p className="col-span-2 text-xs text-zinc-500">Duração do arquivo enviado: {formatClock(slot.durationSeconds)}</p>
+          ) : shouldUseAutomaticTrimEnd(slot) ? (
+            <p className="col-span-2 text-xs text-zinc-500">
+              A duração será confirmada no servidor. Para cortar manualmente, preencha o fim do trecho.
+            </p>
           ) : null}
           {trimError ? (
             <p role="alert" className="col-span-2 text-xs text-red-700">
@@ -747,11 +764,8 @@ export function VideoSplitScreenEditor({
           secondaryBlobUrl: secondaryUpload.url,
           outputFormat,
           layoutRatio,
-          primaryTrim: { startSeconds: parseClock(primary.trimStartText), endSeconds: parseClock(primary.trimEndText) },
-          secondaryTrim: {
-            startSeconds: parseClock(secondary.trimStartText),
-            endSeconds: parseClock(secondary.trimEndText),
-          },
+          primaryTrim: buildRequestTrim(primary),
+          secondaryTrim: buildRequestTrim(secondary),
           primaryFraming,
           secondaryFraming,
           durationMode,

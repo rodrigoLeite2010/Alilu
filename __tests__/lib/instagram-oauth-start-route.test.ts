@@ -1,20 +1,12 @@
 // @vitest-environment node
 //
-// Testa a rota de início do OAuth mockando `auth`, a geração do `state` e
-// o serviço que monta a URL de autorização — sem nenhuma chamada real à
-// Meta.
+// Início do OAuth: login exigido, domínio canônico (cookie de state não se
+// perde entre www/sem www), state assinado no cookie e redirect normal.
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const authMock = vi.fn();
 vi.mock("@/auth", () => ({ auth: (...args: unknown[]) => authMock(...args) }));
-
-const generateOAuthStateMock = vi.fn();
-vi.mock("@/lib/instagram/backend/oauth-state", async () => {
-  const actual = await vi.importActual<typeof import("@/lib/instagram/backend/oauth-state")>(
-    "@/lib/instagram/backend/oauth-state",
-  );
-  return { ...actual, generateOAuthState: (...args: unknown[]) => generateOAuthStateMock(...args) };
-});
+vi.mock("@/lib/instagram/backend/oauth-log", () => ({ logInstagramOAuth: vi.fn(async () => undefined) }));
 
 class FakeInstagramOAuthConfigError extends Error {}
 const buildAuthorizeUrlForConnectMock = vi.fn();
@@ -24,58 +16,57 @@ vi.mock("@/lib/instagram/backend/instagram-oauth-service", () => ({
 }));
 
 const { GET } = await import("@/app/api/instagram/oauth/start/route");
+const { verifySignedOAuthState } = await import("@/lib/instagram/backend/oauth-state");
 
-function request(): Request {
-  return new Request("https://alilu.com.br/api/instagram/oauth/start");
+function request(url = "https://alilu.com.br/api/instagram/oauth/start"): Request {
+  return new Request(url);
 }
 
 describe("GET /api/instagram/oauth/start", () => {
   beforeEach(() => {
     authMock.mockReset();
-    generateOAuthStateMock.mockReset();
     buildAuthorizeUrlForConnectMock.mockReset();
+    process.env.AUTH_SECRET = "segredo-de-teste-para-o-state-oauth";
+    delete process.env.INSTAGRAM_OAUTH_REDIRECT_URI;
+    vi.stubEnv("VERCEL_ENV", "production");
   });
 
-  it("redireciona para /entrar quando não há sessão", async () => {
+  it("sem login: manda entrar e volta para a área Instagram", async () => {
     authMock.mockResolvedValue(null);
-
-    const response = await GET(request());
-
-    expect(response.status).toBe(307);
-    expect(response.headers.get("location")).toBe("https://alilu.com.br/entrar");
+    const response = await GET(request("https://alilu.com.br/api/instagram/oauth/start?returnTo=%2Finstagram%2Freels"));
+    const location = new URL(response.headers.get("location") ?? "");
+    expect(location.pathname).toBe("/entrar");
+    expect(location.searchParams.get("callbackUrl")).toBe("/instagram/reels");
   });
 
-  it("responde 503 quando o app da Meta não está configurado", async () => {
+  it("www → domínio canônico antes de começar (mesmo host do redirect_uri)", async () => {
     authMock.mockResolvedValue({ user: { id: "user-1" } });
-    generateOAuthStateMock.mockReturnValue("state-abc");
+    const response = await GET(request("https://www.alilu.com.br/api/instagram/oauth/start?returnTo=%2Finstagram"));
+    expect(response.headers.get("location")).toBe("https://alilu.com.br/api/instagram/oauth/start?returnTo=%2Finstagram");
+    expect(buildAuthorizeUrlForConnectMock).not.toHaveBeenCalled();
+  });
+
+  it("app não configurado: tela amigável, nunca JSON técnico", async () => {
+    authMock.mockResolvedValue({ user: { id: "user-1" } });
     buildAuthorizeUrlForConnectMock.mockImplementation(() => {
       throw new FakeInstagramOAuthConfigError("não configurado");
     });
-
     const response = await GET(request());
-    const data = (await response.json()) as { error?: string };
-
-    expect(response.status).toBe(503);
-    expect(data.error).toBe("não configurado");
+    expect(response.headers.get("location")).toBe("https://alilu.com.br/instagram/conectado?resultado=indisponivel");
   });
 
-  it("redireciona para a URL de autorização e grava o cookie de state", async () => {
+  it("redireciona para a Meta com redirect_uri fixo e grava o state assinado no cookie", async () => {
     authMock.mockResolvedValue({ user: { id: "user-1" } });
-    generateOAuthStateMock.mockReturnValue("state-abc");
-    buildAuthorizeUrlForConnectMock.mockReturnValue("https://www.instagram.com/oauth/authorize?state=state-abc");
-
-    const response = await GET(request());
-
+    buildAuthorizeUrlForConnectMock.mockImplementation((uri: string, state: string) => `https://www.instagram.com/oauth/authorize?state=${state}`);
+    const response = await GET(request("https://alilu.com.br/api/instagram/oauth/start?returnTo=%2Finstagram%2Fposts-virais"));
     expect(response.status).toBe(307);
-    expect(response.headers.get("location")).toBe("https://www.instagram.com/oauth/authorize?state=state-abc");
-    expect(buildAuthorizeUrlForConnectMock).toHaveBeenCalledWith(
-      "https://alilu.com.br/api/instagram/oauth/callback",
-      "state-abc",
-    );
-
+    const [redirectUri, state] = buildAuthorizeUrlForConnectMock.mock.calls[0];
+    expect(redirectUri).toBe("https://alilu.com.br/api/instagram/oauth/callback");
+    expect(verifySignedOAuthState(state, "user-1")).toBe("ok");
     const setCookie = response.headers.get("set-cookie") ?? "";
-    expect(setCookie).toContain("ig_oauth_state=state-abc");
+    expect(setCookie).toContain(`ig_oauth_state=${state}`);
     expect(setCookie).toContain("HttpOnly");
     expect(setCookie).toContain("Path=/api/instagram/oauth");
+    expect(setCookie).toContain("ig_oauth_return=%2Finstagram%2Fposts-virais");
   });
 });

@@ -11,7 +11,7 @@ import { del as deleteBlob, put } from "@vercel/blob";
 import ffmpegPath from "ffmpeg-static";
 import { path as ffprobePath } from "ffprobe-static";
 import { MAX_OUTPUT_DURATION_SECONDS, VIDEO_OUTPUT_PATH_PREFIX } from "../config";
-import { buildSplitScreenFfmpegArgs, computeOutputDurationSeconds } from "../split-screen-ffmpeg";
+import { buildSplitScreenFfmpegArgs, computeOutputDurationSeconds, type VideoTrimRange } from "../split-screen-ffmpeg";
 import type { SplitScreenRequestBody } from "../validation";
 
 /**
@@ -140,6 +140,21 @@ export interface ProcessSplitScreenVideoResult {
   url: string;
 }
 
+function resolveTrimEnd(
+  trim: SplitScreenRequestBody["primaryTrim"],
+  mediaInfo: ProbedMediaInfo,
+  label: string,
+): VideoTrimRange {
+  const endSeconds = trim.endSeconds ?? mediaInfo.durationSeconds;
+  if (trim.startSeconds >= endSeconds) {
+    throw new VideoProcessingValidationError(`O fim do corte do ${label} precisa ser depois do início.`);
+  }
+  if (endSeconds > mediaInfo.durationSeconds + TRIM_DURATION_TOLERANCE_SECONDS) {
+    throw new VideoProcessingValidationError(`O corte do ${label} vai além da duração real do arquivo enviado.`);
+  }
+  return { startSeconds: trim.startSeconds, endSeconds };
+}
+
 export async function processSplitScreenVideo(request: SplitScreenRequestBody): Promise<ProcessSplitScreenVideoResult> {
   if (!ffmpegPath) {
     throw new VideoProcessingError("Binário do FFmpeg não encontrado neste ambiente.");
@@ -168,25 +183,21 @@ export async function processSplitScreenVideo(request: SplitScreenRequestBody): 
       ]);
       logStructuredTiming("split-screen.probe-done", probeStartedAt);
 
-      if (request.primaryTrim.endSeconds > primaryInfo.durationSeconds + TRIM_DURATION_TOLERANCE_SECONDS) {
-        throw new VideoProcessingValidationError("O corte do vídeo principal vai além da duração real do arquivo enviado.");
-      }
-      if (request.secondaryTrim.endSeconds > secondaryInfo.durationSeconds + TRIM_DURATION_TOLERANCE_SECONDS) {
-        throw new VideoProcessingValidationError("O corte do vídeo complementar vai além da duração real do arquivo enviado.");
-      }
+      const primaryTrim = resolveTrimEnd(request.primaryTrim, primaryInfo, "vídeo principal");
+      const secondaryTrim = resolveTrimEnd(request.secondaryTrim, secondaryInfo, "vídeo complementar");
 
-      const outputDuration = computeOutputDurationSeconds(request.primaryTrim, request.secondaryTrim, request.durationMode);
+      const outputDuration = computeOutputDurationSeconds(primaryTrim, secondaryTrim, request.durationMode);
       if (outputDuration > MAX_OUTPUT_DURATION_SECONDS) {
         throw new VideoProcessingValidationError(
           `O resultado ficaria com ${Math.round(outputDuration)}s — o limite desta ferramenta é ${MAX_OUTPUT_DURATION_SECONDS}s.`,
         );
       }
 
-      const primaryTrimDuration = request.primaryTrim.endSeconds - request.primaryTrim.startSeconds;
-      const secondaryTrimDuration = request.secondaryTrim.endSeconds - request.secondaryTrim.startSeconds;
+      const primaryTrimDuration = primaryTrim.endSeconds - primaryTrim.startSeconds;
+      const secondaryTrimDuration = secondaryTrim.endSeconds - secondaryTrim.startSeconds;
       const needsSecondaryLoop = request.durationMode === "loop" && secondaryTrimDuration < primaryTrimDuration;
       let effectiveSecondaryInputPath = secondaryInputPath;
-      let effectiveSecondaryTrim = request.secondaryTrim;
+      let effectiveSecondaryTrim = secondaryTrim;
       let secondaryInputIsLoopSegment = false;
 
       if (needsSecondaryLoop) {
@@ -195,7 +206,7 @@ export async function processSplitScreenVideo(request: SplitScreenRequestBody): 
           await runProcess(ffmpegPath, [
             "-y",
             "-ss",
-            String(request.secondaryTrim.startSeconds),
+            String(secondaryTrim.startSeconds),
             "-t",
             String(secondaryTrimDuration),
             "-i",
@@ -228,7 +239,7 @@ export async function processSplitScreenVideo(request: SplitScreenRequestBody): 
         outputPath,
         outputFormat: request.outputFormat,
         layoutRatio: request.layoutRatio,
-        primaryTrim: request.primaryTrim,
+        primaryTrim,
         secondaryTrim: effectiveSecondaryTrim,
         primaryFraming: request.primaryFraming,
         secondaryFraming: request.secondaryFraming,

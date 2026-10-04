@@ -53,6 +53,17 @@ describe("parseSplitScreenRequest — corpo válido", () => {
       expect(result.value.secondaryFraming).toEqual({ positionX: 1, positionY: -1, zoom: 2.5 });
     }
   });
+
+  it("aceita fim de corte automático para o servidor completar com ffprobe", () => {
+    const result = parseSplitScreenRequest({
+      ...VALID_BODY,
+      primaryTrim: { startSeconds: 0, endSeconds: null },
+    });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.primaryTrim).toEqual({ startSeconds: 0, endSeconds: null });
+    }
+  });
 });
 
 describe("parseSplitScreenRequest — URLs de blob", () => {

@@ -213,3 +213,67 @@ export async function removeInstagramAccountDefaultMusic(
     audioFileName: null,
   });
 }
+
+/** Contas com token perto de vencer (≤ 15 dias), com ≥ 24 h desde a última gravação — regra da Meta para renovar. */
+export async function listAccountsNeedingTokenRefresh(
+  now: Date,
+  limit: number,
+): Promise<Array<{ id: string; userId: string; accessTokenEncrypted: string }>> {
+  const db = getDb();
+  const rows = await db`
+    select id, user_id, access_token_encrypted from instagram_accounts
+    where status = 'connected' and access_token_encrypted <> ''
+      and token_expires_at is not null
+      and token_expires_at > ${now.toISOString()}
+      and token_expires_at < ${new Date(now.getTime() + 15 * 86_400_000).toISOString()}
+      and updated_at < ${new Date(now.getTime() - 24 * 3600_000).toISOString()}
+    order by token_expires_at
+    limit ${limit}
+  `;
+  return rows.map((row) => ({ id: row.id as string, userId: row.user_id as string, accessTokenEncrypted: row.access_token_encrypted as string }));
+}
+
+export async function updateInstagramAccountToken(id: string, accessTokenEncrypted: string, tokenExpiresAt: Date): Promise<void> {
+  const db = getDb();
+  await db`
+    update instagram_accounts set access_token_encrypted = ${accessTokenEncrypted}, token_expires_at = ${tokenExpiresAt.toISOString()},
+      status = 'connected', updated_at = now()
+    where id = ${id}
+  `;
+}
+
+export async function setInstagramAccountStatus(id: string, status: InstagramAccountStatus): Promise<void> {
+  const db = getDb();
+  await db`update instagram_accounts set status = ${status}, updated_at = now() where id = ${id}`;
+}
+
+/** Token já vencido → "expired" (a tela pede para reconectar). Devolve quantas contas mudaram. */
+export async function markExpiredInstagramAccounts(now: Date): Promise<number> {
+  const db = getDb();
+  const rows = await db`
+    update instagram_accounts set status = 'expired', updated_at = now()
+    where status = 'connected' and token_expires_at is not null and token_expires_at <= ${now.toISOString()}
+    returning id
+  `;
+  return rows.length;
+}
+
+/**
+ * "Desconectar Instagram": apaga o token (nunca fica guardado depois que a
+ * pessoa desconecta) e marca a conta como revogada. A linha continua
+ * existindo porque publicações e automações antigas apontam para ela;
+ * reconectar a mesma conta reaproveita a linha (upsert por ig_user_id).
+ */
+export async function disconnectInstagramAccountsForUser(userId: string, accountId?: string | null): Promise<number> {
+  const db = getDb();
+  const rows = accountId
+    ? await db`
+        update instagram_accounts set status = 'revoked', access_token_encrypted = '', token_expires_at = null, updated_at = now()
+        where user_id = ${userId} and id = ${accountId} returning id
+      `
+    : await db`
+        update instagram_accounts set status = 'revoked', access_token_encrypted = '', token_expires_at = null, updated_at = now()
+        where user_id = ${userId} and status <> 'revoked' returning id
+      `;
+  return rows.length;
+}

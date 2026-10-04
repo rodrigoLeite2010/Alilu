@@ -17,23 +17,38 @@ const exchangeCodeForShortLivedTokenMock = vi.fn();
 const exchangeForLongLivedTokenMock = vi.fn();
 const fetchInstagramProfileMock = vi.fn();
 const buildInstagramAuthorizeUrlMock = vi.fn();
+const refreshLongLivedTokenMock = vi.fn();
+const repoMocks = {
+  listAccountsNeedingTokenRefresh: vi.fn(),
+  markExpiredInstagramAccounts: vi.fn(),
+  setInstagramAccountStatus: vi.fn(),
+  updateInstagramAccountToken: vi.fn(),
+};
 vi.mock("@/lib/instagram/backend/meta-graph-client", () => ({
   InstagramGraphApiError: FakeInstagramGraphApiError,
   exchangeCodeForShortLivedToken: (...args: unknown[]) => exchangeCodeForShortLivedTokenMock(...args),
   exchangeForLongLivedToken: (...args: unknown[]) => exchangeForLongLivedTokenMock(...args),
   fetchInstagramProfile: (...args: unknown[]) => fetchInstagramProfileMock(...args),
   buildInstagramAuthorizeUrl: (...args: unknown[]) => buildInstagramAuthorizeUrlMock(...args),
+  refreshLongLivedToken: (...args: unknown[]) => refreshLongLivedTokenMock(...args),
+  describeMetaError: (details: unknown) => {
+    const inner = (details as { error?: { code?: number; message?: string } } | null)?.error;
+    return { code: inner?.code ?? null, subcode: null, type: null, message: inner?.message ?? null };
+  },
 }));
+vi.mock("@/lib/instagram/backend/oauth-log", () => ({ logInstagramOAuth: vi.fn(async () => undefined) }));
 
 const upsertInstagramAccountMock = vi.fn();
 vi.mock("@/lib/instagram/backend/instagram-account-repository", () => ({
   upsertInstagramAccount: (...args: unknown[]) => upsertInstagramAccountMock(...args),
   getInstagramAccountForUser: vi.fn(),
+  ...repoMocks,
 }));
 
 const encryptSecretMock = vi.fn();
 vi.mock("@/lib/instagram/backend/encryption", () => ({
   encryptSecret: (...args: unknown[]) => encryptSecretMock(...args),
+  decryptSecret: (value: string) => `plain:${value}`,
 }));
 
 const {
@@ -42,6 +57,7 @@ const {
   buildAuthorizeUrlForConnect,
   completeInstagramConnection,
   loadAppCredentials,
+  refreshExpiringInstagramTokens,
 } = await import("@/lib/instagram/backend/instagram-oauth-service");
 
 describe("loadAppCredentials / buildAuthorizeUrlForConnect", () => {
@@ -130,7 +146,7 @@ describe("completeInstagramConnection", () => {
     exchangeCodeForShortLivedTokenMock.mockResolvedValue({
       accessToken: "short-token",
       igUserId: "178414000",
-      permissions: ["instagram_business_basic"],
+      permissions: ["instagram_business_basic", "instagram_business_content_publish"],
     });
     exchangeForLongLivedTokenMock.mockResolvedValue({ accessToken: "long-token", expiresInSeconds: 5184000 });
     fetchInstagramProfileMock.mockRejectedValue(new FakeInstagramGraphApiError("falhou"));
@@ -146,7 +162,7 @@ describe("completeInstagramConnection", () => {
         igUserId: "178414000",
         igUsername: null,
         accessTokenEncrypted: "iv.tag.cipher",
-        scopes: ["instagram_business_basic"],
+        scopes: ["instagram_business_basic", "instagram_business_content_publish"],
       }),
     );
     expect(result).toEqual({ id: "account-1" });
@@ -172,5 +188,58 @@ describe("completeInstagramConnection", () => {
     expect(call.scopes).toEqual(["instagram_business_basic", "instagram_business_content_publish"]);
     expect(call.tokenExpiresAt.getTime()).toBeGreaterThanOrEqual(before + 5184000 * 1000);
     expect(call.tokenExpiresAt.getTime()).toBeLessThanOrEqual(after + 5184000 * 1000);
+  });
+
+  it("conta pessoal (não profissional): não grava e explica o motivo", async () => {
+    exchangeCodeForShortLivedTokenMock.mockResolvedValue({ accessToken: "s", igUserId: "1", permissions: ["instagram_business_basic", "instagram_business_content_publish"] });
+    exchangeForLongLivedTokenMock.mockResolvedValue({ accessToken: "l", expiresInSeconds: 5184000 });
+    fetchInstagramProfileMock.mockResolvedValue({ igUserId: "1", username: "pessoal", accountType: "PERSONAL" });
+    await expect(completeInstagramConnection(input)).rejects.toMatchObject({ reason: "not_professional" });
+    expect(upsertInstagramAccountMock).not.toHaveBeenCalled();
+  });
+
+  it("permissão de publicar desmarcada: não grava", async () => {
+    exchangeCodeForShortLivedTokenMock.mockResolvedValue({ accessToken: "s", igUserId: "1", permissions: ["instagram_business_basic"] });
+    await expect(completeInstagramConnection(input)).rejects.toMatchObject({ reason: "missing_publish_permission" });
+    expect(exchangeForLongLivedTokenMock).not.toHaveBeenCalled();
+  });
+
+  it("Criador (MEDIA_CREATOR) e Empresa (BUSINESS) são aceitas", async () => {
+    for (const accountType of ["MEDIA_CREATOR", "BUSINESS"]) {
+      exchangeCodeForShortLivedTokenMock.mockResolvedValue({ accessToken: "s", igUserId: "1", permissions: ["instagram_business_basic", "instagram_business_content_publish"] });
+      exchangeForLongLivedTokenMock.mockResolvedValue({ accessToken: "l", expiresInSeconds: 5184000 });
+      fetchInstagramProfileMock.mockResolvedValue({ igUserId: "1", username: "x", accountType });
+      encryptSecretMock.mockReturnValue("enc");
+      upsertInstagramAccountMock.mockResolvedValue({ id: "a" });
+      await expect(completeInstagramConnection(input)).resolves.toEqual({ id: "a" });
+    }
+  });
+});
+
+describe("refreshExpiringInstagramTokens", () => {
+  beforeEach(() => {
+    Object.values(repoMocks).forEach((mock) => mock.mockReset());
+    refreshLongLivedTokenMock.mockReset();
+    encryptSecretMock.mockReset();
+  });
+
+  it("renova o token perto de vencer e marca como expirada a conta que a Meta recusa (190)", async () => {
+    const now = new Date("2026-10-04T12:00:00Z");
+    repoMocks.markExpiredInstagramAccounts.mockResolvedValue(1);
+    repoMocks.listAccountsNeedingTokenRefresh.mockResolvedValue([
+      { id: "a1", userId: "u1", accessTokenEncrypted: "enc1" },
+      { id: "a2", userId: "u2", accessTokenEncrypted: "enc2" },
+    ]);
+    refreshLongLivedTokenMock
+      .mockResolvedValueOnce({ accessToken: "novo", expiresInSeconds: 5184000 })
+      .mockRejectedValueOnce(new FakeInstagramGraphApiError("x", { error: { code: 190, message: "Error validating access token" } }));
+    encryptSecretMock.mockReturnValue("enc-novo");
+
+    const result = await refreshExpiringInstagramTokens({ now });
+
+    expect(result).toEqual({ refreshed: 1, failed: 1, expired: 1 });
+    expect(refreshLongLivedTokenMock).toHaveBeenCalledWith("plain:enc1");
+    expect(repoMocks.updateInstagramAccountToken).toHaveBeenCalledWith("a1", "enc-novo", new Date(now.getTime() + 5184000 * 1000));
+    expect(repoMocks.setInstagramAccountStatus).toHaveBeenCalledWith("a2", "expired");
   });
 });

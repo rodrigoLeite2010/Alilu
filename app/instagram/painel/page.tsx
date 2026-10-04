@@ -4,6 +4,8 @@ import { getInstagramAccountForUser } from "@/lib/instagram/backend/instagram-ac
 import { LinkButton } from "@/components/ui/Button";
 import { SchedulingIntro } from "@/components/instagram/SchedulingIntro";
 import { DefaultMusicSettings } from "@/components/instagram/DefaultMusicSettings";
+import { ConnectInstagramLink } from "@/components/instagram/ConnectInstagramLink";
+import { DisconnectInstagramButton } from "@/components/instagram/DisconnectInstagramButton";
 
 export const metadata: Metadata = {
   robots: { index: false, follow: false },
@@ -55,14 +57,24 @@ export default async function InstagramPainelPage({ searchParams }: PainelPagePr
         </p>
       ) : null}
 
-      {account ? (
+      {account && account.status !== "connected" ? (
+        <>
+          <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            {account.status === "revoked"
+              ? "Seu Instagram está desconectado."
+              : "Sua conexão com o Instagram precisa ser renovada."}{" "}
+            {account.igUsername ? <strong>@{account.igUsername}</strong> : null}
+          </div>
+          <ConnectInstagramLink returnTo="/instagram/painel" label="Conectar Instagram" />
+        </>
+      ) : account ? (
         <>
           <div className="rounded-md border border-zinc-200 px-4 py-3">
             <p className="text-sm text-zinc-800">
               Conectado como{" "}
               <strong>{account.igUsername ? `@${account.igUsername}` : account.igUserId}</strong>
             </p>
-            <p className="mt-1 text-xs text-zinc-500">Status: {account.status}</p>
+            <p className="mt-1 text-xs text-teal-700">Conectado ✓</p>
           </div>
           <LinkButton href="/instagram/painel/calendario" className="w-full justify-center">
             Minhas publicações
@@ -71,14 +83,18 @@ export default async function InstagramPainelPage({ searchParams }: PainelPagePr
             Criar Post Viral
           </LinkButton>
           <DefaultMusicSettings initialDefaultMusic={account.defaultMusic} />
+          <div className="text-center">
+            <DisconnectInstagramButton />
+          </div>
         </>
       ) : (
-        <a
-          href="/api/instagram/oauth/start"
-          className="flex h-11 items-center justify-center rounded-md bg-zinc-900 text-sm font-medium text-white transition-colors hover:bg-zinc-800"
-        >
-          Conectar Instagram
-        </a>
+        <>
+          <ConnectInstagramLink returnTo="/instagram/painel" />
+          <p className="text-xs text-zinc-500">
+            Você vai para a tela oficial do Instagram, autoriza o Alilu e volta para cá automaticamente. É preciso ter uma conta profissional
+            (Criador ou Empresa).
+          </p>
+        </>
       )}
     </div>
   );
