@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { CarouselEndMediaOption } from "@/components/brand-end-media/CarouselEndMediaOption";
+import type { CarouselEndMediaChoice } from "@/lib/brand-end-media/end-media-config";
 import { ArrowDown, ArrowUp, X } from "lucide-react";
 import { Button, LinkButton } from "@/components/ui/Button";
 import { formatScheduleConfirmation, getBrowserTimeZone } from "@/lib/instagram/schedule-time";
@@ -27,14 +29,17 @@ const MAX_ITEMS = 10;
  * "Minhas publicações" e segue a mesma publicação/agendamento de sempre).
  */
 export function CarouselRepost({
+  userId,
   importItem,
   sourceProfile,
   igUsername,
 }: {
+  userId: string;
   importItem: InstagramImportDto;
   sourceProfile: string | null;
   igUsername: string | null;
 }) {
+  const [endMedia, setEndMedia] = useState<CarouselEndMediaChoice | undefined>(undefined);
   const [order, setOrder] = useState<number[]>(importItem.importedItems.slice(0, MAX_ITEMS).map((item) => item.index));
   const [caption, setCaption] = useState("");
   const [creditHandle, setCreditHandle] = useState(sourceProfile ?? "");
@@ -83,7 +88,7 @@ export function CarouselRepost({
       const response = await fetch("/api/instagram/posts/from-import", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ importId: importItem.id, order, caption, scheduledAt: scheduledAtIso, timezone: getBrowserTimeZone() }),
+        body: JSON.stringify({ importId: importItem.id, order, caption, scheduledAt: scheduledAtIso, timezone: getBrowserTimeZone(), ...(endMedia ? { endMedia } : {}) }),
       });
       if (!response.ok) throw new Error(await readErrorMessage(response, "Não foi possível salvar o carrossel."));
       const { postId } = (await response.json()) as { postId: string };
@@ -211,6 +216,8 @@ export function CarouselRepost({
           className="rounded-md border border-zinc-300 px-3 py-2 text-sm"
         />
       </section>
+
+      <CarouselEndMediaOption userId={userId} itemCount={order.length} disabled={busy} onChange={setEndMedia} />
 
       <div className="flex flex-wrap gap-2">
         <Button type="button" onClick={() => void run("now")} disabled={busy}>

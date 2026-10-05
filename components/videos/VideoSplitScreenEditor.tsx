@@ -21,6 +21,7 @@ import {
   trackUpload,
 } from "@/lib/client/upload-telemetry";
 import { FileNotReadableError, readFailureReason, createStallGuard, ensureReadableFile } from "@/lib/client/file-readability";
+import { VideoEndMediaToggle } from "@/components/brand-end-media/VideoEndMediaToggle";
 import { ArrowLeftRight, Download, Move, Pause, Play, RotateCcw, Send, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { ConnectInstagramDialog, buildConnectTarget } from "@/components/instagram/ConnectInstagramDialog";
@@ -608,6 +609,8 @@ export function VideoSplitScreenEditor({
   const [processingLabel, setProcessingLabel] = useState<"Processando..." | "Finalizando...">("Processando...");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [resultUrl, setResultUrl] = useState<string | null>(storedDraft?.resultUrl ?? null);
+  const [endMediaWanted, setEndMediaWanted] = useState<boolean | undefined>(undefined);
+  const [endMediaResult, setEndMediaResult] = useState<{ applied: boolean; renderId: string | null; message: string | null } | null>(null);
   const [caption, setCaption] = useState(storedDraft?.caption ?? "");
   const [publishStage, setPublishStage] = useState<PublishStage>("idle");
   const [publishMessage, setPublishMessage] = useState<string | null>(
@@ -887,6 +890,8 @@ export function VideoSplitScreenEditor({
           secondaryFraming,
           durationMode,
           audio,
+          // Encerramento padrão da empresa (só logado; entra depois do split inteiro).
+          endMedia: endMediaWanted === true,
         }),
       });
 
@@ -894,8 +899,9 @@ export function VideoSplitScreenEditor({
         throw new Error(await readErrorMessage(response, "Não foi possível gerar o vídeo."));
       }
 
-      const data = (await response.json()) as { url: string };
+      const data = (await response.json()) as { url: string; endMedia?: { applied: boolean; renderId: string | null; message: string | null } };
       setResultUrl(data.url);
+      setEndMediaResult(data.endMedia ?? null);
       setStage("sucesso");
       setPublishStage("idle");
       setPublishMessage(null);
@@ -948,6 +954,7 @@ export function VideoSplitScreenEditor({
         body: JSON.stringify({
           postType: "reels",
           mediaUrl,
+          ...(endMediaResult?.applied && endMediaResult.renderId ? { endMediaRenderId: endMediaResult.renderId } : {}),
           caption: caption.trim(),
           scheduledAt: null,
           timezone: getBrowserTimeZone(),
@@ -1253,6 +1260,8 @@ export function VideoSplitScreenEditor({
           </p>
         </div>
 
+        {effectiveUserId ? <VideoEndMediaToggle context="SPLIT_SCREEN" disabled={busy} onChange={setEndMediaWanted} /> : null}
+
         <Button type="button" data-testid="generate-button" className="w-full" disabled={!canGenerate} onClick={() => void handleGenerate()}>
           {stage === "enviando" ? `Enviando vídeos… ${uploadPercent}%` : stage === "processando" ? processingLabel : "Gerar vídeo"}
         </Button>
@@ -1274,6 +1283,16 @@ export function VideoSplitScreenEditor({
         {stage === "sucesso" && resultUrl ? (
           <div className="space-y-3 rounded-md bg-white p-3">
             <video data-testid="result-video" src={resultUrl} controls playsInline className="w-full rounded-md bg-black" />
+            {endMediaResult && !endMediaResult.applied ? (
+              <div role="alert" className="rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                <p>{endMediaResult.message ?? "Não foi possível adicionar o encerramento padrão."} O vídeo foi gerado sem ele.</p>
+                <button type="button" className="mt-1 font-semibold underline" disabled={busy} onClick={() => void handleGenerate()}>
+                  Tentar novamente
+                </button>
+              </div>
+            ) : endMediaResult?.applied ? (
+              <p className="text-xs text-emerald-700">Encerramento padrão adicionado no final.</p>
+            ) : null}
             <button
               type="button"
               onClick={() => void handleDownloadResult()}

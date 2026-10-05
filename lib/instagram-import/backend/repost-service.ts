@@ -4,6 +4,7 @@ import { buildMediaPathnamePrefix } from "@/lib/instagram/backend/media-service"
 import { insertInstagramMedia } from "@/lib/instagram/backend/media-repository";
 import { createCarouselPost } from "@/lib/instagram/backend/instagram-post-service";
 import { getImportForUser } from "./import-repository";
+import { parseCarouselEndMediaChoice } from "@/lib/brand-end-media/backend/end-media-service";
 import { InstagramImportError, MAX_CAROUSEL_IMPORT_ITEMS } from "./import-service";
 
 /**
@@ -22,6 +23,8 @@ export interface RepostCarouselInput {
   caption?: unknown;
   scheduledAt?: unknown;
   timezone?: unknown;
+  /** Encerramento: { mode: "default" | "none" | "override", mediaUrl? } (ver brand-end-media). */
+  endMedia?: unknown;
 }
 
 export async function createCarouselPostFromImport(userId: string, input: RepostCarouselInput): Promise<{ postId: string }> {
@@ -71,6 +74,7 @@ export async function createCarouselPostFromImport(userId: string, input: Repost
       caption,
       scheduledAt: typeof input.scheduledAt === "string" && input.scheduledAt ? input.scheduledAt : null,
       timezone: typeof input.timezone === "string" ? input.timezone.slice(0, 64) : null,
+      endMedia: parseCarouselEndMediaChoice(input.endMedia),
     });
     console.info(JSON.stringify({ scope: "instagram-import", event: "carousel_repost_created", importId: record.id, userId, postId, items: mediaIds.length }));
     return { postId };

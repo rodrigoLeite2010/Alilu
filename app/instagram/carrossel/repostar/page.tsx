@@ -73,7 +73,7 @@ export default async function CarouselRepostPage({ searchParams }: PageProps) {
             <ConnectInstagramLink returnTo={returnPath} />
           </div>
         ) : (
-          <CarouselRepost importItem={serializeImport(record)} sourceProfile={profileFromUrl(record.originalUrl)} igUsername={account.igUsername} />
+          <CarouselRepost userId={userId} importItem={serializeImport(record)} sourceProfile={profileFromUrl(record.originalUrl)} igUsername={account.igUsername} />
         )}
       </div>
     </Container>

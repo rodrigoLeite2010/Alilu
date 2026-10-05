@@ -5,6 +5,17 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 const getInstagramAccountForUserMock = vi.fn();
+// Mídia final padrão: nestes testes a empresa não configurou nenhuma (comportamento histórico).
+vi.mock("@/lib/brand-end-media/backend/end-media-service", () => ({
+  EndMediaValidationError: class extends Error {},
+  resolveCarouselEndForPost: async () => ({ item: null, notApplied: null }),
+}));
+vi.mock("@/lib/brand-end-media/backend/end-media-repository", () => ({
+  getRenderByResultMedia: async () => null,
+  getRenderForUser: async () => null,
+  markPostEndMedia: async () => undefined,
+  recordEndMediaEvent: async () => undefined,
+}));
 vi.mock("@/lib/instagram/backend/instagram-account-repository", () => ({
   getInstagramAccountForUser: (...args: unknown[]) => getInstagramAccountForUserMock(...args),
 }));

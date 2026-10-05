@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { uploadPresigned } from "@vercel/blob/client";
 import { clearPickerMark, markPickerOpen, trackUpload } from "@/lib/client/upload-telemetry";
 import { FileNotReadableError, readFailureReason, createStallGuard, ensureReadableFile } from "@/lib/client/file-readability";
+import { VideoEndMediaToggle } from "@/components/brand-end-media/VideoEndMediaToggle";
+import { applyEndMediaToReel } from "@/lib/brand-end-media/end-media-client";
 import { Button } from "@/components/ui/Button";
 import { getBrowserTimeZone } from "@/lib/instagram/schedule-time";
 import { loadLocalValue, saveLocalValue } from "@/lib/instagram/draft-store";
@@ -20,7 +22,7 @@ import type { MusicMode } from "@/lib/instagram/backend/music-support";
 import { MusicSelector, type MusicSelectorAccountDefault } from "./MusicSelector";
 import { importIdFromLocation, loadImportedVideoFile } from "@/components/instagram-import/imported-media-client";
 
-type Stage = "idle" | "validando" | "enviando" | "salvando" | "publicando" | "sucesso" | "erro";
+type Stage = "idle" | "validando" | "enviando" | "encerramento" | "salvando" | "publicando" | "sucesso" | "erro";
 type ActionMode = "draft" | "now" | "schedule";
 
 const DRAFT_KEY = "alilu.instagram.reelsDraft.v1";
@@ -96,6 +98,9 @@ export function ReelsComposer({
   const [accountDefaultMusic, setAccountDefaultMusic] = useState<MusicSelectorAccountDefault | undefined>(undefined);
   const [musicMode, setMusicMode] = useState<MusicMode>("ACCOUNT_DEFAULT");
   const [musicSelection, setMusicSelection] = useState<PostMusicSelectionBody | null>(null);
+  const [endMediaWanted, setEndMediaWanted] = useState<boolean | undefined>(undefined);
+  /** Encerramento falhou: guarda o vídeo já enviado para "Publicar sem encerramento" / "Tentar novamente". */
+  const [endMediaFailure, setEndMediaFailure] = useState<{ mode: "draft" | "now" | "schedule"; scheduledAtIso: string | null; mediaUrl: string } | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -148,7 +153,7 @@ export function ReelsComposer({
   }, []);
 
   const [uploadPercent, setUploadPercent] = useState(0);
-  const busy = stage === "validando" || stage === "enviando" || stage === "salvando" || stage === "publicando";
+  const busy = stage === "validando" || stage === "enviando" || stage === "encerramento" || stage === "salvando" || stage === "publicando";
   const previewUrl = useMemo(() => (file ? URL.createObjectURL(file) : null), [file]);
 
   useEffect(() => {
@@ -272,7 +277,32 @@ export function ReelsComposer({
         })
         .finally(() => guard.done());
       trackUpload("reels", "upload_done", { file: selectedFile });
+      await finishWithEndMedia(mode, scheduledAtIso, uploaded.url, endMediaWanted === true);
+    } catch (error) {
+      setStage("erro");
+      setMessage(error instanceof Error ? error.message : "Erro inesperado ao preparar o Reel.");
+    }
+  }
 
+  /** Encerramento (opcional) + criação do post. O vídeo já está no Blob. */
+  async function finishWithEndMedia(mode: "draft" | "now" | "schedule", scheduledAtIso: string | null, mediaUrl: string, applyEnd: boolean): Promise<void> {
+    setEndMediaFailure(null);
+    let finalUrl = mediaUrl;
+    let endMediaRenderId: string | null = null;
+    if (applyEnd) {
+      setStage("encerramento");
+      try {
+        const applied = await applyEndMediaToReel(mediaUrl);
+        finalUrl = applied.mediaUrl;
+        endMediaRenderId = applied.renderId;
+      } catch (error) {
+        setStage("erro");
+        setMessage(error instanceof Error ? error.message : "Não foi possível adicionar o encerramento padrão.");
+        setEndMediaFailure({ mode, scheduledAtIso, mediaUrl });
+        return;
+      }
+    }
+    try {
       const fullCaption = [caption.trim(), hashtags.trim()].filter(Boolean).join("\n\n");
       setStage("salvando");
       const createResponse = await fetch("/api/instagram/posts", {
@@ -280,7 +310,8 @@ export function ReelsComposer({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           postType: "reels",
-          mediaUrl: uploaded.url,
+          mediaUrl: finalUrl,
+          ...(endMediaRenderId ? { endMediaRenderId } : {}),
           caption: fullCaption,
           scheduledAt: scheduledAtIso,
           timezone: getBrowserTimeZone(),
@@ -419,6 +450,8 @@ export function ReelsComposer({
           disabled={busy}
         />
 
+        <VideoEndMediaToggle context="REEL" disabled={busy} onChange={setEndMediaWanted} />
+
         <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-1">
           <Button type="button" variant="secondary" disabled={busy} onClick={() => void runFlow("draft")}>
             Salvar rascunho
@@ -433,7 +466,13 @@ export function ReelsComposer({
 
         {stage !== "idle" && stage !== "sucesso" && stage !== "erro" ? (
           <p role="status" className="rounded-md bg-white px-3 py-2 text-sm text-teal-800">
-            {stage === "validando" ? "Validando vídeo..." : stage === "enviando" ? `Enviando vídeo… ${uploadPercent}%` : "Salvando..."}
+            {stage === "validando"
+              ? "Validando vídeo..."
+              : stage === "enviando"
+                ? `Enviando vídeo… ${uploadPercent}%`
+                : stage === "encerramento"
+                  ? "Adicionando o encerramento padrão… (pode levar até 1 minuto)"
+                  : "Salvando..."}
           </p>
         ) : null}
 
@@ -444,6 +483,17 @@ export function ReelsComposer({
           >
             {message}
           </p>
+        ) : null}
+
+        {endMediaFailure && stage === "erro" ? (
+          <div className="flex flex-wrap gap-2">
+            <Button type="button" variant="secondary" onClick={() => void finishWithEndMedia(endMediaFailure.mode, endMediaFailure.scheduledAtIso, endMediaFailure.mediaUrl, false)}>
+              Publicar sem encerramento
+            </Button>
+            <Button type="button" onClick={() => void finishWithEndMedia(endMediaFailure.mode, endMediaFailure.scheduledAtIso, endMediaFailure.mediaUrl, true)}>
+              Tentar novamente
+            </Button>
+          </div>
         ) : null}
       </aside>
 

@@ -5,6 +5,8 @@ import { uploadPresigned } from "@vercel/blob/client";
 import { Button } from "@/components/ui/Button";
 import { formatScheduleConfirmation, getBrowserTimeZone } from "@/lib/instagram/schedule-time";
 import { buildMediaPathnamePrefix } from "@/lib/instagram/backend/media-service";
+import { CarouselEndMediaOption } from "@/components/brand-end-media/CarouselEndMediaOption";
+import { CAROUSEL_FULL_MESSAGE, CAROUSEL_MAX_ITEMS_WITH_END, type CarouselEndMediaChoice } from "@/lib/brand-end-media/end-media-config";
 import { waitForFonts } from "@/lib/instagram/export";
 import { renderSlideToBlob } from "@/lib/instagram/carousel/carousel-export";
 import { buildCarouselSlideFileName } from "@/lib/instagram/layout-math";
@@ -69,6 +71,7 @@ export function CarouselPublishPanel({ slides, formatId, userId }: CarouselPubli
   const [accountDefaultMusic, setAccountDefaultMusic] = useState<MusicSelectorAccountDefault | undefined>(undefined);
   const [musicMode, setMusicMode] = useState<MusicMode>("ACCOUNT_DEFAULT");
   const [musicSelection, setMusicSelection] = useState<PostMusicSelectionBody | null>(null);
+  const [endMedia, setEndMedia] = useState<CarouselEndMediaChoice | undefined>(undefined);
 
   const busy = stage !== "idle" && stage !== "sucesso" && stage !== "erro";
 
@@ -99,6 +102,12 @@ export function CarouselPublishPanel({ slides, formatId, userId }: CarouselPubli
       setMessage(
         `O Instagram só aceita até ${MAX_CAROUSEL_PUBLISH_ITEMS} imagens por carrossel (este tem ${slides.length}). Remova slides antes de publicar.`,
       );
+      return;
+    }
+
+    if (endMedia && endMedia.mode !== "none" && slides.length >= CAROUSEL_MAX_ITEMS_WITH_END) {
+      setStage("erro");
+      setMessage(CAROUSEL_FULL_MESSAGE);
       return;
     }
 
@@ -154,6 +163,7 @@ export function CarouselPublishPanel({ slides, formatId, userId }: CarouselPubli
           timezone: getBrowserTimeZone(),
           musicMode,
           musicSelection,
+          ...(endMedia ? { endMedia } : {}),
         }),
       });
       if (!createResponse.ok) {
@@ -245,6 +255,8 @@ export function CarouselPublishPanel({ slides, formatId, userId }: CarouselPubli
           className="rounded-md border border-zinc-300 px-2 py-1.5 text-sm text-zinc-900"
         />
       </div>
+
+      <CarouselEndMediaOption userId={userId} itemCount={slides.length} disabled={busy} onChange={setEndMedia} />
 
       <MusicSelector
         accountDefaultMusic={accountDefaultMusic}
