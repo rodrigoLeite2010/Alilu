@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { uploadPresigned } from "@vercel/blob/client";
 import { clearPickerMark, markPickerOpen, trackUpload } from "@/lib/client/upload-telemetry";
+import { FileNotReadableError, ensureReadableFile } from "@/lib/client/file-readability";
 import { Button, LinkButton } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { INSTAGRAM_IMPORT_KIND_LABEL, parseInstagramUrl } from "@/lib/instagram-import/url";
@@ -156,7 +157,15 @@ export function InstagramImporter({ userId }: { userId: string }) {
     // Celular: galeria às vezes manda o arquivo sem tipo — deduz pela extensão.
     const lower = picked.name.toLowerCase();
     const inferred = lower.endsWith(".mov") ? "video/quicktime" : lower.endsWith(".mp4") ? "video/mp4" : lower.match(/\.jpe?g$/) ? "image/jpeg" : null;
-    const file = !picked.type && inferred ? new File([picked], picked.name, { type: inferred, lastModified: picked.lastModified }) : picked;
+    const typed = !picked.type && inferred ? new File([picked], picked.name, { type: inferred, lastModified: picked.lastModified }) : picked;
+    let file: File;
+    try {
+      file = await ensureReadableFile(typed);
+    } catch (err) {
+      trackUpload("instagram-import", "validation_error", { file: typed, message: "arquivo ilegível" });
+      setError(err instanceof FileNotReadableError ? err.message : "Não foi possível abrir esse arquivo.");
+      return;
+    }
     trackUpload("instagram-import", "file_selected", { file });
     if (!["video/mp4", "video/quicktime", "image/jpeg", "image/png", "image/webp"].includes(file.type)) {
       trackUpload("instagram-import", "validation_error", { file, message: "formato" });

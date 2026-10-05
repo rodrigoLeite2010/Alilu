@@ -4,6 +4,7 @@ import { useEffect, useId, useMemo, useState, type ChangeEvent } from "react";
 import { useRouter } from "next/navigation";
 import { uploadPresigned } from "@vercel/blob/client";
 import { clearPickerMark, markPickerOpen, trackUpload } from "@/lib/client/upload-telemetry";
+import { FileNotReadableError, createStallGuard, ensureReadableFile } from "@/lib/client/file-readability";
 import { Button } from "@/components/ui/Button";
 import { getBrowserTimeZone } from "@/lib/instagram/schedule-time";
 import { loadLocalValue, saveLocalValue } from "@/lib/instagram/draft-store";
@@ -186,6 +187,17 @@ export function ReelsComposer({
     const nextFile = picked && !picked.type && inferred ? new File([picked], picked.name, { type: inferred, lastModified: picked.lastModified }) : picked;
     trackUpload("reels", nextFile ? "file_selected" : "no_file", { file: nextFile });
     setFile(nextFile);
+    if (nextFile) {
+      // Celular: confirma que o vídeo pode ser lido (e copia para a memória quando cabe).
+      ensureReadableFile(nextFile)
+        .then((readable) => setFile((current) => (current === nextFile ? readable : current)))
+        .catch((error: unknown) => {
+          trackUpload("reels", "validation_error", { file: nextFile, message: "arquivo ilegível" });
+          setFile(null);
+          setStage("erro");
+          setMessage(error instanceof FileNotReadableError ? error.message : "Não foi possível abrir esse vídeo. Tente outro arquivo.");
+        });
+    }
     setDuration(null);
     setMessage(null);
     setStage("idle");
@@ -235,7 +247,9 @@ export function ReelsComposer({
       setUploadPercent(0);
       const fileName = slugFileName(selectedFile.name);
       trackUpload("reels", "upload_start", { file: selectedFile });
+      const guard = createStallGuard(60_000);
       const uploaded = await uploadPresigned(`${buildMediaPathnamePrefix(userId as string)}${fileName}`, selectedFile, {
+        abortSignal: guard.signal,
         access: "public",
         handleUploadUrl: "/api/instagram/media/upload",
         clientPayload: JSON.stringify({
@@ -243,11 +257,20 @@ export function ReelsComposer({
           fileSizeBytes: selectedFile.size,
           contentType: selectedFile.type,
         }),
-        onUploadProgress: ({ percentage }) => setUploadPercent(Math.round(percentage)),
-      }).catch((error: unknown) => {
-        trackUpload("reels", "upload_error", { file: selectedFile, message: error instanceof Error ? error.message : "erro" });
-        throw new Error("Não foi possível enviar o vídeo. Confira a conexão (Wi-Fi/4G) e tente de novo.");
-      });
+        onUploadProgress: ({ percentage }) => {
+          guard.touch();
+          setUploadPercent(Math.round(percentage));
+        },
+      })
+        .catch((error: unknown) => {
+          trackUpload("reels", "upload_error", { file: selectedFile, message: guard.stalled() ? "parado sem progresso (60s)" : error instanceof Error ? error.message : "erro" });
+          throw new Error(
+            guard.stalled()
+              ? "O envio do vídeo parou. Escolha o vídeo de novo (de preferência salvo no aparelho) e tente outra vez."
+              : "Não foi possível enviar o vídeo. Confira a conexão (Wi-Fi/4G) e tente de novo.",
+          );
+        })
+        .finally(() => guard.done());
       trackUpload("reels", "upload_done", { file: selectedFile });
 
       const fullCaption = [caption.trim(), hashtags.trim()].filter(Boolean).join("\n\n");

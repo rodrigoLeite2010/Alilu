@@ -20,6 +20,7 @@ import {
   markPickerOpen,
   trackUpload,
 } from "@/lib/client/upload-telemetry";
+import { FileNotReadableError, createStallGuard, ensureReadableFile } from "@/lib/client/file-readability";
 import { ArrowLeftRight, Download, Move, Pause, Play, RotateCcw, Send, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { ConnectInstagramDialog, buildConnectTarget } from "@/components/instagram/ConnectInstagramDialog";
@@ -276,6 +277,7 @@ function VideoUploadSlot({
   const startId = useId();
   const endId = useId();
   const [localFileError, setLocalFileError] = useState<string | null>(null);
+  const [checking, setChecking] = useState(false);
 
   function handleChange(event: ChangeEvent<HTMLInputElement>) {
     clearPickerMark();
@@ -306,7 +308,21 @@ function VideoUploadSlot({
     }
     trackUpload("split-screen", "file_selected", { file });
     setLocalFileError(null);
-    onFileChange(normalizedFile);
+    setChecking(true);
+    // Celular: confirma que o arquivo pode ser lido (e copia para a memória) antes de usar.
+    ensureReadableFile(normalizedFile)
+      .then((readable) => {
+        trackUpload("split-screen", "prepare_done", { file: readable });
+        onFileChange(readable);
+      })
+      .catch((error: unknown) => {
+        event.target.value = "";
+        const message = error instanceof FileNotReadableError ? error.message : "Não foi possível abrir esse vídeo. Tente outro arquivo.";
+        trackUpload("split-screen", "validation_error", { file, message: "arquivo ilegível" });
+        setLocalFileError(message);
+        onFileChange(null);
+      })
+      .finally(() => setChecking(false));
   }
 
   return (
@@ -327,6 +343,7 @@ function VideoUploadSlot({
         className="mt-2 block w-full text-sm text-zinc-700 file:mr-3 file:rounded-md file:border-0 file:bg-zinc-900 file:px-3 file:py-2 file:text-sm file:font-semibold file:text-white"
       />
       <p className="mt-1 text-xs text-zinc-500">MP4, MOV ou WEBM, até {MAX_INPUT_MEGABYTES} MB.</p>
+      {checking ? <p role="status" className="mt-1 text-xs text-teal-700">Abrindo o vídeo…</p> : null}
       {localFileError ? <p role="alert" className="mt-1 text-xs text-red-700">{localFileError}</p> : null}
 
       {slot.file ? (
@@ -815,20 +832,33 @@ export function VideoSplitScreenEditor({
     };
     const uploadOne = async (key: "primary" | "secondary", file: File) => {
       trackUpload("split-screen", "upload_start", { file });
+      // Envio parado sem progresso por 60 s = cancela e avisa (antes ficava travado para sempre).
+      const guard = createStallGuard(60_000);
       try {
         const result = await uploadPresigned(buildUploadPathname(file), file, {
           access: "public",
           handleUploadUrl: "/api/videos/upload",
           clientPayload: JSON.stringify({ originalFilename: file.name, fileSizeBytes: file.size, contentType: file.type }),
-          onUploadProgress: ({ loaded: bytes }) => reportProgress(key, bytes),
+          abortSignal: guard.signal,
+          onUploadProgress: ({ loaded: bytes }) => {
+            guard.touch();
+            reportProgress(key, bytes);
+          },
         });
         trackUpload("split-screen", "upload_done", { file });
         return result;
       } catch (error) {
-        trackUpload("split-screen", "upload_error", { file, message: error instanceof Error ? error.message : "erro" });
+        trackUpload("split-screen", "upload_error", {
+          file,
+          message: guard.stalled() ? "parado sem progresso (60s)" : error instanceof Error ? error.message : "erro",
+        });
         throw new Error(
-          `Não foi possível enviar o vídeo ${key === "primary" ? "principal" : "complementar"}. Confira a conexão (Wi-Fi/4G) e tente de novo.`,
+          guard.stalled()
+            ? `O envio do vídeo ${key === "primary" ? "principal" : "complementar"} parou. Escolha o vídeo de novo (de preferência salvo no aparelho) e tente outra vez.`
+            : `Não foi possível enviar o vídeo ${key === "primary" ? "principal" : "complementar"}. Confira a conexão (Wi-Fi/4G) e tente de novo.`,
         );
+      } finally {
+        guard.done();
       }
     };
 

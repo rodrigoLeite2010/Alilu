@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { prepareImageForUpload } from "@/lib/ai-video/prepare-image";
+import { ensureReadableFile } from "@/lib/client/file-readability";
 import {
   RELOADED_DURING_PICKER_MESSAGE,
   checkReloadDuringPicker,
@@ -269,7 +270,8 @@ export function AiVideoGenerator({
     let localPreview: string | null = null;
     try {
       // Celular: HEIC do iPhone, tipo vazio no Android, fotos enormes — converte no próprio navegador.
-      const file = await withTimeout(prepareImageForUpload(picked, AI_VIDEO_MAX_IMAGE_BYTES), 30_000, "A foto demorou demais para abrir. Se ela estiver só na nuvem (Google Fotos/iCloud), baixe para o celular e tente de novo.");
+      const readable = await ensureReadableFile(picked);
+      const file = await withTimeout(prepareImageForUpload(readable, AI_VIDEO_MAX_IMAGE_BYTES), 30_000, "A foto demorou demais para abrir. Se ela estiver só na nuvem (Google Fotos/iCloud), baixe para o celular e tente de novo.");
       if (!AI_VIDEO_IMAGE_CONTENT_TYPES.includes(file.type)) throw new Error("Use uma imagem JPG, PNG ou WebP.");
       // Prévia só do arquivo já preparado (sempre um formato que o navegador mostra).
       trackUpload("ai-video-image", "prepare_done", { file });
