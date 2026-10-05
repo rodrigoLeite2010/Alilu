@@ -78,10 +78,29 @@ export interface ResolveResult {
   duplicate: InstagramImportRecord | null;
 }
 
+export interface InstagramImportQuota {
+  /** Importações (consultas ao provedor) feitas hoje (UTC). */
+  used: number;
+  /** Limite diário para usuários comuns (configurável em /admin/instagram-import). */
+  limit: number;
+  /** Administrador (ADMIN_EMAILS): sem limite. */
+  unlimited: boolean;
+}
+
+/**
+ * Cota diária de importação. `isAdmin` vem SEMPRE da sessão no servidor
+ * (isAdminEmail em lib/admin/admin-access.ts) — nunca do corpo da requisição.
+ */
+export async function getInstagramImportQuota(userId: string, isAdmin: boolean, now: Date = new Date()): Promise<InstagramImportQuota> {
+  const [settings, used] = await Promise.all([getImportSettings(), countProviderCallsSince(userId, startOfUtcDay(now))]);
+  return { used, limit: settings.maxImportsPerDay, unlimited: isAdmin };
+}
+
 export async function resolveInstagramLink(
   userId: string,
   input: { url: unknown; authorized: unknown; force?: unknown },
   now: Date = new Date(),
+  access: { isAdmin?: boolean } = {},
 ): Promise<ResolveResult> {
   if (input.authorized !== true) {
     throw new InstagramImportError("Confirme que o conteúdo é seu ou que você tem autorização para usá-lo.", "AUTHORIZATION_REQUIRED", 400);
@@ -110,12 +129,17 @@ export async function resolveInstagramLink(
   }
 
   const settings = await getImportSettings();
-  if ((await countProviderCallsSince(userId, startOfUtcDay(now))) >= settings.maxImportsPerDay) {
-    throw new InstagramImportError(
-      `Você atingiu o limite de ${settings.maxImportsPerDay} importações por dia. Tente novamente amanhã.`,
-      "DAILY_LIMIT",
-      429,
-    );
+  const quota = await getInstagramImportQuota(userId, access.isAdmin === true, now);
+  if (quota.used >= quota.limit) {
+    if (!quota.unlimited) {
+      throw new InstagramImportError(
+        `Você atingiu o limite de ${quota.limit} importações do Instagram por hoje. Tente novamente amanhã.`,
+        "DAILY_LIMIT",
+        429,
+      );
+    }
+    // A importação continua sendo registrada normalmente; só não bloqueia.
+    console.info(JSON.stringify({ scope: "instagram-import", event: "Instagram import limit bypassed for admin user" }));
   }
 
   const provider = getInstagramImportProvider();

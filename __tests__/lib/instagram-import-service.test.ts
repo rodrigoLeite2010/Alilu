@@ -102,6 +102,53 @@ describe("resolver o link", () => {
   });
 });
 
+describe("limite de importações x administrador", () => {
+  async function seedImportsToday(userId: string, count: number) {
+    await db.sql`
+      insert into instagram_media_imports (user_id, original_url, normalized_url, url_kind, status, provider, authorized_at)
+      select ${userId}, 'https://www.instagram.com/reel/x/', 'https://www.instagram.com/reel/x/', 'reel', 'READY', 'fake', now()
+      from generate_series(1, ${count})
+    `;
+  }
+  const NEW_LINK = "https://www.instagram.com/p/C7a2B3c4D5e/";
+
+  beforeEach(async () => {
+    await db.sql`update instagram_import_settings set max_imports_per_day = 20`;
+  });
+
+  it("usuário comum com 19 importações hoje: a 20ª é permitida", async () => {
+    const userId = await seedUser();
+    await seedImportsToday(userId, 19);
+    const { record } = await service.resolveInstagramLink(userId, { url: NEW_LINK, authorized: true });
+    expect(record?.status).toBe("READY");
+    expect(await service.getInstagramImportQuota(userId, false)).toEqual({ used: 20, limit: 20, unlimited: false });
+  });
+
+  it("usuário comum com 20: a próxima é bloqueada no backend, com mensagem clara", async () => {
+    const userId = await seedUser();
+    await seedImportsToday(userId, 20);
+    await expect(service.resolveInstagramLink(userId, { url: NEW_LINK, authorized: true })).rejects.toMatchObject({
+      code: "DAILY_LIMIT",
+      httpStatus: 429,
+      message: "Você atingiu o limite de 20 importações do Instagram por hoje. Tente novamente amanhã.",
+    });
+    expect(resolveMock).not.toHaveBeenCalled();
+  });
+
+  it.each([20, 100])("administrador com %i importações hoje: continua permitido (e a importação é registrada)", async (count) => {
+    const userId = await seedUser();
+    await seedImportsToday(userId, count);
+    const logs: string[] = [];
+    vi.mocked(console.info).mockImplementation((line: unknown) => void logs.push(String(line)));
+    const { record } = await service.resolveInstagramLink(userId, { url: NEW_LINK, authorized: true }, new Date(), { isAdmin: true });
+    expect(record?.status).toBe("READY");
+    expect(await service.getInstagramImportQuota(userId, true)).toEqual({ used: count + 1, limit: 20, unlimited: true });
+    expect(logs.some((line) => line.includes("Instagram import limit bypassed for admin user"))).toBe(true);
+    // Nada sensível no log do bypass.
+    expect(logs.find((line) => line.includes("bypassed"))).not.toMatch(/@|userId/);
+  });
+});
+
 describe("importar para o Alilu", () => {
   it("vídeo: baixa, valida com ffprobe, guarda no Blob do Alilu e descarta as URLs temporárias", async () => {
     const userId = await seedUser();

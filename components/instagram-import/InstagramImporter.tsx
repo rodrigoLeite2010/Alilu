@@ -67,7 +67,14 @@ export function ImportedActions({ item }: { item: InstagramImportDto }) {
  * para o storage do Alilu → usar no split-screen, publicar no Reels ou
  * baixar. Sem login no Instagram, sem senha/cookie. Fallback: upload manual.
  */
-export function InstagramImporter({ userId }: { userId: string }) {
+export interface ImportQuotaDto {
+  used: number;
+  limit: number;
+  unlimited: boolean;
+}
+
+export function InstagramImporter({ userId, initialQuota = null }: { userId: string; initialQuota?: ImportQuotaDto | null }) {
+  const [quota, setQuota] = useState<ImportQuotaDto | null>(initialQuota);
   const [url, setUrl] = useState("");
   const [authorized, setAuthorized] = useState(false);
   const [stage, setStage] = useState<Stage>("idle");
@@ -125,7 +132,8 @@ export function InstagramImporter({ userId }: { userId: string }) {
         setStage("idle");
         return;
       }
-      const body = (await response.json()) as { import: InstagramImportDto | null; duplicate: InstagramImportDto | null };
+      const body = (await response.json()) as { import: InstagramImportDto | null; duplicate: InstagramImportDto | null; quota?: ImportQuotaDto };
+      if (body.quota) setQuota(body.quota);
       if (body.duplicate) {
         setDuplicate(body.duplicate);
         setStage("idle");
@@ -346,6 +354,13 @@ export function InstagramImporter({ userId }: { userId: string }) {
           <label htmlFor="instagram-import-url" className="mb-1 block text-sm font-medium text-zinc-800">
             Cole o link do Reel, vídeo ou foto
           </label>
+          {quota ? (
+            <p className="mb-2 text-xs text-zinc-500" data-testid="import-quota">
+              {quota.unlimited
+                ? "Administrador — importações ilimitadas"
+                : `${Math.min(quota.used, quota.limit)} de ${quota.limit} importações usadas hoje`}
+            </p>
+          ) : null}
           <input
             id="instagram-import-url"
             type="url"
