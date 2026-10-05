@@ -1717,6 +1717,23 @@ export const tools: Tool[] = [
     status: "ativo",
   },
   {
+    id: "legibilidade",
+    name: "Análise de Legibilidade",
+    shortName: "Legibilidade",
+    slug: "legibilidade",
+    category: "funcoes-string",
+    description: "Descubra se seu texto está fácil de entender e transforme-o em uma versão mais clara.",
+    pageDescription:
+      "Descubra se seu texto está fácil de entender e transforme-o em uma versão mais clara, simples e envolvente.",
+    metaTitle: "Análise de Legibilidade de Texto | Alilu",
+    metaDescription:
+      "Analise a legibilidade do seu texto gratuitamente. Descubra frases difíceis, palavras complexas e simplifique seu conteúdo.",
+    keywords: ["legibilidade", "índice de flesch", "gulpease", "texto fácil de ler", "simplificar texto", "frases longas", "palavras difíceis"],
+    icon: "file-text",
+    relatedTools: ["contador-caracteres", "corretor-ortografico", "contador-ocorrencia-palavra"],
+    status: "ativo",
+  },
+  {
     id: "texto-para-html",
     name: "Converter Texto para HTML",
     shortName: "Texto para HTML",

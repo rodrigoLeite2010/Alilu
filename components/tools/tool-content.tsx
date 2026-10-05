@@ -2362,6 +2362,49 @@ export const toolContent: Record<
     ],
   },
 
+  legibilidade: {
+    contentSections: [
+      {
+        title: "O que é legibilidade de um texto?",
+        body: "Legibilidade é a facilidade com que alguém lê e entende um texto. Frases curtas, palavras do dia a dia e uma ideia por frase deixam a leitura mais rápida — o que importa em posts, legendas, e-mails, materiais de aula e textos profissionais. Esta ferramenta mede isso com fórmulas conhecidas e mostra exatamente onde o texto pode melhorar.",
+      },
+      {
+        title: "Como a análise é feita?",
+        body: "Tudo é calculado no seu navegador, sem inteligência artificial: o texto é dividido em frases (respeitando abreviações como Sr., Dr. e etc.) e palavras, as sílabas são estimadas por regras do português, e as palavras pouco frequentes são comparadas com uma lista de palavras comuns. Links, e-mails, hashtags, números e nomes próprios não são marcados como palavras difíceis.",
+      },
+      {
+        title: "Quais índices são calculados?",
+        body: "Flesch adaptado ao português (226 − 1,04 × palavras por frase − 72 × sílabas por palavra), Gulpease, Flesch-Kincaid, Gunning Fog, ARI e Coleman-Liau. Alguns foram criados para o inglês ou o italiano, por isso são ótimos para comparar versões do mesmo texto, mas não devem ser lidos como uma série escolar exata.",
+      },
+      {
+        title: "Como é calculada a nota de 0 a 100?",
+        body: "A nota Alilu não é uma média simples de índices com escalas diferentes. Cada índice é convertido para uma escala de facilidade de 0 a 100: o Flesch pesa 40%, o Gulpease 30% e a média dos índices de anos de estudo (Flesch-Kincaid, ARI e Coleman-Liau) 30%. Faixas: 0–29 muito difícil, 30–49 difícil, 50–69 moderado, 70–84 fácil e 85–100 muito fácil.",
+      },
+      {
+        title: "O que significam os destaques?",
+        body: "Palavras sublinhadas em azul são pouco frequentes ou potencialmente difíceis (toque para ver uma troca sugerida, como \"utilizar\" → \"usar\"). Frases em amarelo têm de 26 a 35 palavras e frases em vermelho claro passam de 35 — boas candidatas a serem divididas.",
+      },
+    ],
+    faq: [
+      {
+        question: "O texto que eu colo é salvo ou enviado para algum servidor?",
+        answer: "Não. A análise acontece inteira no seu navegador e o texto não é guardado.",
+      },
+      {
+        question: "Qual o tamanho máximo do texto?",
+        answer: "Até 20.000 caracteres por análise. Também é possível abrir um arquivo .txt.",
+      },
+      {
+        question: "A contagem de sílabas é exata?",
+        answer: "É uma estimativa baseada em regras do português (ditongos, hiatos, \"qu\" e \"gu\", \"ão\" e \"ões\"). Pode errar em algumas palavras, mas é precisa o suficiente para as médias usadas nos índices.",
+      },
+      {
+        question: "Uma nota baixa significa que o texto está errado?",
+        answer: "Não. Textos técnicos ou jurídicos costumam ter nota baixa por natureza. A nota mostra o esforço de leitura; use as sugestões quando o objetivo for alcançar o maior número de pessoas.",
+      },
+    ],
+  },
+
   "texto-para-html": {
     contentSections: [
       {

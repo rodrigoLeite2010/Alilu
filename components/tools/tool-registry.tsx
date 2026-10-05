@@ -75,6 +75,7 @@ import { CorretorOrtograficoTool } from "@/components/tools/corretor-ortografico
 import { OrdemAlfabeticaTool } from "@/components/tools/ordem-alfabetica/OrdemAlfabeticaTool";
 import { ContadorCaracteresTool } from "@/components/tools/contador-caracteres/ContadorCaracteresTool";
 import { ContadorOcorrenciaPalavraTool } from "@/components/tools/contador-ocorrencia-palavra/ContadorOcorrenciaPalavraTool";
+import { LegibilidadeTool } from "@/components/tools/legibilidade/LegibilidadeTool";
 import { TextoParaHtmlTool } from "@/components/tools/texto-para-html/TextoParaHtmlTool";
 import { CortarTextosTool } from "@/components/tools/cortar-textos/CortarTextosTool";
 import { DividirStringTool } from "@/components/tools/dividir-string/DividirStringTool";
@@ -226,6 +227,7 @@ export const toolComponents: Record<string, ComponentType> = {
   "ordem-alfabetica": OrdemAlfabeticaTool,
   "contador-caracteres": ContadorCaracteresTool,
   "contador-ocorrencia-palavra": ContadorOcorrenciaPalavraTool,
+  legibilidade: LegibilidadeTool,
   "texto-para-html": TextoParaHtmlTool,
   "cortar-textos": CortarTextosTool,
   "dividir-string": DividirStringTool,
