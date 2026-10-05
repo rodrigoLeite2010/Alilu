@@ -119,7 +119,7 @@ describe("VideoSplitScreenEditor — upload dos dois vídeos", () => {
     fireEvent.change(input, { target: { files: [makeVideoFile("nota.txt", "text/plain")] } });
 
     expect(screen.queryByTestId("preview-video-primary")).not.toBeInTheDocument();
-    expect(screen.getByRole("alert")).toHaveTextContent("Formato não suportado. Envie um vídeo MP4, MOV ou WEBM.");
+    expect(screen.getByRole("alert")).toHaveTextContent("Formato não suportado (text/plain). Envie um vídeo MP4, MOV ou WEBM");
   });
 });
 
@@ -275,7 +275,7 @@ describe("VideoSplitScreenEditor — indicador de progresso (3 estados textuais)
     vi.useRealTimers();
   });
 
-  it('passa por "Enviando vídeos...", depois "Processando..." e, após aguardar o suficiente, "Finalizando..." — sem porcentagem real', async () => {
+  it('passa por "Enviando vídeos… %", depois "Processando..." e, após aguardar o suficiente, "Finalizando..."', async () => {
     let resolveFetch: (value: unknown) => void = () => {};
     global.fetch = vi.fn().mockImplementation(
       () =>
@@ -291,7 +291,7 @@ describe("VideoSplitScreenEditor — indicador de progresso (3 estados textuais)
     vi.useFakeTimers();
 
     fireEvent.click(screen.getByTestId("generate-button"));
-    expect(screen.getByTestId("generate-button")).toHaveTextContent("Enviando vídeos...");
+    expect(screen.getByTestId("generate-button")).toHaveTextContent("Enviando vídeos… 0%");
 
     // Deixa a promise mockada de uploadPresigned resolver (não depende de
     // timer nenhum — só de microtasks, que os fake timers não congelam).

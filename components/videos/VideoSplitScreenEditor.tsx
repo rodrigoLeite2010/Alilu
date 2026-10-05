@@ -13,6 +13,13 @@ import {
 } from "react";
 import { useRouter } from "next/navigation";
 import { uploadPresigned } from "@vercel/blob/client";
+import {
+  RELOADED_DURING_PICKER_MESSAGE,
+  checkReloadDuringPicker,
+  clearPickerMark,
+  markPickerOpen,
+  trackUpload,
+} from "@/lib/client/upload-telemetry";
 import { ArrowLeftRight, Download, Move, Pause, Play, RotateCcw, Send, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { ConnectInstagramDialog, buildConnectTarget } from "@/components/instagram/ConnectInstagramDialog";
@@ -111,7 +118,8 @@ const AUDIO_SOURCE_OPTIONS: { value: VideoAudioSource; label: string }[] = [
   { value: "both", label: "Ambos" },
 ];
 
-const ACCEPT_ATTRIBUTE = [...VIDEO_INPUT_CONTENT_TYPES, ...VIDEO_INPUT_FILE_EXTENSIONS].join(",");
+// "video/*" abre a galeria certa no Android/iPhone; a validação (tipo ou extensão) continua abaixo.
+const ACCEPT_ATTRIBUTE = ["video/*", ...VIDEO_INPUT_CONTENT_TYPES, ...VIDEO_INPUT_FILE_EXTENSIONS].join(",");
 const MAX_INPUT_MEGABYTES = Math.round(MAX_VIDEO_INPUT_BYTES / (1024 * 1024));
 const SPLIT_SCREEN_RESULT_DRAFT_KEY = "alilu.videos.splitScreenResult.v1";
 
@@ -270,22 +278,33 @@ function VideoUploadSlot({
   const [localFileError, setLocalFileError] = useState<string | null>(null);
 
   function handleChange(event: ChangeEvent<HTMLInputElement>) {
+    clearPickerMark();
     const file = event.target.files?.[0] ?? null;
-    if (!file) return;
+    if (!file) {
+      trackUpload("split-screen", "no_file");
+      return;
+    }
     const normalizedFile = normalizeVideoInputFile(file);
 
     if (!normalizedFile) {
       event.target.value = "";
-      setLocalFileError("Formato não suportado. Envie um vídeo MP4, MOV ou WEBM.");
+      trackUpload("split-screen", "validation_error", { file, message: "formato" });
+      setLocalFileError(
+        `Formato não suportado${file.type ? ` (${file.type})` : ""}. Envie um vídeo MP4, MOV ou WEBM — no celular, grave com a câmera padrão ou exporte como MP4.`,
+      );
       onFileChange(null);
       return;
     }
     if (file.size > MAX_VIDEO_INPUT_BYTES) {
       event.target.value = "";
-      setLocalFileError(`Esse vídeo é muito grande. Envie um arquivo de até ${MAX_INPUT_MEGABYTES} MB.`);
+      trackUpload("split-screen", "validation_error", { file, message: "tamanho" });
+      setLocalFileError(
+        `Esse vídeo tem ${(file.size / 1024 / 1024).toFixed(0)} MB e o limite é ${MAX_INPUT_MEGABYTES} MB. Corte o vídeo ou grave em resolução menor (1080p) e tente de novo.`,
+      );
       onFileChange(null);
       return;
     }
+    trackUpload("split-screen", "file_selected", { file });
     setLocalFileError(null);
     onFileChange(normalizedFile);
   }
@@ -302,6 +321,7 @@ function VideoUploadSlot({
         disabled={disabled}
         onClick={(event) => {
           event.currentTarget.value = "";
+          markPickerOpen("split-screen");
         }}
         onChange={handleChange}
         className="mt-2 block w-full text-sm text-zinc-700 file:mr-3 file:rounded-md file:border-0 file:bg-zinc-900 file:px-3 file:py-2 file:text-sm file:font-semibold file:text-white"
@@ -396,6 +416,7 @@ function FramingPreviewPane({
     height: number;
   } | null>(null);
 
+  const [previewFailed, setPreviewFailed] = useState(false);
   const hasSize = Boolean(videoWidth && videoHeight);
   const layout =
     hasSize && videoWidth !== null && videoHeight !== null
@@ -406,6 +427,13 @@ function FramingPreviewPane({
     if (!objectUrl) return;
     videoRef.current?.load();
   }, [objectUrl, videoRef]);
+
+  // Novo arquivo: zera o aviso de prévia (ajuste de estado durante a renderização, sem efeito).
+  const [previewFor, setPreviewFor] = useState(objectUrl);
+  if (previewFor !== objectUrl) {
+    setPreviewFor(objectUrl);
+    setPreviewFailed(false);
+  }
 
   function updatePosition(positionX: number, positionY: number) {
     onFramingChange({
@@ -494,8 +522,16 @@ function FramingPreviewPane({
             loop={loop}
             playsInline
             preload="metadata"
-            onLoadedMetadata={onLoadedMetadata}
+            onLoadedMetadata={(event) => {
+              setPreviewFailed(false);
+              onLoadedMetadata(event);
+            }}
             onDurationChange={onLoadedMetadata}
+            onError={() => {
+              // Comum no celular com vídeo HEVC/H.265: o navegador não mostra a prévia, mas o servidor ainda converte.
+              setPreviewFailed(true);
+              trackUpload("split-screen", "metadata_error", { message: `preview ${slotKey}` });
+            }}
             className={layout ? "absolute max-w-none select-none" : "h-full w-full object-cover"}
             style={videoStyle}
           />
@@ -503,6 +539,12 @@ function FramingPreviewPane({
             <Move className="size-3" aria-hidden />
             Arraste para ajustar
           </div>
+          {previewFailed ? (
+            <div className="absolute inset-0 flex items-center justify-center bg-zinc-900/90 p-3 text-center text-xs text-white">
+              Este navegador não conseguiu mostrar a prévia (comum com vídeo HEVC do celular). Você ainda pode gerar — o Alilu converte no
+              servidor.
+            </div>
+          ) : null}
         </>
       ) : (
         <div className="flex h-full w-full items-center justify-center text-xs text-zinc-500">{label}</div>
@@ -561,6 +603,7 @@ export function VideoSplitScreenEditor({
   const [primaryFraming, setPrimaryFraming] = useState<VideoFraming>(DEFAULT_VIDEO_FRAMING);
   const [secondaryFraming, setSecondaryFraming] = useState<VideoFraming>(DEFAULT_VIDEO_FRAMING);
 
+  const [uploadPercent, setUploadPercent] = useState(0);
   const primaryVideoRef = useRef<HTMLVideoElement>(null);
   const secondaryVideoRef = useRef<HTMLVideoElement>(null);
 
@@ -570,6 +613,16 @@ export function VideoSplitScreenEditor({
   const effectiveUserId = accountStatus?.userId ?? userId;
   const isInstagramConnected = accountStatus?.connected ?? instagramConnected;
   const effectiveIgUsername = accountStatus?.username ?? igUsername;
+
+  // Celular com pouca memória: a página recarregou enquanto a galeria estava aberta.
+  useEffect(() => {
+    if (!checkReloadDuringPicker("split-screen")) return;
+    const timer = window.setTimeout(() => {
+      setErrorMessage(RELOADED_DURING_PICKER_MESSAGE);
+      setStage("erro");
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -752,28 +805,35 @@ export function VideoSplitScreenEditor({
     setErrorMessage(null);
     setResultUrl(null);
     setStage("enviando");
+    setUploadPercent(0);
+
+    const totalBytes = primary.file.size + secondary.file.size;
+    const loaded = { primary: 0, secondary: 0 };
+    const reportProgress = (key: "primary" | "secondary", bytes: number) => {
+      loaded[key] = bytes;
+      setUploadPercent(Math.min(100, Math.round(((loaded.primary + loaded.secondary) / Math.max(totalBytes, 1)) * 100)));
+    };
+    const uploadOne = async (key: "primary" | "secondary", file: File) => {
+      trackUpload("split-screen", "upload_start", { file });
+      try {
+        const result = await uploadPresigned(buildUploadPathname(file), file, {
+          access: "public",
+          handleUploadUrl: "/api/videos/upload",
+          clientPayload: JSON.stringify({ originalFilename: file.name, fileSizeBytes: file.size, contentType: file.type }),
+          onUploadProgress: ({ loaded: bytes }) => reportProgress(key, bytes),
+        });
+        trackUpload("split-screen", "upload_done", { file });
+        return result;
+      } catch (error) {
+        trackUpload("split-screen", "upload_error", { file, message: error instanceof Error ? error.message : "erro" });
+        throw new Error(
+          `Não foi possível enviar o vídeo ${key === "primary" ? "principal" : "complementar"}. Confira a conexão (Wi-Fi/4G) e tente de novo.`,
+        );
+      }
+    };
 
     try {
-      const [primaryUpload, secondaryUpload] = await Promise.all([
-        uploadPresigned(buildUploadPathname(primary.file), primary.file, {
-          access: "public",
-          handleUploadUrl: "/api/videos/upload",
-          clientPayload: JSON.stringify({
-            originalFilename: primary.file.name,
-            fileSizeBytes: primary.file.size,
-            contentType: primary.file.type,
-          }),
-        }),
-        uploadPresigned(buildUploadPathname(secondary.file), secondary.file, {
-          access: "public",
-          handleUploadUrl: "/api/videos/upload",
-          clientPayload: JSON.stringify({
-            originalFilename: secondary.file.name,
-            fileSizeBytes: secondary.file.size,
-            contentType: secondary.file.type,
-          }),
-        }),
-      ]);
+      const [primaryUpload, secondaryUpload] = await Promise.all([uploadOne("primary", primary.file), uploadOne("secondary", secondary.file)]);
 
       setStage("processando");
       setProcessingLabel("Processando...");
@@ -1164,12 +1224,14 @@ export function VideoSplitScreenEditor({
         </div>
 
         <Button type="button" data-testid="generate-button" className="w-full" disabled={!canGenerate} onClick={() => void handleGenerate()}>
-          {stage === "enviando" ? "Enviando vídeos..." : stage === "processando" ? processingLabel : "Gerar vídeo"}
+          {stage === "enviando" ? `Enviando vídeos… ${uploadPercent}%` : stage === "processando" ? processingLabel : "Gerar vídeo"}
         </Button>
 
         {busy ? (
           <p role="status" className="rounded-md bg-white px-3 py-2 text-sm text-teal-800">
-            {stage === "enviando" ? "Enviando vídeos..." : `${processingLabel} Isso pode levar até um minuto.`}
+            {stage === "enviando"
+              ? `Enviando vídeos… ${uploadPercent}% (no celular pode levar alguns minutos — mantenha esta tela aberta)`
+              : `${processingLabel} Isso pode levar até um minuto.`}
           </p>
         ) : null}
 

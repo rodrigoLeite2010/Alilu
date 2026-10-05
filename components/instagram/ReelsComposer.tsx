@@ -3,6 +3,7 @@
 import { useEffect, useId, useMemo, useState, type ChangeEvent } from "react";
 import { useRouter } from "next/navigation";
 import { uploadPresigned } from "@vercel/blob/client";
+import { clearPickerMark, markPickerOpen, trackUpload } from "@/lib/client/upload-telemetry";
 import { Button } from "@/components/ui/Button";
 import { getBrowserTimeZone } from "@/lib/instagram/schedule-time";
 import { loadLocalValue, saveLocalValue } from "@/lib/instagram/draft-store";
@@ -145,6 +146,7 @@ export function ReelsComposer({
     };
   }, []);
 
+  const [uploadPercent, setUploadPercent] = useState(0);
   const busy = stage === "validando" || stage === "enviando" || stage === "salvando" || stage === "publicando";
   const previewUrl = useMemo(() => (file ? URL.createObjectURL(file) : null), [file]);
 
@@ -176,7 +178,13 @@ export function ReelsComposer({
   }
 
   function handleVideoChange(event: ChangeEvent<HTMLInputElement>) {
-    const nextFile = event.target.files?.[0] ?? null;
+    clearPickerMark();
+    const picked = event.target.files?.[0] ?? null;
+    // Celular: galeria às vezes manda o vídeo sem tipo — deduz pela extensão.
+    const lower = picked?.name.toLowerCase() ?? "";
+    const inferred = lower.endsWith(".mov") ? "video/quicktime" : lower.endsWith(".mp4") ? "video/mp4" : null;
+    const nextFile = picked && !picked.type && inferred ? new File([picked], picked.name, { type: inferred, lastModified: picked.lastModified }) : picked;
+    trackUpload("reels", nextFile ? "file_selected" : "no_file", { file: nextFile });
     setFile(nextFile);
     setDuration(null);
     setMessage(null);
@@ -186,10 +194,12 @@ export function ReelsComposer({
   async function validateVideo(): Promise<void> {
     if (!file) throw new Error("Escolha um vídeo para criar o Reel.");
     if (!VIDEO_MEDIA_CONTENT_TYPES.includes(file.type)) {
-      throw new Error("Use um vídeo MP4 ou MOV. Recomendação: vertical 9:16, com áudio AAC quando houver som.");
+      trackUpload("reels", "validation_error", { file, message: "formato" });
+      throw new Error(`Use um vídeo MP4 ou MOV${file.type ? ` (este é ${file.type})` : ""}. Recomendação: vertical 9:16, com áudio AAC quando houver som.`);
     }
     if (file.size > MAX_VIDEO_UPLOAD_BYTES) {
-      throw new Error("O vídeo está grande demais para este fluxo. Use um arquivo de até 250 MB.");
+      trackUpload("reels", "validation_error", { file, message: "tamanho" });
+      throw new Error(`O vídeo tem ${(file.size / 1024 / 1024).toFixed(0)} MB; o limite é 250 MB. Grave em 1080p ou corte o vídeo.`);
     }
     if (duration !== null && (duration < MIN_REEL_DURATION_SECONDS || duration > MAX_REEL_DURATION_SECONDS)) {
       throw new Error("O vídeo precisa ter entre 3 segundos e 15 minutos para Reels.");
@@ -222,7 +232,9 @@ export function ReelsComposer({
 
       const selectedFile = file as File;
       setStage("enviando");
+      setUploadPercent(0);
       const fileName = slugFileName(selectedFile.name);
+      trackUpload("reels", "upload_start", { file: selectedFile });
       const uploaded = await uploadPresigned(`${buildMediaPathnamePrefix(userId as string)}${fileName}`, selectedFile, {
         access: "public",
         handleUploadUrl: "/api/instagram/media/upload",
@@ -231,7 +243,12 @@ export function ReelsComposer({
           fileSizeBytes: selectedFile.size,
           contentType: selectedFile.type,
         }),
+        onUploadProgress: ({ percentage }) => setUploadPercent(Math.round(percentage)),
+      }).catch((error: unknown) => {
+        trackUpload("reels", "upload_error", { file: selectedFile, message: error instanceof Error ? error.message : "erro" });
+        throw new Error("Não foi possível enviar o vídeo. Confira a conexão (Wi-Fi/4G) e tente de novo.");
       });
+      trackUpload("reels", "upload_done", { file: selectedFile });
 
       const fullCaption = [caption.trim(), hashtags.trim()].filter(Boolean).join("\n\n");
       setStage("salvando");
@@ -291,8 +308,9 @@ export function ReelsComposer({
           <input
             id={videoId}
             type="file"
-            accept="video/mp4,video/quicktime"
+            accept="video/*,video/mp4,video/quicktime,.mp4,.mov"
             disabled={busy}
+            onClick={() => markPickerOpen("reels")}
             onChange={handleVideoChange}
             className="mt-2 block w-full text-sm text-zinc-700 file:mr-3 file:rounded-md file:border-0 file:bg-zinc-900 file:px-3 file:py-2 file:text-sm file:font-semibold file:text-white"
           />
@@ -308,6 +326,7 @@ export function ReelsComposer({
               controls
               playsInline
               onLoadedMetadata={(event) => setDuration(event.currentTarget.duration)}
+              onError={() => trackUpload("reels", "metadata_error", { file, message: "preview" })}
               className="mx-auto aspect-[9/16] max-h-[70vh] w-full max-w-sm bg-black object-contain"
             />
           ) : (
@@ -391,7 +410,7 @@ export function ReelsComposer({
 
         {stage !== "idle" && stage !== "sucesso" && stage !== "erro" ? (
           <p role="status" className="rounded-md bg-white px-3 py-2 text-sm text-teal-800">
-            {stage === "validando" ? "Validando vídeo..." : stage === "enviando" ? "Enviando vídeo..." : "Salvando..."}
+            {stage === "validando" ? "Validando vídeo..." : stage === "enviando" ? `Enviando vídeo… ${uploadPercent}%` : "Salvando..."}
           </p>
         ) : null}
 

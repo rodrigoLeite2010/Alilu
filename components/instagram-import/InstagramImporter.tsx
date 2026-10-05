@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { uploadPresigned } from "@vercel/blob/client";
+import { clearPickerMark, markPickerOpen, trackUpload } from "@/lib/client/upload-telemetry";
 import { Button, LinkButton } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { INSTAGRAM_IMPORT_KIND_LABEL, parseInstagramUrl } from "@/lib/instagram-import/url";
@@ -146,8 +147,22 @@ export function InstagramImporter({ userId }: { userId: string }) {
     }
   }
 
-  async function manualUpload(file: File | null) {
-    if (!file) return;
+  async function manualUpload(picked: File | null) {
+    clearPickerMark();
+    if (!picked) {
+      trackUpload("instagram-import", "no_file");
+      return;
+    }
+    // Celular: galeria às vezes manda o arquivo sem tipo — deduz pela extensão.
+    const lower = picked.name.toLowerCase();
+    const inferred = lower.endsWith(".mov") ? "video/quicktime" : lower.endsWith(".mp4") ? "video/mp4" : lower.match(/\.jpe?g$/) ? "image/jpeg" : null;
+    const file = !picked.type && inferred ? new File([picked], picked.name, { type: inferred, lastModified: picked.lastModified }) : picked;
+    trackUpload("instagram-import", "file_selected", { file });
+    if (!["video/mp4", "video/quicktime", "image/jpeg", "image/png", "image/webp"].includes(file.type)) {
+      trackUpload("instagram-import", "validation_error", { file, message: "formato" });
+      setError(`Formato não suportado${file.type ? ` (${file.type})` : ""}. Use vídeo MP4/MOV ou imagem JPG/PNG/WebP.`);
+      return;
+    }
     if (!authorized) {
       setError("Confirme que o conteúdo é seu ou que você tem autorização para usá-lo.");
       return;
@@ -156,10 +171,15 @@ export function InstagramImporter({ userId }: { userId: string }) {
     setError(null);
     try {
       const extension = file.type === "video/quicktime" ? "mov" : file.type.startsWith("image/") ? file.type.split("/")[1].replace("jpeg", "jpg") : "mp4";
+      trackUpload("instagram-import", "upload_start", { file });
       const uploaded = await uploadPresigned(`videos/imports/${userId}/manual/upload.${extension}`, file, {
         access: "public",
         handleUploadUrl: "/api/videos/instagram-import/upload",
+      }).catch((err: unknown) => {
+        trackUpload("instagram-import", "upload_error", { file, message: err instanceof Error ? err.message : "erro" });
+        throw new Error("Não foi possível enviar o arquivo. Confira a conexão (Wi-Fi/4G) e tente de novo.");
       });
+      trackUpload("instagram-import", "upload_done", { file });
       const response = await fetch("/api/videos/instagram-import/manual", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -258,9 +278,10 @@ export function InstagramImporter({ userId }: { userId: string }) {
               {uploading ? "Enviando…" : "Fazer upload do vídeo"}
               <input
                 type="file"
-                accept="video/mp4,video/quicktime,image/jpeg,image/png,image/webp"
+                accept="video/*,image/*,.mp4,.mov"
                 className="sr-only"
                 disabled={uploading}
+                onClick={() => markPickerOpen("instagram-import")}
                 onChange={(event) => manualUpload(event.target.files?.[0] ?? null)}
               />
             </label>

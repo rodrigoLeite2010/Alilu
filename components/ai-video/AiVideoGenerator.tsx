@@ -2,6 +2,13 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { prepareImageForUpload } from "@/lib/ai-video/prepare-image";
+import {
+  RELOADED_DURING_PICKER_MESSAGE,
+  checkReloadDuringPicker,
+  clearPickerMark,
+  markPickerOpen,
+  trackUpload,
+} from "@/lib/client/upload-telemetry";
 import { useRouter } from "next/navigation";
 import { uploadPresigned } from "@vercel/blob/client";
 import { Button, LinkButton } from "@/components/ui/Button";
@@ -152,6 +159,12 @@ export function AiVideoGenerator({
   const [failedPreviewUrl, setFailedPreviewUrl] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  // Celular com pouca memória: a página recarregou enquanto a galeria estava aberta.
+  useEffect(() => {
+    if (!checkReloadDuringPicker("ai-video-image")) return;
+    const timer = window.setTimeout(() => setUploadError(RELOADED_DURING_PICKER_MESSAGE), 0);
+    return () => window.clearTimeout(timer);
+  }, []);
   const [prompt, setPrompt] = useState(draft?.prompt ?? "");
   const [tier, setTier] = useState<AiVideoTier>(
     draft?.tier && tiers.includes(draft.tier as AiVideoTier) ? (draft.tier as AiVideoTier) : (tiers[0] ?? "ECONOMICO"),
@@ -219,7 +232,7 @@ export function AiVideoGenerator({
   const historyRef = useRef<HTMLElement | null>(null);
   useEffect(() => {
     if (!inProgressKey) return;
-    setNowMs(Date.now());
+    const first = setTimeout(() => setNowMs(Date.now()), 0);
     const timer = setInterval(async () => {
       setNowMs(Date.now());
       for (const id of inProgressKey.split(",")) {
@@ -236,11 +249,19 @@ export function AiVideoGenerator({
         }
       }
     }, 5000);
-    return () => clearInterval(timer);
+    return () => {
+      clearTimeout(first);
+      clearInterval(timer);
+    };
   }, [generations, inProgressKey]);
 
   async function handleFile(picked: File | null) {
-    if (!picked) return;
+    clearPickerMark();
+    if (!picked) {
+      trackUpload("ai-video-image", "no_file");
+      return;
+    }
+    trackUpload("ai-video-image", "file_selected", { file: picked });
     setUploadError(null);
     setUploading(true);
     setUploadStage("Preparando a foto…");
@@ -251,10 +272,12 @@ export function AiVideoGenerator({
       const file = await withTimeout(prepareImageForUpload(picked, AI_VIDEO_MAX_IMAGE_BYTES), 30_000, "A foto demorou demais para abrir. Se ela estiver só na nuvem (Google Fotos/iCloud), baixe para o celular e tente de novo.");
       if (!AI_VIDEO_IMAGE_CONTENT_TYPES.includes(file.type)) throw new Error("Use uma imagem JPG, PNG ou WebP.");
       // Prévia só do arquivo já preparado (sempre um formato que o navegador mostra).
+      trackUpload("ai-video-image", "prepare_done", { file });
       localPreview = URL.createObjectURL(file);
       setLocalPreviewUrl(localPreview);
       stage = "envio";
       setUploadStage("Enviando… 0%");
+      trackUpload("ai-video-image", "upload_start", { file });
       const extension = file.type === "image/png" ? "png" : file.type === "image/webp" ? "webp" : "jpg";
       const uploaded = await withTimeout(
         uploadPresigned(`ai-video/${userId}/input/${slugFileName(file.name, extension)}`, file, {
@@ -265,19 +288,15 @@ export function AiVideoGenerator({
         180_000,
         "O envio demorou demais. Confira a conexão (Wi-Fi/4G) e tente de novo.",
       );
+      trackUpload("ai-video-image", "upload_done", { file });
       setImageUrl(uploaded.url);
       setFailedPreviewUrl(null);
       idempotencyKeyRef.current = newIdempotencyKey();
     } catch (err) {
       const message = err instanceof Error ? err.message : "Não foi possível enviar a imagem.";
-      const ext = picked.name.includes(".") ? picked.name.split(".").pop()?.toLowerCase() ?? "" : "";
       // Detalhe técnico curto: ajuda a entender o problema pelo print da tela.
       setUploadError(`${message} (etapa: ${stage} · tipo: ${picked.type || "desconhecido"} · ${(picked.size / 1024 / 1024).toFixed(1)} MB)`);
-      void fetch("/api/ai-video/upload-diagnostic", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ stage, message, fileType: picked.type, fileSize: picked.size, fileExt: ext }),
-      }).catch(() => undefined);
+      trackUpload("ai-video-image", stage === "envio" ? "upload_error" : "validation_error", { file: picked, message: `${stage}: ${message}` });
     } finally {
       setUploading(false);
       setUploadStage(null);
@@ -461,6 +480,7 @@ export function AiVideoGenerator({
                 accept="image/*"
                 className="sr-only"
                 disabled={uploading || retryOf !== null}
+                onClick={() => markPickerOpen("ai-video-image")}
                 onChange={(event) => {
                   const input = event.currentTarget;
                   const file = input.files?.[0] ?? null;
