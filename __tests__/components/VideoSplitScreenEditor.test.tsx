@@ -315,3 +315,53 @@ describe("VideoSplitScreenEditor — indicador de progresso (3 estados textuais)
     });
   });
 });
+
+describe("VideoSplitScreenEditor — erros reais de envio (sem 'conexão' falso)", () => {
+  it("navegador recusa o envio por stream ('ReadableStream is disturbed'): repete sem stream e gera o vídeo", async () => {
+    let calls = 0;
+    uploadPresignedMock.mockImplementation(async (pathname: string, _file: unknown, options: { onUploadProgress?: unknown }) => {
+      calls += 1;
+      if (options.onUploadProgress) throw new TypeError("Failed to execute 'fetch' on 'Window': The provided ReadableStream is disturbed");
+      return { url: `https://blob.example.com/${pathname}` };
+    });
+    renderEditor();
+    await selectFile("Vídeo principal (fica em cima)", "preview-video-primary", makeVideoFile("principal.mp4"), 10);
+    await selectFile("Vídeo complementar (fica embaixo)", "preview-video-secondary", makeVideoFile("complementar.mp4"), 4);
+    fireEvent.click(screen.getByTestId("generate-button"));
+
+    expect(await screen.findByTestId("result-video")).toBeInTheDocument();
+    expect(calls).toBe(4); // 2 tentativas com stream + 2 sem stream
+    expect(screen.queryByText(/Confira a conexão/)).not.toBeInTheDocument();
+  });
+
+  it("vídeo grande demais mostra a causa real; 'tentar de novo' reenvia SÓ o que falhou", async () => {
+    uploadPresignedMock.mockImplementation(async (pathname: string, file: File) => {
+      if (file.name === "complementar.mp4" && uploadPresignedMock.mock.calls.length <= 2) throw new Error("Vercel Blob: File is too large, max 100MB.");
+      return { url: `https://blob.example.com/${pathname}` };
+    });
+    renderEditor();
+    await selectFile("Vídeo principal (fica em cima)", "preview-video-primary", makeVideoFile("principal.mp4"), 10);
+    await selectFile("Vídeo complementar (fica embaixo)", "preview-video-secondary", makeVideoFile("complementar.mp4"), 4);
+    fireEvent.click(screen.getByTestId("generate-button"));
+    expect(await screen.findByText(/O vídeo complementar excede o limite permitido/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId("generate-button"));
+    expect(await screen.findByTestId("result-video")).toBeInTheDocument();
+    const names = uploadPresignedMock.mock.calls.map((call) => (call[1] as File).name);
+    expect(names.filter((name) => name === "principal.mp4")).toHaveLength(1);
+    expect(names.filter((name) => name === "complementar.mp4")).toHaveLength(2);
+  });
+
+  it("falha no PROCESSAMENTO não aparece como erro de envio", async () => {
+    global.fetch = vi.fn(async (url: string) =>
+      url === "/api/videos/split-screen"
+        ? ({ ok: false, status: 500, json: async () => ({ error: "Não foi possível gerar o vídeo." }) } as Response)
+        : ({ ok: true, json: async () => ({}) } as Response),
+    ) as unknown as typeof fetch;
+    renderEditor();
+    await selectFile("Vídeo principal (fica em cima)", "preview-video-primary", makeVideoFile("principal.mp4"), 10);
+    await selectFile("Vídeo complementar (fica embaixo)", "preview-video-secondary", makeVideoFile("complementar.mp4"), 4);
+    fireEvent.click(screen.getByTestId("generate-button"));
+    expect(await screen.findByText(/Os vídeos foram enviados, mas houve erro ao processar o Split Screen/)).toBeInTheDocument();
+  });
+});

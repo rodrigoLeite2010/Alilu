@@ -1,6 +1,6 @@
 "use client";
 
-import { uploadPresigned } from "@vercel/blob/client";
+import { uploadPresignedResilient } from "@/lib/client/blob-upload";
 import { ensureReadableFile } from "@/lib/client/file-readability";
 import {
   END_MEDIA_IMAGE_CONTENT_TYPES,
@@ -45,7 +45,7 @@ export async function uploadEndMediaFile(userId: string, slot: EndMediaSlot, pic
   if (picked.size > limit) throw new Error(`O arquivo passa do limite de ${Math.round(limit / 1024 / 1024)} MB.`);
   const readable = await ensureReadableFile(picked.type === type ? picked : new File([picked], picked.name, { type, lastModified: picked.lastModified }));
   const extension = type.split("/")[1].replace("quicktime", "mov").replace("jpeg", "jpg");
-  const uploaded = await uploadPresigned(`${endMediaUploadPrefix(userId)}${slot.toLowerCase()}.${extension}`, readable, {
+  const { result: uploaded } = await uploadPresignedResilient(`${endMediaUploadPrefix(userId)}${slot.toLowerCase()}.${extension}`, readable, {
     access: "public",
     handleUploadUrl: "/api/brand-end-media/upload",
     contentType: type,

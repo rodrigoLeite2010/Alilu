@@ -13,6 +13,7 @@ import {
 } from "react";
 import { useRouter } from "next/navigation";
 import { uploadPresigned } from "@vercel/blob/client";
+import { classifyUploadError, describeUploadError, uploadPresignedResilient } from "@/lib/client/blob-upload";
 import {
   RELOADED_DURING_PICKER_MESSAGE,
   checkReloadDuringPicker,
@@ -624,6 +625,10 @@ export function VideoSplitScreenEditor({
   const [secondaryFraming, setSecondaryFraming] = useState<VideoFraming>(DEFAULT_VIDEO_FRAMING);
 
   const [uploadPercent, setUploadPercent] = useState(0);
+  /** Progresso por vídeo (-1 = enviando sem progresso fino, no envio de reserva). */
+  const [slotPercent, setSlotPercent] = useState<{ primary: number; secondary: number }>({ primary: 0, secondary: 0 });
+  /** Uploads que já deram certo: "Tentar de novo" reenvia só o que falhou. Limpo ao processar (o servidor apaga as entradas). */
+  const uploadedRef = useRef<Partial<Record<"primary" | "secondary", { file: File; url: string }>>>({});
   const primaryVideoRef = useRef<HTMLVideoElement>(null);
   const secondaryVideoRef = useRef<HTMLVideoElement>(null);
 
@@ -827,38 +832,65 @@ export function VideoSplitScreenEditor({
     setStage("enviando");
     setUploadPercent(0);
 
+    const jobId = typeof crypto.randomUUID === "function" ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
     const totalBytes = primary.file.size + secondary.file.size;
     const loaded = { primary: 0, secondary: 0 };
     const reportProgress = (key: "primary" | "secondary", bytes: number) => {
       loaded[key] = bytes;
       setUploadPercent(Math.min(100, Math.round(((loaded.primary + loaded.secondary) / Math.max(totalBytes, 1)) * 100)));
+      const size = key === "primary" ? primary.file?.size ?? 1 : secondary.file?.size ?? 1;
+      setSlotPercent((current) => (current[key] === -1 ? current : { ...current, [key]: Math.min(100, Math.round((bytes / Math.max(size, 1)) * 100)) }));
     };
+    setSlotPercent({ primary: 0, secondary: 0 });
     const uploadOne = async (key: "primary" | "secondary", file: File) => {
-      trackUpload("split-screen", "upload_start", { file });
+      const label = key === "primary" ? "vídeo principal" : "vídeo complementar";
+      // Já enviado com sucesso numa tentativa anterior (mesmo arquivo): não reenvia.
+      const previous = uploadedRef.current[key];
+      if (previous && previous.file === file) {
+        reportProgress(key, file.size);
+        return { url: previous.url };
+      }
+      trackUpload("split-screen", "upload_start", { file, message: `job ${jobId} ${key}` });
       // Envio parado sem progresso por 60 s = cancela e avisa (antes ficava travado para sempre).
       const guard = createStallGuard(60_000);
+      const startedAt = Date.now();
       try {
-        const result = await uploadPresigned(buildUploadPathname(file), file, {
-          access: "public",
-          handleUploadUrl: "/api/videos/upload",
-          clientPayload: JSON.stringify({ originalFilename: file.name, fileSizeBytes: file.size, contentType: file.type }),
-          abortSignal: guard.signal,
-          onUploadProgress: ({ loaded: bytes }) => {
-            guard.touch();
-            reportProgress(key, bytes);
+        const { result, usedFallback } = await uploadPresignedResilient(
+          buildUploadPathname(file),
+          file,
+          {
+            access: "public",
+            handleUploadUrl: "/api/videos/upload",
+            clientPayload: JSON.stringify({ originalFilename: file.name, fileSizeBytes: file.size, contentType: file.type }),
+            abortSignal: guard.signal,
+            onUploadProgress: ({ loaded: bytes }) => {
+              guard.touch();
+              reportProgress(key, bytes);
+            },
           },
-        });
-        trackUpload("split-screen", "upload_done", { file });
+          {
+            onFallback: (firstError) => {
+              // Sem stream não há progresso: o guard de "parado" não se aplica a este envio.
+              guard.done();
+              setSlotPercent((current) => ({ ...current, [key]: -1 }));
+              trackUpload("split-screen", "upload_fallback", { file, message: `job ${jobId} ${key}: ${firstError}` });
+            },
+          },
+        );
+        reportProgress(key, file.size);
+        uploadedRef.current[key] = { file, url: result.url };
+        trackUpload("split-screen", "upload_done", { file, message: `job ${jobId} ${key} ${Date.now() - startedAt}ms${usedFallback ? " (sem stream)" : ""}` });
         return result;
       } catch (error) {
+        const code = guard.stalled() ? "UPLOAD_TIMEOUT" : classifyUploadError(error);
         trackUpload("split-screen", "upload_error", {
           file,
-          message: guard.stalled() ? "parado sem progresso (60s)" : error instanceof Error ? error.message : "erro",
+          message: `job ${jobId} ${key} ${code}: ${guard.stalled() ? "parado sem progresso (60s)" : error instanceof Error ? error.message : "erro"}`,
         });
         throw new Error(
-          guard.stalled()
-            ? `O envio do vídeo ${key === "primary" ? "principal" : "complementar"} parou. Escolha o vídeo de novo (de preferência salvo no aparelho) e tente outra vez.`
-            : `Não foi possível enviar o vídeo ${key === "primary" ? "principal" : "complementar"}. Confira a conexão (Wi-Fi/4G) e tente de novo.`,
+          code === "UPLOAD_TIMEOUT"
+            ? `O envio do ${label} parou. Escolha o vídeo de novo (de preferência salvo no aparelho) e tente outra vez.`
+            : describeUploadError(code, label, MAX_INPUT_MEGABYTES),
         );
       } finally {
         guard.done();
@@ -866,7 +898,11 @@ export function VideoSplitScreenEditor({
     };
 
     try {
-      const [primaryUpload, secondaryUpload] = await Promise.all([uploadOne("primary", primary.file), uploadOne("secondary", secondary.file)]);
+      // Os dois em paralelo, cada um com o próprio token/controller; se um falhar, o outro termina e fica guardado.
+      const settled = await Promise.allSettled([uploadOne("primary", primary.file), uploadOne("secondary", secondary.file)]);
+      const failed = settled.find((item): item is PromiseRejectedResult => item.status === "rejected");
+      if (failed) throw failed.reason;
+      const [primaryUpload, secondaryUpload] = settled.map((item) => (item as PromiseFulfilledResult<{ url: string }>).value);
 
       setStage("processando");
       setProcessingLabel("Processando...");
@@ -876,9 +912,11 @@ export function VideoSplitScreenEditor({
           ? { source: "both" as const, primaryVolumePercent, secondaryVolumePercent }
           : { source: audioSource };
 
+      // A partir daqui o servidor apaga as entradas (sucesso ou erro): não reaproveita mais.
+      uploadedRef.current = {};
       const response = await fetch("/api/videos/split-screen", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "x-split-job-id": jobId },
         body: JSON.stringify({
           primaryBlobUrl: primaryUpload.url,
           secondaryBlobUrl: secondaryUpload.url,
@@ -893,10 +931,22 @@ export function VideoSplitScreenEditor({
           // Encerramento padrão da empresa (só logado; entra depois do split inteiro).
           endMedia: endMediaWanted === true,
         }),
+      }).catch((error: unknown) => {
+        trackUpload("split-screen", "processing_error", { message: `job ${jobId} rede: ${error instanceof Error ? error.message : "erro"}` });
+        throw new Error("Os vídeos foram enviados, mas a resposta do processamento não chegou (conexão caiu ou demorou demais). Tente de novo.");
       });
 
       if (!response.ok) {
-        throw new Error(await readErrorMessage(response, "Não foi possível gerar o vídeo."));
+        // Upload deu certo; o erro é do PROCESSAMENTO — nunca mostrar como erro de envio/conexão.
+        const serverMessage = await readErrorMessage(response, "");
+        trackUpload("split-screen", "processing_error", { message: `job ${jobId} HTTP ${response.status}: ${serverMessage}` });
+        throw new Error(
+          response.status === 400 && serverMessage
+            ? serverMessage
+            : response.status === 504
+              ? "Os vídeos foram enviados, mas o processamento passou do tempo limite. Tente um trecho mais curto."
+              : `Os vídeos foram enviados, mas houve erro ao processar o Split Screen.${serverMessage ? ` (${serverMessage})` : ""} Tente de novo.`,
+        );
       }
 
       const data = (await response.json()) as { url: string; endMedia?: { applied: boolean; renderId: string | null; message: string | null } };
@@ -1269,7 +1319,7 @@ export function VideoSplitScreenEditor({
         {busy ? (
           <p role="status" className="rounded-md bg-white px-3 py-2 text-sm text-teal-800">
             {stage === "enviando"
-              ? `Enviando vídeos… ${uploadPercent}% (no celular pode levar alguns minutos — mantenha esta tela aberta)`
+              ? `Enviando vídeo principal… ${slotPercent.primary === -1 ? "enviando" : `${slotPercent.primary}%`} · complementar… ${slotPercent.secondary === -1 ? "enviando" : `${slotPercent.secondary}%`} (no celular pode levar alguns minutos — mantenha esta tela aberta)`
               : `${processingLabel} Isso pode levar até um minuto.`}
           </p>
         ) : null}

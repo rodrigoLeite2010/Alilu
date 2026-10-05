@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { prepareImageForUpload } from "@/lib/ai-video/prepare-image";
 import { FileNotReadableError, ensureReadableFile, readFailureReason } from "@/lib/client/file-readability";
+import { uploadPresignedResilient } from "@/lib/client/blob-upload";
 import {
   RELOADED_DURING_PICKER_MESSAGE,
   checkReloadDuringPicker,
@@ -11,7 +12,6 @@ import {
   trackUpload,
 } from "@/lib/client/upload-telemetry";
 import { useRouter } from "next/navigation";
-import { uploadPresigned } from "@vercel/blob/client";
 import { Button, LinkButton } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { Dialog } from "@/components/instagram/Dialog";
@@ -282,11 +282,21 @@ export function AiVideoGenerator({
       trackUpload("ai-video-image", "upload_start", { file });
       const extension = file.type === "image/png" ? "png" : file.type === "image/webp" ? "webp" : "jpg";
       const uploaded = await withTimeout(
-        uploadPresigned(`ai-video/${userId}/input/${slugFileName(file.name, extension)}`, file, {
-          access: "public",
-          handleUploadUrl: "/api/ai-video/upload",
-          onUploadProgress: ({ percentage }) => setUploadStage(`Enviando… ${Math.round(percentage)}%`),
-        }),
+        uploadPresignedResilient(
+          `ai-video/${userId}/input/${slugFileName(file.name, extension)}`,
+          file,
+          {
+            access: "public",
+            handleUploadUrl: "/api/ai-video/upload",
+            onUploadProgress: ({ percentage }) => setUploadStage(`Enviando… ${Math.round(percentage)}%`),
+          },
+          {
+            onFallback: (firstError) => {
+              setUploadStage("Enviando…");
+              trackUpload("ai-video-image", "upload_fallback", { file, message: firstError });
+            },
+          },
+        ).then((outcome) => outcome.result),
         180_000,
         "O envio demorou demais. Confira a conexão (Wi-Fi/4G) e tente de novo.",
       );

@@ -17,6 +17,8 @@ const STAGES = new Set([
   "metadata_loaded",
   "metadata_error",
   "page_reloaded_during_picker",
+  "upload_fallback",
+  "processing_error",
 ]);
 
 const text = (value: unknown, max: number) => (typeof value === "string" && value ? value.slice(0, max) : null);
@@ -49,7 +51,7 @@ export async function POST(request: Request): Promise<NextResponse> {
     message: text(body.message, 300),
     userAgent: text(request.headers.get("user-agent"), 300),
   };
-  if (event.stage === "upload_error" || event.stage === "validation_error" || event.stage === "metadata_error" || event.stage === "page_reloaded_during_picker") {
+  if (event.stage === "upload_error" || event.stage === "validation_error" || event.stage === "metadata_error" || event.stage === "page_reloaded_during_picker" || event.stage === "upload_fallback" || event.stage === "processing_error") {
     console.warn(JSON.stringify({ scope: "client-upload", ...event, userId: session?.user?.id ?? null }));
   }
   try {

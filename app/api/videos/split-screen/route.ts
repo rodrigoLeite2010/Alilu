@@ -40,6 +40,11 @@ export async function POST(request: Request): Promise<NextResponse> {
     return NextResponse.json({ error: "Corpo da requisição inválido." }, { status: 400 });
   }
 
+  // Correlação navegador → servidor (logs da Vercel). Só um id aleatório, nunca dado sensível.
+  const jobIdHeader = request.headers.get("x-split-job-id") ?? "";
+  const jobId = /^[\w-]{8,64}$/.test(jobIdHeader) ? jobIdHeader : null;
+  console.info(JSON.stringify({ scope: "videos", event: "split-screen.request", jobId }));
+
   const parsed = parseSplitScreenRequest(body);
   if (!parsed.ok) {
     return NextResponse.json({ error: parsed.error }, { status: 400 });
@@ -89,6 +94,7 @@ export async function POST(request: Request): Promise<NextResponse> {
       JSON.stringify({
         scope: "videos",
         event: "split-screen.route-crash",
+        jobId,
         message: error instanceof Error ? error.message : String(error),
       }),
     );

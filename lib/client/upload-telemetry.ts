@@ -19,7 +19,9 @@ export type UploadStage =
   | "upload_error"
   | "metadata_loaded"
   | "metadata_error"
-  | "page_reloaded_during_picker";
+  | "page_reloaded_during_picker"
+  | "upload_fallback"
+  | "processing_error";
 
 const PICKER_MARK_KEY = "alilu.upload.pickerOpen";
 

@@ -2,9 +2,9 @@
 
 import { useEffect, useId, useMemo, useState, type ChangeEvent } from "react";
 import { useRouter } from "next/navigation";
-import { uploadPresigned } from "@vercel/blob/client";
 import { clearPickerMark, markPickerOpen, trackUpload } from "@/lib/client/upload-telemetry";
 import { FileNotReadableError, readFailureReason, createStallGuard, ensureReadableFile } from "@/lib/client/file-readability";
+import { classifyUploadError, describeUploadError, uploadPresignedResilient } from "@/lib/client/blob-upload";
 import { VideoEndMediaToggle } from "@/components/brand-end-media/VideoEndMediaToggle";
 import { applyEndMediaToReel } from "@/lib/brand-end-media/end-media-client";
 import { Button } from "@/components/ui/Button";
@@ -253,7 +253,7 @@ export function ReelsComposer({
       const fileName = slugFileName(selectedFile.name);
       trackUpload("reels", "upload_start", { file: selectedFile });
       const guard = createStallGuard(60_000);
-      const uploaded = await uploadPresigned(`${buildMediaPathnamePrefix(userId as string)}${fileName}`, selectedFile, {
+      const uploaded = await uploadPresignedResilient(`${buildMediaPathnamePrefix(userId as string)}${fileName}`, selectedFile, {
         abortSignal: guard.signal,
         access: "public",
         handleUploadUrl: "/api/instagram/media/upload",
@@ -266,13 +266,20 @@ export function ReelsComposer({
           guard.touch();
           setUploadPercent(Math.round(percentage));
         },
+      }, {
+        onFallback: (firstError) => {
+          guard.done();
+          trackUpload("reels", "upload_fallback", { file: selectedFile, message: firstError });
+        },
       })
+        .then((outcome) => outcome.result)
         .catch((error: unknown) => {
-          trackUpload("reels", "upload_error", { file: selectedFile, message: guard.stalled() ? "parado sem progresso (60s)" : error instanceof Error ? error.message : "erro" });
+          const code = classifyUploadError(error);
+          trackUpload("reels", "upload_error", { file: selectedFile, message: guard.stalled() ? "parado sem progresso (60s)" : `${code}: ${error instanceof Error ? error.message : "erro"}` });
           throw new Error(
             guard.stalled()
               ? "O envio do vídeo parou. Escolha o vídeo de novo (de preferência salvo no aparelho) e tente outra vez."
-              : "Não foi possível enviar o vídeo. Confira a conexão (Wi-Fi/4G) e tente de novo.",
+              : describeUploadError(code, "vídeo"),
           );
         })
         .finally(() => guard.done());
