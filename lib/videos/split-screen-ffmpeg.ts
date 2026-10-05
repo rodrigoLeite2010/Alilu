@@ -30,6 +30,10 @@
  *   só para `-map`). Se nenhum dos dois tiver áudio, a saída sai muda.
  */
 
+/** Mesmo padrão de emenda do encerramento (lib/brand-end-media/end-media-ffmpeg.ts). */
+const END_CLIP_FPS = 30;
+const END_CLIP_AUDIO_RATE = 48_000;
+
 export type VideoOutputFormat = "vertical" | "square" | "horizontal";
 export type VideoSplitLayoutRatio = "50-50" | "60-40" | "40-60";
 export type VideoDurationMode = "loop" | "shortest";
@@ -134,6 +138,13 @@ export interface BuildSplitScreenFfmpegArgsInput {
    * com -stream_loop -1 e a saída global corta na duração final.
    */
   secondaryInputIsLoopSegment?: boolean;
+  /**
+   * Encerramento padrão da empresa (opcional). Trecho JÁ normalizado
+   * (lib/brand-end-media/end-media-ffmpeg.ts) no MESMO tamanho da saída.
+   * Entra DEPOIS do split inteiro (concat), nunca dentro do layout — no
+   * mesmo passe do FFmpeg, sem reencodar o vídeo duas vezes.
+   */
+  endClip?: { path: string; durationSeconds: number; fadeSeconds: number };
 }
 
 function trimDurationSeconds(trim: VideoTrimRange): number {
@@ -242,6 +253,11 @@ export function buildSplitScreenFfmpegArgs(input: BuildSplitScreenFfmpegArgsInpu
   }
   args.push("-i", input.secondaryInputPath);
 
+  // Input 2 (opcional): encerramento; input 3: silêncio p/ o trecho principal sem áudio.
+  if (input.endClip) {
+    args.push("-i", input.endClip.path);
+  }
+
   const filters: string[] = [
     buildCoverCropFilter(0, { width, height: topHeight }, input.primaryFraming, "top"),
     buildCoverCropFilter(1, { width, height: bottomHeight }, input.secondaryFraming, "bottom"),
@@ -272,10 +288,38 @@ export function buildSplitScreenFfmpegArgs(input: BuildSplitScreenFfmpegArgsInpu
     audioMapArgs = ["-map", "1:a?"];
   }
 
-  args.push("-filter_complex", filters.join(";"));
-  args.push("-map", "[vout]");
-  args.push(...audioMapArgs);
-  args.push("-t", String(outputDuration));
+  if (input.endClip) {
+    const end = input.endClip;
+    const duration = String(Math.round(outputDuration * 1000) / 1000);
+    // Qual trilha o trecho principal usa (a mesma escolha feita acima), como rótulo de filtro.
+    const mapped = audioMapArgs[1] ?? "";
+    let mainAudio: string | null = null;
+    if (mapped === "[aout]") mainAudio = "[aout]";
+    else if (mapped.startsWith("0:a")) mainAudio = input.primaryHasAudio ? "[0:a]" : null;
+    else if (mapped.startsWith("1:a")) mainAudio = input.secondaryHasAudio ? "[1:a]" : null;
+    if (!mainAudio) {
+      args.push("-f", "lavfi", "-t", duration, "-i", `anullsrc=r=${END_CLIP_AUDIO_RATE}:cl=stereo`);
+      mainAudio = "[3:a]";
+    }
+    const fadeOut =
+      end.fadeSeconds > 0 && outputDuration > end.fadeSeconds * 2
+        ? `,fade=t=out:st=${Math.round((outputDuration - end.fadeSeconds) * 1000) / 1000}:d=${end.fadeSeconds}`
+        : "";
+    const audioFormat = `aresample=${END_CLIP_AUDIO_RATE},aformat=sample_fmts=fltp:channel_layouts=stereo`;
+    filters.push(`[vout]trim=duration=${duration},setpts=PTS-STARTPTS,setsar=1,fps=${END_CLIP_FPS},format=yuv420p${fadeOut}[vmain]`);
+    filters.push(`${mainAudio}atrim=duration=${duration},asetpts=PTS-STARTPTS,${audioFormat}[amain]`);
+    filters.push(`[2:v]setsar=1,fps=${END_CLIP_FPS},format=yuv420p[vend]`);
+    filters.push(`[2:a]${audioFormat}[aend]`);
+    filters.push(`[vmain][amain][vend][aend]concat=n=2:v=1:a=1[vfinal][afinal]`);
+    args.push("-filter_complex", filters.join(";"));
+    args.push("-map", "[vfinal]", "-map", "[afinal]");
+    args.push("-t", String(Math.round((outputDuration + end.durationSeconds) * 1000) / 1000));
+  } else {
+    args.push("-filter_complex", filters.join(";"));
+    args.push("-map", "[vout]");
+    args.push(...audioMapArgs);
+    args.push("-t", String(outputDuration));
+  }
   args.push(
     "-c:v",
     "libx264",

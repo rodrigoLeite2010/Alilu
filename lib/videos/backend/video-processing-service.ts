@@ -136,7 +136,17 @@ async function probeMedia(filePath: string): Promise<ProbedMediaInfo> {
 /** Tolerância (segundos) entre o fim do corte pedido e a duração real medida — evita rejeitar um corte "até o fim" por causa de arredondamento de metadados. */
 const TRIM_DURATION_TOLERANCE_SECONDS = 0.5;
 
+/** Encerramento padrão opcional (já normalizado no tamanho da saída — ver lib/brand-end-media). */
+export interface SplitScreenEndClipOption {
+  url: string;
+  durationSeconds: number;
+  fadeSeconds: number;
+}
+
 export interface ProcessSplitScreenVideoResult {
+  /** Só quando um encerramento foi pedido: se entrou no vídeo final. */
+  endClipApplied?: boolean;
+  endClipError?: string | null;
   url: string;
 }
 
@@ -155,7 +165,10 @@ function resolveTrimEnd(
   return { startSeconds: trim.startSeconds, endSeconds };
 }
 
-export async function processSplitScreenVideo(request: SplitScreenRequestBody): Promise<ProcessSplitScreenVideoResult> {
+export async function processSplitScreenVideo(
+  request: SplitScreenRequestBody,
+  options: { endClip?: SplitScreenEndClipOption | null } = {},
+): Promise<ProcessSplitScreenVideoResult> {
   if (!ffmpegPath) {
     throw new VideoProcessingError("Binário do FFmpeg não encontrado neste ambiente.");
   }
@@ -165,14 +178,24 @@ export async function processSplitScreenVideo(request: SplitScreenRequestBody): 
   const secondaryInputPath = path.join(workDir, "secondary-input");
   const secondaryLoopSegmentPath = path.join(workDir, "secondary-loop-segment.mkv");
   const outputPath = path.join(workDir, `${randomUUID()}.mp4`);
+  const endClipPath = path.join(workDir, "end-clip.mp4");
   const inputBlobUrls = [request.primaryBlobUrl, request.secondaryBlobUrl];
 
   try {
     try {
       const downloadStartedAt = Date.now();
+      let endClipReady = false;
       await Promise.all([
         downloadToFile(request.primaryBlobUrl, primaryInputPath),
         downloadToFile(request.secondaryBlobUrl, secondaryInputPath),
+        options.endClip
+          ? downloadToFile(options.endClip.url, endClipPath).then(
+              () => {
+                endClipReady = true;
+              },
+              () => undefined,
+            )
+          : Promise.resolve(),
       ]);
       logStructuredTiming("split-screen.download-done", downloadStartedAt);
 
@@ -233,7 +256,7 @@ export async function processSplitScreenVideo(request: SplitScreenRequestBody): 
         secondaryInputIsLoopSegment = true;
       }
 
-      const args = buildSplitScreenFfmpegArgs({
+      const baseArgs = {
         primaryInputPath,
         secondaryInputPath: effectiveSecondaryInputPath,
         outputPath,
@@ -248,16 +271,40 @@ export async function processSplitScreenVideo(request: SplitScreenRequestBody): 
         primaryHasAudio: primaryInfo.hasAudio,
         secondaryHasAudio: secondaryInfo.hasAudio,
         secondaryInputIsLoopSegment,
-      });
+      };
 
+      // Encerramento padrão: entra no MESMO passe (depois do split inteiro).
+      // Se falhar, gera de novo sem ele — o vídeo do usuário nunca se perde.
+      let endClipApplied = false;
+      let endClipError: string | null = null;
       const ffmpegStartedAt = Date.now();
-      try {
-        await runProcess(ffmpegPath, args);
-      } catch (error) {
-        logStructuredError("split-screen.ffmpeg-failed", {
-          message: error instanceof Error ? error.message : String(error),
-        });
-        throw new VideoProcessingError("Não foi possível gerar o vídeo.");
+      if (options.endClip && !endClipReady) endClipError = "Não foi possível baixar o encerramento padrão.";
+      if (options.endClip && endClipReady) {
+        try {
+          await runProcess(
+            ffmpegPath,
+            buildSplitScreenFfmpegArgs({
+              ...baseArgs,
+              endClip: { path: endClipPath, durationSeconds: options.endClip.durationSeconds, fadeSeconds: options.endClip.fadeSeconds },
+            }),
+          );
+          endClipApplied = true;
+        } catch (error) {
+          endClipError = "Não foi possível adicionar o encerramento padrão.";
+          logStructuredError("split-screen.end-clip-failed", {
+            message: error instanceof Error ? error.message : String(error),
+          });
+        }
+      }
+      if (!endClipApplied) {
+        try {
+          await runProcess(ffmpegPath, buildSplitScreenFfmpegArgs(baseArgs));
+        } catch (error) {
+          logStructuredError("split-screen.ffmpeg-failed", {
+            message: error instanceof Error ? error.message : String(error),
+          });
+          throw new VideoProcessingError("Não foi possível gerar o vídeo.");
+        }
       }
       logStructuredTiming("split-screen.ffmpeg-done", ffmpegStartedAt, { outputDurationSeconds: outputDuration });
 
@@ -270,7 +317,7 @@ export async function processSplitScreenVideo(request: SplitScreenRequestBody): 
       });
       logStructuredTiming("split-screen.upload-done", uploadStartedAt, { bytes: outputBuffer.byteLength });
 
-      return { url: blob.url };
+      return options.endClip ? { url: blob.url, endClipApplied, endClipError } : { url: blob.url };
     } finally {
       // Apaga os dois blobs de ENTRADA sempre — sucesso ou erro no meio do
       // processamento (try/finally). O blob de SAÍDA nunca é apagado aqui.

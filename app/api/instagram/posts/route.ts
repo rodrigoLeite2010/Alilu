@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
+import { parseCarouselEndMediaChoice } from "@/lib/brand-end-media/backend/end-media-service";
 import {
   InstagramPostValidationError,
   createCarouselPostFromUpload,
@@ -53,12 +54,14 @@ export async function POST(request: Request): Promise<NextResponse> {
   if (typeof body !== "object" || body === null) {
     return NextResponse.json({ error: "Corpo da requisição inválido." }, { status: 400 });
   }
-  const { mediaUrl, mediaUrls, caption, scheduledAt, postType } = body as {
+  const { mediaUrl, mediaUrls, caption, scheduledAt, postType, endMedia, endMediaRenderId } = body as {
     mediaUrl?: unknown;
     mediaUrls?: unknown;
     caption?: unknown;
     scheduledAt?: unknown;
     postType?: unknown;
+    endMedia?: unknown;
+    endMediaRenderId?: unknown;
   };
   const normalizedPostType = postType === undefined ? (mediaUrls !== undefined ? "carousel" : "image") : postType;
 
@@ -111,6 +114,7 @@ export async function POST(request: Request): Promise<NextResponse> {
           mediaUrls: mediaUrls as string[],
           caption,
           scheduledAt: (scheduledAt as string | null | undefined) ?? null,
+          endMedia: parseCarouselEndMediaChoice(endMedia),
           ...extra.fields,
         })
       : normalizedPostType === "reels"
@@ -119,6 +123,7 @@ export async function POST(request: Request): Promise<NextResponse> {
             mediaUrl: mediaUrl as string,
             caption,
             scheduledAt: (scheduledAt as string | null | undefined) ?? null,
+            endMediaRenderId: typeof endMediaRenderId === "string" ? endMediaRenderId : null,
             ...extra.fields,
           })
       : await createImagePostFromUpload({

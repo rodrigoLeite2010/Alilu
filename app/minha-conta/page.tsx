@@ -81,6 +81,9 @@ export default async function MinhaContaPage() {
           <LinkButton href="/minha-conta/midias" variant="secondary" className="sm:flex-1">
             Minhas mídias
           </LinkButton>
+          <LinkButton href="/minha-conta/midia-final" variant="secondary" className="sm:flex-1">
+            Mídia final padrão
+          </LinkButton>
         </div>
       </section>
     </Container>

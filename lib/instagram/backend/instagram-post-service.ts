@@ -1,4 +1,7 @@
 import "server-only";
+import type { CarouselEndMediaChoice } from "@/lib/brand-end-media/end-media-config";
+import { EndMediaValidationError, resolveCarouselEndForPost } from "@/lib/brand-end-media/backend/end-media-service";
+import { getRenderByResultMedia, getRenderForUser, markPostEndMedia, recordEndMediaEvent } from "@/lib/brand-end-media/backend/end-media-repository";
 import { getInstagramAccountForUser } from "@/lib/instagram/backend/instagram-account-repository";
 import { getInstagramMediaById, getInstagramMediaByStorageUrl } from "@/lib/instagram/backend/media-repository";
 import { isValidTimeZone, parseAbsoluteIso } from "@/lib/instagram/schedule-time";
@@ -188,6 +191,13 @@ export interface CreateCarouselPostInput extends PostExtraFields {
   caption: string;
   /** ISO 8601. Omitido/vazio = sem agendamento (post nasce DRAFT). */
   scheduledAt?: string | null;
+  /**
+   * Mídia final padrão (encerramento): "default" (imagem da empresa),
+   * "none", ou "override" (outra imagem só nesta publicação). Ausente =
+   * tela/fluxo que não mostra a opção → aplica só se a empresa ligou
+   * "aplicar automaticamente". Entra SEMPRE como último item.
+   */
+  endMedia?: CarouselEndMediaChoice;
 }
 
 /**
@@ -225,14 +235,43 @@ export async function createCarouselPost(input: CreateCarouselPostInput): Promis
     resolvedMediaIds.push(media.id);
   }
 
-  return createDraftCarouselPost({
+  let endResolution: Awaited<ReturnType<typeof resolveCarouselEndForPost>>;
+  try {
+    endResolution = await resolveCarouselEndForPost(input.userId, input.endMedia, resolvedMediaIds.length, (url) =>
+      resolveUploadedMediaId(url, input.userId),
+    );
+  } catch (error) {
+    if (error instanceof EndMediaValidationError) throw new InstagramPostValidationError(error.message);
+    throw error;
+  }
+  const endItem = endResolution.item;
+
+  const postId = await createDraftCarouselPost({
     ...extraFields(input),
     userId: input.userId,
     instagramAccountId: account.id,
-    mediaIds: resolvedMediaIds,
+    mediaIds: endItem ? [...resolvedMediaIds, endItem.mediaId] : resolvedMediaIds,
     caption: input.caption,
     scheduledAtUtc,
   });
+  if (endItem || endResolution.notApplied) {
+    await markPostEndMedia(postId, input.userId, {
+      applied: Boolean(endItem),
+      type: endItem ? "IMAGE" : null,
+      urlUsed: endItem?.urlUsed ?? null,
+      error: endResolution.notApplied,
+    });
+    await recordEndMediaEvent({
+      userId: input.userId,
+      postId,
+      context: "CAROUSEL",
+      mediaType: "IMAGE",
+      assetId: endItem?.sourceAssetId ?? null,
+      applied: Boolean(endItem),
+      error: endResolution.notApplied,
+    });
+  }
+  return postId;
 }
 
 export interface CreateCarouselPostFromUploadInput extends PostExtraFields {
@@ -240,6 +279,7 @@ export interface CreateCarouselPostFromUploadInput extends PostExtraFields {
   /** De 2 a 10 URLs de blobs recém-enviados, na mesma ordem dos slides exibidos no carrossel. */
   mediaUrls: string[];
   caption: string;
+  endMedia?: CarouselEndMediaChoice;
   /** ISO 8601. Omitido/vazio = sem agendamento (post nasce DRAFT). */
   scheduledAt?: string | null;
 }
@@ -270,6 +310,8 @@ export interface CreateReelPostInput extends PostExtraFields {
   mediaId: string;
   caption: string;
   scheduledAt?: string | null;
+  /** Registro devolvido por /api/brand-end-media/apply-reel ou pelo Split Screen (histórico do encerramento). */
+  endMediaRenderId?: string | null;
 }
 
 export async function createReelPost(input: CreateReelPostInput): Promise<string> {
@@ -290,7 +332,7 @@ export async function createReelPost(input: CreateReelPostInput): Promise<string
     throw new InstagramPostValidationError("Reels precisam usar um arquivo de vídeo.");
   }
 
-  return createDraftReelPost({
+  const postId = await createDraftReelPost({
     ...extraFields(input),
     userId: input.userId,
     instagramAccountId: account.id,
@@ -298,6 +340,14 @@ export async function createReelPost(input: CreateReelPostInput): Promise<string
     caption: input.caption,
     scheduledAtUtc,
   });
+  // Histórico: o vídeo já vem com o encerramento emendado (nunca emenda de novo aqui).
+  const render =
+    (input.endMediaRenderId ? await getRenderForUser(input.endMediaRenderId, input.userId) : null) ??
+    (await getRenderByResultMedia(media.id, input.userId));
+  if (render) {
+    await markPostEndMedia(postId, input.userId, { applied: true, type: render.endMediaType, urlUsed: render.endMediaUrl, error: null });
+  }
+  return postId;
 }
 
 export interface CreateReelPostFromUploadInput extends PostExtraFields {
@@ -305,6 +355,7 @@ export interface CreateReelPostFromUploadInput extends PostExtraFields {
   mediaUrl: string;
   caption: string;
   scheduledAt?: string | null;
+  endMediaRenderId?: string | null;
 }
 
 export async function createReelPostFromUpload(input: CreateReelPostFromUploadInput): Promise<string> {

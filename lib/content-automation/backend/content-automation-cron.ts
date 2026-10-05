@@ -25,6 +25,18 @@ import { renderAndStoreAutomationArt, renderAndStoreAutomationCarousel } from "@
 import { reserveAutomationUse, releaseAutomationUse } from "@/lib/billing/backend/automation-access-service";
 import { CONTENT_CATEGORY_LABEL, DAY_OF_WEEK_LABEL, type AutomationDayRecord, type AutomationRecord, type AutomationRunStatus } from "./automation-types";
 import { applyPromptVariables, displaySiteUrl } from "../prompt-variables";
+import {
+  applyEndMediaToVideoMedia,
+  automationCarouselWantsEndImage,
+  automationReelWantsEndMedia,
+  prepareCarouselEndItem,
+} from "@/lib/brand-end-media/backend/end-media-service";
+import { getRunGenerationAttempt, markPostEndMedia, recordEndMediaEvent } from "@/lib/brand-end-media/backend/end-media-repository";
+
+/** Encerramento do Reel no Piloto: tentativas (nova execução do cron) antes de publicar sem ele. */
+const END_MEDIA_AUTOMATION_MAX_ATTEMPTS = 2;
+/** Orçamento do FFmpeg dentro do cron (maxDuration 60s) — o resultado fica em cache para os próximos dias. */
+const END_MEDIA_AUTOMATION_TIMEOUT_MS = 35_000;
 
 /**
  * Cron do Piloto Automático de Conteúdo — SÓ gera conteúdo e cria/agenda a
@@ -350,6 +362,9 @@ async function generateAndCreatePublicationUnchecked(
       captionReceived: Boolean(caption),
     });
 
+    // Mídia final padrão: reserva 1 slide (até 9 gerados + a imagem final = 10, limite da Meta).
+    const wantsEndImage = await automationCarouselWantsEndImage(automation.userId).catch(() => false);
+    const maxGeneratedSlides = wantsEndImage ? MAX_CAROUSEL_ITEMS - 1 : MAX_CAROUSEL_ITEMS;
     const { mediaIds, overflowText } = await renderAndStoreAutomationCarousel({
       userId: automation.userId,
       templateId: day.templateId,
@@ -359,7 +374,7 @@ async function generateAndCreatePublicationUnchecked(
       visualText,
       overlayOpacity: day.overlayOpacity,
       visualTextColor: day.visualTextColor,
-      maxSlides: MAX_CAROUSEL_ITEMS,
+      maxSlides: maxGeneratedSlides,
       automationRunId: runId,
     });
     if (overflowText) {
@@ -371,7 +386,7 @@ async function generateAndCreatePublicationUnchecked(
         automationId: automation.id,
         automationDayId: day.id,
         runId,
-        maxSlides: MAX_CAROUSEL_ITEMS,
+        maxSlides: maxGeneratedSlides,
         overflowTextLength: overflowText.length,
       });
     }
@@ -381,30 +396,94 @@ async function generateAndCreatePublicationUnchecked(
       );
     }
 
+    // Imagem final: falhar aqui nunca derruba o carrossel (publica sem ela e registra).
+    let endItem: Awaited<ReturnType<typeof prepareCarouselEndItem>> = null;
+    let endError: string | null = null;
+    if (wantsEndImage) {
+      try {
+        endItem = await prepareCarouselEndItem(automation.userId, { mode: "default" }, mediaIds.length, async () => {
+          throw new Error("override indisponível no Piloto");
+        });
+      } catch (error) {
+        endError = error instanceof Error ? error.message : String(error);
+      }
+    }
+
     const publicationId = await createDraftCarouselPost({
       userId: automation.userId,
       instagramAccountId: automation.instagramAccountId,
-      mediaIds,
+      mediaIds: endItem ? [...mediaIds, endItem.mediaId] : mediaIds,
       caption,
       scheduledAtUtc,
       timezone: automation.timezone,
       source: "AUTOMATION",
     });
+    if (wantsEndImage) {
+      await markPostEndMedia(publicationId, automation.userId, {
+        applied: Boolean(endItem),
+        type: endItem ? "IMAGE" : null,
+        urlUsed: endItem?.urlUsed ?? null,
+        error: endError,
+      });
+      await recordEndMediaEvent({
+        userId: automation.userId,
+        postId: publicationId,
+        context: "AUTOMATION_CAROUSEL",
+        mediaType: "IMAGE",
+        assetId: endItem?.sourceAssetId ?? null,
+        applied: Boolean(endItem),
+        error: endError,
+      });
+    }
     return { publicationId, status: willAutoPublish ? "SCHEDULED" : "WAITING_APPROVAL" };
   }
 
   // REEL
   const video = await resolveVideoMediaId(automation, day);
   const { caption } = await resolveCaptionForRun(automation, day, runId, "REEL");
+
+  // Mídia final padrão: o Alilu monta o MP4 final ANTES de publicar
+  // (cache por vídeo + encerramento). Falhou → nova tentativa no próximo
+  // ciclo; esgotou → publica sem encerramento e registra o alerta.
+  let reelMediaId = video;
+  let endInfo: { applied: boolean; type: "VIDEO" | "IMAGE" | null; urlUsed: string | null; error: string | null } | null = null;
+  if (await automationReelWantsEndMedia(automation.userId).catch(() => false)) {
+    const startedAt = Date.now();
+    try {
+      const applied = await applyEndMediaToVideoMedia(automation.userId, video, {
+        context: "AUTOMATION_REEL",
+        timeoutMs: END_MEDIA_AUTOMATION_TIMEOUT_MS,
+      });
+      reelMediaId = applied.resultMediaId;
+      endInfo = { applied: true, type: applied.render.endMediaType, urlUsed: applied.render.endMediaUrl, error: null };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      const attempt = await getRunGenerationAttempt(runId).catch(() => END_MEDIA_AUTOMATION_MAX_ATTEMPTS);
+      await recordEndMediaEvent({
+        userId: automation.userId,
+        context: "AUTOMATION_REEL",
+        applied: false,
+        processingMs: Date.now() - startedAt,
+        error: `tentativa ${attempt + 1}: ${message}`,
+      });
+      if (attempt + 1 < END_MEDIA_AUTOMATION_MAX_ATTEMPTS) {
+        throw new Error("Não foi possível adicionar o encerramento padrão ao Reel — nova tentativa no próximo ciclo.");
+      }
+      console.error(JSON.stringify({ scope: "end-media", event: "automation_reel_published_without_end", automationId: automation.id, runId }));
+      endInfo = { applied: false, type: null, urlUsed: null, error: "Não foi possível adicionar o encerramento padrão." };
+    }
+  }
+
   const publicationId = await createDraftReelPost({
     userId: automation.userId,
     instagramAccountId: automation.instagramAccountId,
-    mediaId: video,
+    mediaId: reelMediaId,
     caption,
     scheduledAtUtc,
     timezone: automation.timezone,
     source: "AUTOMATION",
   });
+  if (endInfo) await markPostEndMedia(publicationId, automation.userId, endInfo);
   return { publicationId, status: willAutoPublish ? "SCHEDULED" : "WAITING_APPROVAL" };
 }
 

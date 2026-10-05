@@ -1,4 +1,8 @@
 import { NextResponse } from "next/server";
+import { auth } from "@/auth";
+import { recordEndMediaEvent } from "@/lib/brand-end-media/backend/end-media-repository";
+import { recordSplitScreenEndRender, resolveSplitScreenEndClip } from "@/lib/brand-end-media/backend/end-media-service";
+import { VIDEO_OUTPUT_DIMENSIONS } from "@/lib/videos/split-screen-ffmpeg";
 import { parseSplitScreenRequest } from "@/lib/videos/validation";
 import {
   VideoProcessingError,
@@ -42,8 +46,37 @@ export async function POST(request: Request): Promise<NextResponse> {
   }
 
   try {
-    const result = await processSplitScreenVideo(parsed.value);
-    return NextResponse.json(result);
+    // Encerramento padrão da empresa: só para usuário logado (a ferramenta
+    // continua pública e funciona igual sem login). Nunca bloqueia o vídeo.
+    const wantedRaw = (body as { endMedia?: unknown }).endMedia;
+    const wanted = typeof wantedRaw === "boolean" ? wantedRaw : undefined;
+    let userId: string | null = null;
+    if (wanted !== false) {
+      userId = (await auth().catch(() => null))?.user?.id ?? null;
+    }
+    const endResolution = userId
+      ? await resolveSplitScreenEndClip(userId, wanted, VIDEO_OUTPUT_DIMENSIONS[parsed.value.outputFormat]).catch(() => null)
+      : null;
+    const startedAt = Date.now();
+    const result = await processSplitScreenVideo(parsed.value, {
+      endClip: endResolution?.clip
+        ? { url: endResolution.clip.url, durationSeconds: endResolution.clip.durationSeconds, fadeSeconds: endResolution.fadeSeconds }
+        : null,
+    });
+    let endMedia: { applied: boolean; renderId: string | null; message: string | null } | undefined;
+    if (userId && endResolution && (endResolution.clip || endResolution.notApplied)) {
+      if (endResolution.clip && result.endClipApplied) {
+        const renderId = await recordSplitScreenEndRender(userId, endResolution.clip, result.url, Date.now() - startedAt).catch(() => null);
+        endMedia = { applied: true, renderId, message: null };
+      } else {
+        const message = result.endClipError ?? endResolution.notApplied;
+        if (endResolution.clip) {
+          await recordEndMediaEvent({ userId, context: "SPLIT_SCREEN", mediaType: endResolution.clip.kind, assetId: endResolution.clip.asset.id, applied: false, error: message });
+        }
+        endMedia = { applied: false, renderId: null, message };
+      }
+    }
+    return NextResponse.json({ url: result.url, ...(endMedia ? { endMedia } : {}) });
   } catch (error) {
     if (error instanceof VideoProcessingValidationError) {
       return NextResponse.json({ error: error.message }, { status: 400 });
