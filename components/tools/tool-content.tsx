@@ -2399,6 +2399,10 @@ export const toolContent: Record<
         answer: "É uma estimativa baseada em regras do português (ditongos, hiatos, \"qu\" e \"gu\", \"ão\" e \"ões\"). Pode errar em algumas palavras, mas é precisa o suficiente para as médias usadas nos índices.",
       },
       {
+        question: "Como funciona o \"Melhorar com IA\"?",
+        answer: "Depois da análise, quem está logado pode pedir uma versão mais simples, mais direta, emocional ou persuasiva, um gancho de 3 segundos ou uma adaptação para Instagram, Reels ou legenda, escolhendo o público (de criança de 10 anos a técnico). A IA é orientada a não inventar fatos e a manter nomes, números e links, e o Alilu mede a nova versão com as mesmas fórmulas para mostrar o antes e o depois. Se a nova versão não ficar mais simples, a ferramenta avisa.",
+      },
+      {
         question: "Uma nota baixa significa que o texto está errado?",
         answer: "Não. Textos técnicos ou jurídicos costumam ter nota baixa por natureza. A nota mostra o esforço de leitura; use as sugestões quando o objetivo for alcançar o maior número de pessoas.",
       },
