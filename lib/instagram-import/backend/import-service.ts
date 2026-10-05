@@ -10,6 +10,7 @@ import { InstagramImportProviderError, type InstagramMediaItem } from "./provide
 import { safeDownload, SafeDownloadError } from "./safe-download";
 import { InvalidMediaError, probeImageBuffer, probeVideoBuffer, type ProbedMedia } from "./media-probe";
 import {
+  appendImportedCarouselItem,
   claimForImport,
   countProviderCallsSince,
   deleteImport,
@@ -270,6 +271,8 @@ export async function importResolvedMedia(
     hasAudio: probe.hasAudio,
     // Só a URL do Alilu fica guardada; as temporárias do provedor são descartadas.
     resolvedItems: [],
+    // Importou um item só: itens de carrossel parciais (se houver) deixam de valer.
+    importedItems: [],
     errorCode: null,
     errorMessage: null,
     executionMs: Date.now() - started,
@@ -285,6 +288,142 @@ export async function importResolvedMedia(
     executionMs: Date.now() - started,
     status: "COMPLETED",
   });
+  return completed!;
+}
+
+/** Máximo de itens que um carrossel do Instagram pode ter (e que a Meta aceita publicar). */
+export const MAX_CAROUSEL_IMPORT_ITEMS = 10;
+
+/** Foto do carrossel em PNG/WebP vira JPEG (a publicação de carrossel da Meta só aceita JPEG). */
+async function toJpeg(buffer: Buffer): Promise<Buffer> {
+  const { createCanvas, loadImage } = await import("@napi-rs/canvas");
+  const image = await loadImage(buffer);
+  const canvas = createCanvas(image.width, image.height);
+  const context = canvas.getContext("2d");
+  context.fillStyle = "#ffffff";
+  context.fillRect(0, 0, image.width, image.height);
+  context.drawImage(image, 0, 0);
+  return canvas.toBuffer("image/jpeg", 92);
+}
+
+/**
+ * Carrossel: importa UM item (o cliente chama item por item, em sequência,
+ * para cada chamada caber no tempo da function). Idempotente por índice.
+ * Quando todos os itens estiverem guardados, a importação vira COMPLETED.
+ * Falha de um item NÃO derruba a importação: a tela oferece tentar de novo
+ * ou seguir sem ele (finishCarouselImport).
+ */
+export async function importCarouselItem(userId: string, importId: string, input: { itemIndex?: unknown }): Promise<InstagramImportRecord> {
+  const current = await getImportForUser(importId, userId);
+  if (!current) throw new InstagramImportError("Importação não encontrada.", "NOT_FOUND", 404);
+  if (current.status === "COMPLETED") return current;
+  if (current.status !== "READY") throw new InstagramImportError("Este conteúdo não pode mais ser importado. Cole o link de novo.", "NOT_READY", 409);
+  if (current.resolvedItems.length < 2) throw new InstagramImportError("Este link não é um carrossel.", "NOT_CAROUSEL", 400);
+
+  const index = Number.isInteger(input.itemIndex) ? Number(input.itemIndex) : -1;
+  const item = current.resolvedItems[index];
+  if (!item || index >= MAX_CAROUSEL_IMPORT_ITEMS) throw new InstagramImportError("Item inválido.", "INVALID_ITEM", 400);
+  if (current.importedItems.some((existing) => existing.index === index)) return current;
+
+  const settings = await getImportSettings();
+  const started = Date.now();
+  const itemError = (code: string, message: string) => {
+    log("carousel_item_failed", { importId, userId, index, mediaType: item.mediaType, errorCode: code, executionMs: Date.now() - started });
+    return new InstagramImportError(message, code, code === "TOO_LARGE" || code === "TOO_LONG" ? 413 : 422, { importId, itemIndex: index });
+  };
+
+  let downloaded;
+  try {
+    downloaded = await safeDownload(item.mediaUrl, {
+      maxBytes: settings.maxImportedVideoSizeMb * 1024 * 1024,
+      allowedContentTypes:
+        item.mediaType === "VIDEO" ? [...IMPORT_VIDEO_CONTENT_TYPES, "application/octet-stream"] : [...IMPORT_IMAGE_CONTENT_TYPES, "application/octet-stream"],
+      timeoutMs: 50_000,
+    });
+  } catch (error) {
+    if (error instanceof SafeDownloadError) throw itemError(error.code, DOWNLOAD_ERROR_MESSAGE[error.code]);
+    throw itemError("DOWNLOAD_FAILED", INSTAGRAM_IMPORT_ERROR_MESSAGES.PROVIDER_FAILED);
+  }
+
+  let probe: ProbedMedia;
+  try {
+    probe = await validateMedia(downloaded.buffer, item.mediaType, settings.maxImportedDurationMinutes * 60);
+  } catch (error) {
+    if (error instanceof InvalidMediaError) throw itemError(error.code, error.message);
+    throw itemError("INVALID_MEDIA", "O arquivo baixado não é um vídeo/imagem válido.");
+  }
+
+  let buffer = downloaded.buffer;
+  let contentType =
+    downloaded.contentType === "application/octet-stream" ? (item.mediaType === "VIDEO" ? "video/mp4" : "image/jpeg") : downloaded.contentType;
+  if (probe.mediaType === "IMAGE" && contentType !== "image/jpeg") {
+    try {
+      buffer = await toJpeg(buffer);
+      contentType = "image/jpeg";
+    } catch {
+      throw itemError("INVALID_MEDIA", "Não foi possível preparar uma das fotos do carrossel.");
+    }
+  }
+
+  let blob;
+  try {
+    blob = await put(`${importStoragePrefix(userId)}${importId}-${index + 1}.${extensionFor(contentType, probe.mediaType)}`, buffer, {
+      access: "public",
+      addRandomSuffix: true,
+      contentType,
+    });
+  } catch {
+    throw itemError("STORAGE_FAILED", INSTAGRAM_IMPORT_ERROR_MESSAGES.PROVIDER_FAILED);
+  }
+
+  const appended = await appendImportedCarouselItem(importId, userId, {
+    index,
+    mediaType: probe.mediaType,
+    fileUrl: blob.url,
+    storagePath: blob.pathname,
+    contentType,
+    fileSizeBytes: buffer.length,
+    durationSeconds: probe.durationSeconds,
+    width: probe.width,
+    height: probe.height,
+    hasAudio: probe.hasAudio,
+  });
+  if (!appended) {
+    // Outra aba guardou o mesmo item primeiro: descarta a cópia duplicada.
+    await deleteBlob(blob.url).catch(() => undefined);
+    return (await getImportForUser(importId, userId)) ?? current;
+  }
+  log("carousel_item_imported", { importId, userId, index, mediaType: probe.mediaType, bytes: buffer.length, executionMs: Date.now() - started });
+
+  const total = Math.min(appended.resolvedItems.length, MAX_CAROUSEL_IMPORT_ITEMS);
+  if (appended.importedItems.length >= total) return finishCarouselImport(userId, importId);
+  return appended;
+}
+
+/** Fecha o carrossel com os itens já guardados (todos, ou "seguir sem os que falharam"). */
+export async function finishCarouselImport(userId: string, importId: string, now: Date = new Date()): Promise<InstagramImportRecord> {
+  const current = await getImportForUser(importId, userId);
+  if (!current) throw new InstagramImportError("Importação não encontrada.", "NOT_FOUND", 404);
+  if (current.status === "COMPLETED") return current;
+  const first = current.importedItems[0];
+  if (current.status !== "READY" || !first) throw new InstagramImportError("Nenhum item do carrossel foi importado ainda.", "NOTHING_IMPORTED", 409);
+  const completed = await updateImport(importId, {
+    status: "COMPLETED",
+    mediaType: first.mediaType,
+    importedFileUrl: first.fileUrl,
+    storagePath: first.storagePath,
+    contentType: first.contentType,
+    fileSizeBytes: current.importedItems.reduce((sum, item) => sum + item.fileSizeBytes, 0),
+    durationSeconds: first.durationSeconds,
+    width: first.width,
+    height: first.height,
+    hasAudio: first.hasAudio,
+    resolvedItems: [],
+    errorCode: null,
+    errorMessage: null,
+    completedAt: now,
+  });
+  log("carousel_imported", { importId, userId, items: current.importedItems.length });
   return completed!;
 }
 
@@ -365,7 +504,8 @@ export async function registerManualUpload(
 export async function deleteInstagramImport(userId: string, importId: string): Promise<boolean> {
   const removed = await deleteImport(importId, userId);
   if (!removed) return false;
-  if (removed.importedFileUrl) await deleteBlob(removed.importedFileUrl).catch(() => undefined);
+  const urls = new Set([removed.importedFileUrl, ...removed.importedItems.map((item) => item.fileUrl)].filter((url): url is string => Boolean(url)));
+  for (const url of urls) await deleteBlob(url).catch(() => undefined);
   log("deleted", { importId, userId });
   return true;
 }

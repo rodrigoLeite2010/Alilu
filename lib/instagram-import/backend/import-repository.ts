@@ -3,6 +3,20 @@ import { getDb } from "@/lib/db/client";
 import type { InstagramImportStatus } from "../url";
 import type { InstagramMediaItem } from "./providers/provider";
 
+/** Um item de carrossel já guardado no Blob do Alilu (ver migração 0027). */
+export interface ImportedCarouselItem {
+  index: number;
+  mediaType: "VIDEO" | "IMAGE";
+  fileUrl: string;
+  storagePath: string;
+  contentType: string;
+  fileSizeBytes: number;
+  durationSeconds: number | null;
+  width: number | null;
+  height: number | null;
+  hasAudio: boolean | null;
+}
+
 export interface InstagramImportRecord {
   id: string;
   userId: string;
@@ -30,6 +44,8 @@ export interface InstagramImportRecord {
   errorCode: string | null;
   errorMessage: string | null;
   executionMs: number | null;
+  /** Carrossel: todos os itens importados, na ordem. Vazio para importação de item único. */
+  importedItems: ImportedCarouselItem[];
   createdAt: Date;
   completedAt: Date | null;
 }
@@ -77,6 +93,7 @@ function map(row: Record<string, unknown>): InstagramImportRecord {
     errorCode: (row.error_code as string | null) ?? null,
     errorMessage: (row.error_message as string | null) ?? null,
     executionMs: num(row.execution_ms),
+    importedItems: (items(row.imported_items) as unknown as ImportedCarouselItem[]).sort((a, b) => a.index - b.index),
     createdAt: new Date(row.created_at as string),
     completedAt: row.completed_at ? new Date(row.completed_at as string) : null,
   };
@@ -158,6 +175,7 @@ export interface ImportPatch {
   errorMessage?: string | null;
   executionMs?: number | null;
   completedAt?: Date | null;
+  importedItems?: ImportedCarouselItem[];
 }
 
 export async function updateImport(id: string, patch: ImportPatch): Promise<InstagramImportRecord | null> {
@@ -187,6 +205,7 @@ export async function updateImport(id: string, patch: ImportPatch): Promise<Inst
       error_code = ${pick(patch.errorCode, current.errorCode)},
       error_message = ${pick(patch.errorMessage, current.errorMessage)},
       execution_ms = ${pick(patch.executionMs, current.executionMs)},
+      imported_items = ${JSON.stringify(pick(patch.importedItems, current.importedItems))}::jsonb,
       completed_at = ${completedAt ? completedAt.toISOString() : null}
     where id = ${id}
     returning *
@@ -264,4 +283,21 @@ export async function importStatsSince(since: Date): Promise<{ total: number; co
     from instagram_media_imports where created_at >= ${since.toISOString()}
   `;
   return { total: Number(row.total), completed: Number(row.completed), failed: Number(row.failed), costUsd: Number(row.cost), bytes: Number(row.bytes) };
+}
+
+/**
+ * Acrescenta um item importado do carrossel, de forma atômica e sem
+ * duplicar o mesmo índice (dois cliques/abas não guardam duas vezes).
+ * Devolve null se o índice já existia (ou a importação não é do usuário).
+ */
+export async function appendImportedCarouselItem(id: string, userId: string, item: ImportedCarouselItem): Promise<InstagramImportRecord | null> {
+  const db = getDb();
+  const rows = await db`
+    update instagram_media_imports
+    set imported_items = imported_items || ${JSON.stringify([item])}::jsonb
+    where id = ${id} and user_id = ${userId} and status = 'READY'
+      and not (imported_items @> ${JSON.stringify([{ index: item.index }])}::jsonb)
+    returning *
+  `;
+  return rows[0] ? map(rows[0]) : null;
 }

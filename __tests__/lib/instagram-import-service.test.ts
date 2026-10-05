@@ -180,6 +180,63 @@ describe("importar para o Alilu", () => {
   });
 });
 
+describe("carrossel (fotos + vídeos)", () => {
+  const CAROUSEL = "https://www.instagram.com/p/C1a2B3c4D5e/";
+  const carousel = () => ({
+    ...video(),
+    items: [
+      { mediaType: "IMAGE" as const, mediaUrl: "https://scontent.cdninstagram.com/a.png", thumbnailUrl: null, contentType: "image/png" },
+      { mediaType: "VIDEO" as const, mediaUrl: "https://scontent.cdninstagram.com/v.mp4", thumbnailUrl: null, contentType: "video/mp4" },
+    ],
+  });
+
+  beforeEach(() => {
+    resolveMock.mockResolvedValue(carousel());
+    downloadMock.mockImplementation(async (url: string) =>
+      url.endsWith(".png")
+        ? { buffer: makeLogoPng(), contentType: "image/png", finalUrl: url }
+        : { buffer: MP4, contentType: "video/mp4", finalUrl: url },
+    );
+  });
+
+  it("importa item a item (imagem vira JPEG), conclui ao final e repetir o item não duplica", async () => {
+    const userId = await seedUser();
+    const { record } = await service.resolveInstagramLink(userId, { url: CAROUSEL, authorized: true });
+
+    const afterFirst = await service.importCarouselItem(userId, record!.id, { itemIndex: 0 });
+    expect(afterFirst.status).toBe("READY");
+    expect(afterFirst.importedItems).toHaveLength(1);
+    expect(afterFirst.importedItems[0]).toMatchObject({ index: 0, mediaType: "IMAGE", contentType: "image/jpeg" });
+    expect(blobPut.mock.calls[0][0]).toMatch(new RegExp(`^videos/imports/${userId}/.+-1\\.jpg$`));
+
+    const again = await service.importCarouselItem(userId, record!.id, { itemIndex: 0 });
+    expect(again.importedItems).toHaveLength(1);
+    expect(blobPut).toHaveBeenCalledTimes(1);
+
+    const done = await service.importCarouselItem(userId, record!.id, { itemIndex: 1 });
+    expect(done.status).toBe("COMPLETED");
+    expect(done.importedItems.map((i) => [i.index, i.mediaType])).toEqual([[0, "IMAGE"], [1, "VIDEO"]]);
+    expect(done.importedFileUrl).toBe(done.importedItems[0].fileUrl);
+    expect(done.resolvedItems).toEqual([]);
+
+    expect(await service.deleteInstagramImport(userId, done.id)).toBe(true);
+    for (const imported of done.importedItems) expect(blobDel).toHaveBeenCalledWith(imported.fileUrl);
+  });
+
+  it("outro usuário não importa itens; concluir sem um item (pulado) usa os que já vieram", async () => {
+    const userId = await seedUser();
+    const other = await seedUser("2");
+    const { record } = await service.resolveInstagramLink(userId, { url: CAROUSEL, authorized: true });
+    await expect(service.importCarouselItem(other, record!.id, { itemIndex: 0 })).rejects.toMatchObject({ code: "NOT_FOUND" });
+
+    await service.importCarouselItem(userId, record!.id, { itemIndex: 1 });
+    const done = await service.finishCarouselImport(userId, record!.id);
+    expect(done.status).toBe("COMPLETED");
+    expect(done.importedItems.map((i) => i.index)).toEqual([1]);
+    expect(done.mediaType).toBe("VIDEO");
+  });
+});
+
 describe("upload manual (fallback)", () => {
   it("aceita só arquivo enviado pela tela, no prefixo do próprio usuário, e valida o conteúdo", async () => {
     const userId = await seedUser();

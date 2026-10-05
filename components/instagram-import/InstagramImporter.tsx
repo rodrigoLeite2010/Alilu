@@ -33,6 +33,18 @@ export function formatResolution(width: number | null, height: number | null): s
 /** O que fazer com o arquivo importado: as 3 saídas pedidas (split-screen, Reels, baixar). */
 export function ImportedActions({ item }: { item: InstagramImportDto }) {
   if (!item.fileUrl) return null;
+  if (item.importedItems.length >= 2) {
+    return (
+      <div className="flex flex-wrap gap-2">
+        <LinkButton href={`/instagram/carrossel/repostar?importacao=${item.id}`}>Repostar carrossel</LinkButton>
+        {item.importedItems.map((part) => (
+          <LinkButton key={part.index} href={`${part.fileUrl}?download=1`} variant="secondary">
+            Baixar {part.index + 1} ({part.mediaType === "VIDEO" ? "vídeo" : "foto"})
+          </LinkButton>
+        ))}
+      </div>
+    );
+  }
   return (
     <div className="flex flex-wrap gap-2">
       {item.mediaType === "VIDEO" ? (
@@ -66,6 +78,10 @@ export function InstagramImporter({ userId }: { userId: string }) {
   const [duplicate, setDuplicate] = useState<InstagramImportDto | null>(null);
   const [result, setResult] = useState<InstagramImportDto | null>(null);
   const [uploading, setUploading] = useState(false);
+  /** Carrossel: progresso item a item e item que falhou (tentar de novo / seguir sem ele). */
+  const [carouselProgress, setCarouselProgress] = useState<{ done: number; total: number } | null>(null);
+  const [failedItem, setFailedItem] = useState<number | null>(null);
+  const [skipped, setSkipped] = useState<number[]>([]);
 
   const urlCheck = url.trim() ? parseInstagramUrl(url) : null;
 
@@ -78,6 +94,9 @@ export function InstagramImporter({ userId }: { userId: string }) {
     setDuplicate(null);
     setResult(null);
     setSelected(0);
+    setCarouselProgress(null);
+    setFailedItem(null);
+    setSkipped([]);
   }
 
   async function resolve(force = false) {
@@ -148,6 +167,75 @@ export function InstagramImporter({ userId }: { userId: string }) {
     }
   }
 
+  const isCarousel = Boolean(preview && preview.items.length >= 2);
+
+  /**
+   * Carrossel: importa item por item (cada chamada cabe no tempo do servidor),
+   * mostrando o progresso. Se um item falhar, para e oferece tentar de novo
+   * ou seguir sem ele; no fim, fecha a importação com os itens guardados.
+   */
+  async function importCarousel(skip: number[] = skipped) {
+    if (!preview) return;
+    setStage("importing");
+    setError(null);
+    setFailedItem(null);
+    const indexes = preview.items.map((item) => item.index).slice(0, 10);
+    let latest: InstagramImportDto = preview;
+    const done = () => latest.importedItems.map((item) => item.index);
+    for (const index of indexes) {
+      if (skip.includes(index) || done().includes(index)) continue;
+      setCarouselProgress({ done: done().length, total: indexes.length - skip.length });
+      try {
+        const response = await fetch(`/api/videos/instagram-import/${preview.id}/import`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ mode: "carousel", itemIndex: index }),
+        });
+        if (!response.ok) {
+          const failure = await readError(response, "Não foi possível importar este item.");
+          setError(`Item ${index + 1}: ${failure.message}`);
+          setFailedItem(index);
+          setPreview(latest);
+          setStage("preview");
+          setCarouselProgress(null);
+          return;
+        }
+        latest = ((await response.json()) as { import: InstagramImportDto }).import;
+        if (latest.status === "COMPLETED") break;
+      } catch {
+        setError(`Item ${index + 1}: falha de conexão. Tente de novo.`);
+        setFailedItem(index);
+        setPreview(latest);
+        setStage("preview");
+        setCarouselProgress(null);
+        return;
+      }
+    }
+    setCarouselProgress(null);
+    if (latest.status !== "COMPLETED") {
+      const response = await fetch(`/api/videos/instagram-import/${preview.id}/import`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mode: "carousel-finish" }),
+      });
+      if (!response.ok) {
+        setError((await readError(response, "Não foi possível concluir a importação.")).message);
+        setStage("preview");
+        return;
+      }
+      latest = ((await response.json()) as { import: InstagramImportDto }).import;
+    }
+    setResult(latest);
+    setStage("done");
+  }
+
+  function skipFailedAndContinue() {
+    if (failedItem === null) return;
+    const next = [...skipped, failedItem];
+    setSkipped(next);
+    void importCarousel(next);
+  }
+
   async function manualUpload(picked: File | null) {
     clearPickerMark();
     if (!picked) {
@@ -210,8 +298,25 @@ export function InstagramImporter({ userId }: { userId: string }) {
   if (stage === "done" && result) {
     return (
       <section className="space-y-4 rounded-lg border border-teal-200 bg-teal-50/40 p-4 sm:p-6">
-        <p className="text-base font-semibold text-teal-900">{result.mediaType === "VIDEO" ? "Vídeo importado com sucesso." : "Imagem importada com sucesso."}</p>
-        {result.mediaType === "VIDEO" && result.fileUrl ? (
+        <p className="text-base font-semibold text-teal-900">
+          {result.importedItems.length >= 2
+            ? `Carrossel importado com sucesso (${result.importedItems.length} itens).`
+            : result.mediaType === "VIDEO"
+              ? "Vídeo importado com sucesso."
+              : "Imagem importada com sucesso."}
+        </p>
+        {result.importedItems.length >= 2 ? (
+          <div className="flex gap-2 overflow-x-auto pb-1">
+            {result.importedItems.map((part) =>
+              part.mediaType === "VIDEO" ? (
+                <video key={part.index} src={part.fileUrl} muted playsInline controls className="h-40 w-auto shrink-0 rounded-md border border-zinc-200 bg-black" />
+              ) : (
+                // eslint-disable-next-line @next/next/no-img-element -- arquivo importado (Vercel Blob do Alilu).
+                <img key={part.index} src={part.fileUrl} alt={`Item ${part.index + 1}`} className="h-40 w-auto shrink-0 rounded-md border border-zinc-200" />
+              ),
+            )}
+          </div>
+        ) : result.mediaType === "VIDEO" && result.fileUrl ? (
           <video src={result.fileUrl} controls playsInline className="max-h-[420px] w-full max-w-sm rounded-md border border-zinc-200 bg-black" />
         ) : result.fileUrl ? (
           // eslint-disable-next-line @next/next/no-img-element -- arquivo importado (Vercel Blob do Alilu).
@@ -335,9 +440,33 @@ export function InstagramImporter({ userId }: { userId: string }) {
                 {preview.normalizedUrl.replace("https://www.", "")}
               </dd>
             </dl>
+            {isCarousel ? (
+              <p className="text-sm text-zinc-700">
+                Carrossel com <strong>{preview.items.length} itens</strong> ({preview.items.filter((item) => item.mediaType === "VIDEO").length} vídeo(s),{" "}
+                {preview.items.filter((item) => item.mediaType === "IMAGE").length} foto(s)). Importe todos para repostar como carrossel, ou
+                toque num item e importe só ele.
+              </p>
+            ) : null}
+            {failedItem !== null && stage === "preview" ? (
+              <div className="flex flex-wrap gap-2">
+                <Button type="button" onClick={() => void importCarousel()}>
+                  Tentar de novo
+                </Button>
+                <Button type="button" variant="secondary" onClick={skipFailedAndContinue}>
+                  Continuar sem o item {failedItem + 1}
+                </Button>
+              </div>
+            ) : null}
             <div className="flex flex-wrap gap-2">
-              <Button type="button" onClick={confirmImport} disabled={stage === "importing"}>
-                {stage === "importing" ? "Importando…" : "Importar para o Alilu"}
+              {isCarousel ? (
+                <Button type="button" onClick={() => void importCarousel()} disabled={stage === "importing"}>
+                  {stage === "importing" && carouselProgress
+                    ? `Importando ${Math.min(carouselProgress.done + 1, carouselProgress.total)} de ${carouselProgress.total}…`
+                    : `Importar carrossel completo (${Math.min(preview.items.length, 10)} itens)`}
+                </Button>
+              ) : null}
+              <Button type="button" variant={isCarousel ? "secondary" : "primary"} onClick={confirmImport} disabled={stage === "importing"}>
+                {stage === "importing" && !carouselProgress ? "Importando…" : isCarousel ? `Importar só o item ${selected + 1}` : "Importar para o Alilu"}
               </Button>
               <Button type="button" variant="ghost" onClick={reset} disabled={stage === "importing"}>
                 Cancelar

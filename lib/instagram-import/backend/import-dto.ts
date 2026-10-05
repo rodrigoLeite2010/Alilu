@@ -21,6 +21,16 @@ export function serializeImport(record: InstagramImportRecord) {
     height: record.height,
     hasAudio: record.hasAudio,
     errorMessage: record.errorMessage,
+    // Carrossel importado: todos os itens guardados no Alilu, na ordem.
+    importedItems: record.importedItems.map((item) => ({
+      index: item.index,
+      mediaType: item.mediaType,
+      fileUrl: item.fileUrl,
+      width: item.width,
+      height: item.height,
+      durationSeconds: item.durationSeconds,
+      fileSizeBytes: item.fileSizeBytes,
+    })),
     createdAt: record.createdAt.toISOString(),
     completedAt: record.completedAt ? record.completedAt.toISOString() : null,
   };

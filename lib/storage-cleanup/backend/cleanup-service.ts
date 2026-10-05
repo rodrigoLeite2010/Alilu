@@ -105,7 +105,12 @@ async function referencedSet(rule: CleanupRuleId, urls: string[], aiInputCutoff:
   const list_ = joinUrls(urls);
   let rows: Record<string, unknown>[] = [];
   if (rule === "instagram_imports_orphans") {
-    rows = await db`select imported_file_url as url from instagram_media_imports where imported_file_url = any(string_to_array(${list_}, ' '))`;
+    // Carrossel: cada item guardado (imported_items) também é referência.
+    rows = await db`
+      select imported_file_url as url from instagram_media_imports where imported_file_url = any(string_to_array(${list_}, ' '))
+      union select item->>'fileUrl' from instagram_media_imports, jsonb_array_elements(imported_items) as item
+        where item->>'fileUrl' = any(string_to_array(${list_}, ' '))
+    `;
   } else if (rule === "instagram_media_orphans") {
     rows = await db`
       select storage_url as url from instagram_media where storage_url = any(string_to_array(${list_}, ' '))
@@ -198,20 +203,27 @@ export async function runStorageCleanup(options: {
     // 1) Importações do Instagram vencidas (retenção pelo banco).
     const importCutoff = hours(settings.instagramImportDays * 24);
     const expired = await db`
-      select id, imported_file_url, coalesce(file_size_bytes, 0) as size from instagram_media_imports
+      select id, imported_file_url, imported_items, coalesce(file_size_bytes, 0) as size from instagram_media_imports
       where status = 'COMPLETED' and imported_file_url is not null and completed_at < ${importCutoff.toISOString()}
       order by completed_at limit ${Math.max(0, remaining)}
     `;
     report.rules.instagram_imports_expired.scanned = expired.length;
     if (expired.length > 0) {
-      await removeBlobs(
-        "instagram_imports_expired",
-        expired.map((row) => ({ url: String(row.imported_file_url), size: Number(row.size) })),
-      );
+      // Carrossel: apaga também os demais itens guardados (o 1º é o imported_file_url).
+      const carouselExtras = expired.flatMap((row) => {
+        const list = Array.isArray(row.imported_items) ? (row.imported_items as Array<{ fileUrl?: string; fileSizeBytes?: number }>) : [];
+        return list
+          .filter((item) => typeof item.fileUrl === "string" && item.fileUrl !== row.imported_file_url)
+          .map((item) => ({ url: item.fileUrl as string, size: Number(item.fileSizeBytes ?? 0) }));
+      });
+      await removeBlobs("instagram_imports_expired", [
+        ...expired.map((row) => ({ url: String(row.imported_file_url), size: Number(row.size) })),
+        ...carouselExtras,
+      ]);
       if (!dryRun) {
         const ids = expired.slice(0, report.rules.instagram_imports_expired.deleted).map((row) => String(row.id));
         await db`
-          update instagram_media_imports set status = 'EXPIRED', imported_file_url = null, storage_path = null
+          update instagram_media_imports set status = 'EXPIRED', imported_file_url = null, storage_path = null, imported_items = '[]'::jsonb
           where id = any(string_to_array(${ids.join(" ")}, ' ')::uuid[])
         `;
       }

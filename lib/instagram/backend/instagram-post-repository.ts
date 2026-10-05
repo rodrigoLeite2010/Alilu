@@ -186,6 +186,8 @@ export interface PostForPublish {
   status: InstagramPostStatus;
   caption: string;
   metaContainerId: string | null;
+  /** Carrossel com vídeo: containers-filho já criados na Meta (retomada sem recriar). */
+  metaChildrenIds: string[] | null;
   igUserId: string;
   accessTokenEncrypted: string;
   /** Todos os itens do post, ordenados por posição (1 para imagem única; 2 a 10 para carrossel). */
@@ -224,7 +226,7 @@ export async function getPostForPublish(postId: string, userId: string): Promise
   const db = getDb();
   const rows = await db`
     select
-      p.id, p.post_type, p.status, p.caption, p.meta_container_id,
+      p.id, p.post_type, p.status, p.caption, p.meta_container_id, p.meta_children_ids,
       p.music_mode, p.music_type, p.music_name, p.music_artist, p.music_external_id, p.music_url,
       p.audio_file_url, p.audio_file_name,
       a.ig_user_id, a.access_token_encrypted,
@@ -248,6 +250,7 @@ export async function getPostForPublish(postId: string, userId: string): Promise
     status: first.status as InstagramPostStatus,
     caption: (first.caption as string) ?? "",
     metaContainerId: (first.meta_container_id as string | null) ?? null,
+    metaChildrenIds: Array.isArray(first.meta_children_ids) && first.meta_children_ids.length ? (first.meta_children_ids as string[]) : null,
     igUserId: first.ig_user_id as string,
     accessTokenEncrypted: first.access_token_encrypted as string,
     items: rows.map((row) => ({
@@ -288,6 +291,15 @@ export async function getPostForPublish(postId: string, userId: string): Promise
  * do claim (`lockToken`) consegue gravar — um worker cujo claim expirou e
  * foi assumido por outro nunca sobrescreve o estado.
  */
+/** Guarda os containers-filho do carrossel (com o claim), para retomar sem recriar. */
+export async function saveCarouselChildren(postId: string, childrenIds: string[], lockToken: string): Promise<void> {
+  const db = getDb();
+  await db`
+    update instagram_posts set meta_children_ids = ${`{${childrenIds.map((id) => `"${id.replace(/"/g, "")}"`).join(",")}}`}::text[], updated_at = now()
+    where id = ${postId} and processing_lock_token = ${lockToken}
+  `;
+}
+
 export async function markPostProcessing(postId: string, containerId: string, lockToken: string): Promise<void> {
   const db = getDb();
   await db`
@@ -403,6 +415,7 @@ export async function claimPostForManualPublish(
     update instagram_posts
     set status = 'PROCESSING',
         meta_container_id = case when status = 'FAILED' then null else meta_container_id end,
+        meta_children_ids = case when status = 'FAILED' then null else meta_children_ids end,
         last_error_sanitized = case when status = 'FAILED' then null else last_error_sanitized end,
         attempts_count = case when status = 'FAILED' then 0 else attempts_count end,
         processing_started_at = case when status = 'PROCESSING' then coalesce(processing_started_at, now()) else now() end,
@@ -730,7 +743,7 @@ export async function updatePostContent(
         music_name = ${musicSelection?.name ?? null}, music_artist = ${musicSelection?.artist ?? null},
         music_external_id = ${musicSelection?.externalId ?? null}, music_url = ${musicSelection?.url ?? null},
         audio_file_url = ${musicSelection?.audioFileUrl ?? null}, audio_file_name = ${musicSelection?.audioFileName ?? null},
-        meta_container_id = null, last_error_sanitized = null, attempts_count = 0, next_attempt_at = null,
+        meta_container_id = null, meta_children_ids = null, last_error_sanitized = null, attempts_count = 0, next_attempt_at = null,
         updated_at = now()
     where id = ${postId} and user_id = ${userId} and status = 'DRAFT'
   `;

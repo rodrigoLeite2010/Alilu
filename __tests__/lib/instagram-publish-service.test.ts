@@ -37,6 +37,7 @@ const repo = {
   markPostPublished: vi.fn(),
   recordPublishAttempt: vi.fn(),
   releasePostForResume: vi.fn(),
+  saveCarouselChildren: vi.fn(),
   schedulePostRetry: vi.fn(),
 };
 vi.mock("@/lib/instagram/backend/instagram-post-repository", () =>
@@ -323,5 +324,71 @@ describe("Stories (post_type 'story')", () => {
     await expect(publishPost("post-1", "user-1")).rejects.toThrow(/precisa ser renovada/);
     expect(repo.schedulePostRetry).not.toHaveBeenCalled();
     expect(repo.markPostFailed).toHaveBeenCalledWith("post-1", expect.stringMatching(/precisa ser renovada/), expect.any(String));
+  });
+});
+
+describe("carrossel com vídeo (fotos + vídeos)", () => {
+  const mixed = () =>
+    post({
+      postType: "carousel",
+      items: [
+        { mediaId: "m1", storageUrl: "https://blob/1.jpg", mediaType: "image", position: 0 },
+        { mediaId: "m2", storageUrl: "https://blob/2.mp4", mediaType: "video", position: 1 },
+      ],
+    });
+  const run = () =>
+    publishInstagramPublication("post-1", "user-1", {
+      trigger: "scheduler",
+      claimed: { post: { ...claimed, postType: "carousel" }, lockToken: "l" },
+      pollIntervalMs: 0,
+    });
+
+  it("cria filhos (vídeo com video_url), guarda os ids, espera o vídeo e cria o pai", async () => {
+    repo.getPostForPublish.mockResolvedValue(mixed());
+    meta.createCarouselItemContainer.mockResolvedValueOnce("child-img").mockResolvedValueOnce("child-vid");
+    meta.getMediaContainerStatus.mockResolvedValue("FINISHED");
+    meta.createCarouselContainer.mockResolvedValue("parent-1");
+    meta.publishMediaContainer.mockResolvedValue("media-1");
+
+    await expect(run()).resolves.toBe("PUBLISHED");
+
+    expect(meta.createCarouselItemContainer.mock.calls[0][0]).toMatchObject({ imageUrl: "https://blob/1.jpg" });
+    expect(meta.createCarouselItemContainer.mock.calls[1][0]).toMatchObject({ videoUrl: "https://blob/2.mp4" });
+    expect(repo.saveCarouselChildren).toHaveBeenCalledWith("post-1", ["child-img", "child-vid"], "l");
+    expect(meta.getMediaContainerStatus).toHaveBeenCalledWith(expect.objectContaining({ containerId: "child-vid" }));
+    expect(meta.createCarouselContainer).toHaveBeenCalledWith(
+      expect.objectContaining({ childrenContainerIds: ["child-img", "child-vid"], caption: "Legenda" }),
+    );
+    expect(repo.markPostPublished).toHaveBeenCalled();
+  });
+
+  it("vídeo ainda processando: não cria o pai e libera o post para retomar", async () => {
+    repo.getPostForPublish.mockResolvedValue(mixed());
+    meta.createCarouselItemContainer.mockResolvedValueOnce("child-img").mockResolvedValueOnce("child-vid");
+    meta.getMediaContainerStatus.mockResolvedValue("IN_PROGRESS");
+
+    await expect(run()).resolves.toBe("PROCESSING");
+    expect(meta.createCarouselContainer).not.toHaveBeenCalled();
+    expect(meta.publishMediaContainer).not.toHaveBeenCalled();
+  });
+
+  it("na retomada reaproveita os filhos guardados, sem recriá-los", async () => {
+    repo.getPostForPublish.mockResolvedValue({ ...mixed(), metaChildrenIds: ["child-img", "child-vid"] });
+    meta.getMediaContainerStatus.mockResolvedValue("FINISHED");
+    meta.createCarouselContainer.mockResolvedValue("parent-1");
+    meta.publishMediaContainer.mockResolvedValue("media-1");
+
+    await expect(run()).resolves.toBe("PUBLISHED");
+    expect(meta.createCarouselItemContainer).not.toHaveBeenCalled();
+    expect(repo.saveCarouselChildren).not.toHaveBeenCalled();
+  });
+
+  it("filho de vídeo com ERROR vira FAILED", async () => {
+    repo.getPostForPublish.mockResolvedValue({ ...mixed(), metaChildrenIds: ["child-img", "child-vid"] });
+    meta.getMediaContainerStatus.mockResolvedValue("ERROR");
+
+    await expect(run()).rejects.toBeInstanceOf(InstagramPublishError);
+    expect(repo.markPostFailed).toHaveBeenCalled();
+    expect(meta.createCarouselContainer).not.toHaveBeenCalled();
   });
 });

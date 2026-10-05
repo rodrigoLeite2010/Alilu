@@ -16,6 +16,7 @@ import {
   getPostStatusForUser,
   markPostFailed,
   markPostProcessing,
+  saveCarouselChildren,
   markPostPublished,
   recordPublishAttempt,
   releasePostForResume,
@@ -140,7 +141,8 @@ async function createContainerForPost(ctx: ExecuteContext): Promise<string> {
       );
     }
     if (post.items.some((item) => item.mediaType !== "image")) {
-      throw new PublishValidationError("Carrosséis publicados pelo Alilu aceitam somente imagens.");
+      // Carrossel com vídeo segue por createCarouselWithVideoContainer (executePublish).
+      throw new PublishValidationError("Item de carrossel inválido.");
     }
     // Containers-filho em sequência (nunca em paralelo). Só o container PAI
     // é salvo; se algo falhar aqui, uma nova tentativa recria os filhos —
@@ -177,10 +179,60 @@ async function createContainerForPost(ctx: ExecuteContext): Promise<string> {
   throw new PublishValidationError("Tipo de publicação não suportado.");
 }
 
+/**
+ * Carrossel com vídeo (fotos + vídeos, até 10): os containers-filho de
+ * vídeo processam de forma assíncrona na Meta, então:
+ *  1. cria os filhos uma única vez e guarda os ids (meta_children_ids);
+ *  2. espera cada filho de vídeo chegar a FINISHED (nesta execução ou na
+ *     próxima — devolve null para o post ser retomado depois);
+ *  3. só então cria o container PAI, que segue o caminho normal.
+ */
+async function createCarouselWithVideoContainer(ctx: ExecuteContext): Promise<string | null> {
+  const { post, accessToken } = ctx;
+  if (post.items.length < MIN_CAROUSEL_ITEMS || post.items.length > MAX_CAROUSEL_ITEMS) {
+    throw new PublishValidationError(`Um carrossel precisa ter entre ${MIN_CAROUSEL_ITEMS} e ${MAX_CAROUSEL_ITEMS} itens (este tem ${post.items.length}).`);
+  }
+  let children = post.metaChildrenIds && post.metaChildrenIds.length === post.items.length ? post.metaChildrenIds : null;
+  if (!children) {
+    children = [];
+    for (const item of post.items) {
+      children.push(
+        await createCarouselItemContainer(
+          item.mediaType === "video"
+            ? { igUserId: post.igUserId, accessToken, videoUrl: item.storageUrl }
+            : { igUserId: post.igUserId, accessToken, imageUrl: item.storageUrl },
+        ),
+      );
+    }
+    await saveCarouselChildren(post.id, children, ctx.lockToken);
+  }
+
+  const videoChildren = children.filter((_, index) => post.items[index]?.mediaType === "video");
+  for (let attempt = 0; attempt < MAX_POLL_ATTEMPTS; attempt++) {
+    let pending = false;
+    for (const childId of videoChildren) {
+      const status = await getMediaContainerStatus({ containerId: childId, accessToken });
+      if (status === "ERROR" || status === "EXPIRED") throw new ContainerProcessingError(status);
+      if (status !== "FINISHED") pending = true;
+    }
+    if (!pending) {
+      return createCarouselContainer({ igUserId: post.igUserId, accessToken, childrenContainerIds: children, caption: post.caption });
+    }
+    if (attempt < MAX_POLL_ATTEMPTS - 1) await sleep(ctx.pollIntervalMs);
+  }
+  return null; // vídeos ainda processando na Meta: retoma no próximo ciclo
+}
+
 async function executePublish(ctx: ExecuteContext): Promise<ExecuteResult> {
   let containerId = ctx.post.metaContainerId;
   if (!containerId) {
-    containerId = await createContainerForPost(ctx);
+    if (ctx.post.postType === "carousel" && ctx.post.items.some((item) => item.mediaType === "video")) {
+      const created = await createCarouselWithVideoContainer(ctx);
+      if (!created) return { status: "PROCESSING" };
+      containerId = created;
+    } else {
+      containerId = await createContainerForPost(ctx);
+    }
     await markPostProcessing(ctx.post.id, containerId, ctx.lockToken);
   }
   return pollAndPublishContainer(ctx, containerId);

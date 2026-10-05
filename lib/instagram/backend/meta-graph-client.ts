@@ -402,7 +402,15 @@ export async function publishMediaContainer(
 export interface CreateCarouselItemContainerInput {
   igUserId: string;
   accessToken: string;
-  imageUrl: string;
+  /** Item de foto (JPEG). */
+  imageUrl?: string;
+  /**
+   * Item de vídeo: `media_type=VIDEO` + `video_url` + `is_carousel_item=true`
+   * (documentação "Content Publishing" › carrosséis: "limited to 10 images,
+   * videos, or a mix of the two"). Processa de forma assíncrona — o
+   * publicador espera este container chegar a FINISHED antes de criar o pai.
+   */
+  videoUrl?: string;
 }
 
 /**
@@ -423,7 +431,14 @@ export async function createCarouselItemContainer(
 ): Promise<string> {
   const url = new URL(`https://graph.instagram.com/${GRAPH_API_VERSION}/${input.igUserId}/media`);
   const body = new URLSearchParams();
-  body.set("image_url", input.imageUrl);
+  if (input.videoUrl) {
+    body.set("media_type", "VIDEO");
+    body.set("video_url", input.videoUrl);
+  } else if (input.imageUrl) {
+    body.set("image_url", input.imageUrl);
+  } else {
+    throw new InstagramGraphApiError("Item de carrossel sem mídia.");
+  }
   body.set("is_carousel_item", "true");
   body.set("access_token", input.accessToken);
 

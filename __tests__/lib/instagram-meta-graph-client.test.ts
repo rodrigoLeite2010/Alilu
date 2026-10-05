@@ -438,6 +438,23 @@ describe("createCarouselItemContainer", () => {
     expect(body.get("access_token")).toBe("token-1");
   });
 
+  it("item de vídeo envia media_type=VIDEO + video_url (sem image_url)", async () => {
+    fetchMock.mockResolvedValue(jsonResponse(200, { id: "item-video-1" }));
+
+    const id = await createCarouselItemContainer({
+      igUserId: "ig-1",
+      accessToken: "token-1",
+      videoUrl: "https://blob.example.com/clip.mp4",
+    });
+
+    expect(id).toBe("item-video-1");
+    const body = fetchMock.mock.calls[0][1].body as URLSearchParams;
+    expect(body.get("media_type")).toBe("VIDEO");
+    expect(body.get("video_url")).toBe("https://blob.example.com/clip.mp4");
+    expect(body.has("image_url")).toBe(false);
+    expect(body.get("is_carousel_item")).toBe("true");
+  });
+
   it("lança InstagramGraphApiError numa resposta de erro HTTP", async () => {
     fetchMock.mockResolvedValue(jsonResponse(400, { error: { message: "Invalid image_url" } }));
 

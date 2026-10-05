@@ -226,16 +226,17 @@ describe("createCarouselPost", () => {
     expect(createDraftCarouselPostMock).not.toHaveBeenCalled();
   });
 
-  it("lança InstagramPostValidationError se uma das mídias não é imagem", async () => {
+  it("aceita carrossel misto (imagem + vídeo)", async () => {
     getInstagramAccountForUserMock.mockResolvedValue(account);
     getInstagramMediaByIdMock
       .mockResolvedValueOnce(media("media-1", "https://blob/1.jpg"))
       .mockResolvedValueOnce(media("media-2", "https://blob/2.mp4", "video"));
+    createDraftCarouselPostMock.mockResolvedValue("post-mixed");
 
     await expect(
       createCarouselPost({ userId: "user-1", mediaIds: ["media-1", "media-2"], caption: "Legenda" }),
-    ).rejects.toThrow(InstagramPostValidationError);
-    expect(createDraftCarouselPostMock).not.toHaveBeenCalled();
+    ).resolves.toBe("post-mixed");
+    expect(createDraftCarouselPostMock).toHaveBeenCalled();
   });
 
   it("cria o post quando conta e todas as mídias são válidas, na ordem recebida", async () => {

@@ -148,6 +148,7 @@ describe("getPostForPublish", () => {
       status: "DRAFT",
       caption: "Legenda",
       metaContainerId: null,
+      metaChildrenIds: null,
       igUserId: "ig-1",
       accessTokenEncrypted: "enc-token",
       items: [

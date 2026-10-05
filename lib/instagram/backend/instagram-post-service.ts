@@ -201,7 +201,7 @@ export async function createCarouselPost(input: CreateCarouselPostInput): Promis
 
   if (input.mediaIds.length < MIN_CAROUSEL_ITEMS || input.mediaIds.length > MAX_CAROUSEL_ITEMS) {
     throw new InstagramPostValidationError(
-      `Um carrossel precisa ter entre ${MIN_CAROUSEL_ITEMS} e ${MAX_CAROUSEL_ITEMS} imagens (este tem ${input.mediaIds.length}).`,
+      `Um carrossel precisa ter entre ${MIN_CAROUSEL_ITEMS} e ${MAX_CAROUSEL_ITEMS} itens (este tem ${input.mediaIds.length}).`,
     );
   }
 
@@ -216,10 +216,11 @@ export async function createCarouselPost(input: CreateCarouselPostInput): Promis
   for (const mediaId of input.mediaIds) {
     const media = await getInstagramMediaById(mediaId, input.userId);
     if (!media) {
-      throw new InstagramPostValidationError("Uma das imagens do carrossel não foi encontrada.");
+      throw new InstagramPostValidationError("Um dos itens do carrossel não foi encontrado.");
     }
     if (media.mediaType !== "image") {
-      throw new InstagramPostValidationError("Esta etapa só cria carrosséis de imagem.");
+      // Fotos e vídeos podem ser misturados (até 10 itens — regra da Meta).
+      if (media.mediaType !== "video") throw new InstagramPostValidationError("Item de carrossel inválido.");
     }
     resolvedMediaIds.push(media.id);
   }
