@@ -154,8 +154,11 @@ export class AnthropicContentProvider implements AIContentProvider {
     input: GeneratePostContentInput,
   ): Promise<{ content: GeneratedPostContent; usage: AIGenerationUsage }> {
     const visualTextIsLong = input.includeVisualText && input.visualTextMode === "LONG";
+    const visualTextIsStory = input.includeVisualText && input.visualTextMode === "STORY";
     const visualTextField = input.includeVisualText
-      ? visualTextIsLong
+      ? visualTextIsStory
+        ? ', "visualText": string (O TEXTO COMPLETO DO STORY — é o único texto que aparece no Story, desenhado sozinho na imagem vertical. Siga À RISCA o pedido acima: quantidade de parágrafos, número de palavras, tom e qualquer frase obrigatória, copiada exatamente. Separe parágrafos com uma linha em branco. Sem hashtags, sem emojis e sem aspas em volta do texto. Nunca resuma numa frase curta.)'
+        : visualTextIsLong
         ? ', "visualText": string (texto mais longo — de 3 a 8 frases, pode ter mais de um parágrafo separado por uma linha em branco — para ser desenhado em várias imagens de um carrossel, uma frase/ideia por slide; sem hashtags e sem emojis; diferente da legenda)'
         : ', "visualText": string (frase BEM curta e de impacto, até 80 caracteres, sem hashtags e sem emojis, para ser desenhada em cima da imagem — diferente da legenda)'
       : "";
@@ -165,7 +168,9 @@ export class AnthropicContentProvider implements AIContentProvider {
       input.dayOfWeekLabel ? `O que publicar em ${input.dayOfWeekLabel}: ${input.dayPrompt}` : `O que publicar hoje: ${input.dayPrompt}`,
       buildAvoidTopicsInstruction(input.avoidTopics),
       "",
-      "Gere o conteúdo de UM post para Instagram (imagem única) com este formato JSON exato:",
+      visualTextIsStory
+        ? "Gere o conteúdo de UM Story do Instagram (imagem vertical 9:16 com o texto desenhado nela; o Story não tem legenda — o campo caption é só de controle interno) com este formato JSON exato:"
+        : "Gere o conteúdo de UM post para Instagram (imagem única) com este formato JSON exato:",
       '{"title": string (até 70 caracteres), "caption": string (legenda completa, com quebras de linha, pronta para publicar, incluindo uma chamada para ação natural no texto), "hashtags": string[] (5 a 10 hashtags relevantes, cada uma começando com #), "cta": string (chamada para ação curta, até 60 caracteres), "visualDescription": string (descrição breve da imagem ideal para este post, até 200 caracteres)' + visualTextField + "}",
     ]
       .filter(Boolean)
@@ -180,7 +185,7 @@ export class AnthropicContentProvider implements AIContentProvider {
       hashtags: asStringArray(json.hashtags),
       cta: asString(json.cta),
       visualDescription: asString(json.visualDescription),
-      visualText: input.includeVisualText ? asString(json.visualText).slice(0, visualTextIsLong ? 4000 : 80) : undefined,
+      visualText: input.includeVisualText ? asString(json.visualText).slice(0, visualTextIsLong ? 4000 : visualTextIsStory ? 1200 : 80) : undefined,
     };
     if (!content.caption) {
       throw new AIProviderRequestError("A IA não gerou uma legenda válida.");

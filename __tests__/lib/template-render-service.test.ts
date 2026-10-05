@@ -19,6 +19,7 @@ import {
   AUTO_TEMPLATE_DEFAULT_OVERLAY_OPACITY,
   AUTO_TEMPLATE_JPEG_QUALITY,
   AUTO_TEMPLATE_TEXT_SLOT,
+  automationVisualTextFits,
 } from "@/lib/instagram/backend/template-render-service";
 
 /** Gera uma foto de teste (PNG local) — evita depender de rede no teste. */
@@ -421,5 +422,22 @@ describe("renderAutomationCarouselBuffers (um slide por pedaço do texto, mesma 
         maxSlides: 10,
       }),
     ).rejects.toThrow(/imagem de origem/i);
+  });
+});
+
+describe("Story com texto longo (2 parágrafos, ~100 palavras — prompt do Piloto)", () => {
+  const STORY_TEXT =
+    "Segunda-feira chega como uma página em branco, e isso não precisa assustar. Cada recomeço carrega a chance de fazer diferente, com mais calma, mais coragem e mais carinho por quem você está se tornando. Os planos que ficaram para trás ainda podem ganhar vida se você der o primeiro passo hoje.\n\n" +
+    "Não espere a semana perfeita para acreditar em si. Pequenas escolhas feitas com disciplina constroem grandes conquistas, e cada esforço silencioso conta mais do que parece. Respire fundo, siga em frente e lembre-se do quanto você já superou até aqui. Estou aqui olhando e acreditando em você.";
+
+  it("cabe inteiro no Story 9:16, sem cortar com reticências e com fonte legível", () => {
+    expect(STORY_TEXT.split(/\s+/).length).toBeGreaterThanOrEqual(90);
+    const result = automationVisualTextFits("stories", STORY_TEXT);
+    expect(result.fits).toBe(true);
+    expect(result.fontSizePx).toBeGreaterThanOrEqual(38);
+  });
+
+  it("o post vertical continua com o mesmo comportamento (texto curto)", () => {
+    expect(automationVisualTextFits("vertical", "Hoje é um novo começo").fits).toBe(true);
   });
 });

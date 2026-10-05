@@ -121,7 +121,7 @@ export async function POST(request: Request): Promise<NextResponse> {
         dayOfWeekLabel: DAY_OF_WEEK_LABEL[dow],
         avoidTopics: [],
         includeVisualText: true,
-        visualTextMode: "SHORT",
+        visualTextMode: "STORY",
       });
       text = content.visualText?.trim() ?? "";
     } catch (error) {

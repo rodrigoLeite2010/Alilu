@@ -44,8 +44,12 @@ export interface GeneratePostContentInput {
    * mais longo — várias frases/parágrafos — pensado para ser dividido em
    * vários slides depois (ver splitAutomationVisualText,
    * template-render-service.ts), não para caber numa imagem só.
+   *
+   * "STORY": o texto INTEIRO do Story (é a única coisa que o Story comunica,
+   * não tem legenda) — segue à risca o pedido do usuário (tamanho,
+   * parágrafos, frase obrigatória), desenhado numa única imagem 9:16.
    */
-  visualTextMode?: "SHORT" | "LONG";
+  visualTextMode?: "SHORT" | "LONG" | "STORY";
 }
 
 export interface GeneratedPostContent {

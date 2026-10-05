@@ -36,7 +36,7 @@ export async function generatePostContentForRun(
   automation: AutomationRecord,
   day: AutomationDayRecord,
   runId: string,
-  options: { includeVisualText?: boolean; visualTextMode?: "SHORT" | "LONG" } = {},
+  options: { includeVisualText?: boolean; visualTextMode?: "SHORT" | "LONG" | "STORY" } = {},
 ): Promise<GeneratedPostForPublication> {
   const provider = getContentAIProvider();
   const recent = await listRecentGenerationsForAutomation(automation.id, 7);

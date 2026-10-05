@@ -227,7 +227,8 @@ async function generateAndCreatePublicationUnchecked(
     } else {
       const generated = await generatePostContentForRun(automation, day, runId, {
         includeVisualText: true,
-        visualTextMode: "SHORT",
+        // Story não tem legenda: o texto da arte é o conteúdo inteiro e segue o prompt.
+        visualTextMode: "STORY",
       });
       visualText = generated.visualText?.trim() ?? "";
       if (!visualText) {

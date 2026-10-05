@@ -159,8 +159,20 @@ const AUTOMATION_TEXT_MAX_WIDTH_FRAC = 0.78;
 const AUTOMATION_TEXT_FONT_SIZE_FRAC = 0.07;
 const AUTOMATION_TEXT_LINE_HEIGHT = 1.22;
 
+/**
+ * Story (9:16) é a única peça que comunica só pelo texto da arte — o
+ * texto pode ter 2 parágrafos / ~100 palavras. Usa quase toda a altura e
+ * deixa a fonte encolher mais (ainda legível no celular) antes de cortar.
+ */
+const STORY_TEXT_MAX_BLOCK_HEIGHT_FRAC = 0.74;
+const STORY_TEXT_MIN_FONT_SIZE_FRAC = 0.036;
+
+function isVerticalStoryFormat(format: PostFormat): boolean {
+  return format.height >= format.width * 1.5;
+}
+
 function resolveAutomationTextBox(format: PostFormat): TextBlockBox {
-  return resolveTextBlockBox({
+  const box = resolveTextBlockBox({
     maxWidthFrac: AUTOMATION_TEXT_MAX_WIDTH_FRAC,
     fontSizeFrac: AUTOMATION_TEXT_FONT_SIZE_FRAC,
     fontWeight: "bold",
@@ -169,6 +181,12 @@ function resolveAutomationTextBox(format: PostFormat): TextBlockBox {
     canvasWidth: format.width,
     canvasHeight: format.height,
   });
+  if (!isVerticalStoryFormat(format)) return box;
+  return {
+    ...box,
+    maxBlockHeightPx: format.height * STORY_TEXT_MAX_BLOCK_HEIGHT_FRAC,
+    minFontSizePx: Math.max(8, Math.round(format.width * STORY_TEXT_MIN_FONT_SIZE_FRAC)),
+  };
 }
 
 /**
@@ -192,6 +210,18 @@ function createAutomationTextMeasurer(): TextMeasurer {
  * navegador. `overflowText` nunca é descartado silenciosamente — quem
  * chama decide o que fazer (o cron loga; a prévia mostra um aviso).
  */
+/**
+ * O texto cabe inteiro numa única arte deste formato (sem corte com "…")?
+ * Mesma medição de drawAutomationVisualText — usada em testes e para
+ * diagnosticar Stories longos.
+ */
+export function automationVisualTextFits(formatId: string, visualText: string): { fits: boolean; fontSizePx: number; lines: number } {
+  const format = getFormatById(formatId);
+  const box = resolveAutomationTextBox(format);
+  const result = fitTextBlock(createAutomationTextMeasurer(), visualText.trim(), box);
+  return { fits: result.fits, fontSizePx: result.fontSizePx, lines: result.lines.length };
+}
+
 export function splitAutomationVisualText(
   visualText: string,
   maxSlides: number
