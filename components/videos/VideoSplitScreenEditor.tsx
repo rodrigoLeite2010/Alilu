@@ -20,7 +20,7 @@ import {
   markPickerOpen,
   trackUpload,
 } from "@/lib/client/upload-telemetry";
-import { FileNotReadableError, createStallGuard, ensureReadableFile } from "@/lib/client/file-readability";
+import { FileNotReadableError, readFailureReason, createStallGuard, ensureReadableFile } from "@/lib/client/file-readability";
 import { ArrowLeftRight, Download, Move, Pause, Play, RotateCcw, Send, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { ConnectInstagramDialog, buildConnectTarget } from "@/components/instagram/ConnectInstagramDialog";
@@ -317,8 +317,8 @@ function VideoUploadSlot({
       })
       .catch((error: unknown) => {
         event.target.value = "";
-        const message = error instanceof FileNotReadableError ? error.message : "Não foi possível abrir esse vídeo. Tente outro arquivo.";
-        trackUpload("split-screen", "validation_error", { file, message: "arquivo ilegível" });
+        const message = `${error instanceof FileNotReadableError ? error.message : "Não foi possível abrir esse vídeo. Tente outro arquivo."} (detalhe: ${readFailureReason(error).slice(0, 80)})`;
+        trackUpload("split-screen", "validation_error", { file, message: `arquivo ilegível: ${readFailureReason(error)}` });
         setLocalFileError(message);
         onFileChange(null);
       })

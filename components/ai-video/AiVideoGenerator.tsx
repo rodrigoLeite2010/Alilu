@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { prepareImageForUpload } from "@/lib/ai-video/prepare-image";
-import { ensureReadableFile } from "@/lib/client/file-readability";
+import { FileNotReadableError, ensureReadableFile, readFailureReason } from "@/lib/client/file-readability";
 import {
   RELOADED_DURING_PICKER_MESSAGE,
   checkReloadDuringPicker,
@@ -298,7 +298,7 @@ export function AiVideoGenerator({
       const message = err instanceof Error ? err.message : "Não foi possível enviar a imagem.";
       // Detalhe técnico curto: ajuda a entender o problema pelo print da tela.
       setUploadError(`${message} (etapa: ${stage} · tipo: ${picked.type || "desconhecido"} · ${(picked.size / 1024 / 1024).toFixed(1)} MB)`);
-      trackUpload("ai-video-image", stage === "envio" ? "upload_error" : "validation_error", { file: picked, message: `${stage}: ${message}` });
+      trackUpload("ai-video-image", stage === "envio" ? "upload_error" : "validation_error", { file: picked, message: `${stage}: ${err instanceof FileNotReadableError ? `arquivo ilegível: ${readFailureReason(err)}` : message}` });
     } finally {
       setUploading(false);
       setUploadStage(null);

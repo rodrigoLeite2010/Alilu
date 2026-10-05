@@ -13,42 +13,98 @@
  */
 
 export class FileNotReadableError extends Error {
-  constructor() {
+  /** Motivo técnico (ex.: "NotReadableError", "timeout") — só para telemetria, nunca exibido. */
+  reason: string;
+  constructor(reason = "unknown") {
     super(
       "O celular não liberou a leitura desse arquivo (acontece quando ele está só na nuvem, como no Google Fotos, ou foi enviado por outro app). Baixe o arquivo para o aparelho ou escolha pelo app “Arquivos” e tente de novo.",
     );
     this.name = "FileNotReadableError";
+    this.reason = reason;
   }
+}
+
+function describeError(error: unknown): string {
+  if (error instanceof FileNotReadableError) return error.reason;
+  if (error && typeof error === "object") {
+    const { name, message } = error as { name?: unknown; message?: unknown };
+    return `${typeof name === "string" ? name : "Error"}${typeof message === "string" && message ? `: ${message}` : ""}`.slice(0, 160);
+  }
+  return String(error).slice(0, 160);
+}
+
+/** Motivo técnico de uma falha de leitura, para a telemetria (sem dados do arquivo). */
+export function readFailureReason(error: unknown): string {
+  return describeError(error);
 }
 
 function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   return new Promise<T>((resolve, reject) => {
-    const timer = setTimeout(() => reject(new FileNotReadableError()), ms);
+    const timer = setTimeout(() => reject(new FileNotReadableError("timeout")), ms);
     promise.then(
       (value) => {
         clearTimeout(timer);
         resolve(value);
       },
-      () => {
+      (error: unknown) => {
         clearTimeout(timer);
-        reject(new FileNotReadableError());
+        reject(new FileNotReadableError(describeError(error)));
       },
     );
   });
+}
+
+function readWithFileReader(blob: Blob): Promise<ArrayBuffer> {
+  return new Promise<ArrayBuffer>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => (reader.result instanceof ArrayBuffer ? resolve(reader.result) : reject(new Error("FileReader sem resultado")));
+    reader.onerror = () => reject(reader.error ?? new Error("FileReader falhou"));
+    reader.readAsArrayBuffer(blob);
+  });
+}
+
+const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
+/**
+ * Lê o blob tentando, em ordem, três caminhos de leitura do navegador e,
+ * se todos falharem, espera um instante e tenta de novo (no Android a
+ * leitura de um vídeo recém-salvo/escaneado pela galeria às vezes é
+ * recusada na hora e funciona logo depois). Junta os motivos de cada falha.
+ */
+async function readRobust(blob: Blob, timeoutMs: number): Promise<ArrayBuffer> {
+  const strategies: Array<[string, () => Promise<ArrayBuffer>]> = [
+    ["blob", () => blob.arrayBuffer()],
+    ["reader", () => readWithFileReader(blob)],
+    ["response", () => new Response(blob).arrayBuffer()],
+  ];
+  const reasons: string[] = [];
+  for (let round = 0; round < 2; round++) {
+    if (round > 0) await sleep(800);
+    for (const [label, read] of strategies) {
+      try {
+        return await withTimeout(read(), timeoutMs);
+      } catch (error) {
+        const reason = describeError(error);
+        reasons.push(`${label}:${reason}`);
+        if (reason === "timeout") throw new FileNotReadableError(reasons.join(" | ").slice(0, 280));
+      }
+    }
+  }
+  throw new FileNotReadableError(reasons.join(" | ").slice(0, 280));
 }
 
 /** Até este tamanho o arquivo é copiado para a memória (evita depender da galeria durante o envio). */
 export const MATERIALIZE_MAX_BYTES = 60 * 1024 * 1024;
 
 export async function ensureReadableFile(file: File, options: { materializeUpTo?: number } = {}): Promise<File> {
-  if (file.size === 0) throw new FileNotReadableError();
+  if (file.size === 0) throw new FileNotReadableError("empty");
   // 1) Lê o começo: falha/trava = arquivo inacessível.
-  await withTimeout(file.slice(0, 64 * 1024).arrayBuffer(), 10_000);
+  await readRobust(file.slice(0, 64 * 1024), 10_000);
   // 2) Copia para a memória quando cabe — o upload passa a ler da memória.
   const limit = options.materializeUpTo ?? MATERIALIZE_MAX_BYTES;
   if (file.size > limit) return file;
-  const bytes = await withTimeout(file.arrayBuffer(), Math.max(15_000, Math.ceil(file.size / (1024 * 1024)) * 1_500));
-  if (bytes.byteLength !== file.size) throw new FileNotReadableError();
+  const bytes = await readRobust(file, Math.max(15_000, Math.ceil(file.size / (1024 * 1024)) * 1_500));
+  if (bytes.byteLength !== file.size) throw new FileNotReadableError(`size ${bytes.byteLength}/${file.size}`);
   return new File([bytes], file.name, { type: file.type, lastModified: file.lastModified });
 }
 

@@ -4,7 +4,7 @@ import { useEffect, useId, useMemo, useState, type ChangeEvent } from "react";
 import { useRouter } from "next/navigation";
 import { uploadPresigned } from "@vercel/blob/client";
 import { clearPickerMark, markPickerOpen, trackUpload } from "@/lib/client/upload-telemetry";
-import { FileNotReadableError, createStallGuard, ensureReadableFile } from "@/lib/client/file-readability";
+import { FileNotReadableError, readFailureReason, createStallGuard, ensureReadableFile } from "@/lib/client/file-readability";
 import { Button } from "@/components/ui/Button";
 import { getBrowserTimeZone } from "@/lib/instagram/schedule-time";
 import { loadLocalValue, saveLocalValue } from "@/lib/instagram/draft-store";
@@ -192,7 +192,7 @@ export function ReelsComposer({
       ensureReadableFile(nextFile)
         .then((readable) => setFile((current) => (current === nextFile ? readable : current)))
         .catch((error: unknown) => {
-          trackUpload("reels", "validation_error", { file: nextFile, message: "arquivo ilegível" });
+          trackUpload("reels", "validation_error", { file: nextFile, message: `arquivo ilegível: ${readFailureReason(error)}` });
           setFile(null);
           setStage("erro");
           setMessage(error instanceof FileNotReadableError ? error.message : "Não foi possível abrir esse vídeo. Tente outro arquivo.");

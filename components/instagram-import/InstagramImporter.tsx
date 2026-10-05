@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { uploadPresigned } from "@vercel/blob/client";
 import { clearPickerMark, markPickerOpen, trackUpload } from "@/lib/client/upload-telemetry";
-import { FileNotReadableError, ensureReadableFile } from "@/lib/client/file-readability";
+import { FileNotReadableError, readFailureReason, ensureReadableFile } from "@/lib/client/file-readability";
 import { Button, LinkButton } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { INSTAGRAM_IMPORT_KIND_LABEL, parseInstagramUrl } from "@/lib/instagram-import/url";
@@ -250,7 +250,7 @@ export function InstagramImporter({ userId }: { userId: string }) {
     try {
       file = await ensureReadableFile(typed);
     } catch (err) {
-      trackUpload("instagram-import", "validation_error", { file: typed, message: "arquivo ilegível" });
+      trackUpload("instagram-import", "validation_error", { file: typed, message: `arquivo ilegível: ${readFailureReason(err)}` });
       setError(err instanceof FileNotReadableError ? err.message : "Não foi possível abrir esse arquivo.");
       return;
     }
