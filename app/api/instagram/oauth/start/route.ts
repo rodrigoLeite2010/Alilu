@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import {
+  INSTAGRAM_OAUTH_CORRELATION_COOKIE,
   INSTAGRAM_OAUTH_RETURN_COOKIE,
   INSTAGRAM_OAUTH_STATE_COOKIE,
   OAUTH_STATE_MAX_AGE_SECONDS,
+  generateOAuthCorrelationId,
   generateOAuthState,
   sanitizeOAuthReturnPath,
 } from "@/lib/instagram/backend/oauth-state";
@@ -14,6 +16,7 @@ import {
   getInstagramRedirectUri,
 } from "@/lib/instagram/backend/instagram-oauth-config";
 import { logInstagramOAuth } from "@/lib/instagram/backend/oauth-log";
+import { getOAuthDeviceHint } from "@/lib/instagram/backend/oauth-device";
 
 export const dynamic = "force-dynamic";
 
@@ -26,6 +29,7 @@ export const dynamic = "force-dynamic";
 export async function GET(request: Request): Promise<NextResponse> {
   const requestUrl = new URL(request.url);
   const returnTo = sanitizeOAuthReturnPath(requestUrl.searchParams.get("returnTo"));
+  const device = getOAuthDeviceHint(request.headers.get("user-agent"));
 
   let redirectUri: string;
   try {
@@ -53,6 +57,7 @@ export async function GET(request: Request): Promise<NextResponse> {
   }
   const userId = session.user.id;
 
+  const correlationId = generateOAuthCorrelationId();
   const state = generateOAuthState(userId);
   let authorizeUrl: string;
   try {
@@ -64,7 +69,7 @@ export async function GET(request: Request): Promise<NextResponse> {
     }
     throw error;
   }
-  await logInstagramOAuth("start", "Iniciando autenticação", { userId, returnTo: returnTo ?? null });
+  await logInstagramOAuth("start", "OAUTH_START", { userId, correlationId, returnTo: returnTo ?? null, ...device });
   const response = NextResponse.redirect(authorizeUrl);
   const cookieOptions = {
     httpOnly: true,
@@ -74,7 +79,9 @@ export async function GET(request: Request): Promise<NextResponse> {
     path: "/api/instagram/oauth",
   };
   response.cookies.set(INSTAGRAM_OAUTH_STATE_COOKIE, state, cookieOptions);
+  response.cookies.set(INSTAGRAM_OAUTH_CORRELATION_COOKIE, correlationId, cookieOptions);
   if (returnTo) response.cookies.set(INSTAGRAM_OAUTH_RETURN_COOKIE, returnTo, cookieOptions);
   else response.cookies.delete(INSTAGRAM_OAUTH_RETURN_COOKIE);
+  await logInstagramOAuth("redirect", "OAUTH_REDIRECT", { userId, correlationId, provider: "instagram", authorizeHost: new URL(authorizeUrl).host, ...device });
   return response;
 }

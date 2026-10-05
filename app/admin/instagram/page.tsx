@@ -47,17 +47,21 @@ export default async function AdminInstagramPage() {
       </section>
 
       <section className="mt-8">
-        <h2 className="text-sm font-semibold uppercase tracking-wider text-zinc-500">Últimos erros / cancelamentos do login</h2>
+        <h2 className="text-sm font-semibold uppercase tracking-wider text-zinc-500">Últimas tentativas OAuth</h2>
         <ul className="mt-2 divide-y divide-zinc-100 text-sm">
           {diag.recentEvents.map((event, index) => (
             <li key={index} className="py-2">
               <span className="text-zinc-500">{dateFmt.format(new Date(event.at))}</span> · {event.stage} · <strong>{event.outcome}</strong>
+              {event.browser ? ` · ${event.browser}` : ""}
+              {event.isMobile === true ? " · mobile" : event.isMobile === false ? " · desktop" : ""}
               {event.code ? ` · código ${event.code}` : ""}
               {event.type ? ` · ${event.type}` : ""}
+              {event.userId ? <span className="block text-xs text-zinc-500">usuário {event.userId}</span> : null}
+              {event.correlationId ? <span className="block text-xs text-zinc-500">tentativa {event.correlationId}</span> : null}
               {event.message ? <span className="block text-xs text-zinc-500">{event.message}</span> : null}
             </li>
           ))}
-          {!diag.recentEvents.length ? <li className="py-2 text-zinc-500">Nenhum erro registrado.</li> : null}
+          {!diag.recentEvents.length ? <li className="py-2 text-zinc-500">Nenhuma tentativa registrada.</li> : null}
         </ul>
         <p className="mt-3 text-xs text-zinc-500">
           “Insufficient developer role” / “Função de desenvolvedor é insuficiente” aparece na tela da própria Meta (não volta para o Alilu) quando o

@@ -99,6 +99,15 @@ export default async function InstagramConnectionResultPage({ searchParams }: Pa
         postagens. Toque em “Tentar novamente” e mantenha todas as opções marcadas.
       </p>
     );
+  } else if (resultado === "meta-review") {
+    icon = <Info className="h-12 w-12 text-amber-600" aria-hidden />;
+    title = "Integração em análise pela Meta";
+    body = (
+      <p>
+        Esta conta ainda não pode ser conectada enquanto a integração da Meta está em análise, ou enquanto a conta não estiver autorizada
+        no app da Meta. Nenhuma configuração foi alterada no Alilu.
+      </p>
+    );
   } else if (resultado === "sessao") {
     icon = <Info className="h-12 w-12 text-amber-600" aria-hidden />;
     title = "Entre no Alilu para concluir";

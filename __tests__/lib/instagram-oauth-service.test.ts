@@ -130,6 +130,15 @@ describe("completeInstagramConnection", () => {
     expect(exchangeForLongLivedTokenMock).not.toHaveBeenCalled();
   });
 
+  it("classifica bloqueio de App Review/Developer Role na troca do código", async () => {
+    exchangeCodeForShortLivedTokenMock.mockRejectedValue(
+      new FakeInstagramGraphApiError("falhou", { error: { code: 10, message: "Insufficient developer role" } }),
+    );
+
+    await expect(completeInstagramConnection(input)).rejects.toMatchObject({ reason: "meta_review" });
+    expect(exchangeForLongLivedTokenMock).not.toHaveBeenCalled();
+  });
+
   it("lança InstagramOAuthExchangeError quando a troca pelo token de longa duração falha", async () => {
     exchangeCodeForShortLivedTokenMock.mockResolvedValue({
       accessToken: "short-token",

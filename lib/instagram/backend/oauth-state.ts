@@ -18,6 +18,7 @@ import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
  */
 
 export const INSTAGRAM_OAUTH_STATE_COOKIE = "ig_oauth_state";
+export const INSTAGRAM_OAUTH_CORRELATION_COOKIE = "ig_oauth_correlation";
 export const OAUTH_STATE_MAX_AGE_SECONDS = 600; // 10 minutos
 
 function stateSecret(): string {
@@ -41,6 +42,11 @@ export function generateOAuthState(userId: string, now: Date = new Date()): stri
   const nonce = randomBytes(24).toString("base64url");
   const issuedAt = String(Math.floor(now.getTime() / 1000));
   return `${nonce}.${issuedAt}.${sign(nonce, issuedAt, userId)}`;
+}
+
+/** ID curto para correlacionar start → callback nos logs, sem expor state/code/token. */
+export function generateOAuthCorrelationId(): string {
+  return randomBytes(12).toString("base64url");
 }
 
 export type OAuthStateCheck = "ok" | "missing" | "malformed" | "expired" | "bad_signature";

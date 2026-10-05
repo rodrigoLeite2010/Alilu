@@ -20,7 +20,18 @@ export interface InstagramDiagnostics {
   redirectUri: string | null;
   scopes: string[];
   accounts: { connected: number; expired: number; revoked: number; error: number };
-  recentEvents: Array<{ at: string; stage: string; outcome: string; code: string | null; type: string | null; message: string | null }>;
+  recentEvents: Array<{
+    at: string;
+    userId: string | null;
+    correlationId: string | null;
+    stage: string;
+    outcome: string;
+    code: string | null;
+    type: string | null;
+    message: string | null;
+    browser: string | null;
+    isMobile: boolean | null;
+  }>;
 }
 
 function mask(value: string): string {
@@ -49,6 +60,11 @@ export async function getInstagramDiagnostics(adminUserId: string): Promise<Inst
     const host = new URL(redirectUri).host;
     const ok = redirectUri.startsWith("https://") && host === new URL(SITE_URL).host;
     checks.push({ label: "Redirect URI", ok, detail: `${redirectUri} — precisa estar IGUAL em Meta Developers › Instagram › Business login settings › OAuth redirect URIs` });
+    checks.push({
+      label: "Domínio canônico do OAuth",
+      ok: host === "alilu.com.br",
+      detail: `Start e callback devem rodar em ${new URL(redirectUri).origin}; acessos em www são redirecionados antes do OAuth`,
+    });
   } catch (error) {
     checks.push({ label: "Redirect URI", ok: false, detail: (error as Error).message });
   }
@@ -111,8 +127,9 @@ export async function getInstagramDiagnostics(adminUserId: string): Promise<Inst
   const statusRows = await db`select status, count(*)::int as total from instagram_accounts group by status`;
   const byStatus = Object.fromEntries(statusRows.map((row) => [row.status as string, Number(row.total)]));
   const events = await db`
-    select created_at, stage, outcome, error_code, error_type, message from instagram_oauth_events
-    where outcome in ('error', 'cancelled') order by created_at desc limit 15
+    select created_at, user_id, correlation_id, stage, outcome, error_code, error_type, message, browser, is_mobile
+    from instagram_oauth_events
+    order by created_at desc limit 25
   `;
 
   return {
@@ -122,11 +139,15 @@ export async function getInstagramDiagnostics(adminUserId: string): Promise<Inst
     accounts: { connected: byStatus.connected ?? 0, expired: byStatus.expired ?? 0, revoked: byStatus.revoked ?? 0, error: byStatus.error ?? 0 },
     recentEvents: events.map((row) => ({
       at: new Date(row.created_at as string).toISOString(),
+      userId: (row.user_id as string | null) ?? null,
+      correlationId: (row.correlation_id as string | null) ?? null,
       stage: row.stage as string,
       outcome: row.outcome as string,
       code: (row.error_code as string | null) ?? null,
       type: (row.error_type as string | null) ?? null,
       message: (row.message as string | null) ?? null,
+      browser: (row.browser as string | null) ?? null,
+      isMobile: (row.is_mobile as boolean | null) ?? null,
     })),
   };
 }

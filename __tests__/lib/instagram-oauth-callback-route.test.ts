@@ -50,11 +50,11 @@ describe("GET /api/instagram/oauth/callback", () => {
     expect(completeInstagramConnectionMock).not.toHaveBeenCalled();
   });
 
-  it("erro técnico da Meta: tela genérica; o texto técnico só vai para o log", async () => {
+  it("erro de App Review/Developer Role da Meta: tela específica; o texto técnico só vai para o log", async () => {
     authMock.mockResolvedValue({ user: { id: "user-1" } });
     const response = await GET(request("/api/instagram/oauth/callback?error=invalid_request&error_description=Insufficient+developer+role"));
     const r = result(response);
-    expect(r.resultado).toBe("erro");
+    expect(r.resultado).toBe("meta-review");
     expect(r.all).not.toContain("developer");
     expect(JSON.stringify(logMock.mock.calls)).toContain("Insufficient developer role");
   });
@@ -84,10 +84,13 @@ describe("GET /api/instagram/oauth/callback", () => {
       request(`/api/instagram/oauth/callback?code=abc&state=${state}`, `ig_oauth_state=${state}; ig_oauth_return=%2Finstagram%2Freels`),
     );
     expect(result(response)).toMatchObject({ path: "/instagram/conectado", resultado: "sucesso", continuar: "/instagram/reels" });
-    expect(completeInstagramConnectionMock).toHaveBeenCalledWith({ userId: "user-1", redirectUri: "https://alilu.com.br/api/instagram/oauth/callback", code: "abc" });
+    expect(completeInstagramConnectionMock).toHaveBeenCalledWith(
+      expect.objectContaining({ userId: "user-1", redirectUri: "https://alilu.com.br/api/instagram/oauth/callback", code: "abc" }),
+    );
     const setCookie = (response.headers.get("set-cookie") ?? "").toLowerCase();
     expect(setCookie).toContain("ig_oauth_state=");
-    expect(setCookie).toContain("expires=thu, 01 jan 1970");
+    expect(setCookie).toContain("ig_oauth_correlation=");
+    expect(setCookie).toContain("max-age=0");
   });
 
   it("sucesso sem cookie (celular voltou em outra aba) mas logado como o mesmo usuário: aceita", async () => {
@@ -105,6 +108,13 @@ describe("GET /api/instagram/oauth/callback", () => {
     completeInstagramConnectionMock.mockRejectedValueOnce(new FakeInstagramOAuthExchangeError("x", "missing_publish_permission"));
     state = generateOAuthState("user-1");
     expect(result(await GET(request(`/api/instagram/oauth/callback?code=abc&state=${state}`))).resultado).toBe("sem-permissao");
+  });
+
+  it("falha de App Review durante troca de token vira tela meta-review", async () => {
+    authMock.mockResolvedValue({ user: { id: "user-1" } });
+    completeInstagramConnectionMock.mockRejectedValueOnce(new FakeInstagramOAuthExchangeError("x", "meta_review"));
+    const state = generateOAuthState("user-1");
+    expect(result(await GET(request(`/api/instagram/oauth/callback?code=abc&state=${state}`))).resultado).toBe("meta-review");
   });
 
   it("erro inesperado: genérico, sem detalhe interno na URL", async () => {

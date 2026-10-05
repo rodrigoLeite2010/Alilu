@@ -97,6 +97,19 @@ export interface AIContentProvider {
   readonly model: string;
   generatePost(input: GeneratePostContentInput): Promise<{ content: GeneratedPostContent; usage: AIGenerationUsage }>;
   generateReel(input: GenerateReelContentInput): Promise<{ content: GeneratedReelContent; usage: AIGenerationUsage }>;
+  /**
+   * Reescrita livre de texto (ferramenta Legibilidade). Opcional para não
+   * obrigar outros provedores; devolve o JSON pedido em `instructions`
+   * já interpretado.
+   */
+  rewriteText?(input: RewriteTextInput): Promise<{ content: Record<string, unknown>; usage: AIGenerationUsage }>;
+}
+
+export interface RewriteTextInput {
+  /** Instruções completas (objetivo, público, regras, formato JSON esperado) + o texto. */
+  prompt: string;
+  /** Limite de tokens de saída (o padrão do provedor é curto, pensado em legendas). */
+  maxOutputTokens?: number;
 }
 
 /** Configuração ausente/inválida (CONTENT_AI_API_KEY, CONTENT_AI_MODEL) — nunca vaza a chave na mensagem. */

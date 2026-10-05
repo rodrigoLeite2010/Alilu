@@ -6,12 +6,13 @@ import { Button } from "@/components/ui/Button";
 import { READABILITY_MAX_CHARACTERS, SENTENCE_LENGTH_BANDS, analyzeReadability, type ComplexWordHit, type ReadabilityResult } from "@/lib/text/readability/analyze";
 import { buildHighlightSegments } from "@/lib/text/readability/highlight";
 import type { ReadabilityLevel } from "@/lib/text/readability/score";
+import { RewritePanel } from "./RewritePanel";
 
 /**
  * Legibilidade (categoria Funções String). Análise 100% local e
  * determinística — o texto não sai do navegador e não é salvo.
- * A reescrita com IA (fase 2) vai usar o backend; a análise continua
- * funcionando sem ela.
+ * A reescrita com IA (RewritePanel) usa só o backend; a análise continua
+ * funcionando sem ela (desligada, sem login ou com erro).
  */
 
 const TXT_MAX_BYTES = 200 * 1024;
@@ -254,6 +255,19 @@ export function LegibilidadeTool() {
                     ))}
                   </ul>
                 </section>
+              ) : null}
+
+              {analyzedText ? (
+                <RewritePanel
+                  text={analyzedText}
+                  onUseVersion={(newText) => {
+                    setText(newText);
+                    setResult(analyzeReadability(newText));
+                    setAnalyzedText(newText);
+                    setNotice(null);
+                    window.scrollTo({ top: 0, behavior: "smooth" });
+                  }}
+                />
               ) : null}
 
               <section>

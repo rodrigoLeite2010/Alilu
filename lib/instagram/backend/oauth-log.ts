@@ -8,6 +8,10 @@ import { getDb } from "@/lib/db/client";
  */
 export interface OAuthLogDetails {
   userId?: string | null;
+  correlationId?: string | null;
+  userAgent?: string | null;
+  isMobile?: boolean | null;
+  browser?: string | null;
   outcome?: "info" | "success" | "cancelled" | "error";
   error?: string | null;
   errorCode?: string | number | null;
@@ -33,13 +37,22 @@ export async function logInstagramOAuth(stage: string, message: string, details:
 
   try {
     const db = getDb();
-    await db`
+    const [event] = await db`
       insert into instagram_oauth_events (user_id, stage, outcome, error_code, error_subcode, error_type, message)
       values (${details.userId ?? null}, ${stage}, ${outcome},
         ${details.errorCode != null ? String(details.errorCode).slice(0, 80) : details.error ? String(details.error).slice(0, 80) : null},
         ${details.errorSubcode != null ? String(details.errorSubcode).slice(0, 80) : null},
         ${details.errorType ? String(details.errorType).slice(0, 80) : null},
         ${(details.errorMessage ?? message).slice(0, 300)})
+      returning id
+    `;
+    await db`
+      update instagram_oauth_events
+      set correlation_id = ${details.correlationId ? String(details.correlationId).slice(0, 80) : null},
+          user_agent = ${details.userAgent ? String(details.userAgent).slice(0, 300) : null},
+          is_mobile = ${typeof details.isMobile === "boolean" ? details.isMobile : null},
+          browser = ${details.browser ? String(details.browser).slice(0, 80) : null}
+      where id = ${event.id}
     `;
   } catch {
     // diagnóstico é melhor esforço — nunca derruba o fluxo de login

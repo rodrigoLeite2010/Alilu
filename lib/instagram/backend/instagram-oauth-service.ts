@@ -20,6 +20,8 @@ import {
 } from "@/lib/instagram/backend/instagram-account-repository";
 import { INSTAGRAM_PUBLISH_SCOPE } from "@/lib/instagram/backend/instagram-oauth-config";
 import { logInstagramOAuth } from "@/lib/instagram/backend/oauth-log";
+import type { OAuthDeviceHint } from "@/lib/instagram/backend/oauth-device";
+import { isLikelyMetaReviewError } from "@/lib/instagram/backend/meta-review";
 
 /**
  * Orquestra a conexão de uma conta do Instagram: credenciais do app →
@@ -36,7 +38,7 @@ export class InstagramOAuthConfigError extends Error {
 }
 
 /** Motivo (código estável) — a rota converte em mensagem amigável; nunca mostra o texto da Meta. */
-export type InstagramConnectFailure = "exchange_failed" | "long_lived_failed" | "not_professional" | "missing_publish_permission";
+export type InstagramConnectFailure = "exchange_failed" | "long_lived_failed" | "not_professional" | "missing_publish_permission" | "meta_review";
 
 export class InstagramOAuthExchangeError extends Error {
   readonly reason: InstagramConnectFailure;
@@ -83,6 +85,8 @@ export interface CompleteInstagramConnectionInput {
   userId: string;
   redirectUri: string;
   code: string;
+  correlationId?: string | null;
+  device?: OAuthDeviceHint;
 }
 
 /**
@@ -106,14 +110,18 @@ export async function completeInstagramConnection(
       code: input.code,
     });
   } catch (error) {
-    await logInstagramOAuth("exchange", "Falha na troca do código por token", { userId: input.userId, outcome: "error", ...metaErrorFields(error) });
-    throw new InstagramOAuthExchangeError("Não foi possível concluir a conexão com o Instagram.", "exchange_failed");
+    const meta = metaErrorFields(error);
+    await logInstagramOAuth("exchange", "OAUTH_ERROR", { userId: input.userId, correlationId: input.correlationId, outcome: "error", ...meta, ...input.device });
+    throw new InstagramOAuthExchangeError(
+      "Não foi possível concluir a conexão com o Instagram.",
+      isLikelyMetaReviewError(meta) ? "meta_review" : "exchange_failed",
+    );
   }
-  await logInstagramOAuth("token", "Token obtido", { userId: input.userId, permissions: shortLived.permissions.join(",") });
+  await logInstagramOAuth("token", "TOKEN_EXCHANGED", { userId: input.userId, correlationId: input.correlationId, permissions: shortLived.permissions.join(","), ...input.device });
 
   // Permissão de publicar desmarcada na tela da Meta: sem ela o Alilu não serve para nada.
   if (shortLived.permissions.length > 0 && !shortLived.permissions.includes(INSTAGRAM_PUBLISH_SCOPE)) {
-    await logInstagramOAuth("permissions", "Permissão de publicação não concedida", { userId: input.userId, outcome: "error", error: "missing_publish_permission" });
+    await logInstagramOAuth("permissions", "OAUTH_ERROR", { userId: input.userId, correlationId: input.correlationId, outcome: "error", error: "missing_publish_permission", ...input.device });
     throw new InstagramOAuthExchangeError("A permissão de publicar não foi concedida.", "missing_publish_permission");
   }
 
@@ -124,8 +132,12 @@ export async function completeInstagramConnection(
       shortLivedAccessToken: shortLived.accessToken,
     });
   } catch (error) {
-    await logInstagramOAuth("long_lived", "Falha ao obter token de longa duração", { userId: input.userId, outcome: "error", ...metaErrorFields(error) });
-    throw new InstagramOAuthExchangeError("Não foi possível concluir a conexão com o Instagram.", "long_lived_failed");
+    const meta = metaErrorFields(error);
+    await logInstagramOAuth("long_lived", "OAUTH_ERROR", { userId: input.userId, correlationId: input.correlationId, outcome: "error", ...meta, ...input.device });
+    throw new InstagramOAuthExchangeError(
+      "Não foi possível concluir a conexão com o Instagram.",
+      isLikelyMetaReviewError(meta) ? "meta_review" : "long_lived_failed",
+    );
   }
 
   let profile: { igUserId: string; username: string | null; accountType?: string | null } = { igUserId: shortLived.igUserId, username: null };
@@ -134,20 +146,21 @@ export async function completeInstagramConnection(
   } catch (error) {
     // Já temos um token válido — não falha a conexão inteira por causa
     // disso, só ficamos sem o @username por ora (fallback ao ig_user_id).
-    await logInstagramOAuth("profile", "Falha ao buscar o perfil (segue sem @usuário)", { userId: input.userId, outcome: "error", ...metaErrorFields(error) });
+    await logInstagramOAuth("profile", "OAUTH_ERROR", { userId: input.userId, correlationId: input.correlationId, outcome: "error", ...metaErrorFields(error), ...input.device });
   }
 
   const accountType = profile.accountType?.toUpperCase() ?? null;
   if (accountType && !PROFESSIONAL_ACCOUNT_TYPES.has(accountType)) {
-    await logInstagramOAuth("profile", "Conta não profissional", { userId: input.userId, outcome: "error", error: "not_professional", accountType });
+    await logInstagramOAuth("profile", "OAUTH_ERROR", { userId: input.userId, correlationId: input.correlationId, outcome: "error", error: "not_professional", accountType, ...input.device });
     throw new InstagramOAuthExchangeError("A conta do Instagram não é profissional.", "not_professional");
   }
-  await logInstagramOAuth("profile", "Conta Instagram encontrada", { userId: input.userId, accountType, hasUsername: Boolean(profile.username) });
+  await logInstagramOAuth("profile", "ACCOUNT_FETCHED", { userId: input.userId, correlationId: input.correlationId, accountType, hasUsername: Boolean(profile.username), ...input.device });
+  await logInstagramOAuth("validation", "ACCOUNT_VALIDATED", { userId: input.userId, correlationId: input.correlationId, accountType, ...input.device });
 
   const tokenExpiresAt = new Date(Date.now() + longLived.expiresInSeconds * 1000);
   const accessTokenEncrypted = encryptSecret(longLived.accessToken);
 
-  return upsertInstagramAccount({
+  const account = await upsertInstagramAccount({
     userId: input.userId,
     igUserId: profile.igUserId,
     igUsername: profile.username,
@@ -155,6 +168,8 @@ export async function completeInstagramConnection(
     tokenExpiresAt,
     scopes: shortLived.permissions,
   });
+  await logInstagramOAuth("save", "CONNECTION_SAVED", { userId: input.userId, correlationId: input.correlationId, outcome: "success", ...input.device });
+  return account;
 }
 
 export interface TokenRefreshResult {

@@ -65,6 +65,7 @@ describe("GET /api/instagram/oauth/start", () => {
     expect(verifySignedOAuthState(state, "user-1")).toBe("ok");
     const setCookie = response.headers.get("set-cookie") ?? "";
     expect(setCookie).toContain(`ig_oauth_state=${state}`);
+    expect(setCookie).toContain("ig_oauth_correlation=");
     expect(setCookie).toContain("HttpOnly");
     expect(setCookie).toContain("Path=/api/instagram/oauth");
     expect(setCookie).toContain("ig_oauth_return=%2Finstagram%2Fposts-virais");

@@ -8,6 +8,7 @@ import {
   type GenerateReelContentInput,
   type GeneratedPostContent,
   type GeneratedReelContent,
+  type RewriteTextInput,
 } from "./ai-provider";
 
 /**
@@ -54,7 +55,11 @@ function systemPrompt(): string {
   ].join(" ");
 }
 
-async function callAnthropic(config: AnthropicProviderConfig, userPrompt: string): Promise<{ text: string; usage: AIGenerationUsage }> {
+async function callAnthropic(
+  config: AnthropicProviderConfig,
+  userPrompt: string,
+  maxOutputTokens: number = MAX_OUTPUT_TOKENS,
+): Promise<{ text: string; usage: AIGenerationUsage }> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 
@@ -69,7 +74,7 @@ async function callAnthropic(config: AnthropicProviderConfig, userPrompt: string
       },
       body: JSON.stringify({
         model: config.model,
-        max_tokens: MAX_OUTPUT_TOKENS,
+        max_tokens: maxOutputTokens,
         system: systemPrompt(),
         messages: [{ role: "user", content: userPrompt }],
       }),
@@ -141,6 +146,12 @@ function asStringArray(value: unknown): string[] {
 }
 
 export class AnthropicContentProvider implements AIContentProvider {
+  /** Reescrita livre (Legibilidade): mesmo cliente, mesmo system prompt (JSON, sem inventar dados). */
+  async rewriteText(input: RewriteTextInput): Promise<{ content: Record<string, unknown>; usage: AIGenerationUsage }> {
+    const { text, usage } = await callAnthropic(this.config, input.prompt, input.maxOutputTokens ?? MAX_OUTPUT_TOKENS);
+    return { content: extractJsonObject(text), usage };
+  }
+
   readonly providerId = "anthropic";
   readonly model: string;
   private readonly config: AnthropicProviderConfig;
