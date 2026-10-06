@@ -5,6 +5,8 @@ import { NumberField } from "@/components/forms/NumberField";
 import { SelectField } from "@/components/forms/SelectField";
 import { Button } from "@/components/ui/Button";
 import { ResultHighlight } from "@/components/results/ResultHighlight";
+import { CopyFeedbackMessage, GenerateAndCopyButton } from "@/components/tools/generator-shared/GenerateAndCopyButton";
+import { useGenerateAndCopy } from "@/components/tools/generator-shared/useGenerateAndCopy";
 import {
   generateCnpjBatch,
   validateCnpjGeneratorInput,
@@ -14,11 +16,18 @@ import {
   type CnpjGeneratorInput,
 } from "@/lib/calculators/cnpj-generator";
 
+const COPY_FAILED_AUTO = "Gerado, mas não foi possível copiar automaticamente. Use o botão Copiar.";
+const COPY_FAILED_MANUAL = "Não foi possível copiar. Selecione o número e copie manualmente.";
+
 /**
- * Componente principal do Gerador de CNPJ (ETAPA 4 da categoria Geradores,
- * ex-"Devs"). Toda
+ * Componente principal do Gerador de CNPJ (ETAPA 4 da categoria Geradores). Toda
  * a geração acontece 100% no navegador do usuário — nenhum valor gerado é
  * enviado para servidor algum, armazenado ou registrado em log.
+ *
+ * Fluxo principal: GERAR + COPIAR em um clique. O valor é gerado numa variável
+ * local, mostrado e copiado exatamente como aparece na tela (com ou sem
+ * pontuação, conforme o formato escolhido) — nunca se copia o `results` do
+ * state, que ainda teria o valor anterior.
  *
  * Suporta o CNPJ numérico tradicional e o novo CNPJ alfanumérico da
  * Receita Federal. Os números gerados são SINTÉTICOS: a validade
@@ -32,16 +41,10 @@ export function CnpjGeneratorTool() {
   const [formatted, setFormatted] = useState(true);
   const [errors, setErrors] = useState<CnpjGeneratorFieldErrors>({});
   const [results, setResults] = useState<string[] | null>(null);
-  const [copiedKey, setCopiedKey] = useState<string | null>(null);
+  const { feedback, copy, clear } = useGenerateAndCopy();
 
-  async function copyText(text: string, key: string) {
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopiedKey(key);
-      setTimeout(() => setCopiedKey((current) => (current === key ? null : current)), 2000);
-    } catch {
-      setCopiedKey(null);
-    }
+  function copyManual(text: string, key: string, successMessage: string) {
+    void copy(text, { key, successMessage, failureMessage: COPY_FAILED_MANUAL });
   }
 
   function runGeneration() {
@@ -55,16 +58,25 @@ export function CnpjGeneratorTool() {
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) {
       setResults(null);
+      clear();
       return;
     }
 
-    setResults(generateCnpjBatch(input));
+    const generated = generateCnpjBatch(input);
+    setResults(generated);
+    void copy(generated.join("\n"), {
+      key: "generate",
+      successMessage: generated.length === 1 ? "Gerado e copiado!" : `${generated.length} CNPJs gerados e copiados!`,
+      failureMessage: COPY_FAILED_AUTO,
+    });
   }
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     runGeneration();
   }
+
+  const justGenerated = feedback?.key === "generate" && feedback.ok;
 
   return (
     <div>
@@ -107,28 +119,30 @@ export function CnpjGeneratorTool() {
           </SelectField>
         </div>
 
-        <Button type="submit" className="w-full sm:w-auto">
-          Gerar CNPJ
-        </Button>
+        <div>
+          <GenerateAndCopyButton label="Gerar e copiar CNPJ" copied={justGenerated} />
+          <p className="mt-2 text-xs text-zinc-500">Gera e copia automaticamente.</p>
+          <CopyFeedbackMessage feedback={feedback} className="mt-1" />
+        </div>
       </form>
 
       {results && results.length > 0 ? (
-        <div className="mt-8 space-y-4">
+        <div className="mt-6 space-y-4">
           {results.length === 1 ? (
             <>
               <ResultHighlight label="CNPJ gerado" value={results[0]} />
-              <div className="flex flex-wrap items-center gap-3">
-                <Button type="button" onClick={() => copyText(results[0], "single")}>
+              <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  className="w-full sm:w-auto"
+                  onClick={() => copyManual(results[0], "single", "CNPJ copiado!")}
+                >
                   Copiar CNPJ
                 </Button>
-                <Button type="button" variant="secondary" onClick={runGeneration}>
-                  Gerar novamente
+                <Button type="button" variant="secondary" className="w-full sm:w-auto" onClick={runGeneration}>
+                  Gerar e copiar novamente
                 </Button>
-                {copiedKey === "single" ? (
-                  <span role="status" className="text-sm text-emerald-600">
-                    CNPJ copiado!
-                  </span>
-                ) : null}
               </div>
             </>
           ) : (
@@ -142,29 +156,26 @@ export function CnpjGeneratorTool() {
                     <span className="font-mono text-sm text-zinc-900">{cnpj}</span>
                     <button
                       type="button"
-                      onClick={() => copyText(cnpj, `row-${index}`)}
-                      className="text-sm font-medium text-teal-700 hover:text-teal-900"
+                      onClick={() => copyManual(cnpj, `row-${index}`, "CNPJ copiado!")}
+                      className="min-h-9 px-2 text-sm font-medium text-teal-700 hover:text-teal-900"
                     >
-                      {copiedKey === `row-${index}` ? "Copiado!" : "Copiar"}
+                      {feedback?.key === `row-${index}` && feedback.ok ? "Copiado!" : "Copiar"}
                     </button>
                   </li>
                 ))}
               </ul>
-              <div className="flex flex-wrap items-center gap-3 border-t border-zinc-200 p-4">
+              <div className="flex flex-col gap-3 border-t border-zinc-200 p-4 sm:flex-row sm:flex-wrap sm:items-center">
                 <Button
                   type="button"
-                  onClick={() => copyText(results.join("\n"), "all")}
+                  variant="secondary"
+                  className="w-full sm:w-auto"
+                  onClick={() => copyManual(results.join("\n"), "all", "Todos os CNPJs copiados!")}
                 >
                   Copiar todos
                 </Button>
-                <Button type="button" variant="secondary" onClick={runGeneration}>
-                  Gerar novamente
+                <Button type="button" variant="secondary" className="w-full sm:w-auto" onClick={runGeneration}>
+                  Gerar e copiar novamente
                 </Button>
-                {copiedKey === "all" ? (
-                  <span role="status" className="text-sm text-emerald-600">
-                    Todos os CNPJs copiados!
-                  </span>
-                ) : null}
               </div>
             </div>
           )}

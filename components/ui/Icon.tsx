@@ -74,6 +74,7 @@ import {
   Ticket,
   Plus,
   Check,
+  Copy,
   CircleAlert,
   Loader,
   type LucideIcon,
@@ -164,6 +165,7 @@ const iconMap: Record<string, LucideIcon> = {
   ticket: Ticket,
   plus: Plus,
   check: Check,
+  copy: Copy,
   "circle-alert": CircleAlert,
   loader: Loader,
 };
