@@ -88,9 +88,14 @@ export default async function AdminSubscriptionsPage() {
     <Container className="max-w-6xl py-10">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-semibold text-zinc-900">Assinaturas e receita</h1>
-        <Link href="/admin/ia/custos" className="text-sm font-medium text-teal-800 hover:underline">
-          IA · Custos de vídeo →
-        </Link>
+        <div className="flex gap-4">
+          <Link href="/admin/assinaturas/usuarios" className="text-sm font-medium text-teal-800 hover:underline">
+            Usuários e planos →
+          </Link>
+          <Link href="/admin/ia/custos" className="text-sm font-medium text-teal-800 hover:underline">
+            IA · Custos de vídeo →
+          </Link>
+        </div>
       </div>
       <p className="mt-1 text-xs text-zinc-500">
         Atualizado em {new Date(data.generatedAt).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}. Mês = mês UTC, igual ao painel de custos.
