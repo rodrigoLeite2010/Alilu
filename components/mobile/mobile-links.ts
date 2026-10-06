@@ -48,6 +48,8 @@ export const homeActionLinks: MobileLink[] = [
 /** "Mais ferramentas": as mesmas áreas do menu lateral, na mesma ordem. */
 export const moreToolsLinks: MobileLink[] = [
   { href: "/utilitarios", label: "Todas as ferramentas", icon: "wrench" },
+  { href: "/planos", label: "Planos e assinatura", icon: "credit-card" },
+  { href: "/minha-conta/creditos-ia", label: "Créditos de IA", icon: "coins" },
   { href: INSTAGRAM_CATEGORY.path, label: INSTAGRAM_CATEGORY.shortName, icon: INSTAGRAM_CATEGORY.icon },
   { href: VIDEOS_CATEGORY.path, label: VIDEOS_CATEGORY.shortName, icon: VIDEOS_CATEGORY.icon },
   { href: LOTTERIES_CATEGORY.path, label: LOTTERIES_CATEGORY.shortName, icon: LOTTERIES_CATEGORY.icon },

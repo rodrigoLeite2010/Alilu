@@ -12,6 +12,8 @@ import type { MobileStatus } from "@/components/mobile/MobileStatusBadge";
 import { formatWhen } from "@/components/mobile/format";
 import { homeActionLinks, moreToolsLinks, videoLinks } from "@/components/mobile/mobile-links";
 import { useIsMobile } from "@/components/mobile/useIsMobile";
+import { useMobileBilling } from "@/components/mobile/useMobileBilling";
+import { MobileBillingAlert, MobilePlanCard, MobilePlanTeaser, topBillingNotice } from "@/components/mobile/MobilePlanCard";
 import {
   useMobileHomeData,
   type MobileAutomationItem,
@@ -145,6 +147,8 @@ export function MobileHome() {
   const isMobile = useIsMobile();
   const signedIn = auth.status === "signed-in";
   const { loading, automations, posts } = useMobileHomeData(isMobile && signedIn);
+  const billing = useMobileBilling(isMobile && signedIn);
+  const billingNotice = topBillingNotice(billing.summary);
   const [moreOpen, setMoreOpen] = useState(false);
   const closeMore = useCallback(() => setMoreOpen(false), []);
 
@@ -156,6 +160,8 @@ export function MobileHome() {
         <p className="text-2xl font-bold tracking-tight text-brand-primary-dark">{firstName ? `Olá, ${firstName}` : "Olá!"}</p>
         <p className="mt-1 text-base text-zinc-700">O que você quer fazer?</p>
       </div>
+
+      {billingNotice ? <MobileBillingAlert notice={billingNotice} /> : null}
 
       <MobileActionGrid items={homeActionLinks} />
 
@@ -169,9 +175,12 @@ export function MobileHome() {
       {signedIn ? (
         <>
           <AutomationCard loading={loading} automations={automations} />
+          <MobilePlanCard loading={billing.loading} summary={billing.summary} credits={billing.credits} />
           <ActivitySection posts={posts} loading={loading} />
         </>
       ) : auth.status === "signed-out" ? (
+        <>
+        <MobilePlanTeaser />
         <section className="rounded-xl border border-brand-primary/15 bg-brand-primary-soft p-4">
           <h2 className="text-lg font-semibold text-brand-primary-dark">Entre para publicar e agendar</h2>
           <p className="mt-1 text-sm text-zinc-700">Criar e baixar é grátis. A conta só é pedida para publicar ou agendar.</p>
@@ -182,6 +191,7 @@ export function MobileHome() {
             Entrar
           </Link>
         </section>
+        </>
       ) : null}
 
       <button

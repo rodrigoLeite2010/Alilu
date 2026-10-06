@@ -28,7 +28,7 @@ describe("UserMenu", () => {
     expect(screen.queryByRole("menu")).not.toBeInTheDocument();
   });
 
-  it("abre o menu ao clicar e mostra nome, e-mail e os atalhos (sem 'Minha assinatura')", () => {
+  it("abre o menu ao clicar e mostra nome, e-mail e os atalhos (com 'Planos e assinatura')", () => {
     render(<UserMenu user={user} />);
 
     fireEvent.click(screen.getByRole("button", { name: /Ana/ }));
@@ -46,8 +46,8 @@ describe("UserMenu", () => {
       "href",
       "/instagram/painel",
     );
-    // Não existe recurso de assinatura/pagamento no site ainda — não inventar o item no menu.
-    expect(screen.queryByRole("menuitem", { name: /assinatura/i })).not.toBeInTheDocument();
+    // A página de planos existe (/planos): o menu leva a ela.
+    expect(screen.getByRole("menuitem", { name: "Planos e assinatura" })).toHaveAttribute("href", "/planos");
   });
 
   it("usa o e-mail como nome de exibição quando não há nome salvo", () => {

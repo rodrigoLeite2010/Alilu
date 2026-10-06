@@ -122,4 +122,57 @@ describe("MobileHome", () => {
     expect(within(dialog).getByRole("link", { name: "Instagram" })).toHaveAttribute("href", "/instagram");
     expect(within(dialog).getByRole("link", { name: "Vídeos" })).toHaveAttribute("href", "/videos");
   });
+
+  it("deslogado: os planos aparecem mesmo sem login, com link para /planos (sem chamar APIs de cobrança)", async () => {
+    mockMobileViewport(true);
+    mockFetch({ "/api/auth/session": {} });
+    render(<MobileHome />);
+
+    expect(await screen.findByText("Planos do Piloto Automático")).toBeInTheDocument();
+    expect(screen.getByText(/a partir de R\$\s*19,00\/mês/)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Ver planos" })).toHaveAttribute("href", "/planos");
+    const urls = vi.mocked(global.fetch).mock.calls.map((call) => String(call[0]));
+    expect(urls).toEqual(["/api/auth/session"]);
+  });
+
+  it("logado: cartão do plano com uso da IA, créditos e alerta de limite no topo", async () => {
+    mockMobileViewport(true);
+    mockFetch({
+      "/api/auth/session": { user: { name: "Ana", email: "a@exemplo.com", image: null } },
+      "/api/content-automation/automations": { automations: [] },
+      "/api/instagram/posts": { posts: [] },
+      "/api/billing/summary": {
+        authenticated: true,
+        plans: [],
+        summary: {
+          access: { allowed: true, status: "ACTIVE", remainingToday: null, currentPeriodEndsAt: "2026-10-21T00:00:00.000Z" },
+          plan: { code: "CREATOR", name: "Criador", priceCents: 2490 },
+          pendingPlan: null,
+          aiUsage: { used: 75, limit: 90, remaining: 15 },
+          notices: [{ code: "PLAN_LIMIT_NEAR", level: "warning", message: "Você usou 75 de 90 publicações com IA do ciclo. Restam 15." }],
+        },
+      },
+      "/api/ai-video/wallet": { wallet: { available: 120, reserved: 0 } },
+    });
+    render(<MobileHome />);
+
+    expect(await screen.findByText("Plano Criador · R$ 24,90/mês")).toBeInTheDocument();
+    expect(screen.getByText("75 de 90")).toBeInTheDocument();
+    expect(screen.getByRole("progressbar")).toHaveAttribute("aria-valuenow", "75");
+    expect(screen.getByTestId("mobile-credits")).toHaveTextContent("120");
+    expect(screen.getByRole("status")).toHaveTextContent("Restam 15.");
+    expect(screen.getByRole("link", { name: "Gerenciar plano" })).toHaveAttribute("href", "/planos");
+    expect(screen.getByRole("link", { name: "Comprar créditos" })).toHaveAttribute("href", "/minha-conta/creditos-ia");
+  });
+
+  it('"Mais ferramentas" inclui Planos e Créditos de IA', async () => {
+    mockMobileViewport(true);
+    mockFetch({ "/api/auth/session": {} });
+    render(<MobileHome />);
+    await screen.findByRole("link", { name: "Entrar" });
+    fireEvent.click(screen.getByRole("button", { name: /mais ferramentas/i }));
+    const dialog = screen.getByRole("dialog", { name: /mais ferramentas/i });
+    expect(within(dialog).getByRole("link", { name: "Planos e assinatura" })).toHaveAttribute("href", "/planos");
+    expect(within(dialog).getByRole("link", { name: "Créditos de IA" })).toHaveAttribute("href", "/minha-conta/creditos-ia");
+  });
 });

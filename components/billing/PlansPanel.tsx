@@ -403,7 +403,8 @@ export function PlansPanel({ initialData = null }: { initialData?: PlansResponse
                   <span className="text-sm font-normal text-zinc-500">/mês</span>
                 </p>
                 <p className="mt-1 text-xs text-zinc-500">{plan.includesAi ? "Com IA para criar os textos" : "Texto escrito por você, sem IA"}</p>
-                <ul className="mt-4 flex-1 space-y-2 text-sm text-zinc-700">
+                {/* Celular: o botão vem logo abaixo do preço (order); no desktop fica no rodapé do card. */}
+                <ul className="order-3 mt-4 flex-1 space-y-2 text-sm text-zinc-700 md:order-none">
                   {plan.features.map((feature) => (
                     <li key={feature} className="flex gap-2">
                       <span aria-hidden className="text-teal-700">
@@ -416,7 +417,7 @@ export function PlansPanel({ initialData = null }: { initialData?: PlansResponse
                     <li className="pt-1 text-xs text-zinc-500">Em breve: {plan.upcoming.join(", ")}.</li>
                   ) : null}
                 </ul>
-                <div className="mt-5 flex min-h-10 items-center justify-center">{renderPlanAction(plan)}</div>
+                <div className="order-2 mt-4 flex min-h-11 items-center justify-center md:order-none md:mt-5">{renderPlanAction(plan)}</div>
               </article>
             );
           })}
