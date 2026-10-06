@@ -71,7 +71,8 @@ function mapRow(row: Record<string, unknown>): InstagramAccountRecord {
 /**
  * Insere a conta conectada ou, se `ig_user_id` já existir (de uma conexão
  * anterior, possivelmente de outro usuário), atualiza a linha existente
- * com o novo dono e o novo token. Nunca guarda o access token em texto
+ * com o novo dono e o novo token — e `connected_at` volta a ser agora, para
+ * a conta recém-conectada virar a "atual" do usuário. Nunca guarda o access token em texto
  * puro — `accessTokenEncrypted` já deve vir cifrado (ver encryption.ts).
  */
 export async function upsertInstagramAccount(
@@ -93,6 +94,10 @@ export async function upsertInstagramAccount(
       token_expires_at = excluded.token_expires_at,
       scopes = excluded.scopes,
       status = 'connected',
+      -- Reconectar uma conta a torna a conta "atual": as telas e as publicações usam
+      -- a de connected_at mais recente (getInstagramAccountForUser). Sem isto, reconectar
+      -- @alilu.tec com a @pessoal conectada depois continuava mostrando a pessoal.
+      connected_at = now(),
       updated_at = now()
     returning id, user_id, ig_user_id, ig_username, token_expires_at, scopes, status, connected_at, updated_at,
       default_music_enabled, default_music_type, default_music_name, default_music_artist,

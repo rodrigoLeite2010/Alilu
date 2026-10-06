@@ -15,6 +15,7 @@ vi.mock("@/lib/db/client", () => ({
 }));
 
 const {
+  upsertInstagramAccount,
   getInstagramAccountForUser,
   updateInstagramAccountDefaultMusic,
   removeInstagramAccountDefaultMusic,
@@ -198,5 +199,24 @@ describe("removeInstagramAccountDefaultMusic — botão \"Remover música padrã
     const args = dbMock.mock.calls[0].slice(1);
     expect(args).toContain(false);
     expect(args).toContain("None");
+  });
+});
+
+describe("upsertInstagramAccount — a conta recém-conectada vira a atual", () => {
+  it("renova connected_at ao reconectar uma conta que já existia (senão a mais recente continuaria sendo outra)", async () => {
+    dbMock.mockResolvedValueOnce([fakeRow()]);
+
+    await upsertInstagramAccount({
+      userId: "user-1",
+      igUserId: "178414000",
+      igUsername: "alilu.tec",
+      accessTokenEncrypted: "cifrado",
+      tokenExpiresAt: new Date("2026-12-01T00:00:00Z"),
+      scopes: ["instagram_business_basic"],
+    });
+
+    const sql = (dbMock.mock.calls[0][0] as readonly string[]).join("?");
+    const update = sql.slice(sql.indexOf("do update set"));
+    expect(update).toMatch(/connected_at\s*=\s*now\(\)/);
   });
 });
