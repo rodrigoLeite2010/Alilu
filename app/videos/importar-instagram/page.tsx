@@ -22,7 +22,7 @@ export default async function InstagramImportPage() {
   // Só o resultado (cota) vai para a tela — nunca o e-mail do administrador.
   const quota = userId ? await getInstagramImportQuota(userId, isAdminEmail(session?.user?.email)).catch(() => null) : null;
   return (
-    <Container className="max-w-3xl py-10 sm:py-14">
+    <Container className="max-w-3xl py-6 sm:py-14">
       <nav className="mb-4 text-sm text-zinc-500">
         <Link href="/videos" className="hover:underline">
           Vídeos
@@ -30,15 +30,15 @@ export default async function InstagramImportPage() {
         › Importar do Instagram
       </nav>
       <div className="flex flex-wrap items-end justify-between gap-3">
-        <h1 className="text-2xl font-bold tracking-tight text-zinc-900 sm:text-3xl">Importar do Instagram</h1>
+        <h1 className="text-xl font-bold tracking-tight text-zinc-900 sm:text-3xl">Importar do Instagram</h1>
         {userId ? (
           <Link href="/videos/importacoes-instagram" className="text-sm font-medium text-teal-800 hover:underline">
             Minhas importações
           </Link>
         ) : null}
       </div>
-      <p className="mt-2 text-base text-zinc-600">Cole o link de um Reel, vídeo, foto ou conteúdo público do Instagram.</p>
-      <div className="mt-8">{userId ? <InstagramImporter userId={userId} initialQuota={quota} /> : <AccountLoginGate returnPath="/videos/importar-instagram" />}</div>
+      <p className="mt-2 text-sm text-zinc-600 sm:text-base">Cole o link de um Reel, vídeo, foto ou conteúdo público do Instagram.</p>
+      <div className="mt-5 md:mt-8">{userId ? <InstagramImporter userId={userId} initialQuota={quota} /> : <AccountLoginGate returnPath="/videos/importar-instagram" />}</div>
     </Container>
   );
 }

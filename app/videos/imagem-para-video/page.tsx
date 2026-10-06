@@ -23,19 +23,19 @@ export default async function ImageToVideoPage() {
   const userId = session?.user?.id;
 
   return (
-    <Container className="max-w-3xl py-10 sm:py-14">
+    <Container className="max-w-3xl py-6 sm:py-14">
       <nav className="mb-4 text-sm text-zinc-500">
         <Link href="/videos" className="hover:underline">
           Vídeos
         </Link>{" "}
         › Imagem para vídeo com IA
       </nav>
-      <h1 className="text-2xl font-bold tracking-tight text-zinc-900 sm:text-3xl">Animar imagem com IA</h1>
-      <p className="mt-2 text-base text-zinc-600">
+      <h1 className="text-xl font-bold tracking-tight text-zinc-900 sm:text-3xl">Animar imagem com IA</h1>
+      <p className="mt-2 text-sm text-zinc-600 sm:text-base">
         Envie uma foto, descreva o movimento e receba um vídeo curto em MP4 — pronto para Reels, Stories e TikTok. Cada
         geração usa créditos Alilu; você ganha créditos de boas-vindas para testar.
       </p>
-      <div className="mt-8">{userId ? <GeneratorSection userId={userId} /> : <AccountLoginGate returnPath="/videos/imagem-para-video" />}</div>
+      <div className="mt-5 md:mt-8">{userId ? <GeneratorSection userId={userId} /> : <AccountLoginGate returnPath="/videos/imagem-para-video" />}</div>
     </Container>
   );
 }

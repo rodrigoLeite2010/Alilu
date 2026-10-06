@@ -6,10 +6,11 @@ import { Icon } from "@/components/ui/Icon";
 import { useHeaderAuth } from "@/components/layout/useHeaderAuth";
 import { MobileActionGrid } from "@/components/mobile/MobileActionGrid";
 import { MobileBottomSheet } from "@/components/mobile/MobileBottomSheet";
+import { MobileLinkList } from "@/components/mobile/MobileLinkList";
 import { MobileCardList, MobileStatusCard } from "@/components/mobile/MobileCardList";
 import type { MobileStatus } from "@/components/mobile/MobileStatusBadge";
 import { formatWhen } from "@/components/mobile/format";
-import { homeActionLinks, moreToolsLinks } from "@/components/mobile/mobile-links";
+import { homeActionLinks, moreToolsLinks, videoLinks } from "@/components/mobile/mobile-links";
 import { useIsMobile } from "@/components/mobile/useIsMobile";
 import {
   useMobileHomeData,
@@ -157,6 +158,13 @@ export function MobileHome() {
       </div>
 
       <MobileActionGrid items={homeActionLinks} />
+
+      <section aria-labelledby="mobile-home-videos">
+        <h2 id="mobile-home-videos" className="mb-3 text-lg font-semibold text-zinc-900">
+          Vídeos
+        </h2>
+        <MobileLinkList items={videoLinks} label="Ferramentas de vídeo" />
+      </section>
 
       {signedIn ? (
         <>

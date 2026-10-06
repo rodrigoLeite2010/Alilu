@@ -57,12 +57,18 @@ export default function VideosCategoryPage() {
         ]}
       />
 
-      <section className="rounded-lg border border-teal-200 bg-teal-50/50 p-5 sm:p-6">
-        <h1 className="text-2xl font-bold tracking-tight text-zinc-900 sm:text-3xl">{VIDEOS_CATEGORY.title}</h1>
-        <p className="mt-2 max-w-2xl text-base text-zinc-600">{VIDEOS_CATEGORY.subtitle}</p>
+      <section className="rounded-lg border border-teal-200 bg-teal-50/50 p-4 sm:p-6">
+        <h1 className="text-xl font-bold tracking-tight text-zinc-900 sm:text-3xl">{VIDEOS_CATEGORY.title}</h1>
+        <p className="mt-2 max-w-2xl text-sm text-zinc-600 sm:text-base">{VIDEOS_CATEGORY.subtitle}</p>
       </section>
 
-      <section className="mt-10">
+      {/*
+        No celular as ferramentas vêm primeiro (max-md:order-first) e as explicações
+        longas viram o bloco "Saiba mais" no fim; a partir de 768px a ordem e o
+        conteúdo são os de sempre.
+      */}
+      <div className="flex flex-col">
+      <section className="mt-10 hidden md:block">
         <SectionHeading
           title="O que dá para fazer"
           description="Monte vídeos verticais combinando dois clipes em split-screen — o formato clássico de vídeo de 'satisfação' que viralizou no TikTok e nos Reels."
@@ -85,7 +91,7 @@ export default function VideosCategoryPage() {
         </ul>
       </section>
 
-      <section className="mt-10">
+      <section className="mt-6 max-md:order-first md:mt-10">
         <SectionHeading
           title="Ferramentas"
           description="Grátis e sem cadastro para gerar e baixar o resultado."
@@ -105,19 +111,67 @@ export default function VideosCategoryPage() {
                 </div>
                 <div>
                   <p className="font-semibold text-zinc-900 group-hover:text-teal-800">{tool.shortName}</p>
-                  <p className="mt-1 text-sm text-zinc-600">{tool.description}</p>
+                  <p className="mt-1 line-clamp-2 text-sm text-zinc-600 md:line-clamp-none">{tool.description}</p>
                 </div>
               </Link>
             </li>
           ))}
         </ul>
+        <Link
+          href="/videos/importacoes-instagram"
+          className="mt-3 flex min-h-12 items-center justify-between rounded-lg border border-zinc-200 bg-white px-4 text-sm font-semibold text-teal-800 md:hidden"
+        >
+          Minhas importações do Instagram
+          <Icon name="chevron-right" className="h-5 w-5 text-zinc-400" />
+        </Link>
       </section>
 
       <div className="mt-8">
         <AdSlot />
       </div>
 
-      <section className="mt-10">
+      <section className="mt-6 md:hidden">
+        <h2 className="sr-only">Saiba mais</h2>
+        <div className="divide-y divide-zinc-200 rounded-lg border border-zinc-200 bg-white">
+          <details className="group px-4 py-3">
+            <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between text-sm font-semibold text-zinc-900">
+              Como funciona
+              <Icon name="chevron-down" className="h-4 w-4 text-zinc-500 transition-transform group-open:rotate-180" />
+            </summary>
+            <ol className="mt-2 list-decimal space-y-2 pl-5 text-sm leading-relaxed text-zinc-700">
+              <li>Envie o vídeo principal e o complementar (MP4, MOV ou WEBM).</li>
+              <li>Escolha formato, proporção e o trecho de cada vídeo.</li>
+              <li>Toque em &quot;Gerar vídeo&quot; e baixe o MP4 pronto.</li>
+            </ol>
+          </details>
+          <details className="group px-4 py-3">
+            <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between text-sm font-semibold text-zinc-900">
+              Limites e privacidade
+              <Icon name="chevron-down" className="h-4 w-4 text-zinc-500 transition-transform group-open:rotate-180" />
+            </summary>
+            <p className="mt-2 text-sm leading-relaxed text-zinc-700">
+              Cada vídeo pode ter até {maxInputMegabytes} MB e o resultado, até {MAX_OUTPUT_DURATION_SECONDS} segundos. Os arquivos enviados
+              são apagados do servidor logo após o processamento.
+            </p>
+          </details>
+          <details className="group px-4 py-3">
+            <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between text-sm font-semibold text-zinc-900">
+              Perguntas frequentes
+              <Icon name="chevron-down" className="h-4 w-4 text-zinc-500 transition-transform group-open:rotate-180" />
+            </summary>
+            <dl className="mt-2 space-y-3">
+              {faq.map((item) => (
+                <div key={item.question}>
+                  <dt className="text-sm font-medium text-zinc-900">{item.question}</dt>
+                  <dd className="mt-1 text-sm text-zinc-600">{item.answer}</dd>
+                </div>
+              ))}
+            </dl>
+          </details>
+        </div>
+      </section>
+
+      <section className="mt-10 hidden md:block">
         <SectionHeading title="Como funciona" as="h2" />
         <ol className="list-decimal space-y-2 pl-5 text-sm leading-relaxed text-zinc-700">
           <li>Envie o vídeo principal e o vídeo complementar (MP4, MOV ou WEBM).</li>
@@ -127,7 +181,7 @@ export default function VideosCategoryPage() {
         </ol>
       </section>
 
-      <section className="mt-10">
+      <section className="mt-10 hidden md:block">
         <SectionHeading title="Importante" as="h2" />
         <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
           <p>
@@ -139,7 +193,7 @@ export default function VideosCategoryPage() {
         </div>
       </section>
 
-      <section className="mt-10">
+      <section className="mt-10 hidden md:block">
         <SectionHeading title="Perguntas frequentes" as="h2" />
         <dl className="space-y-4">
           {faq.map((item) => (
@@ -180,6 +234,7 @@ export default function VideosCategoryPage() {
           </ul>
         </section>
       ) : null}
+      </div>
     </Container>
   );
 }

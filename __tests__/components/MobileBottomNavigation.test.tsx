@@ -43,7 +43,7 @@ describe("MobileBottomNavigation", () => {
     expect(screen.getByRole("link", { name: "Início" })).toHaveAttribute("aria-current", "page");
   });
 
-  it('"Criar" abre um bottom sheet com Post, Reel, Carrossel e Vídeo e fecha com Esc', () => {
+  it('"Criar" abre um bottom sheet com as ferramentas de vídeo e de Instagram e fecha com Esc', () => {
     mockPathname = "/";
     render(<MobileBottomNavigation />);
 
@@ -53,7 +53,9 @@ describe("MobileBottomNavigation", () => {
     expect(within(dialog).getByRole("link", { name: /^Post/ })).toHaveAttribute("href", "/instagram/criar-post");
     expect(within(dialog).getByRole("link", { name: /^Reel/ })).toHaveAttribute("href", "/instagram/reels");
     expect(within(dialog).getByRole("link", { name: /^Carrossel/ })).toHaveAttribute("href", "/instagram/carrossel");
-    expect(within(dialog).getByRole("link", { name: /^Vídeo/ })).toHaveAttribute("href", "/videos");
+    expect(within(dialog).getByRole("link", { name: /^Split Screen/ })).toHaveAttribute("href", "/videos/editor-split-screen");
+    expect(within(dialog).getByRole("link", { name: /^Vídeo com IA/ })).toHaveAttribute("href", "/videos/imagem-para-video");
+    expect(within(dialog).getByRole("link", { name: /^Importar do Instagram/ })).toHaveAttribute("href", "/videos/importar-instagram");
 
     fireEvent.keyDown(window, { key: "Escape" });
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();

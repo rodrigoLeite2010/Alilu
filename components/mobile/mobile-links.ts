@@ -1,7 +1,7 @@
 import { categories } from "@/data/categories";
 import { INSTAGRAM_CATEGORY } from "@/data/instagram";
 import { LOTTERIES_CATEGORY } from "@/data/lotteries";
-import { VIDEOS_CATEGORY } from "@/data/videos";
+import { VIDEOS_CATEGORY, videoTools } from "@/data/videos";
 
 export interface MobileLink {
   href: string;
@@ -11,15 +11,31 @@ export interface MobileLink {
 }
 
 /**
- * Ações de criação (botão "Criar" da barra inferior). Só aponta para
- * telas que já existem — Story ainda não tem tela própria de criação.
+ * Ações de criação do Instagram (botão "Criar" da barra inferior). Só
+ * aponta para telas que já existem — Story ainda não tem tela própria.
  */
-export const createLinks: MobileLink[] = [
+export const createInstagramLinks: MobileLink[] = [
   { href: "/instagram/criar-post", label: "Post", icon: "image", description: "Imagem com legenda" },
   { href: "/instagram/reels", label: "Reel", icon: "video", description: "Vídeo curto" },
   { href: "/instagram/carrossel", label: "Carrossel", icon: "columns", description: "Várias imagens" },
-  { href: "/videos", label: "Vídeo", icon: "film", description: "Split screen e vídeo com IA" },
 ];
+
+/** Nome curto e descrição de cada ferramenta de vídeo no celular; os caminhos vêm de data/videos.ts. */
+const videoCopy: Record<string, { label: string; description: string }> = {
+  "editor-split-screen": { label: "Split Screen", description: "Dois vídeos em um só" },
+  "imagem-para-video": { label: "Vídeo com IA", description: "Animar uma imagem" },
+  "importar-instagram": { label: "Importar do Instagram", description: "Reel, vídeo ou foto pública" },
+};
+
+/** Atalhos diretos para as ferramentas de vídeo (Criar, home e hub de Vídeos). */
+export const videoLinks: MobileLink[] = videoTools
+  .filter((tool) => tool.status === "ativo")
+  .map((tool) => ({
+    href: tool.path,
+    icon: tool.icon,
+    label: videoCopy[tool.id]?.label ?? tool.shortName,
+    description: videoCopy[tool.id]?.description,
+  }));
 
 /** Ações principais da home mobile (grade 2x2). */
 export const homeActionLinks: MobileLink[] = [

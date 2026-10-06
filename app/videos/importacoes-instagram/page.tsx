@@ -16,7 +16,7 @@ export default async function InstagramImportsHistoryPage() {
   const userId = session?.user?.id;
   const imports = userId ? (await listImportsForUser(userId)).map(serializeImport) : [];
   return (
-    <Container className="max-w-3xl py-10 sm:py-14">
+    <Container className="max-w-3xl py-6 sm:py-14">
       <nav className="mb-4 text-sm text-zinc-500">
         <Link href="/videos" className="hover:underline">
           Vídeos
@@ -27,8 +27,8 @@ export default async function InstagramImportsHistoryPage() {
         </Link>{" "}
         › Importações
       </nav>
-      <h1 className="text-2xl font-bold tracking-tight text-zinc-900 sm:text-3xl">Importações do Instagram</h1>
-      <div className="mt-8">{userId ? <ImportHistory initialImports={imports} /> : <AccountLoginGate returnPath="/videos/importacoes-instagram" />}</div>
+      <h1 className="text-xl font-bold tracking-tight text-zinc-900 sm:text-3xl">Importações do Instagram</h1>
+      <div className="mt-5 md:mt-8">{userId ? <ImportHistory initialImports={imports} /> : <AccountLoginGate returnPath="/videos/importacoes-instagram" />}</div>
     </Container>
   );
 }

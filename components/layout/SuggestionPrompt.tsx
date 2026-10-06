@@ -6,6 +6,31 @@ import { Button } from "@/components/ui/Button";
 type PromptState = "asking" | "form" | "thanks" | "hidden";
 
 const STORAGE_KEY = "alilu.suggestionPrompt.dismissed";
+/** Dia (no fuso do aparelho) em que o aviso apareceu pela última vez: no máximo 1 vez por dia. */
+const LAST_SHOWN_KEY = "alilu.suggestionPrompt.lastShownDay";
+
+function todayKey(): string {
+  const now = new Date();
+  const pad = (value: number) => String(value).padStart(2, "0");
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+}
+
+function wasShownToday(): boolean {
+  try {
+    return window.localStorage.getItem(LAST_SHOWN_KEY) === todayKey();
+  } catch {
+    // Armazenamento bloqueado (aba privada etc.): sem como lembrar, então vale só a regra da sessão.
+    return false;
+  }
+}
+
+function markShownToday() {
+  try {
+    window.localStorage.setItem(LAST_SHOWN_KEY, todayKey());
+  } catch {
+    // Sem armazenamento: o aviso só volta a aparecer numa nova sessão.
+  }
+}
 
 async function readError(response: Response): Promise<string> {
   try {
@@ -25,7 +50,12 @@ export function SuggestionPrompt() {
 
   useEffect(() => {
     if (window.sessionStorage.getItem(STORAGE_KEY) === "1") return;
-    const timer = window.setTimeout(() => setState("asking"), 900);
+    if (wasShownToday()) return;
+    const timer = window.setTimeout(() => {
+      // Marca ao aparecer (e não só ao fechar): recarregar ou trocar de página não o traz de volta no mesmo dia.
+      markShownToday();
+      setState("asking");
+    }, 900);
     return () => window.clearTimeout(timer);
   }, []);
 

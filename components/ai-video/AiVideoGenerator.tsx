@@ -483,7 +483,7 @@ export function AiVideoGenerator({
               )
             ) : null}
             <label
-              className={`inline-flex min-h-11 cursor-pointer items-center rounded-md border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-800 hover:bg-zinc-50 ${retryOf ? "pointer-events-none opacity-50" : ""}`}
+              className={`inline-flex min-h-12 cursor-pointer items-center rounded-md border border-zinc-300 px-4 py-2 text-base font-medium text-zinc-800 hover:bg-zinc-50 max-md:w-full max-md:justify-center md:min-h-11 md:text-sm ${retryOf ? "pointer-events-none opacity-50" : ""}`}
             >
               {uploading ? (uploadStage ?? "Enviando…") : imageUrl ? "Trocar imagem" : "Enviar imagem"}
               <input
@@ -622,12 +622,14 @@ export function AiVideoGenerator({
           </p>
         ) : null}
 
+        {/* Celular: o botão acompanha a rolagem do formulário, acima da barra inferior do site. */}
+        <div className="max-md:sticky max-md:bottom-[calc(3.5rem+env(safe-area-inset-bottom))] max-md:z-30 max-md:-mx-4 max-md:border-t max-md:border-zinc-200 max-md:bg-white max-md:px-4 max-md:py-3">
         <Button
           type="button"
           onClick={handleGenerate}
           disabled={generateLocked}
           aria-busy={submitting || hasGenerationInProgress}
-          className="w-full justify-center sm:w-auto"
+          className="w-full justify-center text-base sm:w-auto md:text-sm"
         >
           {submitting || hasGenerationInProgress ? (
             <span className="inline-flex items-center gap-2">
@@ -640,6 +642,7 @@ export function AiVideoGenerator({
             "Gerar vídeo"
           )}
         </Button>
+        </div>
         {hasGenerationInProgress ? (
           <p role="status" className="text-sm text-zinc-600">
             Seu vídeo já está sendo gerado — não precisa clicar de novo. Assim que ele ficar pronto, o botão é liberado para um novo vídeo.

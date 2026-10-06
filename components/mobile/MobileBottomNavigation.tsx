@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Icon } from "@/components/ui/Icon";
 import { MobileBottomSheet } from "@/components/mobile/MobileBottomSheet";
-import { createLinks } from "@/components/mobile/mobile-links";
+import { createInstagramLinks, videoLinks, type MobileLink } from "@/components/mobile/mobile-links";
 
 interface NavItem {
   href: string;
@@ -26,6 +26,33 @@ const rightItems: NavItem[] = [
 function isActive(pathname: string, href: string) {
   if (href === "/") return pathname === "/";
   return pathname === href || pathname.startsWith(`${href}/`);
+}
+
+function CreateGroup({ title, links, onNavigate }: { title: string; links: MobileLink[]; onNavigate: () => void }) {
+  return (
+    <section aria-label={title}>
+      <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-zinc-500">{title}</h3>
+      <ul className="grid gap-2">
+        {links.map((link) => (
+          <li key={link.href}>
+            <Link
+              href={link.href}
+              onClick={onNavigate}
+              className="flex min-h-16 items-center gap-4 rounded-xl border border-zinc-200 bg-white px-4 py-3 transition-colors active:bg-brand-primary-soft focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-accent"
+            >
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-brand-primary-soft text-brand-primary">
+                <Icon name={link.icon} className="h-6 w-6" />
+              </span>
+              <span className="min-w-0">
+                <span className="block text-base font-semibold text-zinc-900">{link.label}</span>
+                {link.description ? <span className="block text-sm text-zinc-600">{link.description}</span> : null}
+              </span>
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
 }
 
 function NavLink({ item, pathname }: { item: NavItem; pathname: string }) {
@@ -88,25 +115,10 @@ export function MobileBottomNavigation() {
       </nav>
 
       <MobileBottomSheet open={createOpen} onClose={closeCreate} title="O que você quer criar?">
-        <ul className="grid gap-3">
-          {createLinks.map((link) => (
-            <li key={link.href}>
-              <Link
-                href={link.href}
-                onClick={closeCreate}
-                className="flex min-h-16 items-center gap-4 rounded-xl border border-zinc-200 bg-white px-4 py-3 transition-colors active:bg-brand-primary-soft focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-accent"
-              >
-                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-brand-primary-soft text-brand-primary">
-                  <Icon name={link.icon} className="h-6 w-6" />
-                </span>
-                <span className="min-w-0">
-                  <span className="block text-base font-semibold text-zinc-900">{link.label}</span>
-                  {link.description ? <span className="block text-sm text-zinc-600">{link.description}</span> : null}
-                </span>
-              </Link>
-            </li>
-          ))}
-        </ul>
+        <div className="space-y-5">
+          <CreateGroup title="Vídeos" links={videoLinks} onNavigate={closeCreate} />
+          <CreateGroup title="Instagram" links={createInstagramLinks} onNavigate={closeCreate} />
+        </div>
       </MobileBottomSheet>
     </>
   );

@@ -92,12 +92,12 @@ export default async function VideoSplitScreenEditorPage() {
         ]}
       />
 
-      <section className="rounded-lg border border-teal-200 bg-teal-50/50 p-5 sm:p-6">
-        <h1 className="text-2xl font-bold tracking-tight text-zinc-900 sm:text-3xl">{tool.name}</h1>
-        <p className="mt-2 max-w-2xl text-base text-zinc-600">{tool.description}</p>
+      <section className="rounded-lg border border-teal-200 bg-teal-50/50 p-4 sm:p-6">
+        <h1 className="text-xl font-bold tracking-tight text-zinc-900 sm:text-3xl">{tool.name}</h1>
+        <p className="mt-2 max-w-2xl text-sm text-zinc-600 sm:text-base">{tool.description}</p>
       </section>
 
-      <section className="mt-8">
+      <section className="mt-4 md:mt-8">
         <VideoSplitScreenEditor
           userId={userId}
           instagramConnected={account?.connected ?? null}

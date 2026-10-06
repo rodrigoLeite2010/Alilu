@@ -342,7 +342,7 @@ function VideoUploadSlot({
           markPickerOpen("split-screen");
         }}
         onChange={handleChange}
-        className="mt-2 block w-full text-sm text-zinc-700 file:mr-3 file:rounded-md file:border-0 file:bg-zinc-900 file:px-3 file:py-2 file:text-sm file:font-semibold file:text-white"
+        className="mt-2 block w-full text-sm text-zinc-700 file:mr-3 file:rounded-md file:border-0 file:bg-zinc-900 file:px-3 file:py-2 file:text-sm file:font-semibold file:text-white max-md:file:mr-0 max-md:file:w-full max-md:file:py-3.5 max-md:file:text-base"
       />
       <p className="mt-1 text-xs text-zinc-500">MP4, MOV ou WEBM, até {MAX_INPUT_MEGABYTES} MB.</p>
       {checking ? <p role="status" className="mt-1 text-xs text-teal-700">Abrindo o vídeo…</p> : null}
@@ -350,7 +350,7 @@ function VideoUploadSlot({
 
       {slot.file ? (
         <div className="mt-3 grid grid-cols-2 gap-3">
-          <p className="col-span-2 text-xs text-zinc-500">Arquivo selecionado: {slot.file.name}</p>
+          <p className="col-span-2 break-all text-xs text-zinc-500">Arquivo selecionado: {slot.file.name} · {(slot.file.size / 1024 / 1024).toFixed(1)} MB</p>
           <div>
             <label htmlFor={startId} className="block text-xs font-medium text-zinc-700">
               Início (mm:ss)
@@ -360,7 +360,7 @@ function VideoUploadSlot({
               value={slot.trimStartText}
               disabled={disabled}
               onChange={(event) => onTrimStartChange(event.target.value)}
-              className="mt-1 h-10 w-full rounded-md border border-zinc-300 px-2 text-sm"
+              className="mt-1 h-11 w-full rounded-md border border-zinc-300 px-2 text-base md:h-10 md:text-sm"
             />
           </div>
           <div>
@@ -373,7 +373,7 @@ function VideoUploadSlot({
               placeholder={slot.durationSeconds === null ? "Automático" : "00:05"}
               disabled={disabled}
               onChange={(event) => onTrimEndChange(event.target.value)}
-              className="mt-1 h-10 w-full rounded-md border border-zinc-300 px-2 text-sm"
+              className="mt-1 h-11 w-full rounded-md border border-zinc-300 px-2 text-base md:h-10 md:text-sm"
             />
           </div>
           {slot.durationSeconds !== null ? (
@@ -607,6 +607,14 @@ export function VideoSplitScreenEditor({
   const [primaryVolumePercent, setPrimaryVolumePercent] = useState(100);
   const [secondaryVolumePercent, setSecondaryVolumePercent] = useState(100);
   const [stage, setStage] = useState<Stage>("idle");
+  const asideRef = useRef<HTMLElement>(null);
+
+  // Celular/tablet: o botão "Gerar vídeo" fica numa barra fixa, longe de onde o resultado ou o erro aparece — leva a tela até lá.
+  useEffect(() => {
+    if (stage !== "sucesso" && stage !== "erro") return;
+    if (typeof window.matchMedia === "function" && !window.matchMedia("(max-width: 1023px)").matches) return;
+    asideRef.current?.querySelector("[data-scroll-target]")?.scrollIntoView?.({ behavior: "smooth", block: "start" });
+  }, [stage]);
   const [processingLabel, setProcessingLabel] = useState<"Processando..." | "Finalizando...">("Processando...");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [resultUrl, setResultUrl] = useState<string | null>(storedDraft?.resultUrl ?? null);
@@ -1037,7 +1045,7 @@ export function VideoSplitScreenEditor({
   }
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">
+    <div className="grid gap-6 max-lg:pb-24 lg:grid-cols-[minmax(0,1fr)_380px]">
       <section className="space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <Button type="button" variant="secondary" onClick={applySatisfyingPreset} disabled={busy}>
@@ -1180,7 +1188,7 @@ export function VideoSplitScreenEditor({
         </div>
       </section>
 
-      <aside className="space-y-4 rounded-lg border border-teal-200 bg-teal-50/50 p-4">
+      <aside ref={asideRef} className="space-y-4 rounded-lg border border-teal-200 bg-teal-50/50 p-4">
         <div>
           <h2 className="text-base font-semibold text-zinc-900">Configurações</h2>
         </div>
@@ -1195,7 +1203,7 @@ export function VideoSplitScreenEditor({
                 disabled={busy}
                 onClick={() => setOutputFormat(option.value)}
                 aria-pressed={outputFormat === option.value}
-                className={`min-h-9 rounded-md px-3 text-sm font-medium transition-colors ${
+                className={`min-h-11 rounded-md px-3 text-sm font-medium transition-colors md:min-h-9 ${
                   outputFormat === option.value ? "bg-zinc-900 text-white" : "bg-white text-zinc-700 ring-1 ring-inset ring-zinc-300"
                 }`}
               >
@@ -1215,7 +1223,7 @@ export function VideoSplitScreenEditor({
                 disabled={busy}
                 onClick={() => setLayoutRatio(option.value)}
                 aria-pressed={layoutRatio === option.value}
-                className={`min-h-9 rounded-md px-3 text-sm font-medium transition-colors ${
+                className={`min-h-11 rounded-md px-3 text-sm font-medium transition-colors md:min-h-9 ${
                   layoutRatio === option.value ? "bg-zinc-900 text-white" : "bg-white text-zinc-700 ring-1 ring-inset ring-zinc-300"
                 }`}
               >
@@ -1257,7 +1265,7 @@ export function VideoSplitScreenEditor({
                 disabled={busy}
                 onClick={() => setAudioSource(option.value)}
                 aria-pressed={audioSource === option.value}
-                className={`min-h-9 rounded-md px-3 text-sm font-medium transition-colors ${
+                className={`min-h-11 rounded-md px-3 text-sm font-medium transition-colors md:min-h-9 ${
                   audioSource === option.value ? "bg-zinc-900 text-white" : "bg-white text-zinc-700 ring-1 ring-inset ring-zinc-300"
                 }`}
               >
@@ -1312,7 +1320,7 @@ export function VideoSplitScreenEditor({
 
         {effectiveUserId ? <VideoEndMediaToggle context="SPLIT_SCREEN" disabled={busy} onChange={setEndMediaWanted} /> : null}
 
-        <Button type="button" data-testid="generate-button" className="w-full" disabled={!canGenerate} onClick={() => void handleGenerate()}>
+        <Button type="button" data-testid="generate-button" className="w-full max-lg:hidden" disabled={!canGenerate} onClick={() => void handleGenerate()}>
           {stage === "enviando" ? `Enviando vídeos… ${uploadPercent}%` : stage === "processando" ? processingLabel : "Gerar vídeo"}
         </Button>
 
@@ -1325,13 +1333,13 @@ export function VideoSplitScreenEditor({
         ) : null}
 
         {stage === "erro" && errorMessage ? (
-          <p role="alert" className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
+          <p role="alert" data-scroll-target className="scroll-mt-20 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
             {errorMessage}
           </p>
         ) : null}
 
         {stage === "sucesso" && resultUrl ? (
-          <div className="space-y-3 rounded-md bg-white p-3">
+          <div data-scroll-target className="scroll-mt-20 space-y-3 rounded-md bg-white p-3">
             <video data-testid="result-video" src={resultUrl} controls playsInline className="w-full rounded-md bg-black" />
             {endMediaResult && !endMediaResult.applied ? (
               <div role="alert" className="rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-900">
@@ -1425,6 +1433,15 @@ export function VideoSplitScreenEditor({
           </div>
         ) : null}
       </aside>
+      {/*
+        Celular e tablet: "Gerar vídeo" fica sempre à vista, acima da barra inferior do site,
+        em vez de no fim da tela de configurações. O botão da lateral só aparece no desktop.
+      */}
+      <div className="fixed inset-x-0 bottom-[calc(3.5rem+env(safe-area-inset-bottom))] z-30 border-t border-zinc-200 bg-white px-4 py-3 md:bottom-0 lg:hidden print:hidden">
+        <Button type="button" data-testid="generate-button-mobile" className="w-full text-base" disabled={!canGenerate} onClick={() => void handleGenerate()}>
+          {stage === "enviando" ? `Enviando vídeos… ${uploadPercent}%` : stage === "processando" ? processingLabel : "Gerar vídeo"}
+        </Button>
+      </div>
       <ConnectInstagramDialog
         open={gateOpen}
         authenticated={Boolean(effectiveUserId)}
