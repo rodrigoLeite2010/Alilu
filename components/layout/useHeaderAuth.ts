@@ -8,6 +8,7 @@ interface SessionResponse {
     name?: string | null;
     email?: string | null;
     image?: string | null;
+    isAdmin?: boolean;
   };
 }
 
@@ -35,6 +36,7 @@ export function useHeaderAuth(): HeaderAuthState {
               name: data.user.name ?? null,
               email: data.user.email,
               image: data.user.image ?? null,
+              isAdmin: data.user.isAdmin === true,
             },
           });
         } else {

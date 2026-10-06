@@ -78,4 +78,15 @@ describe("UserMenu", () => {
     expect(screen.queryByRole("menu")).not.toBeInTheDocument();
     expect(trigger).toHaveFocus();
   });
+
+  it("mostra 'Admin' só para administrador", () => {
+    const { unmount } = render(<UserMenu user={user} />);
+    fireEvent.click(screen.getByRole("button", { name: /Ana/ }));
+    expect(screen.queryByRole("menuitem", { name: "Admin" })).not.toBeInTheDocument();
+    unmount();
+
+    render(<UserMenu user={{ ...user, isAdmin: true }} />);
+    fireEvent.click(screen.getByRole("button", { name: /Ana/ }));
+    expect(screen.getByRole("menuitem", { name: "Admin" })).toHaveAttribute("href", "/admin");
+  });
 });

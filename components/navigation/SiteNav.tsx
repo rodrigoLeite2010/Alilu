@@ -189,6 +189,11 @@ function MobileAccountSection({ auth, onNavigate }: { auth: HeaderAuthState; onN
         <Link href="/minha-conta" onClick={onNavigate} className="flex min-h-9 items-center rounded px-2 text-sm text-zinc-700 hover:bg-white">
           Minha conta
         </Link>
+        {user.isAdmin ? (
+          <Link href="/admin" onClick={onNavigate} className="flex min-h-9 items-center rounded px-2 text-sm font-medium text-teal-800 hover:bg-white">
+            Admin
+          </Link>
+        ) : null}
         <button
           type="button"
           onClick={() => {

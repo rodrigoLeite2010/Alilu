@@ -12,6 +12,7 @@ export default function robots(): MetadataRoute.Robots {
       // pessoais").
       disallow: [
         "/entrar",
+        "/admin",
         "/minha-conta",
         "/api/",
         "/instagram/painel",

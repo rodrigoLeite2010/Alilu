@@ -9,6 +9,7 @@ import {
 } from "@/lib/instagram/backend/otp-service";
 import { isValidEmail, normalizeEmail } from "@/lib/instagram/backend/otp";
 import { upsertUserByEmail } from "@/lib/instagram/backend/users-store";
+import { isAdminEmail } from "@/lib/admin/admin-email";
 import { isEmailDisabled, isUserDisabled } from "@/lib/auth/user-status";
 
 /**
@@ -107,6 +108,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         session.user.id = token.userId;
         session.user.name = token.name ?? null;
         session.user.image = token.picture ?? null;
+        // Só um booleano para a UI mostrar o menu Admin; o acesso real é sempre checado no servidor (getAdminSession).
+        session.user.isAdmin = isAdminEmail(session.user.email);
       }
       return session;
     },

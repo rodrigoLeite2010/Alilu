@@ -127,6 +127,16 @@ export function UserMenu({ user }: { user: HeaderUser }) {
             >
               Instagram / Automações
             </Link>
+            {user.isAdmin ? (
+              <Link
+                href="/admin"
+                role="menuitem"
+                onClick={() => setOpen(false)}
+                className="flex min-h-10 items-center px-4 text-sm font-medium text-teal-800 hover:bg-zinc-50"
+              >
+                Admin
+              </Link>
+            ) : null}
           </div>
           <div role="none" className="border-t border-zinc-100 py-1">
             <button
