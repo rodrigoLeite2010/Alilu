@@ -6,6 +6,7 @@ import { AccountLoginGate } from "@/components/conta/AccountLoginGate";
 import { InstagramImporter } from "@/components/instagram-import/InstagramImporter";
 import { isAdminEmail } from "@/lib/admin/admin-access";
 import { getInstagramImportQuota } from "@/lib/instagram-import/backend/import-service";
+import { canUseImporter } from "@/lib/billing/backend/automation-access-service";
 
 export const dynamic = "force-dynamic";
 
@@ -21,6 +22,8 @@ export default async function InstagramImportPage() {
   const userId = session?.user?.id;
   // Só o resultado (cota) vai para a tela — nunca o e-mail do administrador.
   const quota = userId ? await getInstagramImportQuota(userId, isAdminEmail(session?.user?.email)).catch(() => null) : null;
+  const isAdmin = isAdminEmail(session?.user?.email);
+  const needsPlan = userId && !isAdmin ? !(await canUseImporter(userId).catch(() => ({ allowed: true }))).allowed : false;
   return (
     <Container className="max-w-3xl py-6 sm:py-14">
       <nav className="mb-4 text-sm text-zinc-500">
@@ -38,7 +41,7 @@ export default async function InstagramImportPage() {
         ) : null}
       </div>
       <p className="mt-2 text-sm text-zinc-600 sm:text-base">Cole o link de um Reel, vídeo, foto ou conteúdo público do Instagram.</p>
-      <div className="mt-5 md:mt-8">{userId ? <InstagramImporter userId={userId} initialQuota={quota} /> : <AccountLoginGate returnPath="/videos/importar-instagram" />}</div>
+      <div className="mt-5 md:mt-8">{userId ? <InstagramImporter userId={userId} initialQuota={quota} needsPlan={needsPlan} /> : <AccountLoginGate returnPath="/videos/importar-instagram" />}</div>
     </Container>
   );
 }

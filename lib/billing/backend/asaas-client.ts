@@ -67,7 +67,7 @@ function extractAsaasErrorMessage(payload: unknown): string | null {
 
 async function asaasRequest<T>(
   path: string,
-  init: { method: "GET" | "POST" | "DELETE"; body?: Record<string, unknown> },
+  init: { method: "GET" | "POST" | "PUT" | "DELETE"; body?: Record<string, unknown> },
 ): Promise<T> {
   const baseUrl = getBaseUrl();
   const apiKey = getApiKey();
@@ -180,20 +180,42 @@ export interface AsaasPayment {
   /** A que assinatura essa cobrança pertence — o corpo do Webhook só traz o id do pagamento, então é essa consulta que liga o evento de volta à assinatura do Piloto Automático. */
   subscription: string | null;
   value: number;
+  /** "YYYY-MM-DD" — vencimento da cobrança (distingue a cobrança do ciclo atual da do próximo). */
+  dueDate: string | null;
+  /** Referência que nós mesmos gravamos ao criar a cobrança (ex.: "plan-upgrade:<userId>:<PLANO>"). */
+  externalReference: string | null;
 }
 
 /** GET /v3/payments/{id} — consulta servidor-servidor usada pelo processamento do Webhook (nunca confia só no corpo do evento recebido). */
 export async function getAsaasPayment(paymentId: string): Promise<AsaasPayment> {
-  const result = await asaasRequest<{ id: string; status: string; subscription?: string | null; value?: number }>(
-    `/payments/${encodeURIComponent(paymentId)}`,
-    { method: "GET" },
-  );
+  const result = await asaasRequest<{
+    id: string;
+    status: string;
+    subscription?: string | null;
+    value?: number;
+    dueDate?: string | null;
+    externalReference?: string | null;
+  }>(`/payments/${encodeURIComponent(paymentId)}`, { method: "GET" });
   return {
     id: result.id,
     status: result.status,
     subscription: typeof result.subscription === "string" ? result.subscription : null,
     value: Number(result.value ?? 0),
+    dueDate: typeof result.dueDate === "string" ? result.dueDate : null,
+    externalReference: typeof result.externalReference === "string" ? result.externalReference : null,
   };
+}
+
+/**
+ * PUT /v3/subscriptions/{id} — muda o valor das PRÓXIMAS cobranças (troca
+ * de plano). `updatePendingPayments: true` também ajusta a cobrança do
+ * próximo ciclo se o Asaas já a gerou; cobranças já pagas nunca mudam.
+ */
+export async function updateAsaasSubscriptionValue(subscriptionId: string, value: number): Promise<void> {
+  await asaasRequest(`/subscriptions/${encodeURIComponent(subscriptionId)}`, {
+    method: "PUT",
+    body: { value, updatePendingPayments: true },
+  });
 }
 
 /** DELETE /v3/subscriptions/{id} — cancela no Asaas, para de gerar novas cobranças a partir daqui. */

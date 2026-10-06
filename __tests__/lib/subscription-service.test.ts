@@ -53,7 +53,7 @@ describe("startAutomationCheckout", () => {
 
     const result = await service.startAutomationCheckout(
       userId,
-      { name: "Fulano da Silva", cpfCnpj: "123.456.789-00", email: "fulano@example.com" },
+      { planCode: "AUTOMATION", name: "Fulano da Silva", cpfCnpj: "123.456.789-00", email: "fulano@example.com" },
       new Date("2026-09-01T12:00:00.000Z"),
     );
 
@@ -72,7 +72,7 @@ describe("startAutomationCheckout", () => {
   it("rejeita CPF/CNPJ com tamanho inválido sem chamar o Asaas", async () => {
     const userId = await seedUser();
     await expect(
-      service.startAutomationCheckout(userId, { name: "Fulano", cpfCnpj: "123" }),
+      service.startAutomationCheckout(userId, { planCode: "AUTOMATION", name: "Fulano", cpfCnpj: "123" }),
     ).rejects.toBeInstanceOf(SubscriptionBusinessError);
     expect(fetchMock).not.toHaveBeenCalled();
   });
@@ -88,7 +88,7 @@ describe("startAutomationCheckout", () => {
       .mockResolvedValueOnce(jsonResponse(200, { id: "sub_nova", status: "PENDING" })) // POST /subscriptions (sem POST /customers!)
       .mockResolvedValueOnce(jsonResponse(200, { data: [{ id: "pay_2", invoiceUrl: "https://www.asaas.com/i/pay_2" }] }));
 
-    const result = await service.startAutomationCheckout(userId, { name: "Fulano", cpfCnpj: "12345678900" });
+    const result = await service.startAutomationCheckout(userId, { planCode: "AUTOMATION", name: "Fulano", cpfCnpj: "12345678900" });
 
     expect(fetchMock).toHaveBeenCalledTimes(2); // nunca chamou POST /customers de novo
     expect(result.subscription.asaasCustomerId).toBe("cus_existente");
@@ -106,7 +106,7 @@ describe("startAutomationCheckout", () => {
       jsonResponse(200, { data: [{ id: "pay_3", invoiceUrl: "https://www.asaas.com/i/pay_3" }] }),
     );
 
-    const result = await service.startAutomationCheckout(userId, { name: "Fulano", cpfCnpj: "12345678900" });
+    const result = await service.startAutomationCheckout(userId, { planCode: "AUTOMATION", name: "Fulano", cpfCnpj: "12345678900" });
 
     expect(fetchMock).toHaveBeenCalledTimes(1); // só a consulta de payments — nem customer nem subscription novos
     expect(result.subscription.asaasSubscriptionId).toBe("sub_pendente");
@@ -117,7 +117,7 @@ describe("startAutomationCheckout", () => {
     await db.sql`insert into automation_subscriptions (user_id, status) values (${userId}, 'ACTIVE')`;
 
     await expect(
-      service.startAutomationCheckout(userId, { name: "Fulano", cpfCnpj: "12345678900" }),
+      service.startAutomationCheckout(userId, { planCode: "AUTOMATION", name: "Fulano", cpfCnpj: "12345678900" }),
     ).rejects.toBeInstanceOf(SubscriptionBusinessError);
     expect(fetchMock).not.toHaveBeenCalled();
   });

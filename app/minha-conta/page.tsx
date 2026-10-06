@@ -75,6 +75,9 @@ export default async function MinhaContaPage() {
           <LinkButton href="/instagram/painel" variant="secondary" className="sm:flex-1">
             Instagram / Automações
           </LinkButton>
+          <LinkButton href="/planos" variant="secondary" className="sm:flex-1">
+            Planos e assinatura
+          </LinkButton>
           <LinkButton href="/minha-conta/creditos-ia" variant="secondary" className="sm:flex-1">
             Créditos de IA
           </LinkButton>

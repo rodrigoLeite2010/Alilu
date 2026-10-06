@@ -1,10 +1,14 @@
 import "server-only";
 import { timingSafeEqual } from "node:crypto";
 import { recordWebhookEventOnce, markWebhookEventProcessed } from "./asaas-webhook-events-repository";
-import { getAsaasPayment, getAsaasSubscription } from "./asaas-client";
+import { getAsaasPayment, getAsaasSubscription, updateAsaasSubscriptionValue } from "./asaas-client";
+import { parsePlanUpgradeReference } from "./subscription-service";
+import { getPlan, PLAN_CODES, type PlanCode } from "../plans";
 import { handleCreditPurchasePaymentEvent } from "@/lib/ai-video/backend/credit-purchase-service";
 import {
   getByAsaasSubscriptionId,
+  getSubscriptionByUserId,
+  markPlanUpgraded,
   markActiveFromPayment,
   markPastDue,
   markCanceledByAsaasSubscriptionId,
@@ -123,6 +127,8 @@ async function handlePaymentEvent(eventType: string, payload: Record<string, unk
 
   const payment = await getAsaasPayment(paymentId);
   if (!payment.subscription) {
+    // Cobrança proporcional de upgrade de plano (criada por changeAutomationPlan).
+    if (await handlePlanUpgradePayment(eventType, payment)) return;
     // Cobrança avulsa: hoje, só a compra de créditos de IA usa. Se não for
     // uma compra conhecida, o evento só fica registrado (auditoria).
     await handleCreditPurchasePaymentEvent(eventType, payment, now);
@@ -139,7 +145,21 @@ async function handlePaymentEvent(eventType: string, payload: Record<string, unk
     const currentPeriodEndsAt = asaasSubscription.nextDueDate
       ? new Date(`${asaasSubscription.nextDueDate}T00:00:00.000Z`)
       : null;
-    await markActiveFromPayment(payment.subscription, currentPeriodEndsAt, new Date());
+    // Downgrade agendado só vale quando o que foi pago é o PRÓXIMO ciclo (vencimento >= fim do período
+    // atual). PAYMENT_RECEIVED do cartão chega ~1 mês depois do CONFIRMED do MESMO ciclo — esse não troca.
+    let applyPlan: { planCode: PlanCode; priceCents: number } | null = null;
+    if (
+      subscriptionRow.pendingPlanCode &&
+      subscriptionRow.currentPeriodEndsAt &&
+      payment.dueDate &&
+      payment.dueDate >= subscriptionRow.currentPeriodEndsAt.toISOString().slice(0, 10)
+    ) {
+      applyPlan = {
+        planCode: subscriptionRow.pendingPlanCode,
+        priceCents: getPlan(subscriptionRow.pendingPlanCode).priceCents,
+      };
+    }
+    await markActiveFromPayment(payment.subscription, currentPeriodEndsAt, new Date(), applyPlan);
   } else {
     await markPastDue(payment.subscription);
   }
@@ -150,4 +170,33 @@ async function handleSubscriptionCancelEvent(payload: Record<string, unknown>, n
   const subscriptionId = subscriptionRef && typeof subscriptionRef.id === "string" ? subscriptionRef.id : null;
   if (!subscriptionId) return;
   await markCanceledByAsaasSubscriptionId(subscriptionId, now);
+}
+
+const PAID_STATUSES = new Set(["CONFIRMED", "RECEIVED", "RECEIVED_IN_CASH"]);
+
+/**
+ * Cobrança avulsa de upgrade confirmada → plano novo vale já e o preço da
+ * assinatura no Asaas passa ao do plano novo (ciclos seguintes).
+ * Devolve `true` se a cobrança é de upgrade (tratada ou ignorada de
+ * propósito), `false` se não tem nada a ver com plano.
+ */
+async function handlePlanUpgradePayment(
+  eventType: string,
+  payment: { status: string; externalReference: string | null },
+): Promise<boolean> {
+  const ref = parsePlanUpgradeReference(payment.externalReference);
+  if (!ref) return false;
+  if (!PAYMENT_CONFIRMATION_EVENTS.has(eventType) || !PAID_STATUSES.has(payment.status)) return true;
+
+  const sub = await getSubscriptionByUserId(ref.userId);
+  if (!sub || sub.status !== "ACTIVE" || !sub.asaasSubscriptionId) return true;
+
+  const target = getPlan(ref.planCode);
+  const lowerPlans = PLAN_CODES.filter((code) => getPlan(code).rank < target.rank);
+  if (!lowerPlans.includes(sub.planCode)) return true; // já está nesse plano ou em um maior — evento repetido/atrasado.
+
+  // Primeiro o Asaas (idempotente), depois o banco: se algo falhar, a reentrega do webhook repete o par inteiro.
+  await updateAsaasSubscriptionValue(sub.asaasSubscriptionId, target.priceCents / 100);
+  await markPlanUpgraded(ref.userId, target.code, target.priceCents, lowerPlans);
+  return true;
 }

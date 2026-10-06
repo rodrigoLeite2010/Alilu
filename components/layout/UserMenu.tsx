@@ -104,6 +104,14 @@ export function UserMenu({ user }: { user: HeaderUser }) {
               Minha conta
             </Link>
             <Link
+              href="/planos"
+              role="menuitem"
+              onClick={() => setOpen(false)}
+              className="flex min-h-10 items-center px-4 text-sm text-zinc-700 hover:bg-zinc-50"
+            >
+              Planos e assinatura
+            </Link>
+            <Link
               href="/financeiro/educacao-financeira"
               role="menuitem"
               onClick={() => setOpen(false)}

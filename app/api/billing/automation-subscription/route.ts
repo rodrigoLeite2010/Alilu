@@ -4,8 +4,11 @@ import {
   startAutomationCheckout,
   cancelAutomationSubscription,
   reactivateAutomationSubscription,
+  changeAutomationPlan,
+  cancelScheduledPlanChange,
 } from "@/lib/billing/backend/subscription-service";
 import { serializeSubscription } from "@/lib/billing/backend/billing-dto";
+import { isPlanCode } from "@/lib/billing/plans";
 import { SubscriptionBusinessError } from "@/lib/billing/backend/billing-types";
 import { AsaasApiError, AsaasConfigError } from "@/lib/billing/backend/asaas-client";
 
@@ -37,11 +40,20 @@ export async function POST(request: Request): Promise<NextResponse> {
 
   try {
     if (action === "checkout") {
-      const { name, cpfCnpj, email } = body as { name?: unknown; cpfCnpj?: unknown; email?: unknown };
+      const { name, cpfCnpj, email, planCode } = body as {
+        name?: unknown;
+        cpfCnpj?: unknown;
+        email?: unknown;
+        planCode?: unknown;
+      };
+      if (!isPlanCode(planCode)) {
+        return NextResponse.json({ error: "Escolha um plano para assinar." }, { status: 400 });
+      }
       if (typeof name !== "string" || !name.trim() || typeof cpfCnpj !== "string" || !cpfCnpj.trim()) {
         return NextResponse.json({ error: "Nome e CPF/CNPJ são obrigatórios." }, { status: 400 });
       }
       const result = await startAutomationCheckout(userId, {
+        planCode,
         name: name.trim(),
         cpfCnpj,
         email: typeof email === "string" && email.trim() ? email.trim() : undefined,
@@ -50,6 +62,28 @@ export async function POST(request: Request): Promise<NextResponse> {
         checkoutUrl: result.checkoutUrl,
         subscription: serializeSubscription(result.subscription),
       });
+    }
+
+    if (action === "change-plan") {
+      const { planCode } = body as { planCode?: unknown };
+      if (!isPlanCode(planCode)) {
+        return NextResponse.json({ error: "Plano inválido." }, { status: 400 });
+      }
+      const result = await changeAutomationPlan(userId, planCode);
+      if (result.kind === "upgrade") {
+        return NextResponse.json({
+          kind: "upgrade",
+          checkoutUrl: result.checkoutUrl,
+          amountCents: result.amountCents,
+          subscription: serializeSubscription(result.subscription),
+        });
+      }
+      return NextResponse.json({ kind: "downgrade", subscription: serializeSubscription(result.subscription) });
+    }
+
+    if (action === "cancel-plan-change") {
+      const subscription = await cancelScheduledPlanChange(userId);
+      return NextResponse.json({ subscription: serializeSubscription(subscription) });
     }
 
     if (action === "cancel") {

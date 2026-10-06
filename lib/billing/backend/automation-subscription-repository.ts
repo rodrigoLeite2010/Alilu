@@ -1,7 +1,7 @@
 import "server-only";
 import { getDb } from "@/lib/db/client";
 import { billingDateStr } from "../billing-time";
-import { isPlanCode } from "../plans";
+import { isPlanCode, type PlanCode } from "../plans";
 import type { AutomationSubscriptionRecord, AutomationSubscriptionStatus } from "./billing-types";
 
 /**
@@ -64,6 +64,8 @@ export interface SaveCheckoutStartInput {
   asaasCustomerId: string;
   asaasSubscriptionId: string;
   monthlyPriceCents: number;
+  /** Plano que está sendo contratado neste checkout (só vale depois do pagamento confirmado). */
+  planCode: PlanCode;
 }
 
 /**
@@ -79,18 +81,62 @@ export async function saveCheckoutStart(
 ): Promise<AutomationSubscriptionRecord> {
   const db = getDb();
   const rows = await db`
-    insert into automation_subscriptions (user_id, status, cpf_cnpj, asaas_customer_id, asaas_subscription_id, monthly_price_cents)
-    values (${userId}, 'PENDING_PAYMENT', ${input.cpfCnpj}, ${input.asaasCustomerId}, ${input.asaasSubscriptionId}, ${input.monthlyPriceCents})
+    insert into automation_subscriptions (user_id, status, cpf_cnpj, asaas_customer_id, asaas_subscription_id, monthly_price_cents, plan_code)
+    values (${userId}, 'PENDING_PAYMENT', ${input.cpfCnpj}, ${input.asaasCustomerId}, ${input.asaasSubscriptionId}, ${input.monthlyPriceCents}, ${input.planCode})
     on conflict (user_id) do update
     set status = 'PENDING_PAYMENT',
         cpf_cnpj = ${input.cpfCnpj},
         asaas_customer_id = ${input.asaasCustomerId},
         asaas_subscription_id = ${input.asaasSubscriptionId},
         monthly_price_cents = ${input.monthlyPriceCents},
+        plan_code = ${input.planCode},
+        pending_plan_code = null,
         updated_at = now()
     returning *
   `;
   return mapSubscriptionRow(rows[0]);
+}
+
+/**
+ * Agenda (ou limpa, com `null`) a troca de plano do PRÓXIMO ciclo
+ * (downgrade). Só assinatura ACTIVE — o plano em vigor não muda aqui.
+ */
+export async function setPendingPlan(userId: string, planCode: PlanCode | null): Promise<AutomationSubscriptionRecord | null> {
+  const db = getDb();
+  const rows = await db`
+    update automation_subscriptions
+    set pending_plan_code = ${planCode}, updated_at = now()
+    where user_id = ${userId} and status = 'ACTIVE'
+    returning *
+  `;
+  return rows[0] ? mapSubscriptionRow(rows[0]) : null;
+}
+
+/**
+ * Upgrade confirmado (cobrança proporcional paga): o plano novo vale já.
+ * Só sobe de plano (nunca rebaixa por um evento atrasado/duplicado) e só
+ * em assinatura ACTIVE. Idempotente — repetir o evento não muda nada.
+ * `fromPlanCodes` são os planos de rank menor que o novo.
+ */
+export async function markPlanUpgraded(
+  userId: string,
+  planCode: PlanCode,
+  priceCents: number,
+  fromPlanCodes: readonly PlanCode[],
+): Promise<AutomationSubscriptionRecord | null> {
+  const db = getDb();
+  const rows = await db`
+    update automation_subscriptions
+    set plan_code = ${planCode},
+        monthly_price_cents = ${priceCents},
+        pending_plan_code = null,
+        updated_at = now()
+    where user_id = ${userId}
+      and status = 'ACTIVE'
+      and plan_code = any(${[...fromPlanCodes]}::text[])
+    returning *
+  `;
+  return rows[0] ? mapSubscriptionRow(rows[0]) : null;
 }
 
 /**
@@ -105,7 +151,7 @@ export async function markCanceled(userId: string, now: Date): Promise<Automatio
   const db = getDb();
   const rows = await db`
     update automation_subscriptions
-    set status = 'CANCELED', canceled_at = ${now.toISOString()}, updated_at = now()
+    set status = 'CANCELED', canceled_at = ${now.toISOString()}, pending_plan_code = null, updated_at = now()
     where user_id = ${userId} and status in ('ACTIVE', 'PAST_DUE', 'PENDING_PAYMENT')
     returning *
   `;
@@ -156,13 +202,20 @@ export async function markActiveFromPayment(
   asaasSubscriptionId: string,
   currentPeriodEndsAt: Date | null,
   now: Date,
+  /** Downgrade agendado que passa a valer porque o pagamento do PRÓXIMO ciclo foi confirmado. */
+  applyPlan: { planCode: PlanCode; priceCents: number } | null = null,
 ): Promise<AutomationSubscriptionRecord | null> {
   const db = getDb();
+  const applyCode = applyPlan?.planCode ?? null;
+  const applyPrice = applyPlan?.priceCents ?? null;
   const rows = await db`
     update automation_subscriptions
     set status = 'ACTIVE',
         started_at = coalesce(started_at, ${now.toISOString()}),
         current_period_ends_at = ${currentPeriodEndsAt ? currentPeriodEndsAt.toISOString() : null},
+        plan_code = coalesce(${applyCode}::text, plan_code),
+        monthly_price_cents = coalesce(${applyPrice}::integer, monthly_price_cents),
+        pending_plan_code = case when pending_plan_code = ${applyCode}::text then null else pending_plan_code end,
         updated_at = now()
     where asaas_subscription_id = ${asaasSubscriptionId} and status != 'CANCELED'
     returning *
@@ -197,7 +250,7 @@ export async function markCanceledByAsaasSubscriptionId(
   const db = getDb();
   const rows = await db`
     update automation_subscriptions
-    set status = 'CANCELED', canceled_at = coalesce(canceled_at, ${now.toISOString()}), updated_at = now()
+    set status = 'CANCELED', canceled_at = coalesce(canceled_at, ${now.toISOString()}), pending_plan_code = null, updated_at = now()
     where asaas_subscription_id = ${asaasSubscriptionId} and status in ('ACTIVE', 'PAST_DUE', 'PENDING_PAYMENT')
     returning *
   `;

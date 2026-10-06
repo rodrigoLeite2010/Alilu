@@ -19,6 +19,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     // igual a /financeiro/educacao-financeira logo abaixo.
     { url: `${SITE_URL}/loterias/lotofacil/fechamento`, changeFrequency: "monthly", priority: 0.6 },
     { url: `${SITE_URL}/financeiro/educacao-financeira`, changeFrequency: "monthly", priority: 0.7 },
+    { url: `${SITE_URL}/planos`, changeFrequency: "monthly", priority: 0.6 },
     { url: `${SITE_URL}/sobre`, changeFrequency: "yearly", priority: 0.3 },
     { url: `${SITE_URL}/contato`, changeFrequency: "yearly", priority: 0.3 },
     { url: `${SITE_URL}/privacidade`, changeFrequency: "yearly", priority: 0.2 },

@@ -46,7 +46,46 @@ export async function generateCaptionWithAI(prompt: string): Promise<AIGenerated
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ prompt }),
   });
-  return jsonOrThrow<AIGeneratedCaption>(response, "Não foi possível gerar a legenda com IA agora.");
+  if (!response.ok) {
+    let message = "Não foi possível gerar a legenda com IA agora.";
+    let code: string | null = null;
+    try {
+      const body = (await response.json()) as { error?: unknown; code?: unknown };
+      if (typeof body.error === "string" && body.error) message = body.error;
+      if (typeof body.code === "string") code = body.code;
+    } catch {
+      // corpo ilegível: segue com a mensagem padrão
+    }
+    if (response.status === 401) {
+      throw new PlanRequiredError("Entre na sua conta para gerar a legenda com IA.", "LOGIN_REQUIRED");
+    }
+    if (code && PLAN_DENIAL_CODES.has(code)) throw new PlanRequiredError(message, code);
+    throw new Error(message);
+  }
+  return (await response.json()) as AIGeneratedCaption;
+}
+
+/** Códigos que significam "falta plano/limite" — a tela mostra o convite (Ver planos / Entrar) em vez de só um erro. */
+const PLAN_DENIAL_CODES = new Set([
+  "AI_PLAN_REQUIRED",
+  "PLAN_LIMIT_REACHED",
+  "PAID_PLAN_REQUIRED",
+  "TRIAL_ENDED",
+  "TRIAL_DAILY_LIMIT",
+  "PAYMENT_OVERDUE",
+  "PAYMENT_PENDING",
+  "AI_DAILY_CAP",
+  "SUBSCRIPTION_REQUIRED",
+  "LOGIN_REQUIRED",
+]);
+
+export class PlanRequiredError extends Error {
+  readonly code: string;
+  constructor(message: string, code: string) {
+    super(message);
+    this.name = "PlanRequiredError";
+    this.code = code;
+  }
 }
 
 /**

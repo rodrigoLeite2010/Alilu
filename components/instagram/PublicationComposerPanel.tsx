@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useId, useRef, useState, type RefObject } from "react";
 import { Button } from "@/components/ui/Button";
 import { canvasToBlob, waitForFonts } from "@/lib/instagram/export";
@@ -11,6 +12,7 @@ import {
   ensureJpeg,
   fetchAccountStatus,
   generateCaptionWithAI,
+  PlanRequiredError,
   publishPublicationNow,
   updatePublication,
   uploadInstagramMedia,
@@ -134,6 +136,8 @@ export function PublicationComposerPanel({
   const [aiPrompt, setAiPrompt] = useState("");
   const [aiBusy, setAiBusy] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
+  /** Quando o erro é "falta plano/login", a tela oferece o caminho certo (Ver planos / Entrar). */
+  const [aiErrorCode, setAiErrorCode] = useState<string | null>(null);
   const [mode, setMode] = useState<Mode>(initialValues?.mode ?? "now");
   const [schedule, setSchedule] = useState<ScheduleValue>(initialValues?.schedule ?? { date: "", time: "" });
   const [musicMode, setMusicMode] = useState<MusicMode>(initialValues?.musicMode ?? "ACCOUNT_DEFAULT");
@@ -215,6 +219,7 @@ export function PublicationComposerPanel({
     }
     setAiBusy(true);
     setAiError(null);
+    setAiErrorCode(null);
     try {
       const result = await generateCaptionWithAI(aiPrompt.trim());
       setCaption(result.caption);
@@ -222,6 +227,7 @@ export function PublicationComposerPanel({
       setAiPrompt("");
     } catch (err) {
       setAiError(err instanceof Error ? err.message : "Não foi possível gerar a legenda com IA agora.");
+      setAiErrorCode(err instanceof PlanRequiredError ? err.code : null);
     } finally {
       setAiBusy(false);
     }
@@ -379,6 +385,7 @@ export function PublicationComposerPanel({
             disabled={busy}
             onClick={() => {
               setAiError(null);
+              setAiErrorCode(null);
               setAiPromptOpen((open) => !open);
             }}
           >
@@ -402,7 +409,16 @@ export function PublicationComposerPanel({
             />
             {aiError ? (
               <p role="alert" className="text-xs text-red-700">
-                {aiError}
+                {aiError}{" "}
+                {aiErrorCode === "LOGIN_REQUIRED" ? (
+                  <Link href={`/entrar?callbackUrl=${encodeURIComponent(returnPath)}`} className="font-medium underline">
+                    Entrar
+                  </Link>
+                ) : aiErrorCode ? (
+                  <Link href="/planos" className="font-medium underline">
+                    Ver planos
+                  </Link>
+                ) : null}
               </p>
             ) : null}
             <div className="flex gap-2">

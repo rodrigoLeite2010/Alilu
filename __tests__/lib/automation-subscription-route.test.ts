@@ -61,10 +61,16 @@ describe("POST /api/billing/automation-subscription", () => {
   });
 
   describe("action: checkout", () => {
+    it("exige um plano válido", async () => {
+      const response = await POST(jsonRequest({ action: "checkout", name: "Fulano", cpfCnpj: "12345678900" }));
+      expect(response.status).toBe(400);
+      expect(startAutomationCheckoutMock).not.toHaveBeenCalled();
+    });
+
     beforeEach(() => authMock.mockResolvedValue({ user: { id: "user-1" } }));
 
     it("responde 400 quando falta nome ou CPF/CNPJ, sem chamar o serviço", async () => {
-      const response = await POST(jsonRequest({ action: "checkout", name: "", cpfCnpj: "" }));
+      const response = await POST(jsonRequest({ action: "checkout", planCode: "CREATOR", name: "", cpfCnpj: "" }));
       expect(response.status).toBe(400);
       expect(startAutomationCheckoutMock).not.toHaveBeenCalled();
     });
@@ -76,13 +82,14 @@ describe("POST /api/billing/automation-subscription", () => {
       });
 
       const response = await POST(
-        jsonRequest({ action: "checkout", name: "Fulano da Silva", cpfCnpj: "123.456.789-00", email: "f@example.com" }),
+        jsonRequest({ action: "checkout", planCode: "CREATOR", name: "Fulano da Silva", cpfCnpj: "123.456.789-00", email: "f@example.com" }),
       );
       const body = await response.json();
 
       expect(response.status).toBe(200);
       expect(startAutomationCheckoutMock).toHaveBeenCalledWith("user-1", {
         name: "Fulano da Silva",
+        planCode: "CREATOR",
         cpfCnpj: "123.456.789-00",
         email: "f@example.com",
       });
@@ -92,7 +99,7 @@ describe("POST /api/billing/automation-subscription", () => {
 
     it("mapeia SubscriptionBusinessError para 400 com a mensagem original", async () => {
       startAutomationCheckoutMock.mockRejectedValue(new SubscriptionBusinessError("CPF ou CNPJ inválido."));
-      const response = await POST(jsonRequest({ action: "checkout", name: "Fulano", cpfCnpj: "123" }));
+      const response = await POST(jsonRequest({ action: "checkout", planCode: "CREATOR", name: "Fulano", cpfCnpj: "123" }));
       const body = await response.json();
       expect(response.status).toBe(400);
       expect(body.error).toBe("CPF ou CNPJ inválido.");
@@ -100,13 +107,13 @@ describe("POST /api/billing/automation-subscription", () => {
 
     it("mapeia AsaasConfigError para 503 sem vazar detalhes internos", async () => {
       startAutomationCheckoutMock.mockRejectedValue(new AsaasConfigError("ASAAS_API_KEY não configurada."));
-      const response = await POST(jsonRequest({ action: "checkout", name: "Fulano", cpfCnpj: "12345678900" }));
+      const response = await POST(jsonRequest({ action: "checkout", planCode: "CREATOR", name: "Fulano", cpfCnpj: "12345678900" }));
       expect(response.status).toBe(503);
     });
 
     it("mapeia um erro inesperado para 500", async () => {
       startAutomationCheckoutMock.mockRejectedValue(new Error("Banco fora do ar"));
-      const response = await POST(jsonRequest({ action: "checkout", name: "Fulano", cpfCnpj: "12345678900" }));
+      const response = await POST(jsonRequest({ action: "checkout", planCode: "CREATOR", name: "Fulano", cpfCnpj: "12345678900" }));
       expect(response.status).toBe(500);
     });
   });

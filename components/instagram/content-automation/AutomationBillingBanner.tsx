@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { Badge } from "@/components/ui/Badge";
-import { Button } from "@/components/ui/Button";
-import { Dialog } from "@/components/instagram/Dialog";
+import { Button, LinkButton } from "@/components/ui/Button";
+import Link from "next/link";
 import { ConfirmDialog } from "@/components/instagram/ConfirmDialog";
 
 /**
@@ -45,14 +45,17 @@ function daysUntil(iso: string | null): number | null {
   return Math.max(0, Math.ceil(diffMs / (24 * 60 * 60 * 1000)));
 }
 
-export function AutomationBillingBanner({ initialAccess }: { initialAccess: AutomationAccessDto }) {
+export function AutomationBillingBanner({
+  initialAccess,
+  planName = null,
+  planPriceLabel = null,
+}: {
+  initialAccess: AutomationAccessDto;
+  /** Nome do plano pago em vigor (Automático/Criador/Pro), quando houver. */
+  planName?: string | null;
+  planPriceLabel?: string | null;
+}) {
   const [access, setAccess] = useState(initialAccess);
-  const [checkoutOpen, setCheckoutOpen] = useState(false);
-  const [name, setName] = useState("");
-  const [cpfCnpj, setCpfCnpj] = useState("");
-  const [email, setEmail] = useState("");
-  const [checkoutBusy, setCheckoutBusy] = useState(false);
-  const [checkoutError, setCheckoutError] = useState<string | null>(null);
   const [cancelOpen, setCancelOpen] = useState(false);
   const [cancelBusy, setCancelBusy] = useState(false);
   const [cancelError, setCancelError] = useState<string | null>(null);
@@ -66,28 +69,6 @@ export function AutomationBillingBanner({ initialAccess }: { initialAccess: Auto
       if (response.ok) setAccess((await response.json()) as AutomationAccessDto);
     } catch {
       // silencioso — o banner só fica com a informação anterior até a próxima visita à tela.
-    }
-  }
-
-  async function startCheckout() {
-    setCheckoutBusy(true);
-    setCheckoutError(null);
-    try {
-      const response = await fetch("/api/billing/automation-subscription", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "checkout", name, cpfCnpj, email: email || undefined }),
-      });
-      if (!response.ok) {
-        setCheckoutError(await readErrorMessage(response, "Não foi possível iniciar o pagamento."));
-        return;
-      }
-      const body = (await response.json()) as { checkoutUrl: string };
-      window.location.href = body.checkoutUrl;
-    } catch {
-      setCheckoutError("Não foi possível conectar. Tente novamente.");
-    } finally {
-      setCheckoutBusy(false);
     }
   }
 
@@ -135,63 +116,6 @@ export function AutomationBillingBanner({ initialAccess }: { initialAccess: Auto
     }
   }
 
-  const checkoutDialog = (
-    <Dialog
-      open={checkoutOpen}
-      title="Assinar o Piloto Automático"
-      onClose={checkoutBusy ? () => undefined : () => setCheckoutOpen(false)}
-      footer={
-        <>
-          <Button type="button" variant="secondary" onClick={() => setCheckoutOpen(false)} disabled={checkoutBusy}>
-            Cancelar
-          </Button>
-          <Button type="button" onClick={startCheckout} disabled={checkoutBusy || !name.trim() || !cpfCnpj.trim()}>
-            {checkoutBusy ? "Aguarde…" : "Continuar para o pagamento"}
-          </Button>
-        </>
-      }
-    >
-      <div className="space-y-3">
-        <p className="text-sm text-zinc-600">
-          R$ 19,00 por mês, renovação automática, cancele quando quiser. Você escolhe Pix, boleto ou cartão na
-          próxima tela — o Alilu nunca vê nem guarda esses dados.
-        </p>
-        <label className="block text-sm">
-          <span className="mb-1 block font-medium text-zinc-700">Nome completo</span>
-          <input
-            type="text"
-            value={name}
-            onChange={(event) => setName(event.target.value)}
-            className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm"
-            placeholder="Como está no seu documento"
-          />
-        </label>
-        <label className="block text-sm">
-          <span className="mb-1 block font-medium text-zinc-700">CPF ou CNPJ</span>
-          <input
-            type="text"
-            value={cpfCnpj}
-            onChange={(event) => setCpfCnpj(event.target.value)}
-            className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm"
-            placeholder="Exigido pelo Asaas para emitir a cobrança"
-            inputMode="numeric"
-          />
-        </label>
-        <label className="block text-sm">
-          <span className="mb-1 block font-medium text-zinc-700">E-mail (opcional)</span>
-          <input
-            type="email"
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-            className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm"
-            placeholder="Para receber a confirmação do pagamento"
-          />
-        </label>
-        {checkoutError ? <p className="text-sm text-red-600">{checkoutError}</p> : null}
-      </div>
-    </Dialog>
-  );
-
   if (access.status === "EXEMPT") {
     return (
       <div className="mb-6 rounded-lg border border-teal-200 bg-teal-50 px-4 py-3">
@@ -207,15 +131,20 @@ export function AutomationBillingBanner({ initialAccess }: { initialAccess: Auto
     return (
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-teal-200 bg-teal-50 px-4 py-3">
         <div>
-          <Badge tone="brand">Assinatura ativa</Badge>
+          <Badge tone="brand">{planName ? `Plano ${planName}` : "Assinatura ativa"}</Badge>
           <p className="mt-1 text-sm text-teal-900">
-            Postagens automáticas sem limite diário
+            {planPriceLabel ? `${planPriceLabel}/mês — ` : ""}Postagens automáticas sem limite diário
             {access.currentPeriodEndsAt ? ` — renova em ${formatDatePtBr(access.currentPeriodEndsAt)}` : ""}.
           </p>
         </div>
-        <Button type="button" variant="secondary" onClick={() => setCancelOpen(true)}>
-          Cancelar assinatura
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <LinkButton href="/planos" variant="secondary">
+            Gerenciar plano
+          </LinkButton>
+          <Button type="button" variant="ghost" onClick={() => setCancelOpen(true)}>
+            Cancelar assinatura
+          </Button>
+        </div>
         <ConfirmDialog
           open={cancelOpen}
           title="Cancelar assinatura?"
@@ -274,7 +203,10 @@ export function AutomationBillingBanner({ initialAccess }: { initialAccess: Auto
         <Badge tone="warning">Pagamento em atraso</Badge>
         <p className="mt-1 text-sm text-amber-900">
           Novas postagens automáticas ficam pausadas até a próxima cobrança ser confirmada — nada que já foi criado
-          ou agendado é apagado.
+          ou agendado é apagado.{" "}
+          <Link href="/planos" className="font-medium underline">
+            Ver assinatura
+          </Link>
         </p>
       </div>
     );
@@ -289,7 +221,10 @@ export function AutomationBillingBanner({ initialAccess }: { initialAccess: Auto
         <Badge tone="brand">Período de teste</Badge>
         <p className="mt-1 text-sm text-zinc-600">
           {access.remainingToday !== null ? `${access.remainingToday} de 3 automações restantes hoje` : "Até 3 automações por dia"}
-          {trialDaysLeft !== null ? ` — termina em ${trialDaysLeft} dia${trialDaysLeft === 1 ? "" : "s"}` : ""}.
+          {trialDaysLeft !== null ? ` — termina em ${trialDaysLeft} dia${trialDaysLeft === 1 ? "" : "s"}` : ""}.{" "}
+          <Link href="/planos" className="font-medium text-teal-800 underline">
+            Ver planos
+          </Link>
         </p>
       </div>
     );
@@ -303,14 +238,11 @@ export function AutomationBillingBanner({ initialAccess }: { initialAccess: Auto
         <p className="mt-1 text-sm text-zinc-600">
           {access.reason ??
             (access.status === "EXPIRED"
-              ? "Assine por R$ 19,00/mês para continuar usando o Piloto Automático."
-              : "Volte amanhã, ou assine por R$ 19,00/mês para não ter limite diário.")}
+              ? "Escolha um plano, a partir de R$ 19,00/mês, para continuar usando o Piloto Automático."
+              : "Volte amanhã, ou escolha um plano (a partir de R$ 19,00/mês) para não ter limite diário.")}
         </p>
       </div>
-      <Button type="button" onClick={() => setCheckoutOpen(true)}>
-        Assinar por R$ 19/mês
-      </Button>
-      {checkoutDialog}
+      <LinkButton href="/planos">Ver planos</LinkButton>
     </div>
   );
 }

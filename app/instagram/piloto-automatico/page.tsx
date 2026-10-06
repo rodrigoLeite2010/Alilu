@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { auth } from "@/auth";
 import { getAutomationDashboard, listAutomations } from "@/lib/content-automation/backend/automation-service";
-import { canUseAutomation } from "@/lib/billing/backend/automation-access-service";
+import { canUseAutomation, getBillingSummary } from "@/lib/billing/backend/automation-access-service";
+import { formatPriceBrl } from "@/lib/billing/plans";
 import { serializeAccessResult } from "@/lib/billing/backend/billing-dto";
 import { LinkButton } from "@/components/ui/Button";
 import { SchedulingIntro } from "@/components/instagram/SchedulingIntro";
@@ -28,10 +30,11 @@ export default async function ContentAutomationDashboardPage() {
     );
   }
 
-  const [automations, access, dashboard] = await Promise.all([
+  const [automations, access, dashboard, summary] = await Promise.all([
     listAutomations(session.user.id),
     canUseAutomation(session.user.id),
     getAutomationDashboard(session.user.id),
+    getBillingSummary(session.user.id),
   ]);
   const dto: AutomationListItemDto[] = automations.map((item) => ({
     id: item.id,
@@ -57,7 +60,34 @@ export default async function ContentAutomationDashboardPage() {
         <LinkButton href="/instagram/piloto-automatico/nova">Criar automação</LinkButton>
       </div>
 
-      <AutomationBillingBanner initialAccess={serializeAccessResult(access)} />
+      <AutomationBillingBanner
+        initialAccess={serializeAccessResult(access)}
+        planName={summary.plan?.name ?? null}
+        planPriceLabel={summary.plan ? formatPriceBrl(summary.plan.priceCents) : null}
+      />
+      {summary.notices.length > 0 ? (
+        <div className="-mt-3 mb-6 space-y-2">
+          {summary.notices.map((notice) => (
+            <p
+              key={notice.code}
+              className={`rounded-lg border px-4 py-3 text-sm ${
+                notice.level === "blocked"
+                  ? "border-red-200 bg-red-50 text-red-900"
+                  : notice.level === "warning"
+                    ? "border-amber-200 bg-amber-50 text-amber-900"
+                    : "border-zinc-200 bg-zinc-50 text-zinc-700"
+              }`}
+            >
+              {notice.message}{" "}
+              {notice.level !== "info" ? (
+                <Link href="/planos" className="font-medium underline">
+                  Ver planos
+                </Link>
+              ) : null}
+            </p>
+          ))}
+        </div>
+      ) : null}
 
       <AutomationsOverview
         initialAutomations={dto}

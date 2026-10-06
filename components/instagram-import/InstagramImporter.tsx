@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { uploadPresigned } from "@vercel/blob/client";
 import { clearPickerMark, markPickerOpen, trackUpload } from "@/lib/client/upload-telemetry";
@@ -73,12 +74,22 @@ export interface ImportQuotaDto {
   unlimited: boolean;
 }
 
-export function InstagramImporter({ userId, initialQuota = null }: { userId: string; initialQuota?: ImportQuotaDto | null }) {
+export function InstagramImporter({
+  userId,
+  initialQuota = null,
+  needsPlan = false,
+}: {
+  userId: string;
+  initialQuota?: ImportQuotaDto | null;
+  /** Conta sem plano pago: o importador é dos planos pagos — mostra o convite antes de a pessoa colar o link. */
+  needsPlan?: boolean;
+}) {
   const [quota, setQuota] = useState<ImportQuotaDto | null>(initialQuota);
   const [url, setUrl] = useState("");
   const [authorized, setAuthorized] = useState(false);
   const [stage, setStage] = useState<Stage>("idle");
   const [error, setError] = useState<string | null>(null);
+  const [planRequired, setPlanRequired] = useState(false);
   const [offerManual, setOfferManual] = useState(false);
   const [preview, setPreview] = useState<InstagramImportDto | null>(null);
   const [selected, setSelected] = useState(0);
@@ -93,6 +104,7 @@ export function InstagramImporter({ userId, initialQuota = null }: { userId: str
   const urlCheck = url.trim() ? parseInstagramUrl(url) : null;
 
   function reset() {
+    setPlanRequired(false);
     setUrl("");
     setStage("idle");
     setError(null);
@@ -108,6 +120,7 @@ export function InstagramImporter({ userId, initialQuota = null }: { userId: str
 
   async function resolve(force = false) {
     setError(null);
+    setPlanRequired(false);
     setOfferManual(false);
     setDuplicate(null);
     if (!authorized) {
@@ -128,6 +141,7 @@ export function InstagramImporter({ userId, initialQuota = null }: { userId: str
       if (!response.ok) {
         const failure = await readError(response, "Não conseguimos importar agora. Tente novamente ou faça upload manual.");
         setError(failure.message);
+        setPlanRequired(failure.code === "PLAN_REQUIRED");
         setOfferManual(failure.manualUpload || failure.code === "PRIVATE_CONTENT" || failure.code === "UNSUPPORTED");
         setStage("idle");
         return;
@@ -349,6 +363,17 @@ export function InstagramImporter({ userId, initialQuota = null }: { userId: str
 
   return (
     <div className="space-y-6">
+      {needsPlan ? (
+        <section className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900" data-testid="import-plan-invite">
+          <p className="font-medium">O importador do Instagram faz parte dos planos pagos.</p>
+          <p className="mt-1">
+            Escolha qualquer plano (a partir de R$ 19/mês, o Automático) para importar Reels, vídeos e carrosséis. As demais ferramentas continuam grátis.
+          </p>
+          <div className="mt-3">
+            <LinkButton href="/planos">Ver planos</LinkButton>
+          </div>
+        </section>
+      ) : null}
       <section className="space-y-4 rounded-lg border border-zinc-200 p-4 sm:p-6">
         <div>
           <label htmlFor="instagram-import-url" className="mb-1 block text-sm font-medium text-zinc-800">
@@ -380,6 +405,14 @@ export function InstagramImporter({ userId, initialQuota = null }: { userId: str
         {error ? (
           <p role="alert" className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
             {error}
+            {planRequired ? (
+              <>
+                {" "}
+                <Link href="/planos" className="font-medium underline">
+                  Ver planos
+                </Link>
+              </>
+            ) : null}
           </p>
         ) : null}
         {duplicate ? (

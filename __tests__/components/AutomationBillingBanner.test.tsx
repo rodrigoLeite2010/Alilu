@@ -19,11 +19,9 @@ function access(overrides: Partial<AutomationAccessDto> = {}): AutomationAccessD
 
 describe("AutomationBillingBanner", () => {
   const originalFetch = global.fetch;
-  const originalLocation = window.location;
 
   afterEach(() => {
     global.fetch = originalFetch;
-    Object.defineProperty(window, "location", { value: originalLocation, writable: true, configurable: true });
     vi.restoreAllMocks();
   });
 
@@ -44,35 +42,25 @@ describe("AutomationBillingBanner", () => {
       />,
     );
     expect(screen.getByText("Limite de hoje atingido")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Assinar por R$ 19/mês" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Ver planos" })).toHaveAttribute("href", "/planos");
   });
 
-  it("trial encerrado: preenche o checkout e redireciona para o link do Asaas", async () => {
-    const fetchMock = vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => ({ checkoutUrl: "https://www.asaas.com/i/pay_1" }),
-    });
-    global.fetch = fetchMock as unknown as typeof fetch;
-    delete (window as unknown as { location?: unknown }).location;
-    Object.defineProperty(window, "location", { value: { href: "" }, writable: true, configurable: true });
-
+  it("trial encerrado: convida a escolher um plano na página de planos", () => {
     render(<AutomationBillingBanner initialAccess={access({ status: "EXPIRED", allowed: false })} />);
+    expect(screen.getByText("Período de teste encerrado")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Ver planos" })).toHaveAttribute("href", "/planos");
+  });
 
-    fireEvent.click(screen.getByRole("button", { name: "Assinar por R$ 19/mês" }));
-    fireEvent.change(screen.getByPlaceholderText("Como está no seu documento"), { target: { value: "Fulano da Silva" } });
-    fireEvent.change(screen.getByPlaceholderText("Exigido pelo Asaas para emitir a cobrança"), {
-      target: { value: "12345678900" },
-    });
-    fireEvent.click(screen.getByRole("button", { name: "Continuar para o pagamento" }));
-
-    await waitFor(() => expect(window.location.href).toBe("https://www.asaas.com/i/pay_1"));
-    expect(fetchMock).toHaveBeenCalledWith(
-      "/api/billing/automation-subscription",
-      expect.objectContaining({
-        method: "POST",
-        body: JSON.stringify({ action: "checkout", name: "Fulano da Silva", cpfCnpj: "12345678900", email: undefined }),
-      }),
+  it("assinante ativo mostra o nome do plano e o atalho para gerenciar", () => {
+    render(
+      <AutomationBillingBanner
+        initialAccess={access({ status: "ACTIVE", allowed: true, currentPeriodEndsAt: "2026-10-15T00:00:00.000Z" })}
+        planName="Criador"
+        planPriceLabel="R$ 24,90"
+      />,
     );
+    expect(screen.getByText("Plano Criador")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Gerenciar plano" })).toHaveAttribute("href", "/planos");
   });
 
   it("assinante ativo: cancelar pede confirmação e depois atualiza o status mostrado", async () => {
