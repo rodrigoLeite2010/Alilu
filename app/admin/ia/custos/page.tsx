@@ -53,9 +53,14 @@ export default async function AdminAiCostsPage() {
     <Container className="max-w-5xl py-10">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-semibold text-zinc-900">IA · Custos de geração</h1>
-        <Link href="/admin/ia/precificacao" className="text-sm font-medium text-teal-800 hover:underline">
-          ← Precificação
-        </Link>
+        <div className="flex gap-4">
+          <Link href="/admin/assinaturas" className="text-sm font-medium text-teal-800 hover:underline">
+            Assinaturas e receita
+          </Link>
+          <Link href="/admin/ia/precificacao" className="text-sm font-medium text-teal-800 hover:underline">
+            ← Precificação
+          </Link>
+        </div>
       </div>
       {data.alerts.length > 0 ? (
         <ul className="mt-4 space-y-1 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
