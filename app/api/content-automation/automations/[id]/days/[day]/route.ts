@@ -155,6 +155,6 @@ export async function PATCH(request: Request, { params }: RouteParams): Promise<
   } catch (error) {
     console.error("[content-automation/automations/id/days/day] falha ao atualizar dia", error);
     const message = error instanceof AutomationValidationError ? error.message : "Não foi possível atualizar este dia.";
-    return NextResponse.json({ error: message }, { status: 400 });
+    return NextResponse.json({ error: message, code: error instanceof AutomationValidationError ? error.code : undefined }, { status: 400 });
   }
 }

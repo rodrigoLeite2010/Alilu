@@ -128,7 +128,7 @@ export async function PATCH(request: Request, { params }: RouteParams): Promise<
   } catch (error) {
     console.error("[content-automation/automations/id] falha ao atualizar", error);
     const message = error instanceof AutomationValidationError ? error.message : "Não foi possível atualizar a automação.";
-    return NextResponse.json({ error: message }, { status: 400 });
+    return NextResponse.json({ error: message, code: error instanceof AutomationValidationError ? error.code : undefined }, { status: 400 });
   }
 }
 

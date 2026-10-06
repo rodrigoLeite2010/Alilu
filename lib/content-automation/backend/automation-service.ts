@@ -1,4 +1,5 @@
 import "server-only";
+import { canUseAiAutomation } from "@/lib/billing/backend/automation-access-service";
 import { isValidTimeZone } from "@/lib/instagram/schedule-time";
 import { isPostTemplateId } from "@/lib/instagram/templates";
 import { isValidHexColor } from "@/lib/instagram/colors";
@@ -66,9 +67,20 @@ import {
  */
 
 export class AutomationValidationError extends Error {
-  constructor(message: string) {
+  /** Código de plano (ex.: "AI_PLAN_REQUIRED") quando o bloqueio é comercial — a tela mostra o convite de upgrade por ele. */
+  code?: string;
+  constructor(message: string, code?: string) {
     super(message);
     this.name = "AutomationValidationError";
+    this.code = code;
+  }
+}
+
+/** Texto de IA só em plano com IA (ou no teste gratuito) — o servidor decide, nunca a tela. */
+async function assertPlanAllowsAi(userId: string): Promise<void> {
+  const access = await canUseAiAutomation(userId);
+  if (!access.allowed) {
+    throw new AutomationValidationError(access.reason ?? "Seu plano não inclui geração com IA.", access.code ?? "AI_PLAN_REQUIRED");
   }
 }
 
@@ -274,7 +286,10 @@ export async function updateAutomationDay(
     }
     patch.contentCategory = input.contentCategory;
   }
-  if (input.contentMode !== undefined) patch.contentMode = input.contentMode;
+  if (input.contentMode !== undefined) {
+    if (input.contentMode === "AI") await assertPlanAllowsAi(userId);
+    patch.contentMode = input.contentMode;
+  }
   if (input.prompt !== undefined) {
     const trimmed = input.prompt.trim();
     if (trimmed.length > MAX_PROMPT_LENGTH) {
@@ -417,6 +432,7 @@ function assertReadyToActivate(automation: AutomationWithDays): void {
 export async function activateAutomation(id: string, userId: string): Promise<void> {
   const automation = await getAutomationDetails(id, userId);
   assertReadyToActivate(automation);
+  if (automation.days.some((day) => day.enabled && day.contentMode === "AI")) await assertPlanAllowsAi(userId);
   const updated = await setAutomationStatus(id, userId, "ACTIVE");
   if (!updated) throw new AutomationValidationError("Automação não encontrada.");
 }

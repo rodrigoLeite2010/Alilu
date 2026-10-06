@@ -1,4 +1,5 @@
 import "server-only";
+import { canUseImporter } from "@/lib/billing/backend/automation-access-service";
 import { del as deleteBlob, put } from "@vercel/blob";
 import {
   INSTAGRAM_IMPORT_ERROR_MESSAGES,
@@ -104,6 +105,15 @@ export async function resolveInstagramLink(
 ): Promise<ResolveResult> {
   if (input.authorized !== true) {
     throw new InstagramImportError("Confirme que o conteúdo é seu ou que você tem autorização para usá-lo.", "AUTHORIZATION_REQUIRED", 400);
+  }
+  // Importador = recurso dos planos pagos. A regra é do servidor (a tela só mostra o convite); administradores passam.
+  if (access.isAdmin !== true) {
+    const gate = await canUseImporter(userId, now);
+    if (!gate.allowed) {
+      throw new InstagramImportError(gate.reason ?? "O importador de Instagram faz parte dos planos pagos.", "PLAN_REQUIRED", 402, {
+        planCode: gate.code,
+      });
+    }
   }
   const originalUrl = typeof input.url === "string" ? input.url.trim() : "";
   const parsed = parseInstagramUrl(originalUrl);

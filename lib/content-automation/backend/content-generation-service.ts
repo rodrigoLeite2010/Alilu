@@ -53,7 +53,7 @@ export async function generatePostContentForRun(
     includeVisualText: options.includeVisualText,
     visualTextMode: options.visualTextMode,
   });
-  await recordGenerationUsage(automation.id, runId, usage);
+  await recordGenerationUsage(automation.id, runId, usage, automation.userId);
 
   return {
     title: content.title,
@@ -79,7 +79,7 @@ export async function generateReelContentForRun(
     dayOfWeekLabel: DAY_OF_WEEK_LABEL[day.dayOfWeek],
     avoidTopics,
   });
-  await recordGenerationUsage(automation.id, runId, usage);
+  await recordGenerationUsage(automation.id, runId, usage, automation.userId);
 
   return {
     title: content.title,

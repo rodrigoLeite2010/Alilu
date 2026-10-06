@@ -329,9 +329,8 @@ function VideoUploadSlot({
         if (input) input.value = "";
         failedFileRef.current = { normalized: normalizedFile, original };
         setCanRetry(true);
-        const message = `${error instanceof FileNotReadableError ? error.message : "Não foi possível abrir esse vídeo. Tente outro arquivo."} (detalhe: ${readFailureReason(error).slice(0, 80)})`;
         trackUpload("split-screen", "validation_error", { file: original, message: `arquivo ilegível: ${readFailureReason(error)}` });
-        setLocalFileError(message);
+        setLocalFileError(error instanceof FileNotReadableError ? error.message : "Não foi possível abrir esse vídeo. Tente outro arquivo.");
         onFileChange(null);
       })
       .finally(() => setChecking(false));

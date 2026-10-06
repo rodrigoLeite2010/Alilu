@@ -9,6 +9,8 @@
  * lugares.
  */
 
+import { FREE_TRIAL, PLAN_DEFINITIONS, type PlanCode } from "../plans";
+
 export type AutomationSubscriptionStatus =
   | "TRIAL"
   | "PENDING_PAYMENT"
@@ -23,10 +25,10 @@ export type AutomationSubscriptionStatus =
  * todo o sistema (serviço de acesso, tela do Piloto, criação da
  * assinatura no Asaas).
  */
-export const TRIAL_DAYS = 7;
-export const TRIAL_DAILY_LIMIT = 3;
-/** Em centavos (mesmo padrão de fin_debts/fin_goals neste projeto) — R$ 19,00. */
-export const MONTHLY_PRICE_CENTS = 1900;
+export const TRIAL_DAYS = FREE_TRIAL.days;
+export const TRIAL_DAILY_LIMIT = FREE_TRIAL.dailyLimit;
+/** Em centavos — preço do plano AUTOMATION (R$ 19,00). Os demais planos e limites vivem em ../plans.ts. */
+export const MONTHLY_PRICE_CENTS = PLAN_DEFINITIONS.AUTOMATION.priceCents;
 
 export interface AutomationSubscriptionRecord {
   id: string;
@@ -42,6 +44,10 @@ export interface AutomationSubscriptionRecord {
   /** Só dígitos — coletado uma vez no checkout (o Asaas exige para criar o customer). */
   cpfCnpj: string | null;
   monthlyPriceCents: number;
+  /** Plano contratado (só vale quando a assinatura está paga; durante o teste não tem efeito). */
+  planCode: PlanCode;
+  /** Troca de plano agendada para o próximo ciclo (downgrade), ou `null`. */
+  pendingPlanCode: PlanCode | null;
   startedAt: Date | null;
   currentPeriodEndsAt: Date | null;
   canceledAt: Date | null;
@@ -64,10 +70,36 @@ export interface AutomationAccessResult {
   /** `null` quando a assinatura está ACTIVE (sem limite diário nesse caso). */
   remainingToday: number | null;
   currentPeriodEndsAt: Date | null;
+  /** Por que foi negado (`null` quando permitido) — a tela escolhe o aviso/botão por aqui. */
+  code: AccessDenialCode | null;
 }
 
+/**
+ * Por que um recurso pago foi negado — a tela escolhe o aviso/botão por
+ * este código (nunca pela mensagem). `LOGIN_REQUIRED` é devolvido pelas
+ * rotas de API quando não há sessão.
+ */
+export type AccessDenialCode =
+  | "LOGIN_REQUIRED"
+  | "SUBSCRIPTION_REQUIRED"
+  | "TRIAL_ENDED"
+  | "TRIAL_DAILY_LIMIT"
+  | "PAYMENT_PENDING"
+  | "PAYMENT_OVERDUE"
+  | "AI_PLAN_REQUIRED"
+  | "PLAN_LIMIT_REACHED"
+  | "AI_DAILY_CAP"
+  | "PAID_PLAN_REQUIRED";
+
 /** Lançado pelo AutomationAccessService quando o uso não é permitido — o cron nunca chama a IA depois disso. */
-export class SubscriptionRequiredError extends Error {}
+export class SubscriptionRequiredError extends Error {
+  code: AccessDenialCode;
+  constructor(message: string, code: AccessDenialCode = "SUBSCRIPTION_REQUIRED") {
+    super(message);
+    this.name = "SubscriptionRequiredError";
+    this.code = code;
+  }
+}
 
 /** Erro de negócio do checkout/cancelamento (CPF inválido, já tem assinatura ativa, nada para cancelar, etc.) — mensagem já pronta para mostrar ao usuário. */
 export class SubscriptionBusinessError extends Error {}

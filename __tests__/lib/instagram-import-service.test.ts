@@ -24,8 +24,15 @@ const REEL = "https://www.instagram.com/reel/DbDp7T4olyC/?igsh=abc";
 const MP4 = makeSolidMp4({ width: 360, height: 640, seconds: 2 });
 const resolveMock = vi.fn();
 
-async function seedUser(suffix = "1") {
+// O importador é recurso dos planos pagos: por padrão o usuário de teste já tem plano ativo.
+async function seedUser(suffix = "1", options: { paid?: boolean } = {}) {
   const [user] = await db.sql`insert into users (email) values (${`import${suffix}@example.com`}) returning id`;
+  if (options.paid !== false) {
+    await db.sql`
+      insert into automation_subscriptions (user_id, status, plan_code, current_period_ends_at)
+      values (${user.id}, 'ACTIVE', 'AUTOMATION', now() + interval '30 days')
+    `;
+  }
   return user.id as string;
 }
 
@@ -54,6 +61,25 @@ afterEach(async () => {
   registry.__setInstagramImportProviderForTests(null);
   vi.restoreAllMocks();
   await db.close();
+});
+
+describe("importador só para planos pagos", () => {
+  it("sem plano (ou só no teste grátis): bloqueia com PLAN_REQUIRED e nunca chama o provedor", async () => {
+    const userId = await seedUser("free", { paid: false });
+    await expect(service.resolveInstagramLink(userId, { url: REEL, authorized: true })).rejects.toMatchObject({
+      code: "PLAN_REQUIRED",
+      httpStatus: 402,
+    });
+    await db.sql`insert into automation_subscriptions (user_id, status, trial_started_at, trial_ends_at) values (${userId}, 'TRIAL', now(), now() + interval '5 days')`;
+    await expect(service.resolveInstagramLink(userId, { url: REEL, authorized: true })).rejects.toMatchObject({ code: "PLAN_REQUIRED" });
+    expect(resolveMock).not.toHaveBeenCalled();
+  });
+
+  it("administrador passa sem plano", async () => {
+    const userId = await seedUser("adm", { paid: false });
+    const result = await service.resolveInstagramLink(userId, { url: REEL, authorized: true }, new Date(), { isAdmin: true });
+    expect(result.record?.status).toBe("READY");
+  });
 });
 
 describe("resolver o link", () => {

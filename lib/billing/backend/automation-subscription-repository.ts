@@ -1,5 +1,7 @@
 import "server-only";
 import { getDb } from "@/lib/db/client";
+import { billingDateStr } from "../billing-time";
+import { isPlanCode } from "../plans";
 import type { AutomationSubscriptionRecord, AutomationSubscriptionStatus } from "./billing-types";
 
 /**
@@ -34,6 +36,8 @@ function mapSubscriptionRow(row: Record<string, unknown>): AutomationSubscriptio
     asaasSubscriptionId: (row.asaas_subscription_id as string | null) ?? null,
     cpfCnpj: (row.cpf_cnpj as string | null) ?? null,
     monthlyPriceCents: Number(row.monthly_price_cents),
+    planCode: isPlanCode(row.plan_code) ? row.plan_code : "AUTOMATION",
+    pendingPlanCode: isPlanCode(row.pending_plan_code) ? row.pending_plan_code : null,
     startedAt: row.started_at ? new Date(row.started_at as string) : null,
     currentPeriodEndsAt: row.current_period_ends_at ? new Date(row.current_period_ends_at as string) : null,
     canceledAt: row.canceled_at ? new Date(row.canceled_at as string) : null,
@@ -227,7 +231,8 @@ export async function reserveTrialUsage(
 ): Promise<AutomationSubscriptionRecord | null> {
   const db = getDb();
   const nowIso = now.toISOString();
-  const today = nowIso.slice(0, 10);
+  // Dia civil no Brasil (não UTC): o contador de 3/dia zera à meia-noite de Brasília.
+  const today = billingDateStr(now);
   const trialEndsAtIso = new Date(now.getTime() + trialDays * 24 * 60 * 60 * 1000).toISOString();
 
   const rows = await db`

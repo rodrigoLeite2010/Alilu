@@ -507,7 +507,11 @@ async function generateAndCreatePublication(
   nowDate: Date,
   runDate: string,
 ): Promise<{ publicationId: string; status: Extract<AutomationRunStatus, "WAITING_APPROVAL" | "SCHEDULED"> }> {
-  const reservation = await reserveAutomationUse(automation.userId, nowDate);
+  // Texto manual não consome a franquia nem exige plano com IA; só o modo IA conta (referência = a execução, p/ não contar duas vezes em retry).
+  const reservation = await reserveAutomationUse(automation.userId, nowDate, {
+    usesAi: day.contentMode === "AI",
+    referenceId: runId,
+  });
   try {
     return await generateAndCreatePublicationUnchecked(automation, day, runId, publishAtUtc, runDate);
   } catch (error) {
