@@ -82,6 +82,9 @@ beforeEach(async () => {
   db = await createTestDb();
   // Estes testes criam várias gerações em sequência; o limite "um vídeo por vez" tem teste próprio.
   await db.sql`update ai_pricing_config set max_concurrent_generations_per_user = 10`;
+  // Estes testes são da mecânica de reserva/consumo/devolução, não do preço: fixam o vídeo de 5 s em 100 créditos
+  // (os preços reais em R$ 0,05/crédito têm teste próprio em ai-video-tiers-retry-issues e plans-usage).
+  await db.sql`update ai_video_model_pricing set alilu_credit_cost = 100 where provider_model = 'gen4_turbo' and duration_seconds = 5`;
   registry.__setImageToVideoProvidersForTests({
     runway: provider as unknown as ImageToVideoProvider,
     fal: provider as unknown as ImageToVideoProvider,

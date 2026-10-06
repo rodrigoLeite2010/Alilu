@@ -54,7 +54,7 @@ async function available(userId: string) {
 }
 
 let paymentCounter = 0;
-async function checkout(userId: string, packageCode = "BASICO") {
+async function checkout(userId: string, packageCode = "C500") {
   return purchases.startCreditCheckout(userId, { packageCode, name: "Maria Teste", cpfCnpj: "529.982.247-25", email: "m@example.com" }, T0);
 }
 
@@ -100,7 +100,7 @@ describe("checkout", () => {
     expect(result.checkoutUrl).toBe("https://sandbox.asaas.com/i/1");
     expect(calls).toEqual(["POST /customers", "POST /payments"]);
     const [purchase] = await db.sql`select status, price_cents, credits, asaas_payment_id from ai_credit_purchases`;
-    expect(purchase).toEqual({ status: "PENDING", price_cents: 1990, credits: 500, asaas_payment_id: "pay_1" });
+    expect(purchase).toEqual({ status: "PENDING", price_cents: 2500, credits: 500, asaas_payment_id: "pay_1" });
     expect(await available(userId)).toBe(0);
     expect(await purchases.hasBillingCustomer(userId)).toBe(true);
   });
@@ -115,7 +115,7 @@ describe("checkout", () => {
     };
     const result = await purchases.startCreditCheckout(
       userId,
-      { packageCode: "BASICO", name: "Maria Teste", cpfCnpj: "529.982.247-25", returnTo: "/videos/imagem-para-video", requiredCredits: 50 },
+      { packageCode: "C500", name: "Maria Teste", cpfCnpj: "529.982.247-25", returnTo: "/videos/imagem-para-video", requiredCredits: 50 },
       T0,
     );
     const callback = (sentBody as unknown as { callback: { successUrl: string; autoRedirect: boolean } }).callback;
@@ -149,15 +149,15 @@ describe("checkout", () => {
     const first = await checkout(userId);
     const second = await checkout(userId);
     expect(second.purchaseId).toBe(first.purchaseId);
-    await checkout(userId, "PRO");
+    await checkout(userId, "C1000");
     expect(calls.filter((c) => c === "POST /customers")).toHaveLength(1);
   });
 
   it("recusa pacote desconhecido e pacote abaixo da margem mínima", async () => {
     const userId = await seedUser();
     await expect(checkout(userId, "NAO_EXISTE")).rejects.toBeInstanceOf(purchases.CreditPurchaseError);
-    await db.sql`update ai_credit_packages set price_cents = 9990 where code = 'PRO'`;
-    const error = await checkout(userId, "PRO").catch((e) => e);
+    await db.sql`update ai_credit_packages set price_cents = 1000 where code = 'C1000'`;
+    const error = await checkout(userId, "C1000").catch((e) => e);
     expect(error.httpStatus).toBe(503);
     expect(calls).not.toContain("POST /payments");
   });

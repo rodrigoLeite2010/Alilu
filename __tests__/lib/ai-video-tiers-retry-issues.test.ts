@@ -107,22 +107,22 @@ afterEach(async () => {
 });
 
 describe("faixas", () => {
-  it("Econômico → fal (Wan 2.2, 65 créditos); Padrão → gen4_turbo (100); Premium → gen4.5 (230); o usuário nunca vê o provedor", async () => {
+  it("Econômico → fal (Wan 2.2, 55 créditos); Padrão → gen4_turbo (80); Premium → gen4.5 (185); o usuário nunca vê o provedor", async () => {
     const options = await service.listGenerationOptions();
     const find = (tier: string, seconds: number) => options.find((o) => o.tier === tier && o.durationSeconds === seconds);
-    expect(find("ECONOMICO", 5)?.credits).toBe(65);
-    expect(find("PADRAO", 5)?.credits).toBe(100);
-    expect(find("PADRAO", 10)?.credits).toBe(195);
-    expect(find("PREMIUM", 5)?.credits).toBe(230);
+    expect(find("ECONOMICO", 5)?.credits).toBe(55);
+    expect(find("PADRAO", 5)?.credits).toBe(80);
+    expect(find("PADRAO", 10)?.credits).toBe(155);
+    expect(find("PREMIUM", 5)?.credits).toBe(185);
     expect(JSON.stringify(options)).not.toMatch(/runway|fal|gen4|wan/i);
 
     const userId = await seedUser(1000);
     const econ = await service.createGeneration(userId, input(userId), T0);
-    expect(econ).toMatchObject({ provider: "fal", providerModel: "fal-ai/wan/v2.2-5b/image-to-video", creditCost: 65 });
+    expect(econ).toMatchObject({ provider: "fal", providerModel: "fal-ai/wan/v2.2-5b/image-to-video", creditCost: 55 });
     expect(fal.create).toHaveBeenCalledTimes(1);
     const premium = await service.createGeneration(userId, input(userId, { tier: "PREMIUM" }), T0);
-    expect(premium).toMatchObject({ provider: "runway", providerModel: "gen4.5", creditCost: 230 });
-    expect(await available(userId)).toBe(1000 - 65 - 230);
+    expect(premium).toMatchObject({ provider: "runway", providerModel: "gen4.5", creditCost: 185 });
+    expect(await available(userId)).toBe(1000 - 55 - 185);
   });
 
   it("todas as faixas iniciais ficam na margem alvo (≥ 50%)", async () => {
@@ -150,7 +150,7 @@ describe("preservar textos e logo", () => {
     const sent = (fal.create.mock.calls as unknown as Array<[{ prompt: string }]>)[0][0];
     expect(sent.prompt).toContain("câmera aproxima devagar");
     expect(sent.prompt).not.toContain("www.alilu.com.br");
-    expect(await available(userId)).toBe(35);
+    expect(await available(userId)).toBe(45);
   }, 60_000);
 
   it("sem a opção, os overlays enviados são ignorados (só anima a imagem)", async () => {
@@ -203,15 +203,15 @@ describe("gerar novamente com desconto", () => {
   it("50% do preço cheio, mesma imagem, sem cobrar duas vezes no clique duplo", async () => {
     const userId = await seedUser(500);
     const parent = await generateCompleted(userId, { tier: "PADRAO" });
-    expect(parent.creditCost).toBe(100);
+    expect(parent.creditCost).toBe(80);
     const options = await service.listGenerationOptions();
-    expect(options.find((o) => o.tier === "PADRAO" && o.durationSeconds === 5)?.retryCredits).toBe(50);
+    expect(options.find((o) => o.tier === "PADRAO" && o.durationSeconds === 5)?.retryCredits).toBe(40);
 
     const retryInput = input(userId, { tier: "PADRAO", retryOfGenerationId: parent.id, prompt: "agora girando devagar" });
     const [a, b] = await Promise.all([service.createGeneration(userId, retryInput, T0), service.createGeneration(userId, retryInput, T0)]);
     expect(a.id).toBe(b.id);
-    expect(a).toMatchObject({ creditCost: 50, pricingKind: "RETRY_DISCOUNT", listCreditCost: 100, parentGenerationId: parent.id });
-    expect(await available(userId)).toBe(500 - 100 - 50);
+    expect(a).toMatchObject({ creditCost: 40, pricingKind: "RETRY_DISCOUNT", listCreditCost: 80, parentGenerationId: parent.id });
+    expect(await available(userId)).toBe(500 - 80 - 40);
   });
 
   it("o desconto nunca deixa a regeneração abaixo do custo", async () => {
@@ -219,8 +219,8 @@ describe("gerar novamente com desconto", () => {
     await db.sql`update ai_pricing_config set retry_discount_pct = 90`;
     const parent = await generateCompleted(userId, { tier: "PADRAO" });
     const retry = await service.createGeneration(userId, input(userId, { tier: "PADRAO", retryOfGenerationId: parent.id }), T0);
-    // gen4_turbo 5 s: custo total R$ 1,80 → precisa de ≥ R$ 1,90 de receita (taxa 5%) → 50 créditos, não 10.
-    expect(retry.creditCost).toBe(50);
+    // gen4_turbo 5 s: custo total R$ 1,80 → precisa de ≥ R$ 1,90 de receita (taxa 5%) → 40 créditos, não 10.
+    expect(retry.creditCost).toBe(40);
     expect(retry.revenueAllocatedBrl * 0.95).toBeGreaterThanOrEqual(retry.estimatedCostBrl);
   });
 
@@ -248,10 +248,10 @@ describe("reportar problema", () => {
   it("vídeo corrompido confirmado → devolve os créditos já consumidos (uma vez só)", async () => {
     const userId = await seedUser(100);
     const done = await generateCompleted(userId);
-    expect(await available(userId)).toBe(35);
+    expect(await available(userId)).toBe(45);
     storedVideo = Buffer.alloc(0);
     const result = await issues.reportGenerationIssue(userId, done.id, { issueType: "VIDEO_CORRUPTED" }, at(60_000));
-    expect(result).toMatchObject({ resolution: "REFUNDED", refundedCredits: 65 });
+    expect(result).toMatchObject({ resolution: "REFUNDED", refundedCredits: 55 });
     expect(result.generation.status).toBe("REFUNDED");
     expect(await available(userId)).toBe(100);
     await expect(issues.reportGenerationIssue(userId, done.id, { issueType: "VIDEO_CORRUPTED" }, at(60_000))).rejects.toMatchObject({ code: "ISSUE_NOT_ALLOWED" });
@@ -265,7 +265,7 @@ describe("reportar problema", () => {
     const b = await generateCompleted(userId);
     const result = await issues.reportGenerationIssue(userId, b.id, { issueType: "WRONG_MOTION", description: "girou para o lado errado" }, at(60_000));
     expect(result.resolution).toBe("RETRY_OFFERED");
-    expect(await available(userId)).toBe(200 - 65 - 65);
+    expect(await available(userId)).toBe(200 - 55 - 55);
     const [row] = await db.sql`select issue_type, description from ai_video_generation_issues where generation_id = ${b.id}`;
     expect(row).toEqual({ issue_type: "WRONG_MOTION", description: "girou para o lado errado" });
     await expect(issues.reportGenerationIssue(userId, b.id, { issueType: "OTHER" }, at(60_000))).rejects.toMatchObject({ httpStatus: 409 });
@@ -299,7 +299,7 @@ describe("vários jobs simultâneos", () => {
     fal.getStatus.mockResolvedValue({ state: "PROCESSING", outputUrls: [], failureCode: null, failureMessage: null, failureKind: null });
     const created = [];
     for (let i = 0; i < 3; i += 1) created.push(await service.createGeneration(userId, input(userId), T0));
-    expect(await available(userId)).toBe(1000 - 3 * 65);
+    expect(await available(userId)).toBe(1000 - 3 * 55);
 
     fal.getStatus.mockResolvedValue({ state: "SUCCEEDED", outputUrls: ["https://cdn.example.com/out.mp4"], failureCode: null, failureMessage: null, failureKind: null });
     const [first, second] = await Promise.all([service.runAiVideoCron({ now: () => at(30_000) }), service.runAiVideoCron({ now: () => at(30_000) })]);
@@ -310,6 +310,6 @@ describe("vários jobs simultâneos", () => {
     expect(consumes[0].total).toBe(3);
     expect(blobPut).toHaveBeenCalledTimes(3);
     const w = await wallet.getWallet(userId);
-    expect(w).toMatchObject({ available: 1000 - 195, reserved: 0 });
+    expect(w).toMatchObject({ available: 1000 - 3 * 55, reserved: 0 });
   }, 60_000);
 });
