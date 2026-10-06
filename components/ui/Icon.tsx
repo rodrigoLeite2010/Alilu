@@ -72,6 +72,10 @@ import {
   FileInput,
   FileOutput,
   Ticket,
+  Plus,
+  Check,
+  CircleAlert,
+  Loader,
   type LucideIcon,
 } from "lucide-react";
 
@@ -158,6 +162,10 @@ const iconMap: Record<string, LucideIcon> = {
   instagram: Camera,
   // Categoria "Loterias": bilhete/ticket representa bem o tema sem imitar a identidade visual oficial de nenhuma loteria.
   ticket: Ticket,
+  plus: Plus,
+  check: Check,
+  "circle-alert": CircleAlert,
+  loader: Loader,
 };
 
 export interface IconProps {

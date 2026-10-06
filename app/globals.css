@@ -47,6 +47,26 @@ body {
   }
 }
 
+/* Entrada do bottom sheet mobile (components/mobile/MobileBottomSheet.tsx). */
+@keyframes mobile-sheet-in {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+.mobile-sheet-in {
+  animation: mobile-sheet-in 0.2s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mobile-sheet-in {
+    animation: none;
+  }
+}
+
 /*
  * Estilo simples para conteúdo textual longo (páginas legais, "sobre").
  * Escrito à mão para não depender do plugin @tailwindcss/typography.

@@ -10,6 +10,7 @@ import { SuggestionPrompt } from "@/components/layout/SuggestionPrompt";
 import { SiteSidebar } from "@/components/navigation/SiteNav";
 import { DonationProvider } from "@/components/donation/DonationProvider";
 import { DonationFloatingButton } from "@/components/donation/DonationFloatingButton";
+import { MobileBottomNavigation } from "@/components/mobile/MobileBottomNavigation";
 import { SITE_DESCRIPTION, SITE_NAME, SITE_TITLE_TEMPLATE, SITE_URL } from "@/lib/seo/site";
 
 /**
@@ -45,8 +46,10 @@ export const metadata: Metadata = {
   },
 };
 
+// viewportFit "cover": libera env(safe-area-inset-*) no iPhone para a barra inferior do mobile.
 export const viewport: Viewport = {
   themeColor: "#004b5a",
+  viewportFit: "cover",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
@@ -55,7 +58,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       lang="pt-BR"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="flex min-h-full flex-col bg-background text-foreground">
+      <body className="flex min-h-full flex-col bg-background text-foreground max-md:pb-[calc(3.5rem+env(safe-area-inset-bottom))] print:pb-0">
+        {/* max-md:pb no body = altura da barra inferior (3.5rem) + safe area, para ela nunca cobrir conteúdo. */}
         <Suspense fallback={null}>
           <LogoutNotice />
         </Suspense>
@@ -88,11 +92,12 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             SuggestionPrompt.tsx). DonationFloatingButton some sozinho
             quando a doação está desabilitada (DonationButton -> useDonation).
           */}
-          <div className="fixed bottom-4 right-4 z-40 flex flex-col items-end gap-3 print:hidden">
+          <div className="fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom))] right-4 z-40 flex flex-col items-end gap-3 md:bottom-4 print:hidden">
             <DonationFloatingButton />
             <SuggestionPrompt />
           </div>
           <Footer />
+          <MobileBottomNavigation />
         </DonationProvider>
       </body>
     </html>

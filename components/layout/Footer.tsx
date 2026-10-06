@@ -18,7 +18,7 @@ export function Footer() {
 
   return (
     <footer className="border-t border-brand-primary/15 bg-white print:hidden">
-      <Container className="grid gap-8 py-12 sm:grid-cols-2 md:grid-cols-4">
+      <Container className="grid gap-6 py-8 sm:grid-cols-2 md:grid-cols-4 md:gap-8 md:py-12">
         <div>
           {/* eslint-disable-next-line @next/next/no-img-element -- ativo local simples da identidade visual. */}
           <img src="/logo-banner.png" alt={SITE_NAME} width={240} height={60} className="h-11 w-auto max-w-[12rem]" />

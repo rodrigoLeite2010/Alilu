@@ -13,6 +13,7 @@ import { VideoHighlight } from "@/components/home/VideoHighlight";
 import { BenefitsSection } from "@/components/home/BenefitsSection";
 import { HomeCTA } from "@/components/home/HomeCTA";
 import { AgendaHomeCard } from "@/components/agenda/AgendaHomeCard";
+import { MobileHome } from "@/components/mobile/MobileHome";
 
 export const metadata: Metadata = buildPageMetadata({
   title: "Alilu — Ferramentas Online Grátis: PDF, Financeiro e Instagram",
@@ -41,6 +42,10 @@ export const metadata: Metadata = buildPageMetadata({
 export default function HomePage() {
   return (
     <>
+      {/* Celular (< 768px): home resumida. Desktop/tablet: a home completa abaixo. */}
+      <MobileHome />
+
+      <div className="hidden md:block">
       <HomeHero />
 
       <Container className="py-12 sm:py-16" id="categorias">
@@ -66,6 +71,7 @@ export default function HomePage() {
       </Container>
 
       <HomeCTA />
+      </div>
     </>
   );
 }

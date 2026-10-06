@@ -15,7 +15,7 @@ export function HeaderAuthArea() {
 
   return (
     <>
-      <div className="hidden sm:block">
+      <div>
         {auth.status === "loading" ? (
           <div
             aria-hidden

@@ -17,7 +17,7 @@ import { HeaderAuthArea } from "@/components/layout/HeaderAuthArea";
 export function Header() {
   return (
     <header className="sticky top-0 z-30 border-b border-brand-primary/15 bg-white/95 backdrop-blur print:hidden">
-      <Container className="flex h-16 max-w-[90rem] items-center justify-between gap-4">
+      <Container className="flex h-14 max-w-[90rem] items-center justify-between gap-2 md:h-16 md:gap-4">
         <Link
           href="/"
           className="flex min-w-0 items-center rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-accent"
@@ -33,7 +33,7 @@ export function Header() {
             alt={SITE_NAME}
             width={240}
             height={60}
-            className="h-10 w-auto max-w-[11rem] sm:max-w-[13rem]"
+            className="h-8 w-auto max-w-[9rem] sm:max-w-[13rem] md:h-10"
           />
         </Link>
         <div className="flex items-center gap-2">
