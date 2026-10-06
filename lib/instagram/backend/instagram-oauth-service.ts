@@ -119,6 +119,41 @@ export async function completeInstagramConnection(
   }
   await logInstagramOAuth("token", "TOKEN_EXCHANGED", { userId: input.userId, correlationId: input.correlationId, permissions: shortLived.permissions.join(","), ...input.device });
 
+  // ── DIAGNÓSTICO TEMPORÁRIO (conta errada no celular) — REMOVER depois de achar a causa. ──
+  // Só identificadores públicos da conta; nunca token, code ou state.
+  await logInstagramOAuth("diagnostic", "OAUTH_TOKEN_RECEIVED", {
+    userId: input.userId,
+    correlationId: input.correlationId,
+    currentAliluUserId: input.userId,
+    // user_id devolvido pela troca do código (ainda sem username: o perfil é consultado logo abaixo).
+    instagramUserId: shortLived.igUserId,
+    errorMessage: `OAUTH_TOKEN_RECEIVED ig_user_id=${shortLived.igUserId} alilu_user=${input.userId} tentativa=${input.correlationId ?? "-"}`,
+    ...input.device,
+  });
+  try {
+    // Pergunta à Meta "quem é o dono deste token?" assim que ele chega, antes de qualquer gravação no banco.
+    const identity = await fetchInstagramProfile(shortLived.accessToken);
+    await logInstagramOAuth("diagnostic", "OAUTH_IDENTITY_FETCHED", {
+      userId: input.userId,
+      correlationId: input.correlationId,
+      currentAliluUserId: input.userId,
+      instagramUserId: identity.igUserId,
+      instagramUsername: identity.username,
+      accountType: identity.accountType ?? null,
+      errorMessage: `OAUTH_IDENTITY_FETCHED ig_user_id=${identity.igUserId} username=@${identity.username ?? "?"} tipo=${identity.accountType ?? "?"} alilu_user=${input.userId} tentativa=${input.correlationId ?? "-"}`,
+      ...input.device,
+    });
+  } catch (error) {
+    await logInstagramOAuth("diagnostic", "OAUTH_IDENTITY_FETCHED", {
+      userId: input.userId,
+      correlationId: input.correlationId,
+      currentAliluUserId: input.userId,
+      outcome: "error",
+      ...metaErrorFields(error),
+      ...input.device,
+    });
+  }
+
   // Permissão de publicar desmarcada na tela da Meta: sem ela o Alilu não serve para nada.
   if (shortLived.permissions.length > 0 && !shortLived.permissions.includes(INSTAGRAM_PUBLISH_SCOPE)) {
     await logInstagramOAuth("permissions", "OAUTH_ERROR", { userId: input.userId, correlationId: input.correlationId, outcome: "error", error: "missing_publish_permission", ...input.device });
@@ -169,6 +204,26 @@ export async function completeInstagramConnection(
     scopes: shortLived.permissions,
   });
   await logInstagramOAuth("save", "CONNECTION_SAVED", { userId: input.userId, correlationId: input.correlationId, outcome: "success", ...input.device });
+
+  // ── DIAGNÓSTICO TEMPORÁRIO — REMOVER depois de achar a causa. ──
+  // Compara a conta que acabou de ser gravada com a que o Alilu vai mostrar/usar como "a conta" do usuário.
+  try {
+    const current = await getInstagramAccountForUser(input.userId);
+    await logInstagramOAuth("diagnostic", "OAUTH_ACCOUNT_SAVED", {
+      userId: input.userId,
+      correlationId: input.correlationId,
+      currentAliluUserId: input.userId,
+      instagramUserId: account.igUserId,
+      instagramUsername: account.igUsername,
+      currentInstagramUserId: current?.igUserId ?? null,
+      currentInstagramUsername: current?.igUsername ?? null,
+      savedIsCurrent: current?.id === account.id,
+      errorMessage: `OAUTH_ACCOUNT_SAVED gravada=@${account.igUsername ?? "?"}(${account.igUserId}) atual_no_alilu=@${current?.igUsername ?? "?"}(${current?.igUserId ?? "-"}) gravada_e_atual=${current?.id === account.id} alilu_user=${input.userId} tentativa=${input.correlationId ?? "-"}`,
+      ...input.device,
+    });
+  } catch {
+    // diagnóstico é melhor esforço
+  }
   return account;
 }
 
