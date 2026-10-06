@@ -65,7 +65,7 @@ describe("ensureReadableFile", () => {
       getReader: () => ({
         read: () => Promise.reject(err),
       }),
-    } as unknown as ReadableStream<Uint8Array>);
+    } as unknown as ReturnType<File["stream"]>);
 
     const out = await ensureReadableFile(file, {
       allowOriginalWhenMaterializeFails: true,
