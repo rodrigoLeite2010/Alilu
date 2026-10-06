@@ -10,7 +10,7 @@ export interface MobileBillingNotice {
 
 export interface MobileBillingSummary {
   access: { allowed: boolean; status: string; remainingToday: number | null; currentPeriodEndsAt: string | null };
-  plan: { code: string; name: string; priceCents: number } | null;
+  plan: { code: string; name: string; priceCents: number; complimentary?: boolean } | null;
   pendingPlan: { code: string; name: string } | null;
   aiUsage: { used: number; limit: number; remaining: number } | null;
   notices: MobileBillingNotice[];

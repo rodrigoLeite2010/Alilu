@@ -108,7 +108,9 @@ export async function startAutomationCheckout(
   const existing = await getSubscriptionByUserId(userId);
   if (existing?.status === "ACTIVE") {
     throw new SubscriptionBusinessError(
-      "Você já tem uma assinatura ativa. Para mudar de plano, use a opção de trocar de plano.",
+      existing.complimentary
+        ? `Você tem um plano de cortesia ativo${existing.currentPeriodEndsAt ? ` até ${existing.currentPeriodEndsAt.toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })}` : ""}. Assine quando ele terminar.`
+        : "Você já tem uma assinatura ativa. Para mudar de plano, use a opção de trocar de plano.",
     );
   }
 

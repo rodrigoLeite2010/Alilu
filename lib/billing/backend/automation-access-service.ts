@@ -1,4 +1,5 @@
 import "server-only";
+import { isUserDisabled } from "@/lib/auth/user-status";
 import { randomUUID } from "node:crypto";
 import { normalizeEmail } from "@/lib/instagram/backend/otp";
 import { getUserById } from "@/lib/instagram/backend/users-store";
@@ -117,6 +118,18 @@ function evaluateAccess(existing: AutomationSubscriptionRecord | null, now: Date
       };
     }
     case "ACTIVE":
+      // Cortesia do admin não tem webhook de pagamento que a encerre: vence pela data.
+      if (existing.complimentary && (!existing.currentPeriodEndsAt || existing.currentPeriodEndsAt <= now)) {
+        return {
+          allowed: false,
+          status: "EXPIRED",
+          reason: "Seu plano de cortesia terminou. Escolha um plano para continuar usando o Piloto Automático.",
+          code: "SUBSCRIPTION_REQUIRED",
+          trialEndsAt: null,
+          remainingToday: 0,
+          currentPeriodEndsAt: existing.currentPeriodEndsAt,
+        };
+      }
       return {
         allowed: true,
         status: "ACTIVE",
@@ -185,7 +198,10 @@ function evaluateAccess(existing: AutomationSubscriptionRecord | null, now: Date
 /** O plano pago em vigor (assinatura ACTIVE, ou CANCELED ainda dentro do período já pago); `null` caso contrário. */
 function paidPlanOf(existing: AutomationSubscriptionRecord | null, now: Date): PlanDefinition | null {
   if (!existing) return null;
-  if (existing.status === "ACTIVE") return getPlan(existing.planCode);
+  if (existing.status === "ACTIVE") {
+    if (existing.complimentary && (!existing.currentPeriodEndsAt || existing.currentPeriodEndsAt <= now)) return null;
+    return getPlan(existing.planCode);
+  }
   if (existing.status === "CANCELED" && existing.currentPeriodEndsAt && existing.currentPeriodEndsAt > now) {
     return getPlan(existing.planCode);
   }
@@ -323,7 +339,7 @@ export interface BillingNotice {
 export interface BillingSummary {
   access: AutomationAccessResult;
   /** Plano pago em vigor, ou `null` (teste/sem plano/pagamento pendente). */
-  plan: { code: PlanCode; name: string; priceCents: number } | null;
+  plan: { code: PlanCode; name: string; priceCents: number; complimentary: boolean } | null;
   /** Downgrade agendado para o próximo ciclo. */
   pendingPlan: { code: PlanCode; name: string } | null;
   features: { manualAutomation: boolean; ai: boolean; importer: boolean };
@@ -423,7 +439,14 @@ export async function getBillingSummary(userId: string, now: Date = new Date()):
 
   return {
     access,
-    plan: plan ? { code: plan.code, name: plan.name, priceCents: plan.priceCents } : null,
+    plan: plan
+      ? {
+          code: plan.code,
+          name: plan.name,
+          priceCents: existing?.complimentary ? 0 : plan.priceCents,
+          complimentary: Boolean(existing?.complimentary),
+        }
+      : null,
     pendingPlan: pendingPlan ? { code: pendingPlan.code, name: pendingPlan.name } : null,
     features,
     aiUsage,
@@ -464,6 +487,10 @@ export async function reserveAutomationUse(
   now: Date = new Date(),
   options: ReserveAutomationOptions = {},
 ): Promise<AutomationUseReservation> {
+  // Conta desativada pelo admin: o cron nunca gera nem publica por ela (as automações também são pausadas ao desativar).
+  if (await isUserDisabled(userId)) {
+    throw new SubscriptionRequiredError("Esta conta está desativada.", "SUBSCRIPTION_REQUIRED");
+  }
   if (await isBillingExemptUser(userId)) {
     return { consumedTrialSlot: false };
   }

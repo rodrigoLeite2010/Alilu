@@ -43,7 +43,7 @@ interface SummaryDto {
     remainingToday: number | null;
     currentPeriodEndsAt: string | null;
   };
-  plan: { code: PlanDto["code"]; name: string; priceCents: number } | null;
+  plan: { code: PlanDto["code"]; name: string; priceCents: number; complimentary?: boolean } | null;
   pendingPlan: { code: PlanDto["code"]; name: string } | null;
   aiUsage: {
     used: number;
@@ -197,8 +197,9 @@ export function PlansPanel({ initialData = null }: { initialData?: PlansResponse
   const loginHref = `/entrar?callbackUrl=${encodeURIComponent("/planos")}`;
   const periodEnd = formatDate(summary?.access.currentPeriodEndsAt ?? null);
   const canceledWithAccess = status === "CANCELED" && summary?.access.allowed === true;
-  const hasPaidPlan = status === "ACTIVE" && currentPlan !== null;
-  const canSubscribe = authenticated && !hasPaidPlan && status !== "EXEMPT" && status !== "PAST_DUE" && !canceledWithAccess;
+  const complimentary = status === "ACTIVE" && currentPlan?.complimentary === true;
+  const hasPaidPlan = status === "ACTIVE" && currentPlan !== null && !complimentary;
+  const canSubscribe = authenticated && !hasPaidPlan && !complimentary && status !== "EXEMPT" && status !== "PAST_DUE" && !canceledWithAccess;
 
   function renderPlanAction(plan: PlanDto) {
     if (!authenticated) {
@@ -212,6 +213,13 @@ export function PlansPanel({ initialData = null }: { initialData?: PlansResponse
     if (status === "PAST_DUE") return <p className="text-center text-xs text-amber-800">Regularize o pagamento para trocar de plano.</p>;
     if (canceledWithAccess) {
       return <p className="text-center text-xs text-zinc-500">Reative a assinatura para continuar.</p>;
+    }
+    if (complimentary) {
+      return currentPlan?.code === plan.code ? (
+        <Badge tone="brand">Seu plano (cortesia)</Badge>
+      ) : (
+        <p className="text-center text-xs text-zinc-500">Disponível quando a cortesia terminar.</p>
+      );
     }
     if (hasPaidPlan && currentPlan) {
       if (currentPlan.code === plan.code) return <Badge tone="brand">Seu plano</Badge>;
@@ -315,6 +323,12 @@ export function PlansPanel({ initialData = null }: { initialData?: PlansResponse
           ) : null}
           {(status === "EXPIRED" || (status === "CANCELED" && !canceledWithAccess)) ? (
             <p className="mt-2 text-sm text-zinc-600">Você não tem um plano ativo. Escolha um plano abaixo para continuar com o Piloto Automático.</p>
+          ) : null}
+          {complimentary && currentPlan ? (
+            <p className="mt-2 text-sm text-zinc-700">
+              <span className="font-medium text-zinc-900">Plano {currentPlan.name} — cortesia</span>
+              {periodEnd ? `, válido até ${periodEnd}` : ""}. Sem cobrança. Quando terminar, é só escolher um plano para continuar.
+            </p>
           ) : null}
           {(hasPaidPlan || canceledWithAccess) && currentPlan ? (
             <div className="mt-2 space-y-3">

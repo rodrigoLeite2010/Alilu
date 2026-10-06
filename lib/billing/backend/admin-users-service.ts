@@ -37,6 +37,8 @@ export interface BillingUserRow {
   aiUsed: number | null;
   aiLimit: number | null;
   credits: number;
+  complimentary: boolean;
+  disabledAt: Date | null;
 }
 
 export interface BillingUsersPage {
@@ -82,7 +84,7 @@ export async function listBillingUsers(query: UsersQuery): Promise<BillingUsersP
   const total = Number(count?.total ?? 0);
 
   const rows = await db`
-    select u.id, u.email, u.name, u.created_at,
+    select u.id, u.email, u.name, u.created_at, u.disabled_at, s.complimentary,
       s.status, s.plan_code, s.monthly_price_cents, s.pending_plan_code, s.started_at,
       s.current_period_ends_at, s.canceled_at, s.trial_ends_at,
       c.used as ai_used,
@@ -123,6 +125,8 @@ export async function listBillingUsers(query: UsersQuery): Promise<BillingUsersP
         aiUsed: limit !== null && row.status === "ACTIVE" ? Number(row.ai_used ?? 0) : null,
         aiLimit: limit,
         credits: Number(row.credits ?? 0),
+        complimentary: Boolean(row.complimentary),
+        disabledAt: date(row.disabled_at),
       };
     }),
     total,

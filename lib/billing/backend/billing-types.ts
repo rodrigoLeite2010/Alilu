@@ -48,6 +48,9 @@ export interface AutomationSubscriptionRecord {
   planCode: PlanCode;
   /** Troca de plano agendada para o próximo ciclo (downgrade), ou `null`. */
   pendingPlanCode: PlanCode | null;
+  /** Plano de cortesia concedido pelo admin (sem cobrança; vale até currentPeriodEndsAt e termina sozinho). */
+  complimentary: boolean;
+  adminNote: string | null;
   startedAt: Date | null;
   currentPeriodEndsAt: Date | null;
   canceledAt: Date | null;

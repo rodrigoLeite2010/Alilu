@@ -38,6 +38,8 @@ function mapSubscriptionRow(row: Record<string, unknown>): AutomationSubscriptio
     monthlyPriceCents: Number(row.monthly_price_cents),
     planCode: isPlanCode(row.plan_code) ? row.plan_code : "AUTOMATION",
     pendingPlanCode: isPlanCode(row.pending_plan_code) ? row.pending_plan_code : null,
+    complimentary: Boolean(row.complimentary),
+    adminNote: (row.admin_note as string | null) ?? null,
     startedAt: row.started_at ? new Date(row.started_at as string) : null,
     currentPeriodEndsAt: row.current_period_ends_at ? new Date(row.current_period_ends_at as string) : null,
     canceledAt: row.canceled_at ? new Date(row.canceled_at as string) : null,

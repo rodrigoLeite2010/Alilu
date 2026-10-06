@@ -53,7 +53,7 @@ export default async function AdminBillingUsersPage({ searchParams }: PageProps)
         </Link>
       </div>
       <p className="mt-1 text-xs text-zinc-500">
-        {data.total.toLocaleString("pt-BR")} usuário(s) com esse filtro. Consulta apenas — alterações de plano e cobrança são feitas no Asaas.
+        {data.total.toLocaleString("pt-BR")} usuário(s) com esse filtro. Clique no e-mail para ver o cliente e fazer ações manuais (créditos, cortesia, ativar/desativar).
       </p>
 
       <form method="get" className="mt-4 flex flex-wrap items-end gap-3">
@@ -113,7 +113,10 @@ export default async function AdminBillingUsersPage({ searchParams }: PageProps)
               data.rows.map((row) => (
                 <tr key={row.userId} className={row.status === "PAST_DUE" ? "bg-amber-50" : undefined}>
                   <td className="px-3 py-2">
-                    <span className="block font-medium text-zinc-900">{row.email}</span>
+                    <Link href={`/admin/assinaturas/usuarios/${row.userId}`} className="block font-medium text-teal-800 hover:underline">
+                      {row.email}
+                    </Link>
+                    {row.disabledAt ? <span className="mr-1 inline-block rounded bg-red-100 px-1.5 text-xs font-semibold text-red-800">Desativado</span> : null}
                     {row.name ? <span className="block text-xs text-zinc-500">{row.name}</span> : null}
                   </td>
                   <td className="px-3 py-2">{fmtDate(row.createdAt)}</td>
@@ -122,7 +125,7 @@ export default async function AdminBillingUsersPage({ searchParams }: PageProps)
                       <>
                         {PLAN_DEFINITIONS[row.planCode].name}
                         <span className="block text-xs text-zinc-500">
-                          {formatPriceBrl(row.priceCents ?? PLAN_DEFINITIONS[row.planCode].priceCents)}/mês
+                          {row.complimentary ? "cortesia" : `${formatPriceBrl(row.priceCents ?? PLAN_DEFINITIONS[row.planCode].priceCents)}/mês`}
                           {row.pendingPlanCode ? ` → ${PLAN_DEFINITIONS[row.pendingPlanCode].name} no próximo ciclo` : ""}
                         </span>
                       </>

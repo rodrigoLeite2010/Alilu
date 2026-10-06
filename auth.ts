@@ -9,6 +9,7 @@ import {
 } from "@/lib/instagram/backend/otp-service";
 import { isValidEmail, normalizeEmail } from "@/lib/instagram/backend/otp";
 import { upsertUserByEmail } from "@/lib/instagram/backend/users-store";
+import { isEmailDisabled, isUserDisabled } from "@/lib/auth/user-status";
 
 /**
  * Configuração central de autenticação (Auth.js v5 / NextAuth), usada por
@@ -69,6 +70,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     }),
   ],
   callbacks: {
+    // Conta desativada pelo admin não entra (Google nem código por e-mail).
+    async signIn({ user }) {
+      if (user?.email && (await isEmailDisabled(user.email))) return false;
+      return true;
+    },
     async jwt({ token, user, account }) {
       if (user?.email) {
         const isGoogle = account?.provider === "google";
@@ -93,6 +99,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       return token;
     },
     async session({ session, token }) {
+      // Sessão já aberta de uma conta desativada: vira "sem login" em todo o site.
+      if (token.userId && (await isUserDisabled(token.userId))) {
+        return { expires: session.expires } as unknown as typeof session;
+      }
       if (session.user && token.userId) {
         session.user.id = token.userId;
         session.user.name = token.name ?? null;

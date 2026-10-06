@@ -41,7 +41,7 @@ export function MobilePlanTeaser() {
 function statusLine(summary: MobileBillingSummary): string {
   const { access, plan } = summary;
   if (access.status === "EXEMPT") return "Acesso liberado";
-  if (plan) return `Plano ${plan.name} · ${formatPriceBrl(plan.priceCents)}/mês`;
+  if (plan) return plan.complimentary ? `Plano ${plan.name} · cortesia` : `Plano ${plan.name} · ${formatPriceBrl(plan.priceCents)}/mês`;
   if (access.status === "PAST_DUE") return "Pagamento em atraso";
   if (access.status === "PENDING_PAYMENT") return "Pagamento aguardando confirmação";
   if (access.status === "NEW" || access.status === "TRIAL") {
