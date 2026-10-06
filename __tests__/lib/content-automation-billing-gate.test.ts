@@ -146,3 +146,108 @@ describe("devolução da vaga do trial quando a geração falha por erro interno
     expect(Number(afterRetry.trial_usage_count)).toBe(1);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Planos pagos: texto manual (R$ 19) x IA (Criador/Pro, franquia por ciclo).
+// ---------------------------------------------------------------------------
+async function seedPlan(userId: string, plan: "AUTOMATION" | "CREATOR" | "PRO") {
+  await db.sql`
+    insert into automation_subscriptions (user_id, status, plan_code, current_period_ends_at)
+    values (${userId}, 'ACTIVE', ${plan}, '2026-10-20T00:00:00Z')
+  `;
+}
+
+async function cycleUsed(userId: string) {
+  const [row] = await db.sql`select used from plan_usage_cycles where user_id = ${userId} and cycle_key = '2026-10-20'`;
+  return row ? Number(row.used) : 0;
+}
+
+describe("plano Automático (R$ 19): texto manual sem limite, IA não", () => {
+  it("dia com IA é bloqueado ANTES de chamar a IA, com convite de upgrade", async () => {
+    const seed = await seedUserWithAccount(db);
+    await activePostAutomation(seed);
+    await seedPlan(seed.userId, "AUTOMATION");
+
+    const results = await cron.runContentAutomationCron({ now: DUE_NOW });
+
+    expect(fakeProvider.generatePost).not.toHaveBeenCalled();
+    expect(results[0].error).toMatch(/não inclui geração com IA/i);
+    expect(await cycleUsed(seed.userId)).toBe(0);
+  });
+
+  it("dia com texto manual publica sem IA e sem consumir franquia", async () => {
+    const seed = await seedUserWithAccount(db);
+    const automationId = await activePostAutomation(seed);
+    await repo.updateAutomationDay(automationId, seed.userId, "WEDNESDAY" as never, { contentMode: "MANUAL", manualCaption: "Legenda escrita por mim" });
+    await seedPlan(seed.userId, "AUTOMATION");
+
+    const results = await cron.runContentAutomationCron({ now: DUE_NOW });
+
+    expect(fakeProvider.generatePost).not.toHaveBeenCalled();
+    expect(results[0].status).toBe("WAITING_APPROVAL");
+    expect(await cycleUsed(seed.userId)).toBe(0);
+  });
+});
+
+describe("plano Criador: IA consome a franquia do ciclo", () => {
+  it("geração com IA conta 1; falha devolve; retry conta 1", async () => {
+    const seed = await seedUserWithAccount(db);
+    await activePostAutomation(seed);
+    await seedPlan(seed.userId, "CREATOR");
+    fakeProvider.generatePost.mockRejectedValue(new Error("IA fora do ar"));
+
+    const failed = await cron.runContentAutomationCron({ now: DUE_NOW });
+    expect(failed[0].error).toMatch(/IA fora do ar/);
+    expect(await cycleUsed(seed.userId)).toBe(0);
+
+    happyPost();
+    const retried = await cron.runContentAutomationCron({ now: () => new Date(DUE_NOW().getTime() + 6 * 60_000) });
+    expect(retried[0].status).toBe("WAITING_APPROVAL");
+    expect(await cycleUsed(seed.userId)).toBe(1);
+
+    const [usageRow] = await db.sql`select user_id, feature from generation_usage where user_id = ${seed.userId}`;
+    expect(usageRow.feature).toBe("automation"); // custo de IA por usuário fica registrado
+  });
+
+  it("franquia esgotada bloqueia antes de chamar a IA", async () => {
+    const seed = await seedUserWithAccount(db);
+    await activePostAutomation(seed);
+    await seedPlan(seed.userId, "CREATOR");
+    await db.sql`insert into plan_usage_cycles (user_id, cycle_key, plan_code, used) values (${seed.userId}, '2026-10-20', 'CREATOR', 90)`;
+
+    const results = await cron.runContentAutomationCron({ now: DUE_NOW });
+
+    expect(fakeProvider.generatePost).not.toHaveBeenCalled();
+    expect(results[0].error).toMatch(/limite de 90 publicações com IA/i);
+    expect(await cycleUsed(seed.userId)).toBe(90);
+  });
+});
+
+describe("configurar a automação: o botão de IA respeita o plano", () => {
+  it("plano Automático não consegue colocar um dia em modo IA nem ativar uma automação com IA", async () => {
+    const seed = await seedUserWithAccount(db);
+    const automationId = await activePostAutomation(seed);
+    await repo.setAutomationStatus(automationId, seed.userId, "PAUSED");
+    await seedPlan(seed.userId, "AUTOMATION");
+    const service = await import("@/lib/content-automation/backend/automation-service");
+
+    await expect(service.updateAutomationDay(automationId, seed.userId, "WEDNESDAY" as never, { contentMode: "AI" })).rejects.toMatchObject({
+      name: "AutomationValidationError",
+      code: "AI_PLAN_REQUIRED",
+    });
+    await expect(service.activateAutomation(automationId, seed.userId)).rejects.toMatchObject({ code: "AI_PLAN_REQUIRED" });
+
+    // Trocando para texto manual, ativa normalmente.
+    await service.updateAutomationDay(automationId, seed.userId, "WEDNESDAY" as never, { contentMode: "MANUAL", manualCaption: "Meu texto" });
+    await expect(service.activateAutomation(automationId, seed.userId)).resolves.toBeUndefined();
+  });
+
+  it("plano Criador e quem ainda está no teste podem usar IA", async () => {
+    const seed = await seedUserWithAccount(db);
+    const automationId = await activePostAutomation(seed);
+    const service = await import("@/lib/content-automation/backend/automation-service");
+    await expect(service.updateAutomationDay(automationId, seed.userId, "WEDNESDAY" as never, { contentMode: "AI" })).resolves.toBeUndefined();
+    await seedPlan(seed.userId, "CREATOR");
+    await expect(service.updateAutomationDay(automationId, seed.userId, "WEDNESDAY" as never, { contentMode: "AI" })).resolves.toBeUndefined();
+  });
+});

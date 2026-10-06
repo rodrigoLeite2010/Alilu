@@ -82,7 +82,7 @@ async function readWithStream(blob: Blob): Promise<ArrayBuffer> {
   return out.buffer;
 }
 
-const RETRY_DELAYS_MS = [0, 800, 1600];
+const RETRY_DELAYS_MS = [0, 800, 1600, 3000, 5000];
 
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
@@ -118,14 +118,28 @@ async function readRobust(blob: Blob, timeoutMs: number): Promise<ArrayBuffer> {
 /** Até este tamanho o arquivo é copiado para a memória (evita depender da galeria durante o envio). */
 export const MATERIALIZE_MAX_BYTES = 60 * 1024 * 1024;
 
-export async function ensureReadableFile(file: File, options: { materializeUpTo?: number } = {}): Promise<File> {
+export async function ensureReadableFile(
+  file: File,
+  options: {
+    materializeUpTo?: number;
+    allowOriginalWhenMaterializeFails?: boolean;
+    onMaterializeFailure?: (reason: string) => void;
+  } = {},
+): Promise<File> {
   if (file.size === 0) throw new FileNotReadableError("empty");
   // 1) Lê o começo: falha/trava = arquivo inacessível.
   await readRobust(file.slice(0, 64 * 1024), 10_000);
   // 2) Copia para a memória quando cabe — o upload passa a ler da memória.
   const limit = options.materializeUpTo ?? MATERIALIZE_MAX_BYTES;
   if (file.size > limit) return file;
-  const bytes = await readRobust(file, Math.max(15_000, Math.ceil(file.size / (1024 * 1024)) * 1_500));
+  let bytes: ArrayBuffer;
+  try {
+    bytes = await readRobust(file, Math.max(15_000, Math.ceil(file.size / (1024 * 1024)) * 1_500));
+  } catch (error) {
+    if (!options.allowOriginalWhenMaterializeFails) throw error;
+    options.onMaterializeFailure?.(describeError(error));
+    return file;
+  }
   if (bytes.byteLength !== file.size) throw new FileNotReadableError(`size ${bytes.byteLength}/${file.size}`);
   return new File([bytes], file.name, { type: file.type, lastModified: file.lastModified });
 }

@@ -28,7 +28,7 @@ describe("ensureReadableFile", () => {
     stubUnreadableGlobals(new Error("NotReadableError"));
     vi.spyOn(broken, "slice").mockReturnValue({ arrayBuffer: () => Promise.reject(new Error("NotReadableError")) } as unknown as Blob);
     await expect(ensureReadableFile(broken)).rejects.toBeInstanceOf(FileNotReadableError);
-  });
+  }, 20_000);
 
   it("registra o motivo real da falha (para a telemetria)", async () => {
     const broken = new File([new Uint8Array(10)], "y.mp4", { type: "video/mp4" });
@@ -38,7 +38,7 @@ describe("ensureReadableFile", () => {
     const failure = await ensureReadableFile(broken).catch((e: unknown) => e);
     expect(failure).toBeInstanceOf(FileNotReadableError);
     expect(readFailureReason(failure)).toContain("blob:NotReadableError: The requested file could not be read");
-  });
+  }, 20_000);
 
   it("leitura recusada na hora e liberada logo depois: tenta de novo e funciona", async () => {
     const file = new File([new Uint8Array(500)], "v.mp4", { type: "video/mp4" });
@@ -53,6 +53,28 @@ describe("ensureReadableFile", () => {
     const file = new File([new Uint8Array(2000)], "big.mp4", { type: "video/mp4" });
     expect(await ensureReadableFile(file, { materializeUpTo: 1000 })).toBe(file);
   });
+
+  it("pode seguir com o arquivo original quando só a cópia em memória falha", async () => {
+    const file = new File([new Uint8Array(500)], "v.mp4", { type: "video/mp4" });
+    const err = Object.assign(new Error("The requested file could not be read"), { name: "NotReadableError" });
+    const reasons: string[] = [];
+    stubUnreadableGlobals(err);
+    vi.spyOn(file, "slice").mockReturnValue(new Blob([new Uint8Array(10)], { type: "video/mp4" }));
+    vi.spyOn(file, "arrayBuffer").mockRejectedValue(err);
+    vi.spyOn(file, "stream").mockReturnValue({
+      getReader: () => ({
+        read: () => Promise.reject(err),
+      }),
+    } as unknown as ReadableStream<Uint8Array>);
+
+    const out = await ensureReadableFile(file, {
+      allowOriginalWhenMaterializeFails: true,
+      onMaterializeFailure: (reason) => reasons.push(reason),
+    });
+
+    expect(out).toBe(file);
+    expect(reasons.join(" ")).toContain("NotReadableError");
+  }, 20_000);
 });
 
 describe("createStallGuard", () => {

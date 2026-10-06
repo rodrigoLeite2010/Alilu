@@ -318,7 +318,12 @@ function VideoUploadSlot({
     setLocalFileError(null);
     setChecking(true);
     // Celular: confirma que o arquivo pode ser lido (e copia para a memória) antes de usar.
-    ensureReadableFile(normalizedFile)
+    ensureReadableFile(normalizedFile, {
+      allowOriginalWhenMaterializeFails: true,
+      onMaterializeFailure: (reason) => {
+        trackUpload("split-screen", "prepare_done", { file: original, message: `sem cópia em memória: ${reason}` });
+      },
+    })
       .then((readable) => {
         failedFileRef.current = null;
         setCanRetry(false);
@@ -329,8 +334,9 @@ function VideoUploadSlot({
         if (input) input.value = "";
         failedFileRef.current = { normalized: normalizedFile, original };
         setCanRetry(true);
+        const message = `${error instanceof FileNotReadableError ? error.message : "Não foi possível abrir esse vídeo. Tente outro arquivo."} (detalhe: ${readFailureReason(error).slice(0, 80)})`;
         trackUpload("split-screen", "validation_error", { file: original, message: `arquivo ilegível: ${readFailureReason(error)}` });
-        setLocalFileError(error instanceof FileNotReadableError ? error.message : "Não foi possível abrir esse vídeo. Tente outro arquivo.");
+        setLocalFileError(message);
         onFileChange(null);
       })
       .finally(() => setChecking(false));
