@@ -280,6 +280,8 @@ function VideoUploadSlot({
   const endId = useId();
   const [localFileError, setLocalFileError] = useState<string | null>(null);
   const [checking, setChecking] = useState(false);
+  const [canRetry, setCanRetry] = useState(false);
+  const failedFileRef = useRef<{ normalized: File; original: File } | null>(null);
 
   function handleChange(event: ChangeEvent<HTMLInputElement>) {
     clearPickerMark();
@@ -309,18 +311,26 @@ function VideoUploadSlot({
       return;
     }
     trackUpload("split-screen", "file_selected", { file });
+    prepareFile(normalizedFile, file, event.target);
+  }
+
+  function prepareFile(normalizedFile: File, original: File, input: HTMLInputElement | null) {
     setLocalFileError(null);
     setChecking(true);
     // Celular: confirma que o arquivo pode ser lido (e copia para a memória) antes de usar.
     ensureReadableFile(normalizedFile)
       .then((readable) => {
+        failedFileRef.current = null;
+        setCanRetry(false);
         trackUpload("split-screen", "prepare_done", { file: readable });
         onFileChange(readable);
       })
       .catch((error: unknown) => {
-        event.target.value = "";
+        if (input) input.value = "";
+        failedFileRef.current = { normalized: normalizedFile, original };
+        setCanRetry(true);
         const message = `${error instanceof FileNotReadableError ? error.message : "Não foi possível abrir esse vídeo. Tente outro arquivo."} (detalhe: ${readFailureReason(error).slice(0, 80)})`;
-        trackUpload("split-screen", "validation_error", { file, message: `arquivo ilegível: ${readFailureReason(error)}` });
+        trackUpload("split-screen", "validation_error", { file: original, message: `arquivo ilegível: ${readFailureReason(error)}` });
         setLocalFileError(message);
         onFileChange(null);
       })
@@ -347,6 +357,18 @@ function VideoUploadSlot({
       <p className="mt-1 text-xs text-zinc-500">MP4, MOV ou WEBM, até {MAX_INPUT_MEGABYTES} MB.</p>
       {checking ? <p role="status" className="mt-1 text-xs text-teal-700">Abrindo o vídeo…</p> : null}
       {localFileError ? <p role="alert" className="mt-1 text-xs text-red-700">{localFileError}</p> : null}
+      {canRetry && !checking ? (
+        <button
+          type="button"
+          onClick={() => {
+            const failed = failedFileRef.current;
+            if (failed) prepareFile(failed.normalized, failed.original, null);
+          }}
+          className="mt-2 w-full rounded-md border border-zinc-300 bg-white px-3 py-3 text-sm font-semibold text-zinc-900"
+        >
+          Tentar de novo com o mesmo vídeo
+        </button>
+      ) : null}
 
       {slot.file ? (
         <div className="mt-3 grid grid-cols-2 gap-3">

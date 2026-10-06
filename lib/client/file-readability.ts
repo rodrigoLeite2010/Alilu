@@ -63,6 +63,27 @@ function readWithFileReader(blob: Blob): Promise<ArrayBuffer> {
   });
 }
 
+async function readWithStream(blob: Blob): Promise<ArrayBuffer> {
+  const reader = blob.stream().getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    chunks.push(value);
+    total += value.byteLength;
+  }
+  const out = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    out.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return out.buffer;
+}
+
+const RETRY_DELAYS_MS = [0, 800, 1600];
+
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
 /**
@@ -76,10 +97,11 @@ async function readRobust(blob: Blob, timeoutMs: number): Promise<ArrayBuffer> {
     ["blob", () => blob.arrayBuffer()],
     ["reader", () => readWithFileReader(blob)],
     ["response", () => new Response(blob).arrayBuffer()],
+    ["stream", () => readWithStream(blob)],
   ];
   const reasons: string[] = [];
-  for (let round = 0; round < 2; round++) {
-    if (round > 0) await sleep(800);
+  for (const delay of RETRY_DELAYS_MS) {
+    if (delay > 0) await sleep(delay);
     for (const [label, read] of strategies) {
       try {
         return await withTimeout(read(), timeoutMs);
