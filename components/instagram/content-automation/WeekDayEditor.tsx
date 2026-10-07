@@ -78,6 +78,7 @@ export function WeekDayEditor({
   onRemove,
   previewContext,
   shared = false,
+  smartStory = false,
 }: {
   userId: string;
   day: DayFormState;
@@ -95,6 +96,12 @@ export function WeekDayEditor({
    * sem horário próprio (dias e horários ficam em SharedPromptEditor).
    */
   shared?: boolean;
+  /**
+   * Modo inteligente de Stories ligado: num Story o motor escolhe tipo,
+   * tema, template e fundo — somem a escolha IA/manual, véu, cor, prévia
+   * antiga e imagem própria (os valores salvos ficam intactos).
+   */
+  smartStory?: boolean;
 }) {
   const [overrideMedia, setOverrideMedia] = useState(Boolean(day.imageMediaId || day.videoMediaId));
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -120,6 +127,7 @@ export function WeekDayEditor({
   const [storyPreviewError, setStoryPreviewError] = useState<string | null>(null);
   const isCarousel = day.contentType === "CAROUSEL";
   const isStory = day.contentType === "STORY";
+  const smartDay = smartStory && isStory;
   const radioPrefix = shared ? "shared" : `${day.dayOfWeek}-${day.slotIndex}`;
   const isAutoTemplateImage = imageMode === "AUTO_TEMPLATE" && (day.contentType === "POST" || isCarousel);
   const previewImageMediaId = day.imageMediaId ?? defaultImageMediaId;
@@ -298,7 +306,11 @@ export function WeekDayEditor({
                 </label>
               ))}
             </div>
-            {isStory ? (
+            {smartDay ? (
+              <p className="mt-1 text-xs text-zinc-500">
+                Modo inteligente: a Alilu escolhe automaticamente o tipo, o tema, o template e o fundo de cada Story.
+              </p>
+            ) : isStory ? (
               <p className="mt-1 text-xs text-zinc-500">
                 Story 9:16 (1080×1920) com o texto grande no centro, longe das bordas cobertas pelo Instagram. Stories não têm legenda e somem depois de 24 horas.
               </p>
@@ -353,6 +365,7 @@ export function WeekDayEditor({
             </select>
           </div>
 
+          {smartDay ? null : (
           <div>
             <span className="mb-1 block text-xs font-medium text-zinc-700">{isStory ? "Como gerar o texto do Story" : "Como gerar a legenda"}</span>
             <div className="flex gap-3 text-sm">
@@ -378,8 +391,9 @@ export function WeekDayEditor({
               </label>
             </div>
           </div>
+          )}
 
-          {isStory && day.contentMode === "MANUAL" ? (
+          {isStory && !smartDay && day.contentMode === "MANUAL" ? (
             <div>
               <label htmlFor={visualTextId} className="mb-1 block text-xs font-medium text-zinc-700">
                 Texto do Story (opcional)
@@ -418,7 +432,7 @@ export function WeekDayEditor({
           ) : (
             <div>
               <label htmlFor={promptId} className="mb-1 block text-xs font-medium text-zinc-700">
-                {shared ? "Prompt" : `O que publicar em ${DAY_OF_WEEK_LABEL[day.dayOfWeek]}`}
+                {smartDay ? "Prompt base" : shared ? "Prompt" : `O que publicar em ${DAY_OF_WEEK_LABEL[day.dayOfWeek]}`}
               </label>
               <textarea
                 id={promptId}
@@ -432,7 +446,9 @@ export function WeekDayEditor({
                 rows={6}
                 maxLength={800}
                 placeholder={
-                  isStory
+                  smartDay
+                    ? "Assunto e tom dos seus Stories. Ex.: Reflexões sobre gratidão, recomeços e autoestima, em tom acolhedor. A Alilu varia o tipo e o formato a cada Story."
+                    : isStory
                     ? `Descreva o texto curto do Story. Ex.: Hoje é {{diaSemana}}. Crie uma frase motivacional curta para começar bem o dia. Máximo 20 palavras, sem hashtags.`
                     : day.contentType === "POST"
                     ? shared
@@ -456,7 +472,7 @@ export function WeekDayEditor({
             </div>
           )}
 
-          {isStory ? (
+          {isStory && !smartDay ? (
             <div className="rounded-md border border-teal-200 bg-teal-50/40 p-3 space-y-3">
               <div>
                 <label htmlFor={overlayId} className="mb-1 block text-xs font-medium text-zinc-700">
@@ -664,6 +680,7 @@ export function WeekDayEditor({
             </div>
           ) : null}
 
+          {smartDay ? null : (
           <div>
             <label className="inline-flex items-center gap-1.5 text-xs font-medium text-zinc-700">
               <input
@@ -697,6 +714,7 @@ export function WeekDayEditor({
               </div>
             ) : null}
           </div>
+          )}
         </div>
       ) : null}
     </fieldset>

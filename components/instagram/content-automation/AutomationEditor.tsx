@@ -139,6 +139,7 @@ export function AutomationEditor({
   const [sharedContent, setSharedContent] = useState<DayFormState>(automation.shared);
   const [sharedSchedule, setSharedSchedule] = useState<SharedScheduleState>(automation.schedule);
   const [savingShared, setSavingShared] = useState(false);
+  const [smartEnabled, setSmartEnabled] = useState(automation.smartStory?.enabled ?? false);
   const [switchTarget, setSwitchTarget] = useState<AutomationScheduleMode | null>(null);
   const [switching, setSwitching] = useState(false);
   const [runs, setRuns] = useState(pendingRuns);
@@ -352,13 +353,29 @@ export function AutomationEditor({
     }
   }
 
+  /** Ligar o modo inteligente: Story passa a ser sempre "IA + prompt base" (nada de imagem/texto manual). Os valores antigos ficam salvos. */
+  function handleSmartEnabled(enabled: boolean) {
+    setSmartEnabled(enabled);
+    if (!enabled) return;
+    if (isShared) {
+      if (sharedContent.contentType === "STORY") setSharedContent((current) => ({ ...current, contentMode: "AI" }));
+    } else {
+      setDays((current) =>
+        current.map((day) => (day.contentType === "STORY" && day.contentMode !== "AI" ? { ...day, contentMode: "AI" } : day)),
+      );
+    }
+  }
+
   const formatDays = isShared ? [sharedContent] : days.filter((day) => day.enabled);
   const storyDays = isShared ? (sharedContent.contentType === "STORY" ? [sharedContent] : []) : days.filter((day) => day.enabled && day.contentType === "STORY");
-  const hasStory = storyDays.some((day) => day.contentMode === "AI");
+  const hasStory = storyDays.length > 0;
   const smartBasePrompt = storyDays.find((day) => day.prompt.trim())?.prompt ?? "";
   const smartPreviewTime = isShared ? (sharedSchedule.times[0] ?? "09:00") : (storyDays[0]?.publishTime ?? "09:00");
+  // Com o modo inteligente ligado, Story não usa imagem de fundo (o motor escolhe
+  // tudo). Imagem padrão só aparece se sobrar Post/Carrossel (modo por dia) — e
+  // os valores salvos nunca são apagados.
   const needsImage = formatDays.some(
-    (day) => day.contentType === "POST" || day.contentType === "CAROUSEL" || day.contentType === "STORY",
+    (day) => day.contentType === "POST" || day.contentType === "CAROUSEL" || (day.contentType === "STORY" && !smartEnabled),
   );
   const needsVideo = formatDays.some((day) => day.contentType === "REEL");
 
@@ -544,6 +561,7 @@ export function AutomationEditor({
           basePrompt={smartBasePrompt}
           brandContext={brandContext}
           previewTime={smartPreviewTime}
+          onEnabledChange={handleSmartEnabled}
         />
       ) : null}
 
@@ -562,6 +580,7 @@ export function AutomationEditor({
             imageMode={imageMode}
             defaultImageMediaId={fixedImageMediaId}
             previewContext={{ instagramAccountId: automation.instagramAccountId ?? null, automationName: name, brandContext }}
+            smartStory={smartEnabled}
             footer={
               <Button className="flex-1 md:flex-none" onClick={saveShared} disabled={savingShared}>
                 {savingShared ? "Salvando…" : "Salvar prompt e agenda"}
@@ -587,6 +606,7 @@ export function AutomationEditor({
                     day={day}
                     imageMode={imageMode}
                     defaultImageMediaId={fixedImageMediaId}
+                    smartStory={smartEnabled}
                     onChange={(patch) => updateDay(slotKey(day), patch)}
                     onRemove={day.slotIndex > 0 && day.id ? () => removeSlot(day) : undefined}
                     previewContext={{ instagramAccountId: automation.instagramAccountId ?? null, automationName: name, brandContext }}

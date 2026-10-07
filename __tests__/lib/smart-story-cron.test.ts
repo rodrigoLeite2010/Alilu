@@ -92,6 +92,8 @@ interface SmartOptions {
   enableSmart?: boolean;
   contentMode?: "AI" | "MANUAL";
   smartConfig?: Record<string, unknown>;
+  noImage?: boolean;
+  imageMode?: "FIXED_IMAGE" | "MEDIA_LIBRARY" | "AUTO_TEMPLATE";
 }
 
 /** Automação no modo "Prompt único recorrente" (STORY) com o modo inteligente ligado. */
@@ -102,8 +104,8 @@ async function smartAutomation(seed: Seed, options: SmartOptions = {}) {
     name: "Stories inteligentes",
     timezone: options.timezone ?? "America/Sao_Paulo",
     generationLeadMinutes: 1440,
-    imageMode: "FIXED_IMAGE",
-    fixedImageMediaId: seed.mediaId,
+    imageMode: options.imageMode ?? "FIXED_IMAGE",
+    fixedImageMediaId: options.noImage ? null : seed.mediaId,
     autoPublish: options.requireApproval === false,
     requireApproval: options.requireApproval ?? true,
     scheduleMode: "SHARED_PROMPT",
@@ -401,18 +403,16 @@ describe("compatibilidade: o fluxo de Stories de sempre não muda", () => {
     expect(await stories()).toHaveLength(0);
   });
 
-  it("modo inteligente ligado mas conteúdo MANUAL: usa o texto manual (caminho antigo)", async () => {
+  it("modo inteligente ligado + conteúdo salvo como MANUAL: o motor inteligente tem prioridade (texto manual e imagem ignorados)", async () => {
     const seed = await seedUserWithAccount(db);
+    aiWorks();
+    renderCreatesMedia(seed.userId);
     const renderLegacy = (await import("@/lib/instagram/backend/template-render-service")).renderAndStoreAutomationArt as ReturnType<typeof vi.fn>;
-    renderLegacy.mockImplementation(async () => {
-      const [media] = await db.sql`insert into instagram_media (user_id, storage_url, media_type) values (${seed.userId}, 'https://blob.example.com/m.jpg', 'image') returning id`;
-      return media.id as string;
-    });
     await smartAutomation(seed, { contentMode: "MANUAL" });
     await cron.runContentAutomationCron({ now: WEDNESDAY_MORNING });
-    expect(renderLegacy).toHaveBeenCalledWith(expect.objectContaining({ visualText: "Texto manual" }));
-    expect(await stories()).toHaveLength(0);
-    expect(fakeProvider.rewriteText).not.toHaveBeenCalled();
+    expect(renderLegacy).not.toHaveBeenCalled();
+    expect(fakeProvider.rewriteText).toHaveBeenCalledTimes(1);
+    expect(await stories()).toHaveLength(1);
   });
 
   it("modo 'Personalizado por dia' também aceita o modo inteligente (Story de um dia específico)", async () => {
@@ -498,5 +498,97 @@ describe("configuração (update-smart-story)", () => {
     const copy = await service.getAutomationDetails(copyId, seed.userId);
     expect(copy.smartStory.enabled).toBe(true);
     expect(copy.smartStory.config.mascotEveryN).toBe(3);
+  });
+});
+
+describe("modo inteligente × imagem de fundo do fluxo antigo", () => {
+  it("ativa e gera SEM nenhuma imagem configurada (a imagem de fundo não é exigida)", async () => {
+    const seed = await seedUserWithAccount(db);
+    aiWorks();
+    renderCreatesMedia(seed.userId);
+    await smartAutomation(seed, { noImage: true });
+    const results = await cron.runContentAutomationCron({ now: WEDNESDAY_MORNING });
+    expect(results[0].status).toBe("WAITING_APPROVAL");
+    expect(await stories()).toHaveLength(1);
+  });
+
+  it("imagem antiga salva (fixa, modo 'IA sobre a imagem') é IGNORADA: o renderer só recebe conteúdo/fundo/marca/mascote", async () => {
+    const seed = await seedUserWithAccount(db);
+    aiWorks();
+    renderCreatesMedia(seed.userId);
+    const renderLegacy = (await import("@/lib/instagram/backend/template-render-service")).renderAndStoreAutomationArt as ReturnType<typeof vi.fn>;
+    await smartAutomation(seed, { imageMode: "AUTO_TEMPLATE" });
+    await cron.runContentAutomationCron({ now: WEDNESDAY_MORNING });
+
+    expect(renderLegacy).not.toHaveBeenCalled();
+    expect(fakeRenderSmart).toHaveBeenCalledTimes(1);
+    const input = fakeRenderSmart.mock.calls[0][0] as Record<string, unknown>;
+    expect(Object.keys(input).sort()).toEqual(["automationRunId", "background", "content", "showBrand", "useMascot", "userId"]);
+    const [background] = [input.background as { id: string; kind?: string }];
+    expect(background.id).toBeTruthy();
+    expect(JSON.stringify(input)).not.toContain(seed.mediaId);
+  });
+
+  it("imagem salva que nem existe mais (apagada) também não derruba o Story inteligente", async () => {
+    const seed = await seedUserWithAccount(db);
+    aiWorks();
+    renderCreatesMedia(seed.userId);
+    await smartAutomation(seed);
+    await db.sql`update content_automations set fixed_image_media_id = null`;
+    const results = await cron.runContentAutomationCron({ now: WEDNESDAY_MORNING });
+    expect(results[0].status).toBe("WAITING_APPROVAL");
+  });
+
+  it("sem prompt base, o modo inteligente não ativa (mensagem clara) — mas NÃO pede imagem", async () => {
+    const seed = await seedUserWithAccount(db);
+    const id = await service.createAutomation({
+      userId: seed.userId,
+      instagramAccountId: seed.accountId,
+      name: "Sem prompt",
+      timezone: "America/Sao_Paulo",
+      generationLeadMinutes: 1440,
+      imageMode: "FIXED_IMAGE",
+      fixedImageMediaId: null,
+      requireApproval: true,
+      scheduleMode: "SHARED_PROMPT",
+    });
+    await service.updateSharedAutomation(id, seed.userId, {
+      content: { contentType: "STORY", contentMode: "AI", prompt: "" },
+      schedule: { days: ["MONDAY"], times: ["08:00"] },
+    });
+    await service.updateSmartStory(id, seed.userId, { enabled: true });
+    await expect(service.activateAutomation(id, seed.userId)).rejects.toThrow(/prompt base/i);
+  });
+
+  it("modo inteligente DESLIGADO: continua exigindo a imagem de fundo (fluxo antigo intacto)", async () => {
+    const seed = await seedUserWithAccount(db);
+    await expect(smartAutomation(seed, { enableSmart: false, noImage: true })).rejects.toThrow(/imagem de fundo/i);
+  });
+
+  it("manual → inteligente → manual: a imagem e o modo de imagem antigos são preservados", async () => {
+    const seed = await seedUserWithAccount(db);
+    const id = await smartAutomation(seed, { enableSmart: false, imageMode: "AUTO_TEMPLATE" });
+    const before = await service.getAutomationDetails(id, seed.userId);
+    await service.updateSmartStory(id, seed.userId, { enabled: true });
+    const during = await service.getAutomationDetails(id, seed.userId);
+    expect(during.smartStory.enabled).toBe(true);
+    expect(during.fixedImageMediaId).toBe(before.fixedImageMediaId);
+    expect(during.imageMode).toBe("AUTO_TEMPLATE");
+    await service.updateSmartStory(id, seed.userId, { enabled: false });
+    const after = await service.getAutomationDetails(id, seed.userId);
+    expect(after.smartStory.enabled).toBe(false);
+    expect(after.fixedImageMediaId).toBe(seed.mediaId);
+    expect(after.imageMode).toBe("AUTO_TEMPLATE");
+  });
+
+  it("modo aprovação e modo automático usam o mesmo Story inteligente (rascunho × agendado)", async () => {
+    const seed = await seedUserWithAccount(db);
+    aiWorks();
+    renderCreatesMedia(seed.userId);
+    await smartAutomation(seed, { requireApproval: false });
+    const results = await cron.runContentAutomationCron({ now: WEDNESDAY_MORNING });
+    expect(results[0].status).toBe("SCHEDULED");
+    const [post] = await db.sql`select status, scheduled_at_utc from instagram_posts`;
+    expect(post.status).toBe("SCHEDULED");
   });
 });

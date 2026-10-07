@@ -49,6 +49,7 @@ export function SmartStoryPanel({
   basePrompt,
   brandContext,
   previewTime,
+  onEnabledChange,
 }: {
   automationId: string;
   initial?: SmartStoryState;
@@ -56,6 +57,8 @@ export function SmartStoryPanel({
   brandContext: string;
   /** "HH:mm" do primeiro horário (decide a faixa do dia na prévia). */
   previewTime: string;
+  /** Avisa o editor (imagem de fundo e opções do fluxo manual somem enquanto o modo está ligado). */
+  onEnabledChange?: (enabled: boolean) => void;
 }) {
   const [enabled, setEnabled] = useState(initial?.enabled ?? false);
   const [config, setConfig] = useState<SmartStoryConfig>(initial?.config ?? defaultSmartStoryConfig());
@@ -138,6 +141,7 @@ export function SmartStoryPanel({
           checked={enabled}
           onChange={(event) => {
             setEnabled(event.target.checked);
+            onEnabledChange?.(event.target.checked);
             setNotice(null);
           }}
           className="mt-1 h-5 w-5 shrink-0 accent-teal-700"
@@ -145,7 +149,10 @@ export function SmartStoryPanel({
         <span>
           <span className="block text-base font-semibold text-zinc-900">Modo inteligente de Stories</span>
           <span className="block text-sm text-zinc-600">
-            O Alilu escolhe o tipo, o texto e o visual de cada Story, sem repetir o anterior. Você só define o prompt base, os dias e os horários.
+            A Alilu escolhe automaticamente o tipo, o tema e o template de cada Story, sem repetir o anterior. Você só define o prompt base, os dias e os horários.
+          </span>
+          <span className="mt-1 block text-xs text-zinc-500">
+            No modo inteligente, os templates e fundos são escolhidos automaticamente — não é preciso escolher imagem de fundo.
           </span>
         </span>
       </label>

@@ -574,6 +574,15 @@ function assertReadyToActivate(automation: AutomationWithDays): void {
     if (day.contentType === "STORY") {
       // Story: texto opcional no modo manual (vazio = só a foto); no modo
       // IA, precisa do prompt. Sempre precisa de uma imagem de fundo.
+      if (automation.smartStory.enabled) {
+        // Modo inteligente: o motor escolhe tipo, tema, template e fundo. Só
+        // precisa do prompt base — imagem fixa/biblioteca/foto do dia (mesmo
+        // salvas) são ignoradas.
+        if (!day.prompt.trim()) {
+          throw new AutomationValidationError(`Defina o prompt base dos Stories inteligentes (${slotLabel(day)}) antes de ativar.`);
+        }
+        continue;
+      }
       if (day.contentMode !== "MANUAL" && !day.prompt.trim()) {
         throw new AutomationValidationError(`Defina o que o Story de ${slotLabel(day)} deve dizer antes de ativar.`);
       }

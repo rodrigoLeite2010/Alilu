@@ -82,6 +82,7 @@ export function SharedPromptEditor({
   defaultImageMediaId = null,
   previewContext,
   footer,
+  smartStory = false,
 }: {
   userId: string;
   content: DayFormState;
@@ -93,6 +94,8 @@ export function SharedPromptEditor({
   previewContext?: StoryPreviewContext;
   /** Ação principal (ex.: "Salvar"). No celular fica numa barra fixa acima da navegação inferior, junto do total semanal. */
   footer?: ReactNode;
+  /** Modo inteligente de Stories ligado (esconde imagem/véu/cor do fluxo manual). */
+  smartStory?: boolean;
 }) {
   const timesId = useId();
   const allSelected = schedule.days.length === DAYS_OF_WEEK.length;
@@ -118,6 +121,7 @@ export function SharedPromptEditor({
       <div className="space-y-6 lg:grid lg:grid-cols-[minmax(0,1fr)_19rem] lg:items-start lg:gap-6 lg:space-y-0">
         <WeekDayEditor
           shared
+          smartStory={smartStory}
           userId={userId}
           day={{ ...content, enabled: true }}
           imageMode={imageMode}

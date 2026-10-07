@@ -228,7 +228,9 @@ async function generateAndCreatePublicationUnchecked(
   const scheduledAtUtc = willAutoPublish ? publishAtUtc : null;
   const day = await resolveDayVariables(automation, rawDay, runDate);
 
-  if (day.contentType === "STORY" && automation.smartStory.enabled && day.contentMode === "AI") {
+  if (day.contentType === "STORY" && automation.smartStory.enabled) {
+    // PRIORIDADE ao modo inteligente: vem ANTES de qualquer leitura de imagem
+    // fixa/biblioteca/foto do dia (esses campos ficam salvos, mas ignorados).
     // Modo inteligente de Stories (SmartStoryEngine): o motor decide tipo,
     // tema, texto estruturado e layout; renderiza e cria a MESMA publicação
     // de Story de sempre (instagram_posts) — publicar continua sendo o
@@ -578,7 +580,9 @@ export async function runContentAutomationCron(
 
       const hasContentSource =
         day.contentType === "STORY"
-          ? day.contentMode === "MANUAL" || Boolean(day.prompt.trim())
+          ? automation.smartStory.enabled
+            ? Boolean(day.prompt.trim())
+            : day.contentMode === "MANUAL" || Boolean(day.prompt.trim())
           : day.contentMode === "MANUAL"
             ? Boolean(day.manualCaption?.trim())
             : Boolean(day.prompt.trim());

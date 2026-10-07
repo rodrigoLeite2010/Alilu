@@ -5,7 +5,7 @@ import { getContentAIProvider } from "./provider-factory";
 import { recordGenerationUsage } from "./generation-usage-repository";
 import type { AIGenerationUsage } from "./ai-provider";
 import type { StoryAiCaller } from "../smart-story/engine";
-import { pickBackground } from "../smart-story/render/backgrounds";
+import { composeStoryRenderInput } from "../smart-story/compose";
 import { renderAndStoreSmartStory } from "../smart-story/render/render-service";
 import {
   findPostIdByMedia,
@@ -100,8 +100,10 @@ export async function createSmartStoryPublication(input: CreateSmartStoryPublica
   } else {
     await updateSmartStoryProgress(record.id, { status: "RENDERING", runId });
     const recent = await listRecentSmartStories(automation.id, 3, publishAtUtc);
-    const background = pickBackground({
-      mood: record.content.visualMood,
+    const renderInput = composeStoryRenderInput({
+      content: record.content,
+      plan: { useMascot: record.usedMascot },
+      config,
       seed: storySeed(automation.id, publishAtUtc),
       recentBackgroundIds: recent.map((item) => item.backgroundId).filter((id): id is string => Boolean(id)),
     });
@@ -109,10 +111,7 @@ export async function createSmartStoryPublication(input: CreateSmartStoryPublica
       const stored = await renderAndStoreSmartStory({
         userId: automation.userId,
         automationRunId: runId,
-        content: record.content,
-        background,
-        showBrand: config.showBrandHandle,
-        useMascot: record.usedMascot,
+        ...renderInput,
       });
       mediaId = stored.mediaId;
       await updateSmartStoryProgress(record.id, {

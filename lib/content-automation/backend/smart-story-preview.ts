@@ -2,7 +2,7 @@ import "server-only";
 import { generateStoryContent, type StoryAiCaller } from "../smart-story/engine";
 import { normalizeSmartStoryConfig } from "../smart-story/config";
 import { planStory } from "../smart-story/selection";
-import { pickBackground } from "../smart-story/render/backgrounds";
+import { composeStoryRenderInput } from "../smart-story/compose";
 import { renderSmartStoryBuffer } from "../smart-story/render/render-service";
 import { isStoryType, type StoryContent, type StoryHistoryItem, type StoryType } from "../smart-story/types";
 
@@ -59,13 +59,9 @@ export async function buildSmartStoryPreview(input: SmartStoryPreviewInput): Pro
     contextWindow: 0,
     callAi: input.callAi,
   });
-  const background = pickBackground({ mood: generated.content.visualMood, seed });
-  const rendered = await renderSmartStoryBuffer({
-    content: generated.content,
-    background,
-    showBrand: config.showBrandHandle,
-    useMascot: plan.useMascot,
-  });
+  const rendered = await renderSmartStoryBuffer(
+    composeStoryRenderInput({ content: generated.content, plan, config, seed }),
+  );
   return {
     dataUrl: `data:${rendered.contentType};base64,${rendered.buffer.toString("base64")}`,
     content: generated.content,
