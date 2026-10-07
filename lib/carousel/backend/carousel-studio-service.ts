@@ -219,7 +219,10 @@ export async function autoAssignPhotos(userId: string, projectId: string, deps: 
   await requireProject(userId, projectId);
   const slides = await listSlides(projectId);
   const provider = photosFrom(deps);
-  const wanting = slides.filter((slide) => slide.visualKind === "PHOTO" && !slide.imageMediaId && !slidePhotoUrl(slide));
+  const without = slides.filter((slide) => !slide.imageMediaId && !slidePhotoUrl(slide));
+  // Prioriza os slides marcados para foto; se nenhum foi marcado, o usuário pediu fotos, então preenche todos.
+  const marked = without.filter((slide) => slide.visualKind === "PHOTO");
+  const wanting = marked.length > 0 ? marked : without;
   if (!provider) return { assigned: 0, missing: wanting.map((slide) => slide.position), providerAvailable: false };
   const used = new Set(slides.map((slide) => (slide.style.photo as { id?: string } | undefined)?.id).filter(Boolean) as string[]);
   let assigned = 0;

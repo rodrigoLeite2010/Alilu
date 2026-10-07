@@ -133,10 +133,12 @@ describe("banco de fotos", () => {
     const photos = parsePixabayPhotos({
       hits: [
         { id: 9, imageWidth: 800, imageHeight: 1200, user: "bia", user_id: 5, pageURL: "https://pixabay.com/photos/x-9/", largeImageURL: "https://cdn.pixabay.com/photo/a_1280.jpg", webformatURL: "https://cdn.pixabay.com/photo/a_640.jpg" },
+        { id: 11, largeImageURL: "https://pixabay.com/get/g123_1280.jpg", webformatURL: "https://pixabay.com/get/g123_640.jpg" },
         { id: 10, largeImageURL: "https://evil.com/a.jpg", webformatURL: "https://evil.com/a.jpg" },
       ],
     });
-    expect(photos).toHaveLength(1);
+    expect(photos.map((p) => p.id)).toEqual(["9", "11"]);
+    expect(isAllowedPhotoUrl("https://pixabay.com/users/x")).toBe(false);
     expect(photos[0]).toMatchObject({ id: "9", author: "bia", provider: "pixabay" });
   });
 });

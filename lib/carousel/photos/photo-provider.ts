@@ -33,7 +33,10 @@ export function isAllowedPhotoUrl(value: unknown): value is string {
   if (typeof value !== "string") return false;
   try {
     const url = new URL(value);
-    return url.protocol === "https:" && ALLOWED_PHOTO_HOSTS.includes(url.hostname);
+    if (url.protocol !== "https:") return false;
+    // O Pixabay serve as fotos em pixabay.com/get/… (e as prévias em cdn.pixabay.com).
+    if (url.hostname === "pixabay.com") return url.pathname.startsWith("/get/");
+    return ALLOWED_PHOTO_HOSTS.includes(url.hostname);
   } catch {
     return false;
   }
@@ -58,7 +61,10 @@ export class PexelsPhotoProvider implements PhotoProvider {
     const timeout = setTimeout(() => controller.abort(), 8000);
     try {
       const response = await fetch(url, { headers: { Authorization: this.apiKey }, signal: controller.signal });
-      if (!response.ok) return [];
+      if (!response.ok) {
+        console.error(JSON.stringify({ scope: "carousel-photos", provider: "pexels", event: "http_error", status: response.status }));
+        return [];
+      }
       const data = (await response.json()) as { photos?: Array<Record<string, unknown>> };
       return parsePexelsPhotos(data);
     } catch {
@@ -95,7 +101,7 @@ export class PixabayPhotoProvider implements PhotoProvider {
   readonly id = "pixabay";
   constructor(private readonly apiKey: string) {}
 
-  async search(query: string, options: { limit?: number } = {}): Promise<StockPhoto[]> {
+  async search(query: string, options: { limit?: number; noRetry?: boolean } = {}): Promise<StockPhoto[]> {
     const clean = normalizePhotoQuery(query);
     if (!clean) return [];
     const url = new URL("https://pixabay.com/api/");
@@ -110,9 +116,17 @@ export class PixabayPhotoProvider implements PhotoProvider {
     const timeout = setTimeout(() => controller.abort(), 8000);
     try {
       const response = await fetch(url, { signal: controller.signal });
-      if (!response.ok) return [];
-      return parsePixabayPhotos((await response.json()) as { hits?: Array<Record<string, unknown>> });
+      if (!response.ok) {
+        console.error(JSON.stringify({ scope: "carousel-photos", provider: "pixabay", event: "http_error", status: response.status }));
+        return [];
+      }
+      const photos = parsePixabayPhotos((await response.json()) as { hits?: Array<Record<string, unknown>> });
+      // Busca longa demais costuma não achar nada: tenta de novo só com as 2 primeiras palavras.
+      const words = clean.split(" ");
+      if (photos.length === 0 && words.length > 2 && !options.noRetry) return this.search(words.slice(0, 2).join(" "), { ...options, noRetry: true });
+      return photos;
     } catch {
+      console.error(JSON.stringify({ scope: "carousel-photos", provider: "pixabay", event: "request_failed" }));
       return [];
     } finally {
       clearTimeout(timeout);

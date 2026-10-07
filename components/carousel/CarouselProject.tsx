@@ -251,7 +251,7 @@ export function CarouselProject({ projectId }: { projectId: string }) {
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button type="button" variant="secondary" disabled={busy !== null || locked || !hasScript} onClick={() => void act("auto", { action: "auto-photos" })}>{busy === "auto" ? "Buscando fotos…" : "Escolher fotos automaticamente"}</Button>
+            <Button type="button" variant="secondary" disabled={busy !== null || locked || !hasScript} onClick={() => void run("auto", async () => { const r = await projectAction<{ result: { assigned: number; missing: number[]; providerAvailable: boolean } }>(projectId, { action: "auto-photos" }); await refresh(); const { assigned, missing, providerAvailable } = r.result; setNotice(!providerAvailable ? "O banco de fotos não está configurado (chave ausente no servidor)." : assigned === 0 ? "Não encontrei fotos para esses slides. Use “Trocar foto” e tente palavras mais simples." : `${assigned} foto(s) escolhida(s).${missing.length ? ` Sem foto nos slides ${missing.join(", ")}.` : ""}`); })}>{busy === "auto" ? "Buscando fotos…" : "Escolher fotos automaticamente"}</Button>
             <Button type="button" variant="secondary" disabled={busy !== null || !hasScript} onClick={() => void act("render", { action: "render", force: true })}>{busy === "render" ? "Gerando artes…" : "Gerar prévia das artes"}</Button>
           </div>
           <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
@@ -272,6 +272,7 @@ export function CarouselProject({ projectId }: { projectId: string }) {
                 <Button type="submit" variant="secondary" disabled={busy !== null}>{busy === "photos" ? "Buscando…" : "Buscar"}</Button>
               </form>
               {!photosAvailable ? <p className="mt-2 text-sm text-amber-900">O banco de fotos ainda não está disponível. Seu carrossel funciona normalmente com os modelos.</p> : null}
+              {photosAvailable && photos.length === 0 && busy !== "photos" ? <p className="mt-2 text-sm text-zinc-600">Nenhuma foto encontrada. Tente uma palavra mais simples, como “dinheiro” ou “família”.</p> : null}
               <ul className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-4">
                 {photos.map((photo) => (
                   <li key={photo.id}>
