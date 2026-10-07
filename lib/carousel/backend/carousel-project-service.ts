@@ -35,7 +35,10 @@ export type CarouselErrorCode =
   | "PROFILE_LIMIT"
   | "ACCESS_DENIED"
   | "INCOMPLETE"
-  | "BAD_TRANSITION";
+  | "BAD_TRANSITION"
+  | "BUSY"
+  | "AI_UNAVAILABLE"
+  | "LIMIT";
 
 export class CarouselError extends Error {
   constructor(

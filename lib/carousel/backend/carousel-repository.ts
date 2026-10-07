@@ -95,6 +95,9 @@ export interface CarouselProjectRecord {
   caption: string;
   hashtags: string[];
   includeEndMedia: boolean;
+  /** Pesquisa e material de apoio do projeto (jsonb livre, validado no serviço editorial). */
+  research: Record<string, unknown>;
+  profileAnalysisId: string | null;
   instagramPostId: string | null;
   error: string | null;
   completedAt: Date | null;
@@ -121,6 +124,8 @@ function toProject(row: Row): CarouselProjectRecord {
     caption: (row.caption as string) ?? "",
     hashtags,
     includeEndMedia: row.include_end_media !== false,
+    research: row.research && typeof row.research === "object" && !Array.isArray(row.research) ? (row.research as Record<string, unknown>) : {},
+    profileAnalysisId: str(row.profile_analysis_id),
     instagramPostId: str(row.instagram_post_id),
     error: str(row.error),
     completedAt: toDate(row.completed_at),
@@ -501,4 +506,91 @@ export async function insertProfileAnalysis(userId: string, target: string, patt
     returning id
   `;
   return (rows[0] as Row).id as string;
+}
+
+// ---------------------------------------------------------------------------
+// Editorial (Fase 3): pesquisa, análise de perfil, uso de IA
+// ---------------------------------------------------------------------------
+export async function setProjectResearch(userId: string, projectId: string, research: Record<string, unknown>, profileAnalysisId?: string | null): Promise<boolean> {
+  const rows = await getDb()`
+    update carousel_projects set
+      research = ${JSON.stringify(research)}::jsonb,
+      profile_analysis_id = case when ${profileAnalysisId !== undefined} then ${profileAnalysisId ?? null}::uuid else profile_analysis_id end,
+      updated_at = now()
+    where id = ${projectId} and user_id = ${userId}
+    returning id
+  `;
+  return rows.length > 0;
+}
+
+export async function getTopic(userId: string, topicId: string): Promise<CarouselTopicRecord | null> {
+  const rows = await getDb()`select * from carousel_topics where id = ${topicId} and user_id = ${userId}`;
+  return rows[0] ? toTopic(rows[0] as Row) : null;
+}
+
+/** Remove os ganchos gerados (preserva os escritos pelo usuário) antes de gerar novos. */
+export async function clearGeneratedHooks(projectId: string): Promise<void> {
+  await getDb()`delete from carousel_hooks where project_id = ${projectId} and style <> 'CUSTOM' and chosen = false`;
+}
+
+export async function getProfileAnalysis(userId: string, id: string): Promise<{ id: string; target: string; patterns: Record<string, unknown> } | null> {
+  const rows = await getDb()`select id, target, patterns from carousel_profile_analyses where id = ${id} and user_id = ${userId}`;
+  const row = rows[0] as Row | undefined;
+  if (!row) return null;
+  return { id: row.id as string, target: row.target as string, patterns: (row.patterns as Record<string, unknown>) ?? {} };
+}
+
+export async function replaceProjectSources(projectId: string, sources: Array<{ kind: "WEB" | "URL" | "PROFILE"; title: string; url?: string | null; publisher?: string | null; publishedAt?: Date | null }>): Promise<void> {
+  await getDb()`delete from carousel_sources where project_id = ${projectId}`;
+  for (const source of sources) await insertSource({ projectId }, source);
+}
+
+export interface CarouselAiUsageInput {
+  userId: string;
+  projectId: string | null;
+  feature: string;
+  provider: string;
+  model: string;
+  tokensInput: number | null;
+  tokensOutput: number | null;
+  webSearches: number;
+}
+
+/** Melhor esforço: o registro de custo nunca derruba a geração. */
+export async function recordCarouselAiUsage(input: CarouselAiUsageInput): Promise<void> {
+  try {
+    await getDb()`
+      insert into generation_usage (user_id, feature, provider, model, tokens_input, tokens_output, carousel_project_id, web_searches)
+      values (${input.userId}, ${input.feature}, ${input.provider}, ${input.model}, ${input.tokensInput}, ${input.tokensOutput}, ${input.projectId}, ${input.webSearches})
+    `;
+  } catch {
+    // custo é só métrica
+  }
+}
+
+export async function countProjectAiCalls(projectId: string): Promise<number> {
+  const rows = await getDb()`select count(*) as total from generation_usage where carousel_project_id = ${projectId}`;
+  return Number((rows[0] as Row)?.total ?? 0);
+}
+
+export async function countUserAiCallsSince(userId: string, featurePrefix: string, since: Date): Promise<number> {
+  const rows = await getDb()`
+    select count(*) as total from generation_usage
+    where user_id = ${userId} and feature like ${`${featurePrefix}%`} and created_at >= ${since.toISOString()}
+  `;
+  return Number((rows[0] as Row)?.total ?? 0);
+}
+
+/** Assinantes ativos com nicho definido e sem pautas na semana (para o cron semanal). */
+export async function listUsersNeedingWeeklyTopics(weekKey: string, limit: number): Promise<Array<{ userId: string; niche: string }>> {
+  const rows = await getDb()`
+    select b.user_id, b.niche from carousel_brand_profiles b
+    join carousel_subscriptions s on s.user_id = b.user_id and s.status = 'ACTIVE'
+    where b.niche is not null and b.niche <> ''
+      and (s.current_period_ends_at is null or s.current_period_ends_at > now())
+      and not exists (select 1 from carousel_topics t where t.user_id = b.user_id and t.week_key = ${weekKey})
+    order by b.user_id
+    limit ${limit}
+  `;
+  return rows.map((row) => ({ userId: (row as Row).user_id as string, niche: (row as Row).niche as string }));
 }

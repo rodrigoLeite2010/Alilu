@@ -4,6 +4,7 @@ import {
   isContentAutomationCronRequestAuthorized,
   runContentAutomationCron,
 } from "@/lib/content-automation/backend/content-automation-cron";
+import { generateWeeklyTopics } from "@/lib/carousel/backend/carousel-editorial-service";
 
 export const maxDuration = 60;
 export const dynamic = "force-dynamic";
@@ -27,7 +28,17 @@ async function handle(request: Request): Promise<NextResponse> {
   }
   try {
     const results = await runContentAutomationCron({ limit: parseLimit(request) });
-    return NextResponse.json({ processed: results.length, results });
+    // Pautas semanais do Carrossel Inteligente: idempotente por semana, em lotes
+    // pequenos (cada usuário usa 1 chamada de IA com busca) e sem derrubar o cron.
+    let carouselTopics: { processed: number; generated: number; failed: number } | null = null;
+    if (process.env.CONTENT_AI_API_KEY && process.env.CONTENT_AI_MODEL) {
+      try {
+        carouselTopics = await generateWeeklyTopics({ limit: 2 });
+      } catch (error) {
+        console.error(JSON.stringify({ scope: "carousel", event: "weekly-topics.crash", message: (error as Error)?.message }));
+      }
+    }
+    return NextResponse.json({ processed: results.length, results, carouselTopics });
   } catch (error) {
     console.error(JSON.stringify({ scope: "content-automation", event: "cron.crash", message: (error as Error)?.message }));
     return NextResponse.json({ error: "Falha ao executar o cron do Piloto Automático." }, { status: 500 });
