@@ -205,7 +205,7 @@ export async function setProjectStatus(
     update carousel_projects set
       status = ${status},
       error = ${extra.error ?? null},
-      instagram_post_id = coalesce(${extra.instagramPostId ?? null}::uuid, instagram_post_id),
+      instagram_post_id = case when ${extra.instagramPostId === null} then null else coalesce(${extra.instagramPostId ?? null}::uuid, instagram_post_id) end,
       updated_at = now()
     where id = ${projectId} and user_id = ${userId}
     returning *
