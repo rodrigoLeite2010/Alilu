@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createTestDb, type TestDb } from "../helpers/pglite-db";
 import { CAROUSEL_TEMPLATES, contrastRatio, getCarouselTemplate, resolvePalette, readableOn } from "@/lib/carousel/design/templates";
 import { layoutCarouselSlide, CONTENT_WIDTH, MARGIN } from "@/lib/carousel/design/layout";
-import { parsePexelsPhotos, isAllowedPhotoUrl } from "@/lib/carousel/photos/photo-provider";
+import { parsePexelsPhotos, parsePixabayPhotos, isAllowedPhotoUrl } from "@/lib/carousel/photos/photo-provider";
 
 let db: TestDb;
 vi.mock("@/lib/db/client", () => ({ getDb: () => db.sql, assertDatabaseConfigured: () => undefined }));
@@ -128,6 +128,16 @@ describe("banco de fotos", () => {
     });
     expect(photos).toHaveLength(1);
     expect(photos[0]).toMatchObject({ id: "1", author: "Ana", provider: "pexels" });
+  });
+  it("interpreta a resposta do Pixabay e descarta host estranho", () => {
+    const photos = parsePixabayPhotos({
+      hits: [
+        { id: 9, imageWidth: 800, imageHeight: 1200, user: "bia", user_id: 5, pageURL: "https://pixabay.com/photos/x-9/", largeImageURL: "https://cdn.pixabay.com/photo/a_1280.jpg", webformatURL: "https://cdn.pixabay.com/photo/a_640.jpg" },
+        { id: 10, largeImageURL: "https://evil.com/a.jpg", webformatURL: "https://evil.com/a.jpg" },
+      ],
+    });
+    expect(photos).toHaveLength(1);
+    expect(photos[0]).toMatchObject({ id: "9", author: "bia", provider: "pixabay" });
   });
 });
 

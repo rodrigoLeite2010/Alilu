@@ -86,7 +86,7 @@ export async function getCarouselAdminMetrics(now: Date = new Date()): Promise<C
   const textPricing = readTextAiPricing();
   const searchUsd = readWebSearchUsdPerRequest();
   if (!textPricing) alerts.push("Preço do modelo de texto não configurado (CONTENT_AI_INPUT_USD_PER_MTOK / OUTPUT): custo de IA aparece só em tokens e buscas.");
-  if (!process.env.PEXELS_API_KEY) alerts.push("Banco de fotos não configurado (PEXELS_API_KEY): slides com foto saem só com o template.");
+  if (!process.env.PEXELS_API_KEY && !process.env.PIXABAY_API_KEY) alerts.push("Banco de fotos não configurado (PIXABAY_API_KEY ou PEXELS_API_KEY): slides com foto saem só com o template.");
   if (!process.env.CONTENT_AI_API_KEY) alerts.push("IA não configurada (CONTENT_AI_API_KEY): o Carrossel Inteligente não consegue gerar conteúdo.");
 
   const costOf = (tin: number, tout: number, searches: number): number | null =>

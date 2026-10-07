@@ -202,6 +202,7 @@ export const instagramMenuLinks: InstagramMenuLink[] = [
   { href: "/instagram/legendas", label: "Legendas" },
   { href: "/instagram/posts-virais", label: "Posts Virais" },
   { href: "/instagram/painel/calendario", label: "Agendar e publicar" },
+  { href: "/instagram/carrossel-inteligente", label: "Carrossel Inteligente" },
   { href: "/instagram/piloto-automatico", label: "Piloto Automático" },
 ];
 

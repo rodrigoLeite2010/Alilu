@@ -147,6 +147,32 @@ export default function InstagramCategoryPage() {
         </p>
       </section>
 
+      <section id="carrossel-inteligente" className="mt-10 scroll-mt-20">
+        <SectionHeading
+          title="Carrossel Inteligente"
+          description="Do tema ao carrossel pronto: pesquisa com fontes, gancho, roteiro, visual e legenda — para publicar ou agendar."
+        />
+        <div className="rounded-lg border border-brand-accent/40 bg-brand-accent-soft/60 p-5 sm:p-6">
+          <p className="max-w-xl text-sm text-zinc-700">
+            Seu primeiro carrossel é grátis. Depois, planos a partir de R$ 29,90 por mês — com 10% de desconto para quem já é cliente Alilu.
+          </p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Link
+              href="/instagram/carrossel-inteligente"
+              className="inline-flex min-h-11 items-center justify-center rounded-md bg-brand-primary px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-primary-dark"
+            >
+              Criar carrossel inteligente
+            </Link>
+            <Link
+              href="/instagram/carrossel-inteligente/planos"
+              className="inline-flex min-h-11 items-center justify-center rounded-md bg-white px-4 py-2.5 text-sm font-semibold text-brand-primary ring-1 ring-inset ring-brand-primary/25 transition-colors hover:bg-brand-primary-soft"
+            >
+              Ver planos
+            </Link>
+          </div>
+        </div>
+      </section>
+
       <section id="piloto-automatico" className="mt-10 scroll-mt-20">
         <SectionHeading
           title="Piloto Automático"

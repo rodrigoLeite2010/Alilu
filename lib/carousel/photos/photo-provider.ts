@@ -2,8 +2,9 @@ import "server-only";
 
 /**
  * Banco de fotos do Carrossel Inteligente. Interface única: hoje a
- * implementação é o Pexels (licença gratuita para uso comercial, sem
- * obrigação de crédito); trocar de provedor não toca no resto.
+ * implementações são o Pexels e o Pixabay (licenças gratuitas para uso
+ * comercial, sem obrigação de crédito); trocar de provedor não toca no resto.
+ * Usa o Pexels se PEXELS_API_KEY existir; senão o Pixabay (PIXABAY_API_KEY).
  */
 
 export interface StockPhoto {
@@ -26,7 +27,7 @@ export interface PhotoProvider {
 }
 
 /** Hosts de imagem aceitos como fundo (nunca buscamos URL arbitrária). */
-const ALLOWED_PHOTO_HOSTS = ["images.pexels.com"];
+const ALLOWED_PHOTO_HOSTS = ["images.pexels.com", "cdn.pixabay.com"];
 
 export function isAllowedPhotoUrl(value: unknown): value is string {
   if (typeof value !== "string") return false;
@@ -90,8 +91,59 @@ export function parsePexelsPhotos(data: { photos?: Array<Record<string, unknown>
   return out;
 }
 
-/** null = banco de fotos não configurado (PEXELS_API_KEY ausente). */
+export class PixabayPhotoProvider implements PhotoProvider {
+  readonly id = "pixabay";
+  constructor(private readonly apiKey: string) {}
+
+  async search(query: string, options: { limit?: number } = {}): Promise<StockPhoto[]> {
+    const clean = normalizePhotoQuery(query);
+    if (!clean) return [];
+    const url = new URL("https://pixabay.com/api/");
+    url.searchParams.set("key", this.apiKey);
+    url.searchParams.set("q", clean);
+    url.searchParams.set("image_type", "photo");
+    url.searchParams.set("orientation", "vertical");
+    url.searchParams.set("safesearch", "true");
+    url.searchParams.set("lang", "pt");
+    url.searchParams.set("per_page", String(Math.min(Math.max(options.limit ?? 8, 3), 20)));
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 8000);
+    try {
+      const response = await fetch(url, { signal: controller.signal });
+      if (!response.ok) return [];
+      return parsePixabayPhotos((await response.json()) as { hits?: Array<Record<string, unknown>> });
+    } catch {
+      return [];
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+}
+
+export function parsePixabayPhotos(data: { hits?: Array<Record<string, unknown>> }): StockPhoto[] {
+  const out: StockPhoto[] = [];
+  for (const hit of data.hits ?? []) {
+    const full = typeof hit.largeImageURL === "string" ? hit.largeImageURL : null;
+    const thumb = typeof hit.webformatURL === "string" ? hit.webformatURL : full;
+    if (!full || !thumb || !isAllowedPhotoUrl(full) || !isAllowedPhotoUrl(thumb)) continue;
+    out.push({
+      provider: "pixabay",
+      id: String(hit.id),
+      url: full,
+      thumbUrl: thumb,
+      width: Number(hit.imageWidth) || 0,
+      height: Number(hit.imageHeight) || 0,
+      author: typeof hit.user === "string" ? hit.user : "Pixabay",
+      authorUrl: typeof hit.user === "string" && hit.user_id ? `https://pixabay.com/users/${encodeURIComponent(hit.user)}-${String(hit.user_id)}/` : null,
+      sourceUrl: typeof hit.pageURL === "string" ? hit.pageURL : null,
+    });
+  }
+  return out;
+}
+
+/** null = banco de fotos não configurado (nem PEXELS_API_KEY nem PIXABAY_API_KEY). */
 export function createPhotoProviderFromEnv(): PhotoProvider | null {
-  const key = process.env.PEXELS_API_KEY;
-  return key ? new PexelsPhotoProvider(key) : null;
+  if (process.env.PEXELS_API_KEY) return new PexelsPhotoProvider(process.env.PEXELS_API_KEY);
+  if (process.env.PIXABAY_API_KEY) return new PixabayPhotoProvider(process.env.PIXABAY_API_KEY);
+  return null;
 }
