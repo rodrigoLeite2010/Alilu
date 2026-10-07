@@ -1,5 +1,6 @@
 export * from "./types";
 export * from "./config";
+export * from "./brand";
 export { planStory, candidateTypes, pickTheme, pickMascot } from "./selection";
 export { generateStoryContent, DEFAULT_MAX_ATTEMPTS } from "./engine";
 export type { StoryAiCaller, StoryAiResult, GenerateStoryInput, GenerateStoryResult } from "./engine";

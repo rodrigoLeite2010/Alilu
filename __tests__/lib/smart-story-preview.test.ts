@@ -110,9 +110,9 @@ describe("buildSmartStoryPreview", () => {
     }
   });
 
-  it("respeita os tipos habilitados da configuração", async () => {
+  it("respeita os tipos habilitados da configuração (conta sem marca não sorteia tipos de convite)", async () => {
     const result = await preview.buildSmartStoryPreview({
-      rawConfig: { enabledTypes: ["CTA"] },
+      rawConfig: { enabledTypes: ["CTA", "VISUAL_POLL"] },
       basePrompt: "",
       brandContext: "",
       time: "08:00",
@@ -122,7 +122,7 @@ describe("buildSmartStoryPreview", () => {
         throw new Error("x");
       },
     });
-    expect(result.plan.type).toBe("CTA");
+    expect(result.plan.type).toBe("VISUAL_POLL");
   });
 });
 

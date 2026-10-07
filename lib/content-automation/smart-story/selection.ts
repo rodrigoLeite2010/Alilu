@@ -1,3 +1,4 @@
+import { brandCanPromote, brandHasMascot, NONE_BRAND, type StoryBrand } from "./brand";
 import { bucketForTime, type SmartStoryConfig } from "./config";
 import { createRng, weightedPick } from "./random";
 import {
@@ -17,6 +18,8 @@ export interface PlanStoryInput {
   config: SmartStoryConfig;
   /** Stories anteriores, do MAIS RECENTE para o mais antigo. */
   history: StoryHistoryItem[];
+  /** Identidade da marca (padrão: nenhuma). Sem @/site, os tipos de convite não são sorteados. */
+  brand?: StoryBrand;
 }
 
 /**
@@ -26,11 +29,14 @@ export interface PlanStoryInput {
  * e relaxando por etapas quando a exclusão esvazia a lista, para nunca
  * ficar sem opção: janela → só o anterior → faixa → tipos habilitados.
  */
-export function candidateTypes(input: Pick<PlanStoryInput, "time" | "config" | "history">): StoryType[] {
+export function candidateTypes(input: Pick<PlanStoryInput, "time" | "config" | "history" | "brand">): StoryType[] {
   const { config, history, time } = input;
+  const brand = input.brand ?? NONE_BRAND;
+  // Tipos de marca/convite só existem para quem tem @ ou site próprio.
+  const brandOk = (type: StoryType) => (type !== "CTA" && type !== "ALILU_BRAND") || brandCanPromote(brand);
   const bucket = bucketForTime(config, time);
   const usable = (types: readonly StoryType[]) =>
-    types.filter((type) => config.enabledTypes.includes(type) && config.typeWeights[type] > 0);
+    types.filter((type) => config.enabledTypes.includes(type) && config.typeWeights[type] > 0 && brandOk(type));
 
   const inBucket = usable(bucket.types);
   const anyEnabled = usable(config.enabledTypes);
@@ -47,7 +53,8 @@ export function candidateTypes(input: Pick<PlanStoryInput, "time" | "config" | "
   ];
   for (const list of attempts) if (list.length > 0) return list;
   // Config sem nenhum tipo com peso > 0: último recurso, qualquer habilitado.
-  return config.enabledTypes.length > 0 ? config.enabledTypes : (["REFLECTION"] as StoryType[]);
+  const allowed = config.enabledTypes.filter(brandOk);
+  return allowed.length > 0 ? allowed : (["REFLECTION"] as StoryType[]);
 }
 
 export function pickTheme(seed: string, config: SmartStoryConfig, history: StoryHistoryItem[]): StoryTheme {
@@ -62,7 +69,8 @@ export function pickTheme(seed: string, config: SmartStoryConfig, history: Story
   return pool[Math.floor(rng() * pool.length)];
 }
 
-export function pickMascot(seed: string, config: SmartStoryConfig, history: StoryHistoryItem[]): boolean {
+export function pickMascot(seed: string, config: SmartStoryConfig, history: StoryHistoryItem[], brand: StoryBrand = NONE_BRAND): boolean {
+  if (!brandHasMascot(brand)) return false; // sem mascote próprio, nunca há mascote
   if (config.mascotEveryN <= 0) return false;
   if (history[0]?.usedMascot) return false; // nunca em dois Stories seguidos
   return createRng(`${seed}|mascot`)() < 1 / config.mascotEveryN;
@@ -73,13 +81,13 @@ export function pickMascot(seed: string, config: SmartStoryConfig, history: Stor
  * (mesma semente + mesmo histórico = mesmo plano). Não chama IA.
  */
 export function planStory(input: PlanStoryInput): StoryPlan {
-  const { seed, config, history, time } = input;
-  const candidates = candidateTypes({ time, config, history });
+  const { seed, config, history, time, brand } = input;
+  const candidates = candidateTypes({ time, config, history, brand });
   const type = weightedPick(candidates, (candidate) => config.typeWeights[candidate], createRng(`${seed}|type`));
   return {
     type,
     theme: pickTheme(seed, config, history),
-    useMascot: pickMascot(seed, config, history),
+    useMascot: pickMascot(seed, config, history, brand),
     layout: "SINGLE", // SEQUENCE (2–4) só preparado: ver MIN_SEQUENCE_COUNT/MAX_SEQUENCE_COUNT em types.ts
     sequenceCount: Math.max(1, MIN_SEQUENCE_COUNT - 1),
     timeBucket: bucketForTime(config, time).id,

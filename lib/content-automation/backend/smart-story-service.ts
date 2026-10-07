@@ -1,4 +1,5 @@
 import "server-only";
+import type { StoryBrand } from "../smart-story/brand";
 import { generateStoryContent, type StoryAiCaller } from "../smart-story/engine";
 import { bucketForTime, normalizeSmartStoryConfig, type SmartStoryConfig } from "../smart-story/config";
 import { planStory } from "../smart-story/selection";
@@ -26,6 +27,8 @@ export interface PrepareSmartStoryInput {
   /** Chamada à IA (Fase 4 injeta provider.rewriteText + recordGenerationUsage). Nunca recebe/expõe chaves. */
   callAi: StoryAiCaller;
   config?: SmartStoryConfig;
+  /** Identidade do usuário (padrão: nenhuma). Quem chama resolve com resolveStoryBrand(userId). */
+  brand?: StoryBrand;
 }
 
 export interface PreparedSmartStory {
@@ -55,7 +58,7 @@ export async function prepareSmartStory(input: PrepareSmartStoryInput): Promise<
   // Só Stories ANTERIORES a este horário: reprocessar um horário antigo não "vê o futuro".
   const history = (await listRecentSmartStories(input.automationId, historyLimit, input.scheduledAt)).map(toHistoryItem);
   const seed = storySeed(input.automationId, input.scheduledAt);
-  const plan = planStory({ seed, time: input.time, config, history });
+  const plan = planStory({ seed, time: input.time, config, history, brand: input.brand });
 
   const generated = await generateStoryContent({
     plan,
@@ -66,6 +69,7 @@ export async function prepareSmartStory(input: PrepareSmartStoryInput): Promise<
     history,
     contextWindow: config.contextWindow,
     callAi: input.callAi,
+    brand: input.brand,
   });
 
   const { record, created } = await insertSmartStoryOnce({

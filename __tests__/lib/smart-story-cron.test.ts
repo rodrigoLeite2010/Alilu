@@ -523,7 +523,7 @@ describe("modo inteligente × imagem de fundo do fluxo antigo", () => {
     expect(renderLegacy).not.toHaveBeenCalled();
     expect(fakeRenderSmart).toHaveBeenCalledTimes(1);
     const input = fakeRenderSmart.mock.calls[0][0] as Record<string, unknown>;
-    expect(Object.keys(input).sort()).toEqual(["automationRunId", "background", "content", "showBrand", "useMascot", "userId"]);
+    expect(Object.keys(input).sort()).toEqual(["automationRunId", "background", "brand", "content", "showBrand", "useMascot", "userId"]);
     const [background] = [input.background as { id: string; kind?: string }];
     expect(background.id).toBeTruthy();
     expect(JSON.stringify(input)).not.toContain(seed.mediaId);

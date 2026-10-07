@@ -1,3 +1,4 @@
+import { NONE_BRAND, type StoryBrand } from "./brand";
 import type { SmartStoryConfig } from "./config";
 import { pickBackground } from "./render/backgrounds";
 import type { RenderSmartStoryInput } from "./render/render-service";
@@ -11,6 +12,8 @@ export interface ComposeStoryRenderInput {
   seed: string;
   /** Fundos usados nos últimos Stories (mais recente primeiro). */
   recentBackgroundIds?: string[];
+  /** Identidade visual do usuário (padrão: nenhuma). */
+  brand?: StoryBrand;
 }
 
 /**
@@ -30,5 +33,6 @@ export function composeStoryRenderInput(input: ComposeStoryRenderInput): RenderS
     }),
     showBrand: input.config.showBrandHandle,
     useMascot: input.plan.useMascot,
+    brand: input.brand ?? NONE_BRAND,
   };
 }

@@ -1,5 +1,6 @@
 import type { RenderableImage, RenderingContext2DLike } from "@/lib/instagram/render";
 import { computeCoverRect } from "@/lib/instagram/layout-math";
+import { accentFor, NONE_BRAND, type StoryBrand } from "../brand";
 import type { StoryBackground } from "./backgrounds";
 import { STORY_HEIGHT, STORY_WIDTH, type ColorToken, type DrawItem, type FillToken } from "./layout";
 
@@ -25,12 +26,13 @@ interface Palette {
   border: string;
 }
 
-export function paletteFor(background: StoryBackground): Palette {
+export function paletteFor(background: StoryBackground, brand: StoryBrand = NONE_BRAND): Palette {
+  const accent = accentFor(brand, background.textTone, background.accent);
   if (background.textTone === "dark") {
     return {
       text: "#14202b",
       textSoft: "rgba(20, 32, 43, 0.78)",
-      accent: background.accent,
+      accent,
       onAccent: "#ffffff",
       card: "rgba(255, 255, 255, 0.58)",
       accentSoft: "rgba(20, 32, 43, 0.08)",
@@ -40,7 +42,7 @@ export function paletteFor(background: StoryBackground): Palette {
   return {
     text: "#ffffff",
     textSoft: "rgba(255, 255, 255, 0.84)",
-    accent: background.accent,
+    accent,
     onAccent: "#14202b",
     card: "rgba(255, 255, 255, 0.13)",
     accentSoft: "rgba(255, 255, 255, 0.2)",
@@ -158,7 +160,11 @@ export function drawItems(ctx: StoryCanvasContext, items: DrawItem[], palette: P
             ctx.fillStyle = "rgba(255, 255, 255, 0.96)";
             ctx.fill();
           }
-          ctx.drawImage(image, 0, 0, image.naturalWidth, image.naturalHeight, item.x, item.y, item.w, item.h);
+          // Proporção original preservada (logo/mascote do usuário podem não ser quadrados).
+          const scale = Math.min(item.w / image.naturalWidth, item.h / image.naturalHeight);
+          const dw = image.naturalWidth * scale;
+          const dh = image.naturalHeight * scale;
+          ctx.drawImage(image, 0, 0, image.naturalWidth, image.naturalHeight, item.x + (item.w - dw) / 2, item.y + (item.h - dh) / 2, dw, dh);
           if (item.asset === "mascot") mascotDrawn = true;
         }
         break;

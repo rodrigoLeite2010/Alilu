@@ -28,6 +28,7 @@ import {
   layoutStory,
   type DrawItem,
 } from "@/lib/content-automation/smart-story/render/layout";
+import { ALILU_BRAND_IDENTITY } from "@/lib/content-automation/smart-story/brand";
 import { INTERACTIVE_CLAIM_RE } from "@/lib/content-automation/smart-story/cta";
 
 const putMock = vi.fn<(path: string, buffer: Buffer, options: unknown) => Promise<{ url: string }>>(async () => ({ url: "https://blob.example.com/generated/story.jpg" }));
@@ -165,11 +166,12 @@ describe("layout (área segura e hierarquia)", () => {
   });
 
   it("CTA e Marca Alilu usam logo grande e pílula preenchida; os demais têm rodapé de marca", () => {
-    const cta = layoutStory(content("CTA"), fakeMeasurer(), { showBrand: true, mascot: false }).items;
+    const aliluBrand = { showBrand: true, mascot: false, brandHandle: "@alilu.tec", hasLogo: true };
+    const cta = layoutStory(content("CTA"), fakeMeasurer(), aliluBrand).items;
     const big = cta.find((item) => item.kind === "image" && item.asset === "logo");
     expect(big && big.kind === "image" && big.w).toBe(150);
     expect(cta.some((item) => item.kind === "roundRect" && item.fill === "accent")).toBe(true);
-    const reflection = layoutStory(content("REFLECTION"), fakeMeasurer(), { showBrand: true, mascot: false }).items;
+    const reflection = layoutStory(content("REFLECTION"), fakeMeasurer(), aliluBrand).items;
     const footerLogo = reflection.find((item) => item.kind === "image" && item.asset === "logo");
     expect(footerLogo && footerLogo.kind === "image" && footerLogo.y + footerLogo.h / 2).toBe(FOOTER_CENTER_Y);
     expect(reflection.some((item) => item.kind === "text" && item.text === "@alilu.tec")).toBe(true);
@@ -242,6 +244,7 @@ describe("render real (canvas)", () => {
       background: STORY_BACKGROUNDS[0],
       showBrand: true,
       useMascot: true,
+      brand: ALILU_BRAND_IDENTITY,
     });
     expect(out.mascotDrawn).toBe(render.isMascotAvailable());
   });

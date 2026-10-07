@@ -1,3 +1,4 @@
+import type { StoryBrand } from "./brand";
 import { INTERACTIVE_CLAIM_RE, pickCta } from "./cta";
 import { cleanStoryText, normalizeForCompare, sameText, truncateSafely } from "./text";
 import {
@@ -69,6 +70,8 @@ export interface ValidateStoryInput {
   history: StoryHistoryItem[];
   /** Semente (para o CTA substituto determinístico). */
   seed: string;
+  /** Identidade da marca do usuário (padrão: nenhuma) — decide os CTAs de visita/seguir. */
+  brand?: StoryBrand;
 }
 
 /**
@@ -115,7 +118,7 @@ export function validateStoryContent(input: ValidateStoryInput): StoryContent {
   const recentCtas = history.slice(0, 5).map((item) => item.cta);
   const ctaRepeated = cta !== "" && recentCtas.some((recent) => normalizeForCompare(recent) === normalizeForCompare(cta));
   if (!cta || ctaRepeated || INTERACTIVE_CLAIM_RE.test(cta)) {
-    cta = pickCta(type, seed, recentCtas);
+    cta = pickCta(type, seed, recentCtas, input.brand);
   }
 
   const mood = typeof raw.visualMood === "string" ? raw.visualMood.trim().toLowerCase() : "";

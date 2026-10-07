@@ -13,6 +13,7 @@ import {
   updateSmartStoryProgress,
   type SmartStoryRecord,
 } from "./smart-story-repository";
+import { resolveStoryBrand } from "./smart-story-brand-service";
 import { prepareSmartStory, storySeed } from "./smart-story-service";
 
 /**
@@ -69,6 +70,8 @@ function message(error: unknown): string {
 export async function createSmartStoryPublication(input: CreateSmartStoryPublicationInput): Promise<SmartStoryPublication> {
   const { automation, day, runId, publishAtUtc } = input;
   const config = automation.smartStory.config;
+  // Identidade do DONO da automação: o Alilu só aparece para a conta do Alilu.
+  const brand = await resolveStoryBrand(automation.userId);
 
   const prepared = await prepareSmartStory({
     userId: automation.userId,
@@ -82,6 +85,7 @@ export async function createSmartStoryPublication(input: CreateSmartStoryPublica
     brandContext: automation.brandContext,
     dayOfWeekLabel: DAY_OF_WEEK_LABEL[day.dayOfWeek],
     callAi: input.callAi ?? callStoryAi,
+    brand,
   });
   for (const usage of prepared.usages) {
     await recordGenerationUsage(automation.id, runId, usage as AIGenerationUsage, automation.userId);
@@ -104,6 +108,7 @@ export async function createSmartStoryPublication(input: CreateSmartStoryPublica
       content: record.content,
       plan: { useMascot: record.usedMascot },
       config,
+      brand,
       seed: storySeed(automation.id, publishAtUtc),
       recentBackgroundIds: recent.map((item) => item.backgroundId).filter((id): id is string => Boolean(id)),
     });

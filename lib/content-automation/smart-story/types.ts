@@ -33,7 +33,7 @@ export const STORY_TYPE_LABEL: Record<StoryType, string> = {
   CHECKLIST: "Checklist",
   ADVICE: "Conselho",
   CTA: "Chamada para ação",
-  ALILU_BRAND: "Marca Alilu",
+  ALILU_BRAND: "Marca / Convite",
 };
 
 export function isStoryType(value: unknown): value is StoryType {

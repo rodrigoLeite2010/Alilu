@@ -1,3 +1,4 @@
+import { brandDisplayName, NONE_BRAND, type StoryBrand } from "./brand";
 import { STORY_LIMITS, STORY_THEME_LABEL, STORY_TYPE_LABEL, VISUAL_MOODS, type StoryHistoryItem, type StoryPlan, type StoryType } from "./types";
 
 /**
@@ -29,6 +30,22 @@ export const TYPE_INSTRUCTIONS: Record<StoryType, string> = {
     "Uma mensagem de marca do ALILU (ferramentas gratuitas e úteis para o dia a dia), acolhedora, sem exagero e sem inventar dados. headline = a mensagem; cta = convite para seguir ou visitar.",
 };
 
+/**
+ * Instrução do tipo para a MARCA do usuário. O Alilu mantém o texto próprio;
+ * qualquer outra conta recebe instruções neutras, ancoradas só no contexto
+ * da marca dela — nunca "ferramentas do Alilu".
+ */
+export function typeInstruction(type: StoryType, brand: StoryBrand = NONE_BRAND): string {
+  if (brand.kind === "ALILU" || (type !== "CTA" && type !== "ALILU_BRAND")) return TYPE_INSTRUCTIONS[type];
+  const name = brandDisplayName(brand) ?? "a marca";
+  const siteExample = brand.site ? ` (ex.: 'Acesse ${brand.site}')` : "";
+  if (type === "CTA") {
+    return `Um convite direto para a pessoa conhecer ${name}. Use SOMENTE o contexto da marca informado acima; não invente produtos, preços, prazos nem promessas. headline = a chamada; cta = a ação${siteExample}.`;
+  }
+  const follow = brand.handle ? `seguir ${brand.handle}` : "seguir";
+  return `Uma mensagem de marca de ${name}, acolhedora, sem exagero e sem inventar dados, usando SOMENTE o contexto da marca informado acima. headline = a mensagem; cta = convite para ${follow}${brand.site ? ` ou visitar ${brand.site}` : ""}.`;
+}
+
 export interface BuildStoryPromptInput {
   plan: StoryPlan;
   /** Prompt base do usuário (já com variáveis {{…}} resolvidas). Pode ser vazio. */
@@ -39,11 +56,15 @@ export interface BuildStoryPromptInput {
   history: StoryHistoryItem[];
   /** Observações dos motivos da tentativa anterior (retry controlado). */
   previousProblems?: string[];
+  /** Identidade da marca do usuário (padrão: nenhuma). */
+  brand?: StoryBrand;
 }
 
 /** Monta o prompt estruturado (JSON) de UM Story. */
 export function buildStoryPrompt(input: BuildStoryPromptInput): string {
   const { plan, history } = input;
+  // O código interno ALILU_BRAND não vai para a IA de quem não é o Alilu (o tipo final é sempre o do plano).
+  const typeCode = plan.type === "ALILU_BRAND" && (input.brand ?? NONE_BRAND).kind !== "ALILU" ? "BRAND_INVITE" : plan.type;
   const recent = history
     .map((item) => `- [${STORY_TYPE_LABEL[item.storyType]}] "${item.headline.replace(/\s+/g, " ").slice(0, 120)}"`)
     .join("\n");
@@ -53,8 +74,8 @@ export function buildStoryPrompt(input: BuildStoryPromptInput): string {
     input.dayOfWeekLabel ? `Dia da semana desta publicação: ${input.dayOfWeekLabel}. Não cite outro dia.` : "",
     input.basePrompt.trim() ? `Pedido base do usuário (tom e regras gerais): ${input.basePrompt.trim()}` : "",
     "",
-    `Gere UM Story do Instagram do tipo "${STORY_TYPE_LABEL[plan.type]}" (${plan.type}) sobre o tema "${STORY_THEME_LABEL[plan.theme]}".`,
-    `Regras do tipo: ${TYPE_INSTRUCTIONS[plan.type]}`,
+    `Gere UM Story do Instagram do tipo "${STORY_TYPE_LABEL[plan.type]}" (${typeCode}) sobre o tema "${STORY_THEME_LABEL[plan.theme]}".`,
+    `Regras do tipo: ${typeInstruction(plan.type, input.brand)}`,
     "",
     "Regras gerais: português do Brasil; sem emojis, sem hashtags, sem markdown e sem aspas em volta do texto; texto curto e legível numa imagem vertical; nunca invente dados factuais específicos; nunca prometa enquete, pergunta ou link clicáveis (o Story é só uma imagem).",
     `Limites: headline até ${STORY_LIMITS.headline} caracteres; body até ${STORY_LIMITS.body}; optionA/optionB até ${STORY_LIMITS.option}; cta até ${STORY_LIMITS.cta}.`,
@@ -64,7 +85,7 @@ export function buildStoryPrompt(input: BuildStoryPromptInput): string {
       : "",
     "",
     "Responda SOMENTE com este JSON (campos não usados pelo tipo ficam como string vazia):",
-    `{"type": "${plan.type}", "headline": string, "body": string, "optionA": string, "optionB": string, "cta": string, "visualMood": "${VISUAL_MOODS.join('" | "')}", "topic": string (assunto em até 4 palavras)}`,
+    `{"type": "${typeCode}", "headline": string, "body": string, "optionA": string, "optionB": string, "cta": string, "visualMood": "${VISUAL_MOODS.join('" | "')}", "topic": string (assunto em até 4 palavras)}`,
   ];
   return lines.join("\n").replace(/\n{3,}/g, "\n\n");
 }

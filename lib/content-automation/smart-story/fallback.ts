@@ -1,3 +1,4 @@
+import { brandDisplayName, NONE_BRAND, type StoryBrand } from "./brand";
 import { pickCta } from "./cta";
 import { createRng } from "./random";
 import { sameText } from "./text";
@@ -97,12 +98,32 @@ export const FALLBACK_CONTENT: Record<StoryType, FallbackItem[]> = {
 };
 
 /**
+ * Fallbacks de marca (CTA e Marca / Convite) falam da marca DO USUÁRIO — o
+ * texto curado do Alilu só vale para a conta do Alilu. Sem nome, @ nem site
+ * (tipo que nem deveria ser sorteado), cai numa reflexão genérica.
+ */
+function fallbackPool(type: StoryType, brand: StoryBrand): FallbackItem[] {
+  if ((type !== "CTA" && type !== "ALILU_BRAND") || brand.kind === "ALILU") return FALLBACK_CONTENT[type];
+  const name = brandDisplayName(brand);
+  if (!name) return FALLBACK_CONTENT.REFLECTION;
+  return type === "CTA"
+    ? [
+        { headline: `Conheça ${name}`, topic: "convite" },
+        { headline: `Venha conhecer ${name}`, topic: "convite" },
+      ]
+    : [
+        { headline: `${name}: feito com cuidado para você.`, topic: "marca" },
+        { headline: `Obrigado por acompanhar ${name}.`, topic: "marca" },
+      ];
+}
+
+/**
  * Escolhe um fallback do tipo (determinístico pela semente), pulando os
  * títulos recentes. Todos usados? Repete o primeiro sorteado — preferir
  * repetir a abortar.
  */
-export function buildFallbackContent(type: StoryType, seed: string, history: StoryHistoryItem[]): StoryContent {
-  const pool = FALLBACK_CONTENT[type];
+export function buildFallbackContent(type: StoryType, seed: string, history: StoryHistoryItem[], brand: StoryBrand = NONE_BRAND): StoryContent {
+  const pool = fallbackPool(type, brand);
   const fresh = pool.filter((item) => !history.some((past) => sameText(past.headline, item.headline)));
   const list = fresh.length > 0 ? fresh : pool;
   const item = list[Math.floor(createRng(`${seed}|fallback`)() * list.length)];
@@ -112,7 +133,7 @@ export function buildFallbackContent(type: StoryType, seed: string, history: Sto
     body: item.body ?? "",
     optionA: item.optionA ?? "",
     optionB: item.optionB ?? "",
-    cta: item.cta ?? pickCta(type, seed, history.slice(0, 5).map((past) => past.cta)),
+    cta: item.cta ?? pickCta(type, seed, history.slice(0, 5).map((past) => past.cta), brand),
     visualMood: DEFAULT_MOOD[type],
     topic: item.topic ?? item.headline.slice(0, 40),
   };

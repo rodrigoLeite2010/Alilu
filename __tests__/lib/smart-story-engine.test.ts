@@ -19,6 +19,7 @@ import {
   type StoryHistoryItem,
   type StoryType,
 } from "@/lib/content-automation/smart-story";
+import { ALILU_BRAND_IDENTITY } from "@/lib/content-automation/smart-story/brand";
 import { candidateTypes, pickMascot } from "@/lib/content-automation/smart-story/selection";
 import { FALLBACK_CONTENT } from "@/lib/content-automation/smart-story/fallback";
 import { REQUIRED_FIELDS } from "@/lib/content-automation/smart-story/schema";
@@ -156,18 +157,18 @@ describe("mascote", () => {
     let hits = 0;
     const total = 1000;
     for (let index = 0; index < total; index += 1) {
-      if (pickMascot(`m${index}`, config, [])) hits += 1;
+      if (pickMascot(`m${index}`, config, [], ALILU_BRAND_IDENTITY)) hits += 1;
     }
     expect(hits / total).toBeGreaterThan(0.14);
     expect(hits / total).toBeLessThan(0.27);
     for (let index = 0; index < 100; index += 1) {
-      expect(pickMascot(`m${index}`, config, [item("REFLECTION", "a", { usedMascot: true })])).toBe(false);
+      expect(pickMascot(`m${index}`, config, [item("REFLECTION", "a", { usedMascot: true })], ALILU_BRAND_IDENTITY)).toBe(false);
     }
   });
 
   it("frequência 0 desliga o mascote", () => {
     const off = normalizeSmartStoryConfig({ mascotEveryN: 0 });
-    for (let index = 0; index < 50; index += 1) expect(pickMascot(`o${index}`, off, [])).toBe(false);
+    for (let index = 0; index < 50; index += 1) expect(pickMascot(`o${index}`, off, [], ALILU_BRAND_IDENTITY)).toBe(false);
   });
 });
 

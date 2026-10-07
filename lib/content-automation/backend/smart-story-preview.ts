@@ -3,6 +3,7 @@ import { generateStoryContent, type StoryAiCaller } from "../smart-story/engine"
 import { normalizeSmartStoryConfig } from "../smart-story/config";
 import { planStory } from "../smart-story/selection";
 import { composeStoryRenderInput } from "../smart-story/compose";
+import { resolveStoryBrand } from "./smart-story-brand-service";
 import { renderSmartStoryBuffer } from "../smart-story/render/render-service";
 import { isStoryType, type StoryContent, type StoryHistoryItem, type StoryType } from "../smart-story/types";
 
@@ -38,6 +39,7 @@ export interface SmartStoryPreviewResult {
  */
 export async function buildSmartStoryPreview(input: SmartStoryPreviewInput): Promise<SmartStoryPreviewResult> {
   const config = normalizeSmartStoryConfig(input.rawConfig);
+  const brand = await resolveStoryBrand(input.userId);
   const seed = `preview|${input.userId}|${input.nonce}`;
   const previous = (Array.isArray(input.previousTypes) ? input.previousTypes : []).filter(isStoryType).slice(0, 10);
   // Histórico sintético: só o tipo importa para a antirrepetição da prévia.
@@ -49,7 +51,7 @@ export async function buildSmartStoryPreview(input: SmartStoryPreviewInput): Pro
     usedMascot: false,
     generatedAt: new Date(),
   }));
-  const plan = planStory({ seed, time: input.time, config, history });
+  const plan = planStory({ seed, time: input.time, config, history, brand });
   const generated = await generateStoryContent({
     plan,
     seed,
@@ -58,9 +60,10 @@ export async function buildSmartStoryPreview(input: SmartStoryPreviewInput): Pro
     history,
     contextWindow: 0,
     callAi: input.callAi,
+    brand,
   });
   const rendered = await renderSmartStoryBuffer(
-    composeStoryRenderInput({ content: generated.content, plan, config, seed }),
+    composeStoryRenderInput({ content: generated.content, plan, config, seed, brand }),
   );
   return {
     dataUrl: `data:${rendered.contentType};base64,${rendered.buffer.toString("base64")}`,

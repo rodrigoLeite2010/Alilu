@@ -4,6 +4,7 @@ import path from "node:path";
 import { createCanvas, GlobalFonts, loadImage } from "@napi-rs/canvas";
 import type { RenderableImage } from "@/lib/instagram/render";
 import { storeGeneratedAutomationJpeg } from "@/lib/instagram/backend/template-render-service";
+import { brandHasLogo, brandHasMascot, NONE_BRAND, type StoryBrand } from "../brand";
 import type { StoryContent } from "../types";
 import type { StoryBackground } from "./backgrounds";
 import { drawBackground, drawItems, paletteFor, type StoryCanvasContext } from "./draw";
@@ -49,19 +50,61 @@ function ensureFonts(): void {
   }
 }
 
+const IMAGE_CACHE_LIMIT = 24;
 const imageCache = new Map<string, Promise<RenderableImage | null>>();
+function remember(key: string, promise: Promise<RenderableImage | null>): Promise<RenderableImage | null> {
+  if (imageCache.size >= IMAGE_CACHE_LIMIT) {
+    const oldest = imageCache.keys().next().value;
+    if (oldest !== undefined) imageCache.delete(oldest);
+  }
+  imageCache.set(key, promise);
+  return promise;
+}
+
 function loadAsset(file: string): Promise<RenderableImage | null> {
-  let cached = imageCache.get(file);
-  if (!cached) {
-    cached = fs.existsSync(file)
+  const cached = imageCache.get(file);
+  if (cached) return cached;
+  return remember(
+    file,
+    fs.existsSync(file)
       ? loadImage(file).then(
           (image) => image as unknown as RenderableImage,
           () => null,
         )
-      : Promise.resolve(null);
-    imageCache.set(file, cached);
+      : Promise.resolve(null),
+  );
+}
+
+/** Imagem do próprio usuário (Vercel Blob). Qualquer outra origem é ignorada: nunca buscamos URL arbitrária. */
+function loadRemoteAsset(url: string): Promise<RenderableImage | null> {
+  const cached = imageCache.get(url);
+  if (cached) return cached;
+  let host = "";
+  try {
+    const parsed = new URL(url);
+    host = parsed.protocol === "https:" ? parsed.hostname : "";
+  } catch {
+    host = "";
   }
-  return cached;
+  if (!host.endsWith(".blob.vercel-storage.com")) return Promise.resolve(null);
+  return remember(
+    url,
+    loadImage(url).then(
+      (image) => image as unknown as RenderableImage,
+      () => null,
+    ),
+  );
+}
+
+/** Logo da marca: Alilu → arquivo embutido; usuário → o dele; sem marca → nenhum (null). */
+function loadBrandLogo(brand: StoryBrand): Promise<RenderableImage | null> {
+  if (!brandHasLogo(brand)) return Promise.resolve(null);
+  return brand.kind === "ALILU" ? loadAsset(LOGO_PATH) : brand.logoUrl ? loadRemoteAsset(brand.logoUrl) : Promise.resolve(null);
+}
+
+function loadBrandMascot(brand: StoryBrand): Promise<RenderableImage | null> {
+  if (!brandHasMascot(brand)) return Promise.resolve(null);
+  return brand.kind === "ALILU" ? loadAsset(MASCOT_PATH) : brand.mascotUrl ? loadRemoteAsset(brand.mascotUrl) : Promise.resolve(null);
 }
 
 /** O PNG do mascote existe neste ambiente? */
@@ -72,8 +115,10 @@ export function isMascotAvailable(): boolean {
 export interface RenderSmartStoryInput {
   content: StoryContent;
   background: StoryBackground;
-  /** Logo pequeno + @alilu.tec discretos. */
+  /** Logo e/ou @ da marca discretos no rodapé (só os que a marca tem). */
   showBrand: boolean;
+  /** Identidade do usuário (padrão: nenhuma — nada do Alilu para quem não é o Alilu). */
+  brand?: StoryBrand;
   /** O plano pediu o mascote (só é desenhado se o PNG existir). */
   useMascot: boolean;
 }
@@ -100,7 +145,8 @@ export class SmartStoryRenderError extends Error {}
  */
 export async function renderSmartStoryBuffer(input: RenderSmartStoryInput): Promise<RenderedSmartStory> {
   ensureFonts();
-  const [logo, mascot] = await Promise.all([loadAsset(LOGO_PATH), input.useMascot ? loadAsset(MASCOT_PATH) : Promise.resolve(null)]);
+  const brand = input.brand ?? NONE_BRAND;
+  const [logo, mascot] = await Promise.all([loadBrandLogo(brand), input.useMascot ? loadBrandMascot(brand) : Promise.resolve(null)]);
 
   let backgroundImage: RenderableImage | null = null;
   if (input.background.kind === "IMAGE") {
@@ -116,11 +162,13 @@ export async function renderSmartStoryBuffer(input: RenderSmartStoryInput): Prom
   const ctx = canvas.getContext("2d") as unknown as StoryCanvasContext;
   const layout = layoutStory(input.content, ctx as unknown as StoryMeasurer, {
     showBrand: input.showBrand,
+    brandHandle: brand.handle,
+    hasLogo: logo !== null,
     mascot: input.useMascot && mascot !== null,
   });
 
   drawBackground(ctx, input.background, backgroundImage);
-  const { mascotDrawn } = drawItems(ctx, layout.items, paletteFor(input.background), { logo, mascot });
+  const { mascotDrawn } = drawItems(ctx, layout.items, paletteFor(input.background, brand), { logo, mascot });
 
   return {
     buffer: canvas.toBuffer("image/jpeg", SMART_STORY_JPEG_QUALITY),

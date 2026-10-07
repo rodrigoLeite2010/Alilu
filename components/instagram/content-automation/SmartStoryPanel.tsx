@@ -162,8 +162,13 @@ export function SmartStoryPanel({
           <div className="rounded-md bg-white p-3 text-sm text-zinc-700">
             <p className="font-medium text-zinc-900">Estilo automático</p>
             <p className="mt-1">
-              Manhã: reflexões e perguntas · meio do dia: enquetes e escolhas · noite: chamadas e a marca Alilu. O mascote aparece de vez em
+              Manhã: reflexões e perguntas · meio do dia: enquetes e escolhas · noite: chamadas e convites da sua marca (quando você preenche o @ ou o site). O mascote, se você enviar um, aparece de vez em
               quando e o idioma é português do Brasil.
+            </p>
+            <p className="mt-1 text-xs">
+              <a href="/minha-conta/identidade-stories" className="font-medium text-teal-800 underline">
+                Configurar a identidade da minha marca (logo, @, site, mascote)
+              </a>
             </p>
             <p className="mt-1 text-xs text-zinc-500">
               Enquetes e perguntas são desenhadas na imagem. O Instagram não permite publicar figurinhas interativas por aqui, então o Story não pede
@@ -261,7 +266,7 @@ export function SmartStoryPanel({
                     onChange={(event) => patch({ showBrandHandle: event.target.checked })}
                     className="h-4 w-4 accent-teal-700"
                   />
-                  <span>Mostrar logo e @alilu.tec</span>
+                  <span>Mostrar logo e @ da minha marca</span>
                 </label>
               </div>
 

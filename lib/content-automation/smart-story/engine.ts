@@ -1,3 +1,4 @@
+import type { StoryBrand } from "./brand";
 import { buildFallbackContent } from "./fallback";
 import { buildStoryPrompt } from "./prompts";
 import { validateStoryContent, StoryValidationError } from "./schema";
@@ -24,6 +25,8 @@ export interface GenerateStoryInput {
   history: StoryHistoryItem[];
   contextWindow: number;
   callAi: StoryAiCaller;
+  /** Identidade visual/textual do usuário (padrão: nenhuma — sem Alilu para quem não é o Alilu). */
+  brand?: StoryBrand;
   /** Tentativas na IA (padrão 2: a primeira + 1 retry controlado). */
   maxAttempts?: number;
 }
@@ -69,6 +72,7 @@ export async function generateStoryContent(input: GenerateStoryInput): Promise<G
       dayOfWeekLabel: input.dayOfWeekLabel,
       history: promptHistory,
       previousProblems: problems,
+      brand: input.brand,
     });
     try {
       const result = await input.callAi(promptUsed);
@@ -78,6 +82,7 @@ export async function generateStoryContent(input: GenerateStoryInput): Promise<G
         type: input.plan.type,
         history: input.history,
         seed: input.seed,
+        brand: input.brand,
       });
       return { content, source: "AI", attempts: attempt, promptUsed, errors, usages };
     } catch (error) {
@@ -87,7 +92,7 @@ export async function generateStoryContent(input: GenerateStoryInput): Promise<G
   }
 
   return {
-    content: buildFallbackContent(input.plan.type, input.seed, input.history),
+    content: buildFallbackContent(input.plan.type, input.seed, input.history, input.brand),
     source: "FALLBACK",
     attempts: maxAttempts,
     promptUsed,

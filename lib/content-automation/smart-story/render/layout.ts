@@ -33,7 +33,6 @@ export const MASCOT_BOX = {
 
 export const FONT_SERIF = '"Alilu Story Serif"';
 export const FONT_SANS = '"Alilu Story Sans"';
-export const BRAND_HANDLE = "@alilu.tec";
 
 export type ColorToken = "text" | "textSoft" | "accent" | "onAccent";
 export type FillToken = "card" | "accent" | "accentSoft";
@@ -46,8 +45,12 @@ export type DrawItem =
   | { kind: "image"; asset: "logo" | "mascot"; x: number; y: number; w: number; h: number };
 
 export interface LayoutOptions {
-  /** Desenhar logo + @alilu.tec discretos no rodapé. */
+  /** Desenhar logo e/ou @ da marca (os que existirem) discretos no rodapé. */
   showBrand: boolean;
+  /** @ da marca do usuário (null/ausente = não desenha texto de marca). */
+  brandHandle?: string | null;
+  /** A marca tem logo carregado para desenhar. */
+  hasLogo?: boolean;
   /** O mascote será desenhado (PNG existe E o plano pediu): reserva o espaço dele. */
   mascot: boolean;
   /** Texto do CTA a exibir (StoryContent.cta). Vazio = sem pílula. */
@@ -222,16 +225,18 @@ function imagePiece(asset: "logo" | "mascot", size: number, gap: number): Piece 
   return { height: size, gap, build: (top) => [{ kind: "image", asset, x: CENTER_X - size / 2, y: top, w: size, h: size }] };
 }
 
-function brandFooter(measurer: StoryMeasurer): DrawItem[] {
+function brandFooter(measurer: StoryMeasurer, handle: string | null, hasLogo: boolean): DrawItem[] {
   const logo = 64;
   const gap = 30;
-  const textWidth = measureWidth(measurer, BRAND_HANDLE, FONT_SANS, true, 32);
-  const total = logo + gap + textWidth;
+  const textWidth = handle ? measureWidth(measurer, handle, FONT_SANS, true, 32) : 0;
+  const total = (hasLogo ? logo : 0) + (hasLogo && handle ? gap : 0) + textWidth;
   const left = CENTER_X - total / 2;
-  return [
-    { kind: "image", asset: "logo", x: left, y: FOOTER_CENTER_Y - logo / 2, w: logo, h: logo },
-    { kind: "text", text: BRAND_HANDLE, x: left + logo + gap, y: FOOTER_CENTER_Y, fontPx: 32, family: FONT_SANS, bold: true, align: "left", color: "textSoft" },
-  ];
+  const items: DrawItem[] = [];
+  if (hasLogo) items.push({ kind: "image", asset: "logo", x: left, y: FOOTER_CENTER_Y - logo / 2, w: logo, h: logo });
+  if (handle) {
+    items.push({ kind: "text", text: handle, x: hasLogo ? left + logo + gap : left, y: FOOTER_CENTER_Y, fontPx: 32, family: FONT_SANS, bold: true, align: "left", color: "textSoft" });
+  }
+  return items;
 }
 
 function base(text: string, over: Partial<TextPieceInput> & Pick<TextPieceInput, "label">): TextPieceInput {
@@ -268,7 +273,11 @@ export function layoutStory(content: StoryContent, measurer: StoryMeasurer, opti
 function buildLayout(content: StoryContent, measurer: StoryMeasurer, options: LayoutOptions): { result: StoryLayoutResult; overflow: boolean } {
   const templateId = templateIdForType(content.type);
   const warnings: string[] = [];
-  const footerReserved = options.showBrand && templateId !== "smart-cta" ? FOOTER_RESERVED : 40;
+  const brandHandle = options.brandHandle ?? null;
+  const hasLogo = options.hasLogo === true;
+  // Rodapé de marca só existe se a marca tem algo a mostrar (logo ou @).
+  const brandOn = options.showBrand && (brandHandle !== null || hasLogo);
+  const footerReserved = brandOn && templateId !== "smart-cta" ? FOOTER_RESERVED : 40;
   const areaBottom = STORY_HEIGHT - SAFE_AREA.bottom - footerReserved;
   // Com mascote, o conteúdo sobe para o espaço dele ficar livre (mascote ocupa o canto inferior direito).
   const area = { top: SAFE_AREA.top + 20, bottom: options.mascot ? Math.min(areaBottom, MASCOT_BOX.y - 30) : areaBottom };
@@ -514,17 +523,17 @@ function buildLayout(content: StoryContent, measurer: StoryMeasurer, options: La
       break;
     }
     case "smart-cta": {
-      const handle: Piece | null = options.showBrand
+      const handle: Piece | null = brandOn && brandHandle
         ? {
             height: 44,
             gap: 36,
-            build: (top) => [{ kind: "text", text: BRAND_HANDLE, x: CENTER_X, y: top + 22, fontPx: 40, family: FONT_SANS, bold: true, align: "center", color: "textSoft" }],
+            build: (top) => [{ kind: "text", text: brandHandle, x: CENTER_X, y: top + 22, fontPx: 40, family: FONT_SANS, bold: true, align: "center", color: "textSoft" }],
           }
         : null;
       items.push(
         ...stackArea(
           [
-            imagePiece("logo", 150, 0),
+            hasLogo ? imagePiece("logo", 150, 0) : null,
             headlineSerif(92, 52, 520, { gap: 56 }),
             textPiece(measurer, base(content.body, { label: "corpo", maxHeight: 300, gap: 40 }), warnings),
             showCta ? ctaPiece(measurer, content.cta, 64, true, warnings) : null,
@@ -537,7 +546,7 @@ function buildLayout(content: StoryContent, measurer: StoryMeasurer, options: La
     }
   }
 
-  if (options.showBrand && templateId !== "smart-cta") items.push(...brandFooter(measurer));
+  if (brandOn && templateId !== "smart-cta") items.push(...brandFooter(measurer, brandHandle, hasLogo));
   if (options.mascot) items.push({ kind: "image", asset: "mascot", x: MASCOT_BOX.x, y: MASCOT_BOX.y, w: MASCOT_BOX.size, h: MASCOT_BOX.size });
 
   return { result: { templateId, items, warnings }, overflow };
