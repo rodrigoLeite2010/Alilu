@@ -9,6 +9,7 @@ import { WeekDayEditor, type DayFormState } from "./WeekDayEditor";
 import { autoResizeTextarea } from "./textarea-utils";
 import { SmartStoryPanel, type SmartStoryState } from "./SmartStoryPanel";
 import { SmartCarouselPanel } from "./SmartCarouselPanel";
+import { PlansLink } from "@/components/carousel/PlansLink";
 import type { SmartCarouselConfig } from "@/lib/content-automation/smart-carousel/config";
 import { SharedPromptEditor, sharedContentPayload, sharedScheduleError, type SharedScheduleState } from "./SharedPromptEditor";
 import {
@@ -398,9 +399,10 @@ export function AutomationEditor({
       </div>
 
       {error ? (
-        <p role="alert" className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
-          {error}
-        </p>
+        <div role="alert" className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
+          <p>{error}</p>
+          <PlansLink message={error} />
+        </div>
       ) : null}
       {notice ? (
         <p role="status" className="rounded-md bg-teal-50 px-3 py-2 text-sm text-teal-800">

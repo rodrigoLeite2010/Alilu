@@ -98,8 +98,11 @@ describe("descoberta da publicação automática", () => {
     expect(screen.getByRole("link", { name: "Conhecer publicação automática" })).toHaveAttribute("href", "/instagram#publicacao-automatica");
   });
 
-  it("menu: 'Agendar e publicar' sempre visível sob Instagram", () => {
+  it("menu: Instagram fechado; abrir mostra Manual e Automatizado, e 'Agendar e publicar' fica em Automatizado", () => {
     render(<SiteSidebar />);
+    expect(screen.queryByRole("link", { name: "Agendar e publicar" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Abrir opções do Instagram" }));
+    fireEvent.click(screen.getByRole("button", { name: "Automatizado" }));
     expect(screen.getByRole("link", { name: "Agendar e publicar" })).toHaveAttribute("href", "/instagram/painel/calendario");
   });
 });

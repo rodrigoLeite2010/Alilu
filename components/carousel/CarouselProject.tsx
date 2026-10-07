@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { ConfirmDialog } from "@/components/instagram/ConfirmDialog";
+import { PlansLink } from "./PlansLink";
 import { carouselApi, CarouselApiError, projectAction, STATUS_LABEL, type MeDto } from "./carousel-client";
 
 interface SlideDto {
@@ -149,7 +150,8 @@ export function CarouselProject({ projectId }: { projectId: string }) {
 
       {error ? (
         <p className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800" role="alert">
-          {error} {notice === "PLANS" ? <Link className="font-medium underline" href="/instagram/carrossel-inteligente/planos">Ver planos</Link> : null}
+          {error}
+          <PlansLink message={error} force={notice === "PLANS"} />
         </p>
       ) : null}
       {notice && notice !== "PLANS" ? <p className="rounded-lg border border-teal-200 bg-teal-50 px-4 py-3 text-sm text-teal-900" role="status">{notice}</p> : null}

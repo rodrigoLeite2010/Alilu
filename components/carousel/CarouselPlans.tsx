@@ -61,6 +61,9 @@ export function CarouselPlans({ loggedIn, userName, userEmail }: { loggedIn: boo
 
   return (
     <div className="space-y-6">
+      {data?.access.kind === "ADMIN" ? (
+        <p className="rounded-lg border border-teal-200 bg-teal-50 px-4 py-3 text-sm text-teal-900">Seu login tem acesso liberado ao Carrossel Inteligente, sem cobrança e sem limite de cota.</p>
+      ) : null}
       {data?.existingAliluCustomer && !paying ? (
         <p className="rounded-lg border border-teal-200 bg-teal-50 px-4 py-3 text-sm text-teal-900">Você já é cliente Alilu: seus planos abaixo já mostram <strong>10% de desconto</strong> permanente.</p>
       ) : null}

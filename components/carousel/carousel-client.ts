@@ -48,7 +48,7 @@ export interface PlanOfferDto {
 }
 
 export interface BillingDto {
-  access: { kind: "PLAN" | "TRIAL" | "NONE"; allowed: boolean; planCode: string | null; planName: string | null; used: number; limit: number; code: string | null; reason: string | null };
+  access: { kind: "PLAN" | "TRIAL" | "ADMIN" | "NONE"; allowed: boolean; planCode: string | null; planName: string | null; used: number; limit: number; code: string | null; reason: string | null };
   subscription: {
     planCode: string;
     pendingPlanCode: string | null;

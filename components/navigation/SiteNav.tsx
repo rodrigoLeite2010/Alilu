@@ -7,7 +7,7 @@ import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
 import { Icon } from "@/components/ui/Icon";
 import { categories } from "@/data/categories";
-import { INSTAGRAM_CATEGORY, instagramMenuLinks } from "@/data/instagram";
+import { INSTAGRAM_CATEGORY, instagramMenuExtraLinks, instagramMenuGroups } from "@/data/instagram";
 import { LOTTERIES_CATEGORY } from "@/data/lotteries";
 import { VIDEOS_CATEGORY } from "@/data/videos";
 import type { HeaderAuthState } from "@/components/layout/auth-state";
@@ -105,38 +105,107 @@ function NavigationItem({
   );
 }
 
+function isActivePath(pathname: string, href: string) {
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
+
+function SubLink({ href, label, pathname, onNavigate }: { href: string; label: string; pathname: string; onNavigate?: () => void }) {
+  const active = isActivePath(pathname, href);
+  return (
+    <Link
+      href={href}
+      onClick={onNavigate}
+      aria-current={active ? "page" : undefined}
+      className={`flex min-h-9 items-center rounded-md px-2 text-sm transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-accent ${
+        active ? "bg-brand-primary-soft font-medium text-brand-primary" : "text-zinc-600 hover:bg-white hover:text-zinc-950"
+      }`}
+    >
+      {label}
+    </Link>
+  );
+}
+
+function ToggleButton({ open, label, onClick }: { open: boolean; label: string; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-expanded={open}
+      aria-label={`${open ? "Fechar" : "Abrir"} ${label}`}
+      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-zinc-500 hover:bg-white hover:text-zinc-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-accent"
+    >
+      <Icon name={open ? "chevron-down" : "chevron-right"} className="h-4 w-4" />
+    </button>
+  );
+}
+
+/** Subgrupo (Manual / Automatizado): fechado até clicar, a menos que a página atual esteja dentro dele. */
+function InstagramSubGroup({ group, pathname, onNavigate }: { group: (typeof instagramMenuGroups)[number]; pathname: string; onNavigate?: () => void }) {
+  const containsActive = group.links.some((link) => isActivePath(pathname, link.href));
+  const [open, setOpen] = useState(containsActive);
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={() => setOpen((value) => !value)}
+        aria-expanded={open}
+        className="flex min-h-9 w-full items-center justify-between rounded-md px-2 text-left text-sm font-medium text-zinc-700 hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-accent"
+      >
+        {group.label}
+        <Icon name={open ? "chevron-down" : "chevron-right"} className="h-4 w-4 text-zinc-500" />
+      </button>
+      {open ? (
+        <div role="group" aria-label={group.label} className="ml-3 flex flex-col border-l border-zinc-200 pl-2">
+          {group.links.map((link) => (
+            <SubLink key={link.href} href={link.href} label={link.label} pathname={pathname} onNavigate={onNavigate} />
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 /**
- * Atalhos da área Instagram. "Agendar e publicar" aparece sempre (o recurso
- * não pode ficar escondido); dentro de /instagram, a lista completa.
+ * Categoria Instagram: o link leva à página da categoria e o botão ao lado
+ * abre/fecha as opções (Manual, Automatizado e o importador). Fechada por
+ * padrão; só abre sozinha quando a página atual está dentro do Instagram.
  */
-function InstagramSubLinks({ pathname, onNavigate }: { pathname: string; onNavigate?: () => void }) {
-  const insideInstagram = pathname === "/instagram" || pathname.startsWith("/instagram/");
-  const links = insideInstagram ? instagramMenuLinks : instagramMenuLinks.filter((link) => link.href === "/instagram/painel/calendario");
+function InstagramMenu({ pathname, onNavigate }: { pathname: string; onNavigate?: () => void }) {
+  const inside = pathname === "/instagram" || pathname.startsWith("/instagram/") || instagramMenuExtraLinks.some((link) => isActivePath(pathname, link.href));
+  const [open, setOpen] = useState(inside);
+  const isActive = isActiveLink(pathname, instagramCategoryLink.href);
   return (
     <li>
-      <div role="group" aria-label="Atalhos do Instagram" className="ml-6 flex flex-col border-l border-zinc-200 pl-3">
-        {links.map((link) => {
-          const active = pathname === link.href || pathname.startsWith(`${link.href}/`);
-          const isPublishing = link.href === "/instagram/painel/calendario";
-          return (
-            <Link
-              key={link.href}
-              href={link.href}
-              onClick={onNavigate}
-              aria-current={active ? "page" : undefined}
-              className={`flex min-h-9 items-center rounded-md px-2 text-sm transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-accent ${
-                active
-                  ? "bg-brand-primary-soft font-medium text-brand-primary"
-                  : isPublishing
-                    ? "font-medium text-brand-primary hover:bg-white"
-                    : "text-zinc-600 hover:bg-white hover:text-zinc-950"
-              }`}
-            >
-              {link.label}
-            </Link>
-          );
-        })}
+      <div className="flex items-center gap-1">
+        <Link
+          href={instagramCategoryLink.href}
+          aria-current={isActive ? "page" : undefined}
+          onClick={onNavigate}
+          className={`group flex min-h-11 min-w-0 flex-1 items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-accent ${
+            isActive ? "bg-brand-primary-soft text-brand-primary" : "text-zinc-600 hover:bg-white hover:text-zinc-950"
+          }`}
+        >
+          <span
+            className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-md transition-colors ${
+              isActive ? "bg-white text-brand-primary shadow-sm ring-1 ring-brand-primary/15" : "bg-zinc-100 text-zinc-500 group-hover:bg-zinc-200 group-hover:text-zinc-800"
+            }`}
+          >
+            <Icon name={instagramCategoryLink.icon} className="h-4 w-4" />
+          </span>
+          <span className="min-w-0 truncate">{instagramCategoryLink.label}</span>
+        </Link>
+        <ToggleButton open={open} label="opções do Instagram" onClick={() => setOpen((value) => !value)} />
       </div>
+      {open ? (
+        <div role="group" aria-label="Opções do Instagram" className="ml-6 flex flex-col gap-0.5 border-l border-zinc-200 pl-3">
+          {instagramMenuGroups.map((group) => (
+            <InstagramSubGroup key={group.id} group={group} pathname={pathname} onNavigate={onNavigate} />
+          ))}
+          {instagramMenuExtraLinks.map((link) => (
+            <SubLink key={link.href} href={link.href} label={link.label} pathname={pathname} onNavigate={onNavigate} />
+          ))}
+        </div>
+      ) : null}
     </li>
   );
 }
@@ -242,8 +311,7 @@ function NavigationList({
         Categorias
       </p>
       <ul className="mt-2 space-y-1">
-        <NavigationItem link={instagramCategoryLink} pathname={pathname} onNavigate={onNavigate} />
-        <InstagramSubLinks pathname={pathname} onNavigate={onNavigate} />
+        <InstagramMenu pathname={pathname} onNavigate={onNavigate} />
         <NavigationItem link={lotteriesCategoryLink} pathname={pathname} onNavigate={onNavigate} />
         <NavigationItem link={videosCategoryLink} pathname={pathname} onNavigate={onNavigate} />
         <NavigationItem link={agendaLink} pathname={pathname} onNavigate={onNavigate} />

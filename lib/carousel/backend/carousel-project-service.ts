@@ -1,4 +1,5 @@
 import "server-only";
+import { isAdminEmail } from "@/lib/admin/admin-email";
 import { CAROUSEL_LIMITS, getCarouselPlan, listCarouselPlans } from "../carousel-plans";
 import {
   canTransition,
@@ -14,6 +15,7 @@ import {
 import { consumeCarouselQuota, getCarouselAccess, paidCarouselPlanOf, type CarouselAccess } from "./carousel-access-service";
 import { getCarouselSubscription } from "./carousel-billing-repository";
 import {
+  getUserEmail,
   deleteSlidesAfter,
   getCarouselBrand,
   getProject,
@@ -53,6 +55,7 @@ export class CarouselError extends Error {
 
 /** Limite de perfis do usuário: o do plano pago em vigor; sem plano (carrossel grátis), o menor plano. */
 export async function maxProfilesFor(userId: string, now: Date = new Date()): Promise<number> {
+  if (isAdminEmail(await getUserEmail(userId))) return 99;
   const plan = paidCarouselPlanOf(await getCarouselSubscription(userId), now);
   return (plan ?? listCarouselPlans()[0]).maxProfiles;
 }

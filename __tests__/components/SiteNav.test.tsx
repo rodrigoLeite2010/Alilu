@@ -81,3 +81,49 @@ describe("MobileNavigation — ordem das categorias e correção do bug de abert
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 });
+
+describe("Menu Instagram em categorias (Manual / Automatizado)", () => {
+  function openAll() {
+    render(<SiteSidebar />);
+    fireEvent.click(screen.getByRole("button", { name: "Abrir opções do Instagram" }));
+  }
+
+  it("começa fechado: só o link Instagram, sem sublinks", () => {
+    render(<SiteSidebar />);
+    expect(screen.getByRole("button", { name: "Abrir opções do Instagram" })).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByRole("link", { name: "Criar post" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Piloto Automático" })).not.toBeInTheDocument();
+  });
+
+  it("ao abrir mostra os grupos Manual e Automatizado, ainda fechados", () => {
+    openAll();
+    expect(screen.getByRole("button", { name: "Manual" })).toHaveAttribute("aria-expanded", "false");
+    expect(screen.getByRole("button", { name: "Automatizado" })).toHaveAttribute("aria-expanded", "false");
+    expect(screen.getByRole("link", { name: "Importar do Instagram" })).toHaveAttribute("href", "/videos/importar-instagram");
+  });
+
+  it("Manual: post, carrossel, reels e legendas — sem 'Posts Virais'", () => {
+    openAll();
+    fireEvent.click(screen.getByRole("button", { name: "Manual" }));
+    const group = screen.getByRole("group", { name: "Manual" });
+    expect(within(group).getAllByRole("link").map((link) => link.textContent)).toEqual(["Criar post", "Carrossel", "Reels", "Legendas"]);
+    expect(screen.queryByRole("link", { name: /Posts Virais/ })).not.toBeInTheDocument();
+  });
+
+  it("Automatizado: agendar e publicar, Carrossel Inteligente e Piloto Automático", () => {
+    openAll();
+    fireEvent.click(screen.getByRole("button", { name: "Automatizado" }));
+    const links = within(screen.getByRole("group", { name: "Automatizado" })).getAllByRole("link");
+    expect(links.map((link) => [link.textContent, link.getAttribute("href")])).toEqual([
+      ["Agendar e publicar", "/instagram/painel/calendario"],
+      ["Carrossel Inteligente", "/instagram/carrossel-inteligente"],
+      ["Piloto Automático", "/instagram/piloto-automatico"],
+    ]);
+  });
+
+  it("o botão fecha de novo", () => {
+    openAll();
+    fireEvent.click(screen.getByRole("button", { name: "Fechar opções do Instagram" }));
+    expect(screen.queryByRole("button", { name: "Manual" })).not.toBeInTheDocument();
+  });
+});

@@ -4,6 +4,7 @@ import { useId, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/Button";
 import { MediaPicker } from "./MediaPicker";
+import { PlansLink } from "@/components/carousel/PlansLink";
 import { CAROUSEL_TEMPLATES } from "@/lib/carousel/design/templates";
 import { DEFAULT_SMART_CAROUSEL_CONFIG, type SmartCarouselConfig } from "@/lib/content-automation/smart-carousel/config";
 
@@ -95,7 +96,12 @@ export function SmartCarouselPanel({ automationId, userId, initial }: { automati
         </p>
       </div>
 
-      {error ? <p role="alert" className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p> : null}
+      {error ? (
+        <div role="alert" className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
+          <p>{error}</p>
+          <PlansLink message={error} />
+        </div>
+      ) : null}
       {notice ? <p role="status" className="rounded-md bg-teal-50 px-3 py-2 text-sm text-teal-800">{notice}</p> : null}
 
       <div className="grid gap-4 sm:grid-cols-2">

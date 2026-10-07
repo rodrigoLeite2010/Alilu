@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { PlansLink } from "@/components/carousel/PlansLink";
 import { notFound } from "next/navigation";
 import { auth } from "@/auth";
 import Link from "next/link";
@@ -141,7 +142,10 @@ export default async function AutomationHistoryPage({ params }: PageProps) {
                       </Link>
                     </p>
                   ) : error ? (
-                    <p className="mt-1 text-xs text-red-700">{error}</p>
+                    <div className="mt-1 text-xs text-red-700">
+                      <p>{error}</p>
+                      <PlansLink message={error} />
+                    </div>
                   ) : null}
                 </div>
               </li>

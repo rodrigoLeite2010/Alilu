@@ -1,4 +1,5 @@
 import "server-only";
+import { isAdminEmail } from "@/lib/admin/admin-email";
 import { billingDateStr } from "@/lib/billing/billing-time";
 import { getSubscriptionByUserId } from "@/lib/billing/backend/automation-subscription-repository";
 import { releasePlanUsage, reservePlanUsage, getCycleUsed } from "@/lib/billing/backend/plan-usage-repository";
@@ -29,8 +30,8 @@ export type CarouselAccessCode =
   | "TRIAL_USED";
 
 export interface CarouselAccess {
-  /** PLAN = assinatura paga em vigor; TRIAL = carrossel grátis disponível; NONE = sem acesso. */
-  kind: "PLAN" | "TRIAL" | "NONE";
+  /** PLAN = assinatura paga em vigor; TRIAL = carrossel grátis disponível; ADMIN = login de administrador (sempre liberado, sem cota); NONE = sem acesso. */
+  kind: "PLAN" | "TRIAL" | "ADMIN" | "NONE";
   allowed: boolean;
   plan: CarouselPlanDefinition | null;
   subscription: CarouselSubscriptionRecord | null;
@@ -66,6 +67,10 @@ function deny(code: CarouselAccessCode, reason: string, base: Pick<CarouselAcces
 /** Somente leitura: o que o usuário pode fazer agora (nunca reserva cota). */
 export async function getCarouselAccess(userId: string, now: Date = new Date()): Promise<CarouselAccess> {
   const subscription = await getCarouselSubscription(userId);
+  // Administrador: sempre liberado, sem cota e sem consumir o carrossel grátis.
+  if (isAdminEmail(await getUserEmail(userId))) {
+    return { kind: "ADMIN", allowed: true, code: null, reason: null, plan: null, subscription, cycleKey: null, used: 0, limit: 0 };
+  }
   const plan = paidCarouselPlanOf(subscription, now);
 
   if (plan && subscription) {
@@ -104,7 +109,7 @@ export async function getCarouselAccess(userId: string, now: Date = new Date()):
 }
 
 export type CompletionResult =
-  | { status: "counted"; via: "PLAN" | "TRIAL" }
+  | { status: "counted"; via: "PLAN" | "TRIAL" | "ADMIN" }
   | { status: "already-counted" }
   | { status: "denied"; access: CarouselAccess };
 
@@ -114,6 +119,7 @@ export type CompletionResult =
  * falhas e regenerações de slide nunca chamam isto.
  */
 export async function consumeCarouselQuota(userId: string, projectId: string, now: Date = new Date()): Promise<CompletionResult> {
+  if (isAdminEmail(await getUserEmail(userId))) return { status: "counted", via: "ADMIN" };
   const subscription = await getCarouselSubscription(userId);
   const plan = paidCarouselPlanOf(subscription, now);
 

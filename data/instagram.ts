@@ -194,17 +194,45 @@ export interface InstagramMenuLink {
   label: string;
 }
 
-/** Atalhos da área Instagram no menu lateral — publicação/agendamento sempre visível. */
-export const instagramMenuLinks: InstagramMenuLink[] = [
-  { href: "/instagram/criar-post", label: "Criar post" },
-  { href: "/instagram/carrossel", label: "Carrossel" },
-  { href: "/instagram/reels", label: "Reels" },
-  { href: "/instagram/legendas", label: "Legendas" },
-  { href: "/instagram/posts-virais", label: "Posts Virais" },
-  { href: "/instagram/painel/calendario", label: "Agendar e publicar" },
-  { href: "/instagram/carrossel-inteligente", label: "Carrossel Inteligente" },
-  { href: "/instagram/piloto-automatico", label: "Piloto Automático" },
+export interface InstagramMenuGroup {
+  id: string;
+  label: string;
+  links: InstagramMenuLink[];
+}
+
+/**
+ * Menu lateral da categoria Instagram (fechada por padrão; abre pelo "+"):
+ * - Manual: o que o usuário cria e publica ele mesmo.
+ * - Automatizado: o que agenda/gera sozinho (Carrossel Inteligente e Piloto Automático).
+ * "Posts Virais" saiu do menu (é o mesmo que "Criar post"); a rota continua existindo.
+ */
+export const instagramMenuGroups: InstagramMenuGroup[] = [
+  {
+    id: "manual",
+    label: "Manual",
+    links: [
+      { href: "/instagram/criar-post", label: "Criar post" },
+      { href: "/instagram/carrossel", label: "Carrossel" },
+      { href: "/instagram/reels", label: "Reels" },
+      { href: "/instagram/legendas", label: "Legendas" },
+    ],
+  },
+  {
+    id: "automatizado",
+    label: "Automatizado",
+    links: [
+      { href: "/instagram/painel/calendario", label: "Agendar e publicar" },
+      { href: "/instagram/carrossel-inteligente", label: "Carrossel Inteligente" },
+      { href: "/instagram/piloto-automatico", label: "Piloto Automático" },
+    ],
+  },
 ];
+
+/** Links soltos dentro da categoria Instagram (o importador também continua em Vídeos). */
+export const instagramMenuExtraLinks: InstagramMenuLink[] = [{ href: "/videos/importar-instagram", label: "Importar do Instagram" }];
+
+/** Lista plana (compatibilidade). */
+export const instagramMenuLinks: InstagramMenuLink[] = [...instagramMenuGroups.flatMap((group) => group.links), ...instagramMenuExtraLinks];
 
 export function getInstagramToolByPath(path: string): InstagramTool | undefined {
   return instagramTools.find((tool) => tool.path === path);

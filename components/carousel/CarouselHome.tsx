@@ -1,10 +1,10 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { Button, LinkButton } from "@/components/ui/Button";
 import { ConfirmDialog } from "@/components/instagram/ConfirmDialog";
+import { PlansLink } from "./PlansLink";
 import { carouselApi, projectAction, STATUS_LABEL, type MeDto } from "./carousel-client";
 
 interface TopicDto {
@@ -39,6 +39,14 @@ function QuotaCard({ me }: { me: MeDto }) {
       </div>
     );
   }
+  if (access.kind === "ADMIN") {
+    return (
+      <div className="rounded-lg border border-brand-accent/40 bg-brand-accent-soft p-4 text-sm text-zinc-800">
+        <p className="font-semibold text-zinc-900">Acesso liberado</p>
+        <p className="mt-1">Seu login tem acesso ilimitado ao Carrossel Inteligente, sem cobrança.</p>
+      </div>
+    );
+  }
   if (access.kind === "PLAN") {
     const pct = access.limit > 0 ? Math.min(100, Math.round((access.used / access.limit) * 100)) : 0;
     return (
@@ -53,9 +61,10 @@ function QuotaCard({ me }: { me: MeDto }) {
           <div className="h-full rounded-full bg-brand-primary" style={{ width: `${pct}%` }} />
         </div>
         {!access.allowed ? (
-          <p className="mt-2 text-sm text-amber-900">
-            {access.reason} <Link className="font-medium underline" href="/instagram/carrossel-inteligente/planos">Ver planos</Link>
-          </p>
+          <div className="mt-2 text-sm text-amber-900">
+            <p>{access.reason}</p>
+            <PlansLink message={null} force />
+          </div>
         ) : null}
       </div>
     );
@@ -63,9 +72,7 @@ function QuotaCard({ me }: { me: MeDto }) {
   return (
     <div className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950">
       <p>{access.reason ?? "Escolha um plano para criar mais carrosséis."}</p>
-      <LinkButton href="/instagram/carrossel-inteligente/planos" className="mt-3">
-        Ver planos
-      </LinkButton>
+      <PlansLink message={null} force />
     </div>
   );
 }
@@ -148,6 +155,7 @@ export function CarouselHome() {
       {error ? (
         <p className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800" role="alert">
           {error}
+          <PlansLink message={error} />
         </p>
       ) : null}
       {me ? <QuotaCard me={me} /> : <p className="text-sm text-zinc-500">Carregando…</p>}
