@@ -70,7 +70,15 @@ const nextConfig: NextConfig = {
     // mesmo com o código correto.
     "**/api/content-automation/media/preview-art": ["./lib/instagram/backend/fonts/*.ttf"],
     "**/api/content-automation/media/preview-carousel-art": ["./lib/instagram/backend/fonts/*.ttf"],
-    "**/api/cron/content-automation": ["./lib/instagram/backend/fonts/*.ttf"],
+    "**/api/cron/content-automation": [
+      "./lib/instagram/backend/fonts/*.ttf",
+      // SmartStoryEngine (Stories inteligentes): fontes sans + logo/mascote lidos por caminho.
+      "./lib/content-automation/smart-story/assets/**/*",
+    ],
+    "**/api/content-automation/media/preview-story": [
+      "./lib/instagram/backend/fonts/*.ttf",
+      "./lib/content-automation/smart-story/assets/**/*",
+    ],
     // Imagem para vídeo com IA: pós-processamento (validação ffprobe +
     // overlays de texto/logo via FFmpeg) roda no cron e nas rotas de
     // geração (consulta da tela e "reportar problema") — mesmo motivo dos

@@ -449,11 +449,7 @@ export async function renderAndStoreAutomationArt(input: RenderAutomationArtInpu
   const { buffer, templateIdUsed, sourceWidth, sourceHeight, finalWidth, finalHeight, jpegQuality } =
     await renderAutomationArtBuffer(input);
 
-  const blob = await put(`instagram-media/${input.userId}/generated/${Date.now()}.jpg`, buffer, {
-    access: "public",
-    addRandomSuffix: true,
-    contentType: "image/jpeg",
-  });
+  const blob = await putGeneratedAutomationJpeg(input.userId, buffer);
 
   // Debug (Parte 11 do briefing) — nunca loga tokens/segredos/API keys,
   // só metadados de rastreabilidade já públicos na própria linha gerada.
@@ -482,6 +478,39 @@ export async function renderAndStoreAutomationArt(input: RenderAutomationArtInpu
     generatedFromMediaId: input.sourceMediaId,
     automationRunId: input.automationRunId,
   });
+}
+
+/** Sobe um JPEG gerado pelo Piloto Automático ao Vercel Blob (mesmo caminho/regras para Posts, Stories e Stories inteligentes). */
+export async function putGeneratedAutomationJpeg(userId: string, buffer: Buffer): Promise<{ url: string }> {
+  return put(`instagram-media/${userId}/generated/${Date.now()}.jpg`, buffer, {
+    access: "public",
+    addRandomSuffix: true,
+    contentType: "image/jpeg",
+  });
+}
+
+/**
+ * Sobe o JPEG e grava a linha em instagram_media (o "mediaId" que
+ * createDraftStoryPost espera). Usada pelo SmartStoryEngine — mesma
+ * gravação de renderAndStoreAutomationArt, sem storage novo.
+ */
+export async function storeGeneratedAutomationJpeg(input: {
+  userId: string;
+  buffer: Buffer;
+  sourceMediaId: string | null;
+  automationRunId: string | null;
+}): Promise<{ mediaId: string; url: string }> {
+  const blob = await putGeneratedAutomationJpeg(input.userId, input.buffer);
+  const mediaId = await insertInstagramMedia({
+    userId: input.userId,
+    storageUrl: blob.url,
+    mediaType: "image",
+    fileSizeBytes: input.buffer.byteLength,
+    originalFilename: null,
+    generatedFromMediaId: input.sourceMediaId,
+    automationRunId: input.automationRunId,
+  });
+  return { mediaId, url: blob.url };
 }
 
 
