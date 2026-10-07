@@ -417,6 +417,8 @@ export interface GenerateCarouselOptions extends EditorialDeps {
   /** Refaz a pesquisa mesmo que o projeto já tenha uma. */
   refreshResearch?: boolean;
   extraInstruction?: string | null;
+  /** Não gera legenda/hashtags (a legenda fica vazia). */
+  skipCaption?: boolean;
 }
 
 /**
@@ -480,7 +482,7 @@ export async function generateCarousel(userId: string, projectId: string, option
     await saveProjectSlides(userId, projectId, slides);
 
     const sourceTitles = (await listSources(projectId)).filter((source) => source.kind === "WEB").map((source) => source.title);
-    const caption = await writeCaption(llm, ctx("caption"), { topic: project.topic, brand: context, slides, sourceTitles }, sensitive);
+    const caption = options.skipCaption ? null : await writeCaption(llm, ctx("caption"), { topic: project.topic, brand: context, slides, sourceTitles }, sensitive);
     await updateProjectFields(userId, projectId, {
       title: chosen?.headline ?? project.title,
       caption: caption?.caption ?? "",

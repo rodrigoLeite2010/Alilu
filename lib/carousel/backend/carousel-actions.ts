@@ -14,13 +14,13 @@ import { isAllowedPhotoUrl, type StockPhoto } from "../photos/photo-provider";
 import {
   addCustomHook,
   attachProfileAnalysis,
-  generateCarousel,
   generateProjectHooks,
   regenerateCaption,
   regenerateSlide,
   researchProject,
   type EditorialDeps,
 } from "./carousel-editorial-service";
+import { generateCarouselProject, type CarouselImageSource } from "./carousel-generation-service";
 import { assignInstagramProfile, CarouselError, requireProject } from "./carousel-project-service";
 import {
   chooseHook,
@@ -216,6 +216,7 @@ export const PROJECT_ACTIONS = [
   "choose-hook",
   "custom-hook",
   "generate",
+  "generate-all",
   "regen-slide",
   "regen-caption",
   "edit-slide",
@@ -271,12 +272,14 @@ export async function runProjectAction(userId: string, projectId: string, body: 
       return { ok: true };
     }
     case "generate": {
-      await generateCarousel(userId, projectId, {
-        ...deps,
-        refreshResearch: body.refreshResearch === true,
-        extraInstruction: text(body.instruction, 300, "a instrução") ?? null,
-      });
+      // Mesmo pipeline da automação, só a etapa de texto (a tela segue passo a passo).
+      await generateCarouselProject({ userId, projectId, prompt: text(body.instruction, 300, "a instrução") ?? null, stages: ["TEXT"] }, deps);
       return { ok: true };
+    }
+    case "generate-all": {
+      const imageSource: CarouselImageSource = body.imageSource === "NONE" ? "NONE" : "AUTO";
+      const result = await generateCarouselProject({ userId, projectId, imageSource, prompt: text(body.instruction, 300, "a instrução") ?? null }, deps);
+      return { ok: true, stagesRun: result.stagesRun, warnings: result.warnings };
     }
     case "regen-slide": {
       await regenerateSlide(userId, projectId, int(body.position, "Slide", 1, CAROUSEL_LIMITS.maxSlides), text(body.instruction, 300, "a instrução") ?? null, deps);
