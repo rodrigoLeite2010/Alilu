@@ -42,6 +42,10 @@ export interface AutomationListItemDto {
   autoPublish: boolean;
   requireApproval: boolean;
   activeDaysCount: number;
+  /** "SHARED_PROMPT" = Prompt único recorrente; ausente/"CUSTOM" = personalizado por dia. */
+  scheduleMode?: "CUSTOM" | "SHARED_PROMPT";
+  /** Execuções por semana (dias × horários habilitados). */
+  weeklyExecutions?: number;
   lastRunAt: string | null;
   nextRunAt: string | null;
 }
@@ -224,7 +228,11 @@ export function AutomationsOverview({
                   </Link>
                   <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
                     <Badge tone={STATUS_TONE[item.status]}>{STATUS_LABEL[item.status]}</Badge>
-                    <span>{item.activeDaysCount} dia(s) ativo(s)</span>
+                    {item.scheduleMode === "SHARED_PROMPT" ? (
+                      <span>Prompt único · {item.weeklyExecutions ?? 0} execução(ões) por semana</span>
+                    ) : (
+                      <span>{item.activeDaysCount} dia(s) ativo(s)</span>
+                    )}
                     <span>{item.requireApproval ? "Modo aprovação" : "Modo automático"}</span>
                   </div>
                 </div>

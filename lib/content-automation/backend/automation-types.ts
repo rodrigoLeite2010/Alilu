@@ -161,6 +161,49 @@ export interface AutomationDayRecord {
   videoMediaId: string | null;
 }
 
+/**
+ * Como a agenda da automação é montada:
+ *  - "CUSTOM" (padrão, o modelo de sempre): cada dia/horário tem o SEU
+ *    prompt e configuração;
+ *  - "SHARED_PROMPT" ("Prompt único recorrente"): um conteúdo só
+ *    (`AutomationSharedConfig`) usado em todos os dias e horários da
+ *    agenda. Ver lib/content-automation/shared-schedule.ts.
+ */
+export type AutomationScheduleMode = "CUSTOM" | "SHARED_PROMPT";
+
+export const SCHEDULE_MODES: AutomationScheduleMode[] = ["CUSTOM", "SHARED_PROMPT"];
+
+/** Conteúdo compartilhado do modo SHARED_PROMPT — mesmos campos de conteúdo de uma linha de dia/horário. */
+export interface AutomationSharedConfig {
+  contentType: AutomationContentType;
+  contentMode: AutomationContentMode;
+  contentCategory: AutomationContentCategory | null;
+  prompt: string;
+  manualCaption: string | null;
+  visualText: string | null;
+  templateId: string | null;
+  styleConfig: Record<string, unknown> | null;
+  overlayOpacity: number | null;
+  visualTextColor: string | null;
+  imageMediaId: string | null;
+  videoMediaId: string | null;
+}
+
+export const EMPTY_SHARED_CONFIG: AutomationSharedConfig = {
+  contentType: "POST",
+  contentMode: "AI",
+  contentCategory: null,
+  prompt: "",
+  manualCaption: null,
+  visualText: null,
+  templateId: null,
+  styleConfig: null,
+  overlayOpacity: null,
+  visualTextColor: null,
+  imageMediaId: null,
+  videoMediaId: null,
+};
+
 export interface AutomationRecord {
   id: string;
   userId: string;
@@ -168,6 +211,9 @@ export interface AutomationRecord {
   name: string;
   description: string;
   status: AutomationStatus;
+  scheduleMode: AutomationScheduleMode;
+  /** Só usado quando scheduleMode = "SHARED_PROMPT" (no modo CUSTOM fica com os valores vazios). */
+  shared: AutomationSharedConfig;
   timezone: string;
   brandContext: string;
   autoPublish: boolean;

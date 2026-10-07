@@ -44,6 +44,8 @@ export default async function ContentAutomationDashboardPage() {
     autoPublish: item.autoPublish,
     requireApproval: item.requireApproval,
     activeDaysCount: item.activeDaysCount,
+    scheduleMode: item.scheduleMode,
+    weeklyExecutions: item.activeSlotsCount,
     lastRunAt: item.lastRunAt ? item.lastRunAt.toISOString() : null,
     nextRunAt: item.nextRunAt ? item.nextRunAt.toISOString() : null,
   }));

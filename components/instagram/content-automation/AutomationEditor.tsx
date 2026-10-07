@@ -7,12 +7,14 @@ import { Button } from "@/components/ui/Button";
 import { MediaPicker } from "./MediaPicker";
 import { WeekDayEditor, type DayFormState } from "./WeekDayEditor";
 import { autoResizeTextarea } from "./textarea-utils";
+import { SharedPromptEditor, sharedContentPayload, sharedScheduleError, type SharedScheduleState } from "./SharedPromptEditor";
 import {
   DAYS_OF_WEEK,
   MAX_SLOTS_PER_DAY,
   type AutomationContentCategory,
   type AutomationContentMode,
   type AutomationContentType,
+  type AutomationScheduleMode,
   type AutomationStatus,
   type DayOfWeek,
   type ImageMode,
@@ -79,6 +81,12 @@ export interface AutomationDetailDto {
   imageMode: ImageMode;
   fixedImageMediaId: string | null;
   fixedVideoMediaId: string | null;
+  /** "SHARED_PROMPT" = Prompt único recorrente (um conteúdo + dias × horários); "CUSTOM" = personalizado por dia. */
+  scheduleMode: AutomationScheduleMode;
+  /** Conteúdo compartilhado (só usado no modo "SHARED_PROMPT"), no mesmo formato de uma linha de dia. */
+  shared: DayFormState;
+  /** Dias e horários habilitados (só usado no modo "SHARED_PROMPT"). */
+  schedule: SharedScheduleState;
   days: DayFormState[];
 }
 
@@ -124,6 +132,12 @@ export function AutomationEditor({
   const [fixedImageMediaId, setFixedImageMediaId] = useState(automation.fixedImageMediaId);
   const [fixedVideoMediaId, setFixedVideoMediaId] = useState(automation.fixedVideoMediaId);
   const [days, setDays] = useState<DayFormState[]>(automation.days);
+  const isShared = automation.scheduleMode === "SHARED_PROMPT";
+  const [sharedContent, setSharedContent] = useState<DayFormState>(automation.shared);
+  const [sharedSchedule, setSharedSchedule] = useState<SharedScheduleState>(automation.schedule);
+  const [savingShared, setSavingShared] = useState(false);
+  const [switchTarget, setSwitchTarget] = useState<AutomationScheduleMode | null>(null);
+  const [switching, setSwitching] = useState(false);
   const [runs, setRuns] = useState(pendingRuns);
 
   const [savingConfig, setSavingConfig] = useState(false);
@@ -243,6 +257,60 @@ export function AutomationEditor({
     }
   }
 
+  async function saveShared() {
+    const scheduleMessage = sharedScheduleError(sharedSchedule);
+    if (scheduleMessage) {
+      setError(scheduleMessage);
+      setNotice(null);
+      return;
+    }
+    setSavingShared(true);
+    setError(null);
+    setNotice(null);
+    try {
+      const response = await fetch(`/api/content-automation/automations/${automation.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "update-shared",
+          content: sharedContentPayload(sharedContent),
+          schedule: sharedSchedule,
+        }),
+      });
+      if (!response.ok) throw new Error(await readErrorMessage(response, "Não foi possível salvar o conteúdo e a agenda."));
+      const payload = (await response.json()) as { weeklyExecutions?: number | null };
+      setNotice(
+        typeof payload.weeklyExecutions === "number"
+          ? `Salvo. ${payload.weeklyExecutions} ${payload.weeklyExecutions === 1 ? "execução" : "execuções"} por semana, todas com o mesmo prompt.`
+          : "Salvo.",
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Não foi possível salvar o conteúdo e a agenda.");
+    } finally {
+      setSavingShared(false);
+    }
+  }
+
+  async function switchMode(target: AutomationScheduleMode) {
+    setSwitching(true);
+    setError(null);
+    setNotice(null);
+    try {
+      const response = await fetch(`/api/content-automation/automations/${automation.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "update", scheduleMode: target }),
+      });
+      if (!response.ok) throw new Error(await readErrorMessage(response, "Não foi possível trocar o modo."));
+      setSwitchTarget(null);
+      router.refresh(); // a página remonta o formulário (key = modo) com os dados novos.
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Não foi possível trocar o modo.");
+    } finally {
+      setSwitching(false);
+    }
+  }
+
   async function toggleStatus() {
     setTogglingStatus(true);
     setError(null);
@@ -281,10 +349,11 @@ export function AutomationEditor({
     }
   }
 
-  const needsImage = days.some(
-    (day) => day.enabled && (day.contentType === "POST" || day.contentType === "CAROUSEL" || day.contentType === "STORY"),
+  const formatDays = isShared ? [sharedContent] : days.filter((day) => day.enabled);
+  const needsImage = formatDays.some(
+    (day) => day.contentType === "POST" || day.contentType === "CAROUSEL" || day.contentType === "STORY",
   );
-  const needsVideo = days.some((day) => day.enabled && day.contentType === "REEL");
+  const needsVideo = formatDays.some((day) => day.contentType === "REEL");
 
   return (
     <div className="space-y-8">
@@ -461,6 +530,29 @@ export function AutomationEditor({
         </Button>
       </section>
 
+      {isShared ? (
+        <section className="space-y-4">
+          <h2 className="text-lg font-semibold text-zinc-900">Prompt único recorrente</h2>
+          <p className="text-sm text-zinc-600">
+            Use o mesmo prompt em vários dias e horários. Editar o prompt vale para todas as execuções futuras.
+          </p>
+          <SharedPromptEditor
+            userId={userId}
+            content={sharedContent}
+            onContentChange={(patch) => setSharedContent((current) => ({ ...current, ...patch }))}
+            schedule={sharedSchedule}
+            onScheduleChange={setSharedSchedule}
+            imageMode={imageMode}
+            defaultImageMediaId={fixedImageMediaId}
+            previewContext={{ instagramAccountId: automation.instagramAccountId ?? null, automationName: name, brandContext }}
+            footer={
+              <Button className="flex-1 md:flex-none" onClick={saveShared} disabled={savingShared}>
+                {savingShared ? "Salvando…" : "Salvar prompt e agenda"}
+              </Button>
+            }
+          />
+        </section>
+      ) : (
       <section className="space-y-4">
         <h2 className="text-lg font-semibold text-zinc-900">Semana</h2>
         <div className="space-y-3">
@@ -500,6 +592,42 @@ export function AutomationEditor({
         <Button onClick={saveDays} disabled={savingDays}>
           {savingDays ? "Salvando…" : "Salvar semana"}
         </Button>
+      </section>
+
+      )}
+
+      <section className="rounded-lg border border-zinc-200 p-4 text-sm">
+        <h2 className="font-semibold text-zinc-900">Modo de configuração</h2>
+        <p className="mt-1 text-zinc-600">
+          Atual: <strong>{isShared ? "Prompt único recorrente" : "Personalizado por dia"}</strong>.
+        </p>
+        {status === "ACTIVE" ? (
+          <p className="mt-1 text-xs text-zinc-500">Pause a automação para trocar de modo.</p>
+        ) : switchTarget ? (
+          <div className="mt-2 space-y-2">
+            <p className="text-zinc-700">
+              {switchTarget === "CUSTOM"
+                ? "Cada dia e horário passa a ter o seu próprio prompt. O prompt atual é copiado para os dias que estão ativos."
+                : "Todos os dias e horários passam a usar um único prompt, que você vai escrever. Os prompts individuais atuais deixam de ser usados."}
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <Button disabled={switching} onClick={() => switchMode(switchTarget)}>
+                {switching ? "Trocando…" : "Confirmar troca"}
+              </Button>
+              <Button variant="ghost" disabled={switching} onClick={() => setSwitchTarget(null)}>
+                Cancelar
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setSwitchTarget(isShared ? "CUSTOM" : "SHARED_PROMPT")}
+            className="mt-2 text-sm font-medium text-teal-800 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
+          >
+            {isShared ? "Mudar para Personalizado por dia" : "Mudar para Prompt único recorrente"}
+          </button>
+        )}
       </section>
 
       <p className="text-xs text-zinc-500">Fuso horário da automação: {automation.timezone}.</p>

@@ -4,7 +4,22 @@ import { useId, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { getBrowserTimeZone } from "@/lib/instagram/schedule-time";
-import { DAYS_OF_WEEK, DAY_OF_WEEK_LABEL, type DayOfWeek, type ImageMode, type VideoSelection } from "@/lib/content-automation/backend/automation-types";
+import {
+  DAYS_OF_WEEK,
+  DAY_OF_WEEK_LABEL,
+  type AutomationScheduleMode,
+  type DayOfWeek,
+  type ImageMode,
+  type VideoSelection,
+} from "@/lib/content-automation/backend/automation-types";
+import { formatDaysSummary } from "@/lib/content-automation/shared-schedule";
+import {
+  SharedPromptEditor,
+  emptySharedContent,
+  sharedContentPayload,
+  sharedScheduleError,
+  type SharedScheduleState,
+} from "./SharedPromptEditor";
 import { WeekDayEditor, type DayFormState } from "./WeekDayEditor";
 import { MediaPicker } from "./MediaPicker";
 import { autoResizeTextarea } from "./textarea-utils";
@@ -68,48 +83,65 @@ export function AutomationWizard({ userId, accounts }: { userId: string; account
   const [videoSelection] = useState<VideoSelection>("FIXED");
   const [fixedVideoMediaId, setFixedVideoMediaId] = useState<string | null>(null);
   const [days, setDays] = useState<DayFormState[]>(() => DAYS_OF_WEEK.map(emptyDay));
+  // "Prompt único recorrente": um conteúdo + N dias + N horários (ver SharedPromptEditor).
+  const [scheduleMode, setScheduleMode] = useState<AutomationScheduleMode>("CUSTOM");
+  const [sharedContent, setSharedContent] = useState<DayFormState>(emptySharedContent);
+  const [sharedSchedule, setSharedSchedule] = useState<SharedScheduleState>({ days: [...DAYS_OF_WEEK], times: ["08:00"] });
+  const isShared = scheduleMode === "SHARED_PROMPT";
 
   const nameId = useId();
   const contextId = useId();
   const leadId = useId();
 
-  const enabledCount = useMemo(() => days.filter((day) => day.enabled).length, [days]);
+  // No modo compartilhado o formato vem do conteúdo único; no personalizado, dos dias habilitados.
+  const activeDays = useMemo(() => (isShared ? [sharedContent] : days.filter((day) => day.enabled)), [isShared, sharedContent, days]);
+  const enabledCount = isShared ? sharedSchedule.days.length * sharedSchedule.times.length : activeDays.length;
   const needsImage = useMemo(
-    () => days.some((day) => day.enabled && (day.contentType === "POST" || day.contentType === "CAROUSEL" || day.contentType === "STORY")),
-    [days],
+    () => activeDays.some((day) => day.contentType === "POST" || day.contentType === "CAROUSEL" || day.contentType === "STORY"),
+    [activeDays],
   );
-  const needsVideo = useMemo(() => days.some((day) => day.enabled && day.contentType === "REEL"), [days]);
+  const needsVideo = useMemo(() => activeDays.some((day) => day.contentType === "REEL"), [activeDays]);
 
   function updateDay(dayOfWeek: DayOfWeek, patch: Partial<DayFormState>) {
     setDays((list) => list.map((day) => (day.dayOfWeek === dayOfWeek ? { ...day, ...patch } : day)));
   }
 
+  /** Regras de conteúdo de um dia (ou do conteúdo compartilhado) — `of` é "de Segunda-feira" ou "desta automação". */
+  function contentError(day: DayFormState, of: string): string | null {
+    if (day.contentType === "STORY") {
+      // Story: texto manual é opcional (vazio = só a imagem); no modo IA precisa do prompt.
+      if (day.contentMode !== "MANUAL" && !day.prompt.trim()) return `Defina o que o Story ${of} deve dizer.`;
+      return null;
+    }
+    if (day.contentMode === "MANUAL") {
+      if (!day.manualCaption.trim()) return `Escreva a legenda manual ${of}.`;
+      if (imageMode === "AUTO_TEMPLATE" && (day.contentType === "POST" || day.contentType === "CAROUSEL") && !day.visualText.trim()) {
+        return day.contentType === "CAROUSEL" ? `Escreva o texto do carrossel ${of}.` : `Escreva o texto que vai sobre a imagem ${of}.`;
+      }
+    } else if (!day.prompt.trim()) {
+      return isShared ? "Escreva o prompt do conteúdo." : `Defina o que publicar ${of.replace(/^de /, "em ")}.`;
+    }
+    return null;
+  }
+
   function validateStep(current: number): string | null {
     if (current === 0 && !instagramAccountId) return "Selecione uma conta do Instagram.";
     if (current === 1 && !name.trim()) return "Dê um nome para a automação.";
+    if (current === 2 && isShared) {
+      const scheduleMessage = sharedScheduleError(sharedSchedule);
+      if (scheduleMessage) return scheduleMessage;
+      const message = contentError(sharedContent, "desta automação");
+      if (message) return message;
+      if (needsImage && !fixedImageMediaId && !sharedContent.imageMediaId) return "Defina a imagem padrão da automação ou uma imagem para este conteúdo.";
+      if (needsVideo && !fixedVideoMediaId && !sharedContent.videoMediaId) return "Defina o vídeo padrão da automação ou um vídeo para este conteúdo.";
+      return null;
+    }
     if (current === 2) {
       if (enabledCount === 0) return "Habilite pelo menos um dia da semana.";
       for (const day of days) {
         if (!day.enabled) continue;
-        if (day.contentType === "STORY") {
-          // Story: texto manual é opcional (vazio = só a imagem); no modo IA precisa do prompt.
-          if (day.contentMode !== "MANUAL" && !day.prompt.trim()) {
-            return `Defina o que o Story de ${DAY_OF_WEEK_LABEL[day.dayOfWeek]} deve dizer.`;
-          }
-          continue;
-        }
-        if (day.contentMode === "MANUAL") {
-          if (!day.manualCaption.trim()) {
-            return `Escreva a legenda manual de ${DAY_OF_WEEK_LABEL[day.dayOfWeek]}.`;
-          }
-          if (imageMode === "AUTO_TEMPLATE" && (day.contentType === "POST" || day.contentType === "CAROUSEL") && !day.visualText.trim()) {
-            return day.contentType === "CAROUSEL"
-              ? `Escreva o texto do carrossel de ${DAY_OF_WEEK_LABEL[day.dayOfWeek]}.`
-              : `Escreva o texto que vai sobre a imagem de ${DAY_OF_WEEK_LABEL[day.dayOfWeek]}.`;
-          }
-        } else if (!day.prompt.trim()) {
-          return `Defina o que publicar em ${DAY_OF_WEEK_LABEL[day.dayOfWeek]}.`;
-        }
+        const message = contentError(day, `de ${DAY_OF_WEEK_LABEL[day.dayOfWeek]}`);
+        if (message) return message;
       }
       if (needsImage && !fixedImageMediaId && days.every((day) => !day.enabled || (day.contentType !== "POST" && day.contentType !== "CAROUSEL" && day.contentType !== "STORY") || day.imageMediaId)) {
         // cada dia POST/CAROUSEL já tem imagem própria — ok mesmo sem imagem padrão
@@ -161,6 +193,7 @@ export function AutomationWizard({ userId, accounts }: { userId: string; account
           fixedImageMediaId,
           videoSelection,
           fixedVideoMediaId,
+          scheduleMode,
         }),
       });
       if (!createResponse.ok) {
@@ -168,7 +201,24 @@ export function AutomationWizard({ userId, accounts }: { userId: string; account
       }
       const { id } = (await createResponse.json()) as { id: string };
 
-      for (const day of days) {
+      if (isShared) {
+        // Um único PATCH grava o prompt (uma vez) e cria as execuções (dias × horários).
+        const sharedResponse = await fetch(`/api/content-automation/automations/${id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "update-shared",
+            content: sharedContentPayload(sharedContent),
+            schedule: sharedSchedule,
+          }),
+        });
+        if (!sharedResponse.ok) {
+          router.push(`/instagram/piloto-automatico/automacoes/${id}`);
+          throw new Error(await readErrorMessage(sharedResponse, "Automação criada, mas não foi possível salvar o conteúdo e a agenda. Ajuste pela tela da automação."));
+        }
+      }
+
+      for (const day of isShared ? [] : days) {
         if (!day.enabled) continue;
         const dayResponse = await fetch(`/api/content-automation/automations/${id}/days/${day.dayOfWeek}`, {
           method: "PATCH",
@@ -272,6 +322,33 @@ export function AutomationWizard({ userId, accounts }: { userId: string; account
       {step === 1 ? (
         <section className="space-y-4">
           <h2 className="text-lg font-semibold text-zinc-900">Marca e modo de publicação</h2>
+          <fieldset className="rounded-md border border-zinc-200 p-3">
+            <legend className="px-1 text-sm font-medium text-zinc-800">Modo de configuração</legend>
+            <label className="flex items-start gap-2 py-1 text-sm">
+              <input
+                type="radio"
+                name="schedule-mode"
+                checked={scheduleMode === "SHARED_PROMPT"}
+                onChange={() => setScheduleMode("SHARED_PROMPT")}
+                className="mt-0.5 h-4 w-4 border-zinc-300 text-teal-700"
+              />
+              <span>
+                <strong>Prompt único recorrente</strong> — use o mesmo prompt em vários dias e horários.
+              </span>
+            </label>
+            <label className="flex items-start gap-2 py-1 text-sm">
+              <input
+                type="radio"
+                name="schedule-mode"
+                checked={scheduleMode === "CUSTOM"}
+                onChange={() => setScheduleMode("CUSTOM")}
+                className="mt-0.5 h-4 w-4 border-zinc-300 text-teal-700"
+              />
+              <span>
+                <strong>Personalizado por dia</strong> — cada dia e horário com o seu próprio prompt.
+              </span>
+            </label>
+          </fieldset>
           <div>
             <label htmlFor={nameId} className="mb-1 block text-sm font-medium text-zinc-800">
               Nome da automação
@@ -350,7 +427,7 @@ export function AutomationWizard({ userId, accounts }: { userId: string; account
 
       {step === 2 ? (
         <section className="space-y-4">
-          <h2 className="text-lg font-semibold text-zinc-900">Configure sua semana</h2>
+          <h2 className="text-lg font-semibold text-zinc-900">{isShared ? "Configure o conteúdo e a agenda" : "Configure sua semana"}</h2>
 
           {needsImage ? (
             <fieldset className="rounded-md border border-zinc-200 p-4">
@@ -418,6 +495,19 @@ export function AutomationWizard({ userId, accounts }: { userId: string; account
             ) : null}
           </div>
 
+          {isShared ? (
+            <SharedPromptEditor
+              userId={userId}
+              content={sharedContent}
+              onContentChange={(patch) => setSharedContent((current) => ({ ...current, ...patch }))}
+              schedule={sharedSchedule}
+              onScheduleChange={setSharedSchedule}
+              imageMode={imageMode}
+              defaultImageMediaId={fixedImageMediaId}
+              previewContext={{ instagramAccountId, automationName: name, brandContext }}
+            />
+          ) : (
+            <>
           <div className="space-y-3">
             {days.map((day) => (
               <WeekDayEditor
@@ -435,6 +525,8 @@ export function AutomationWizard({ userId, accounts }: { userId: string; account
             Precisa de mais de um horário no mesmo dia (ex.: Stories às 08:00, 12:00 e 19:00)? Crie a automação e use
             “+ Adicionar horário” na tela de edição.
           </p>
+            </>
+          )}
         </section>
       ) : null}
 
@@ -452,7 +544,20 @@ export function AutomationWizard({ userId, accounts }: { userId: string; account
               <strong>Modo:</strong> {requireApproval ? "Aprovação manual" : "Automático"}
             </p>
           </div>
-          <div className="overflow-x-auto rounded-md border border-zinc-200">
+          {isShared ? (
+            <div className="rounded-md border border-zinc-200 p-4 text-sm">
+              <p>
+                <strong>Prompt único recorrente:</strong> {formatDaysSummary(sharedSchedule.days)} às {[...sharedSchedule.times].sort().join(", ")}.
+              </p>
+              <p className="mt-1 text-zinc-600">
+                {(sharedContent.contentMode === "MANUAL" ? sharedContent.manualCaption : sharedContent.prompt).trim()}
+              </p>
+              <p className="mt-1">
+                Total aproximado: <strong>{enabledCount} execuções por semana</strong>.
+              </p>
+            </div>
+          ) : null}
+          <div className={isShared ? "hidden" : "overflow-x-auto rounded-md border border-zinc-200"}>
             <table className="w-full min-w-[480px] text-left text-sm">
               <thead className="bg-zinc-50 text-xs uppercase text-zinc-500">
                 <tr>
@@ -491,10 +596,10 @@ export function AutomationWizard({ userId, accounts }: { userId: string; account
             A automação nasce pausada. Você pode ativá-la agora ou revisar mais tarde na tela da automação.
           </p>
           <div className="flex flex-wrap gap-2">
-            <Button type="button" onClick={() => handleCreate(true)} disabled={submitting}>
+            <Button type="button" className="w-full sm:w-auto" onClick={() => handleCreate(true)} disabled={submitting}>
               {submitting ? "Criando…" : "Criar e ativar automação"}
             </Button>
-            <Button type="button" variant="secondary" onClick={() => handleCreate(false)} disabled={submitting}>
+            <Button type="button" variant="secondary" className="w-full sm:w-auto" onClick={() => handleCreate(false)} disabled={submitting}>
               Criar sem ativar
             </Button>
           </div>

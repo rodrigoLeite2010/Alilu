@@ -1,6 +1,7 @@
 import "server-only";
 import type { AutomationListItem } from "./automation-repository";
-import type { AutomationDayRecord, AutomationRunRecord, AutomationWithDays } from "./automation-types";
+import type { AutomationDayRecord, AutomationRunRecord, AutomationSharedConfig, AutomationWithDays } from "./automation-types";
+import { countWeeklyExecutions, deriveSharedSchedule } from "../shared-schedule";
 
 /** Serialização para JSON das respostas da API — nunca expõe token (as automações nem o carregam) e sempre datas em ISO. */
 
@@ -26,6 +27,10 @@ export function serializeDay(day: AutomationDayRecord) {
   };
 }
 
+export function serializeSharedConfig(shared: AutomationSharedConfig) {
+  return { ...shared };
+}
+
 export function serializeAutomation(automation: AutomationWithDays) {
   return {
     id: automation.id,
@@ -33,6 +38,12 @@ export function serializeAutomation(automation: AutomationWithDays) {
     name: automation.name,
     description: automation.description,
     status: automation.status,
+    scheduleMode: automation.scheduleMode,
+    /** Conteúdo compartilhado — só vale quando scheduleMode = "SHARED_PROMPT". */
+    shared: serializeSharedConfig(automation.shared),
+    /** Agenda do modo compartilhado (dias e horários habilitados) + total de execuções por semana. */
+    schedule: deriveSharedSchedule(automation.days),
+    weeklyExecutions: countWeeklyExecutions(automation.days),
     timezone: automation.timezone,
     brandContext: automation.brandContext,
     autoPublish: automation.autoPublish,
@@ -56,6 +67,8 @@ export function serializeAutomationListItem(item: AutomationListItem) {
     instagramAccountId: item.instagramAccountId,
     name: item.name,
     status: item.status,
+    scheduleMode: item.scheduleMode,
+    weeklyExecutions: item.activeSlotsCount,
     timezone: item.timezone,
     autoPublish: item.autoPublish,
     requireApproval: item.requireApproval,

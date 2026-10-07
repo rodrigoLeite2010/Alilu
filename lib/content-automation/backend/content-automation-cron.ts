@@ -11,6 +11,7 @@ import {
   markRunGenerated,
 } from "./automation-run-repository";
 import { zonedToday, publishInstantUtc, isDueForGeneration } from "./automation-time";
+import { applySharedConfig } from "../shared-schedule";
 import { generatePostContentForRun, generateReelContentForRun } from "./content-generation-service";
 import { getInstagramMediaById, type InstagramMediaRecord } from "@/lib/instagram/backend/media-repository";
 import {
@@ -540,8 +541,12 @@ export async function runContentAutomationCron(
     // de hoje é uma execução independente, com a própria trava de
     // idempotência (automation_day_id + run_date) — o horário principal
     // (slot 0) se comporta exatamente como o único horário de antes.
+    // Modo "Prompt único recorrente": o conteúdo vem da automação (lido AGORA,
+    // então uma edição do prompt vale já para a próxima execução); modo
+    // CUSTOM e automações antigas passam intactas (applySharedConfig).
     const todaySlots = automation.days
       .filter((candidate) => candidate.dayOfWeek === dayOfWeek && candidate.enabled)
+      .map((candidate) => applySharedConfig(automation, candidate))
       .sort((a, b) => a.publishTime.localeCompare(b.publishTime));
     let touched = false;
 

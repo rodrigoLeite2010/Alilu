@@ -20,6 +20,9 @@ import {
   updateAutomation as updateAutomationInDb,
   updateAutomationDay as updateAutomationDayInDb,
   addAutomationSlot as addAutomationSlotInDb,
+  replaceSharedSchedule as replaceSharedScheduleInDb,
+  setScheduleMode as setScheduleModeInDb,
+  updateSharedConfig as updateSharedConfigInDb,
   removeAutomationSlot as removeAutomationSlotInDb,
   AutomationSlotLimitError,
   type AutomationDayRef,
@@ -37,15 +40,23 @@ import {
 } from "./automation-run-repository";
 import { findNextSlot, publishInstantUtc, zonedToday } from "./automation-time";
 import {
+  effectiveDays,
+  SharedScheduleError,
+  validateSharedSchedule,
+} from "../shared-schedule";
+import {
   CONTENT_CATEGORIES,
   DAY_OF_WEEK_LABEL,
   DAYS_OF_WEEK,
+  SCHEDULE_MODES,
   MAX_VISUAL_TEXT_LENGTH,
   MAX_CAROUSEL_VISUAL_TEXT_LENGTH,
   type AutomationContentCategory,
   type AutomationContentMode,
   type AutomationContentType,
   type AutomationDayRecord,
+  type AutomationScheduleMode,
+  type AutomationSharedConfig,
   type AutomationWithDays,
   type DayOfWeek,
   type ImageMode,
@@ -156,6 +167,15 @@ export interface CreateAutomationServiceInput {
   fixedImageMediaId?: string | null;
   videoSelection?: VideoSelection;
   fixedVideoMediaId?: string | null;
+  /** "CUSTOM" (padrão) ou "SHARED_PROMPT" ("Prompt único recorrente"). */
+  scheduleMode?: AutomationScheduleMode;
+}
+
+function assertScheduleMode(mode: unknown): AutomationScheduleMode {
+  if (typeof mode !== "string" || !SCHEDULE_MODES.includes(mode as AutomationScheduleMode)) {
+    throw new AutomationValidationError("Modo de configuração inválido.");
+  }
+  return mode as AutomationScheduleMode;
 }
 
 export async function createAutomation(input: CreateAutomationServiceInput): Promise<string> {
@@ -174,8 +194,10 @@ export async function createAutomation(input: CreateAutomationServiceInput): Pro
 
   const requireApproval = input.requireApproval ?? true;
   const autoPublish = requireApproval ? false : (input.autoPublish ?? false);
+  const scheduleMode = input.scheduleMode === undefined ? "CUSTOM" : assertScheduleMode(input.scheduleMode);
 
   return createAutomationInDb({
+    scheduleMode,
     userId: input.userId,
     instagramAccountId: account.id,
     name,
@@ -231,49 +253,49 @@ export async function updateAutomation(
   patch.requireApproval = requireApproval;
   patch.autoPublish = requireApproval ? false : (input.autoPublish ?? current.autoPublish);
 
+  let modeChange: AutomationScheduleMode | null = null;
+  if (input.scheduleMode !== undefined) {
+    const mode = assertScheduleMode(input.scheduleMode);
+    if (mode !== current.scheduleMode) {
+      if (current.status === "ACTIVE") {
+        throw new AutomationValidationError("Pause a automação antes de trocar o modo de configuração.");
+      }
+      modeChange = mode;
+    }
+  }
+
   const updated = await updateAutomationInDb(id, userId, patch);
   if (!updated) throw new AutomationValidationError("Automação não encontrada.");
+  if (modeChange) await setScheduleModeInDb(id, userId, modeChange);
 }
 
 const SUPPORTED_CONTENT_TYPES: AutomationContentType[] = ["POST", "REEL", "CAROUSEL", "STORY"];
 
-export interface UpdateDayServiceInput {
-  enabled?: boolean;
-  /** Categoria opcional do horário (Motivacional, Financeiro…) — só alimenta {{categoria}} e a sugestão de prompt. */
-  contentCategory?: AutomationContentCategory | null;
-  contentType?: AutomationContentType;
-  contentMode?: AutomationContentMode;
-  prompt?: string;
-  manualCaption?: string | null;
-  /** Texto curto para desenhar sobre a imagem quando imageMode = "AUTO_TEMPLATE" e contentMode = "MANUAL". */
-  visualText?: string | null;
-  publishTime?: string;
-  /** Template do compositor (ver lib/instagram/templates.ts) usado quando imageMode = "AUTO_TEMPLATE". null/ausente usa o template padrão. */
-  templateId?: string | null;
-  /** Estado serializado do editor (mesmo formato de serializeEditorState) — cores/fontes do template; o texto visual é sempre injetado por cima na hora de renderizar. */
-  styleConfig?: Record<string, unknown> | null;
-  /** Véu (0/0.1/0.2/0.3/0.4) sobre a foto quando imageMode = "AUTO_TEMPLATE". null usa o padrão (20%). */
-  overlayOpacity?: number | null;
-  /** Cor (hex "#rrggbb") do texto sobre a imagem quando imageMode = "AUTO_TEMPLATE". null usa o padrão (branco). */
-  visualTextColor?: string | null;
-  imageMediaId?: string | null;
-  videoMediaId?: string | null;
-}
+/** Campos de conteúdo (iguais em uma linha de dia/horário e no conteúdo compartilhado). */
+type ContentFieldsInput = Pick<
+  UpdateDayServiceInput,
+  | "contentType"
+  | "contentCategory"
+  | "contentMode"
+  | "prompt"
+  | "manualCaption"
+  | "visualText"
+  | "templateId"
+  | "styleConfig"
+  | "overlayOpacity"
+  | "visualTextColor"
+  | "imageMediaId"
+  | "videoMediaId"
+>;
 
-export async function updateAutomationDay(
-  automationId: string,
-  userId: string,
-  dayRef: AutomationDayRef,
-  input: UpdateDayServiceInput,
-): Promise<void> {
-  // dayRef: um dia da semana (= o horário principal dele, comportamento de
-  // sempre) ou { slotId } (qualquer horário, inclusive os extras do dia).
-  if (typeof dayRef === "string" && !DAYS_OF_WEEK.includes(dayRef)) {
-    throw new AutomationValidationError("Dia da semana inválido.");
-  }
-
-  const patch: UpdateAutomationDayInput = {};
-  if (input.enabled !== undefined) patch.enabled = input.enabled;
+/**
+ * Valida os campos de conteúdo e devolve só o que veio no input — usado
+ * tanto por updateAutomationDay (modo CUSTOM) quanto por
+ * updateSharedAutomation (modo "Prompt único recorrente"), para as duas
+ * telas terem EXATAMENTE as mesmas regras.
+ */
+async function buildContentPatch(userId: string, input: ContentFieldsInput): Promise<Partial<AutomationSharedConfig>> {
+  const patch: Partial<AutomationSharedConfig> = {};
   if (input.contentType !== undefined) {
     if (!SUPPORTED_CONTENT_TYPES.includes(input.contentType)) {
       throw new AutomationValidationError("Tipo de conteúdo inválido.");
@@ -342,20 +364,141 @@ export async function updateAutomationDay(
     }
     patch.visualTextColor = input.visualTextColor;
   }
+  if (input.imageMediaId !== undefined) patch.imageMediaId = await assertOwnedImageMedia(input.imageMediaId, userId);
+  if (input.videoMediaId !== undefined) patch.videoMediaId = await assertOwnedVideoMedia(input.videoMediaId, userId);
+
+  return patch;
+}
+
+export interface UpdateDayServiceInput {
+  enabled?: boolean;
+  /** Categoria opcional do horário (Motivacional, Financeiro…) — só alimenta {{categoria}} e a sugestão de prompt. */
+  contentCategory?: AutomationContentCategory | null;
+  contentType?: AutomationContentType;
+  contentMode?: AutomationContentMode;
+  prompt?: string;
+  manualCaption?: string | null;
+  /** Texto curto para desenhar sobre a imagem quando imageMode = "AUTO_TEMPLATE" e contentMode = "MANUAL". */
+  visualText?: string | null;
+  publishTime?: string;
+  /** Template do compositor (ver lib/instagram/templates.ts) usado quando imageMode = "AUTO_TEMPLATE". null/ausente usa o template padrão. */
+  templateId?: string | null;
+  /** Estado serializado do editor (mesmo formato de serializeEditorState) — cores/fontes do template; o texto visual é sempre injetado por cima na hora de renderizar. */
+  styleConfig?: Record<string, unknown> | null;
+  /** Véu (0/0.1/0.2/0.3/0.4) sobre a foto quando imageMode = "AUTO_TEMPLATE". null usa o padrão (20%). */
+  overlayOpacity?: number | null;
+  /** Cor (hex "#rrggbb") do texto sobre a imagem quando imageMode = "AUTO_TEMPLATE". null usa o padrão (branco). */
+  visualTextColor?: string | null;
+  imageMediaId?: string | null;
+  videoMediaId?: string | null;
+}
+
+/**
+ * No modo "Prompt único recorrente" as linhas de dia/horário são geridas
+ * pela agenda (updateSharedAutomation): editar uma delas à mão a faria
+ * divergir da agenda e do conteúdo compartilhado.
+ */
+async function assertCustomScheduleMode(automationId: string, userId: string): Promise<void> {
+  const automation = await getAutomationDetails(automationId, userId);
+  if (automation.scheduleMode === "SHARED_PROMPT") {
+    throw new AutomationValidationError(
+      'Esta automação usa o modo "Prompt único recorrente": edite o prompt, os dias e os horários pelo formulário dela.',
+    );
+  }
+}
+
+export async function updateAutomationDay(
+  automationId: string,
+  userId: string,
+  dayRef: AutomationDayRef,
+  input: UpdateDayServiceInput,
+): Promise<void> {
+  await assertCustomScheduleMode(automationId, userId);
+  // dayRef: um dia da semana (= o horário principal dele, comportamento de
+  // sempre) ou { slotId } (qualquer horário, inclusive os extras do dia).
+  if (typeof dayRef === "string" && !DAYS_OF_WEEK.includes(dayRef)) {
+    throw new AutomationValidationError("Dia da semana inválido.");
+  }
+
+  const patch: UpdateAutomationDayInput = {};
+  if (input.enabled !== undefined) patch.enabled = input.enabled;
+  Object.assign(patch, await buildContentPatch(userId, input));
   if (input.publishTime !== undefined) {
     if (!PUBLISH_TIME_RE.test(input.publishTime)) throw new AutomationValidationError("Horário inválido (use HH:mm).");
     patch.publishTime = input.publishTime;
   }
-  if (input.imageMediaId !== undefined) patch.imageMediaId = await assertOwnedImageMedia(input.imageMediaId, userId);
-  if (input.videoMediaId !== undefined) patch.videoMediaId = await assertOwnedVideoMedia(input.videoMediaId, userId);
-
   const updated = await updateAutomationDayInDb(automationId, userId, dayRef, patch);
   if (!updated) throw new AutomationValidationError("Automação ou dia não encontrado.");
+}
+
+export interface UpdateSharedServiceInput {
+  /** Conteúdo compartilhado (parcial: o que não vier é mantido). */
+  content?: ContentFieldsInput;
+  /** Agenda completa desejada (dias × horários). Substitui a agenda atual. */
+  schedule?: { days: unknown; times: unknown };
+}
+
+/**
+ * Salva o modo "Prompt único recorrente": conteúdo compartilhado (UMA vez,
+ * vale para todas as execuções futuras) e/ou agenda (dias × horários).
+ * Valida TUDO antes de gravar qualquer coisa. Devolve quantas execuções
+ * por semana a agenda gera (null se a agenda não foi alterada).
+ */
+export async function updateSharedAutomation(
+  id: string,
+  userId: string,
+  input: UpdateSharedServiceInput,
+): Promise<number | null> {
+  const current = await getAutomationDetails(id, userId);
+  if (current.scheduleMode !== "SHARED_PROMPT") {
+    throw new AutomationValidationError('Esta automação não usa o modo "Prompt único recorrente".');
+  }
+
+  let schedule: ReturnType<typeof validateSharedSchedule> | null = null;
+  if (input.schedule !== undefined) {
+    try {
+      schedule = validateSharedSchedule(input.schedule);
+    } catch (error) {
+      if (error instanceof SharedScheduleError) throw new AutomationValidationError(error.message);
+      throw error;
+    }
+  }
+
+  let contentPatch: Partial<AutomationSharedConfig> | null = null;
+  if (input.content !== undefined) {
+    // O limite do texto visual depende do tipo efetivo (carrossel é maior).
+    contentPatch = await buildContentPatch(userId, {
+      ...input.content,
+      contentType: input.content.contentType ?? current.shared.contentType,
+    });
+  }
+
+  // Automação ATIVA nunca pode ficar com conteúdo incompleto.
+  if (current.status === "ACTIVE" && contentPatch) {
+    const probe = current.days[0];
+    if (probe) {
+      assertReadyToActivate({
+        ...current,
+        shared: { ...current.shared, ...contentPatch },
+        days: effectiveDays({ ...current, shared: { ...current.shared, ...contentPatch }, days: [{ ...probe, enabled: true }] }),
+      });
+    }
+  }
+
+  if (contentPatch) {
+    const updated = await updateSharedConfigInDb(id, userId, contentPatch);
+    if (!updated) throw new AutomationValidationError("Automação não encontrada.");
+  }
+  if (!schedule) return null;
+  const weekly = await replaceSharedScheduleInDb(id, userId, schedule);
+  if (weekly === null) throw new AutomationValidationError("Automação não encontrada.");
+  return weekly;
 }
 
 /** "+ Adicionar horário" num dia da semana. Devolve o id do novo horário. */
 export async function addAutomationSlot(automationId: string, userId: string, dayOfWeek: DayOfWeek): Promise<string> {
   if (!DAYS_OF_WEEK.includes(dayOfWeek)) throw new AutomationValidationError("Dia da semana inválido.");
+  await assertCustomScheduleMode(automationId, userId);
   try {
     const slotId = await addAutomationSlotInDb(automationId, userId, dayOfWeek);
     if (!slotId) throw new AutomationValidationError("Automação não encontrada.");
@@ -368,6 +511,7 @@ export async function addAutomationSlot(automationId: string, userId: string, da
 
 /** Remove um horário extra (o principal de cada dia não pode ser removido — só desabilitado). */
 export async function removeAutomationSlot(automationId: string, userId: string, slotId: string): Promise<void> {
+  await assertCustomScheduleMode(automationId, userId);
   const removed = await removeAutomationSlotInDb(automationId, userId, slotId);
   if (!removed) {
     throw new AutomationValidationError("Horário não encontrado — o horário principal do dia não pode ser removido, só desativado.");
@@ -430,7 +574,11 @@ function assertReadyToActivate(automation: AutomationWithDays): void {
 }
 
 export async function activateAutomation(id: string, userId: string): Promise<void> {
-  const automation = await getAutomationDetails(id, userId);
+  const loaded = await getAutomationDetails(id, userId);
+  // No modo "Prompt único recorrente" o conteúdo mora na automação: valida
+  // as linhas já com o conteúdo compartilhado aplicado (no modo CUSTOM,
+  // effectiveDays devolve as linhas como estão).
+  const automation: AutomationWithDays = { ...loaded, days: effectiveDays(loaded) };
   assertReadyToActivate(automation);
   if (automation.days.some((day) => day.enabled && day.contentMode === "AI")) await assertPlanAllowsAi(userId);
   const updated = await setAutomationStatus(id, userId, "ACTIVE");

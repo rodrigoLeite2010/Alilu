@@ -6,7 +6,7 @@ import {
   listAutomations,
 } from "@/lib/content-automation/backend/automation-service";
 import { serializeAutomationListItem } from "@/lib/content-automation/backend/automation-dto";
-import type { ImageMode, VideoSelection } from "@/lib/content-automation/backend/automation-types";
+import type { AutomationScheduleMode, ImageMode, VideoSelection } from "@/lib/content-automation/backend/automation-types";
 
 /**
  * GET: lista as automações do usuário ("Minhas automações", seção 29).
@@ -60,6 +60,7 @@ export async function POST(request: Request): Promise<NextResponse> {
     fixedImageMediaId,
     videoSelection,
     fixedVideoMediaId,
+    scheduleMode,
   } = body as Record<string, unknown>;
 
   if (typeof instagramAccountId !== "string" || !instagramAccountId) {
@@ -84,6 +85,7 @@ export async function POST(request: Request): Promise<NextResponse> {
       fixedImageMediaId: typeof fixedImageMediaId === "string" ? fixedImageMediaId : null,
       videoSelection: typeof videoSelection === "string" ? (videoSelection as VideoSelection) : undefined,
       fixedVideoMediaId: typeof fixedVideoMediaId === "string" ? fixedVideoMediaId : null,
+      scheduleMode: typeof scheduleMode === "string" ? (scheduleMode as AutomationScheduleMode) : undefined,
     });
     return NextResponse.json({ id }, { status: 201 });
   } catch (error) {

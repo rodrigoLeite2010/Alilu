@@ -9,9 +9,10 @@ import {
   getAutomationDetails,
   pauseAutomation,
   updateAutomation,
+  updateSharedAutomation,
 } from "@/lib/content-automation/backend/automation-service";
 import { serializeAutomation } from "@/lib/content-automation/backend/automation-dto";
-import type { ImageMode, VideoSelection } from "@/lib/content-automation/backend/automation-types";
+import type { AutomationScheduleMode, ImageMode, VideoSelection } from "@/lib/content-automation/backend/automation-types";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -42,7 +43,9 @@ export async function GET(_request: Request, { params }: RouteParams): Promise<N
  * `{ action: "pause", cancelScheduledRuns?: boolean }` (seção 30 — pausar
  * cancelando ou não as execuções já agendadas) | `{ action: "archive" }` |
  * `{ action: "duplicate" }` (seção 29 — retorna o id da cópia, sempre
- * PAUSADA).
+ * PAUSADA) | `{ action: "update-shared", content?: {...}, schedule?:
+ * { days: DayOfWeek[], times: "HH:mm"[] } }` (modo "Prompt único
+ * recorrente": conteúdo compartilhado + agenda, validados juntos).
  */
 export async function PATCH(request: Request, { params }: RouteParams): Promise<NextResponse> {
   const session = await auth();
@@ -85,6 +88,21 @@ export async function PATCH(request: Request, { params }: RouteParams): Promise<
       return NextResponse.json({ id: newId }, { status: 201 });
     }
 
+    if (action === "update-shared") {
+      const { content, schedule } = body as { content?: unknown; schedule?: unknown };
+      const isObject = (value: unknown): value is Record<string, unknown> =>
+        typeof value === "object" && value !== null && !Array.isArray(value);
+      if ((content !== undefined && !isObject(content)) || (schedule !== undefined && !isObject(schedule))) {
+        return NextResponse.json({ error: "content e schedule precisam ser objetos." }, { status: 400 });
+      }
+      const weeklyExecutions = await updateSharedAutomation(id, userId, {
+        content: content as Parameters<typeof updateSharedAutomation>[2]["content"],
+        schedule: schedule as { days: unknown; times: unknown } | undefined,
+      });
+      const automation = await getAutomationDetails(id, userId);
+      return NextResponse.json({ automation: serializeAutomation(automation), weeklyExecutions });
+    }
+
     if (action === "update") {
       const {
         name,
@@ -99,6 +117,7 @@ export async function PATCH(request: Request, { params }: RouteParams): Promise<
         videoSelection,
         fixedVideoMediaId,
         instagramAccountId,
+        scheduleMode,
       } = body as Record<string, unknown>;
 
       await updateAutomation(id, userId, {
@@ -116,13 +135,14 @@ export async function PATCH(request: Request, { params }: RouteParams): Promise<
         fixedVideoMediaId:
           fixedVideoMediaId === null ? null : typeof fixedVideoMediaId === "string" ? fixedVideoMediaId : undefined,
         instagramAccountId: typeof instagramAccountId === "string" ? instagramAccountId : undefined,
+        scheduleMode: typeof scheduleMode === "string" ? (scheduleMode as AutomationScheduleMode) : undefined,
       });
       const automation = await getAutomationDetails(id, userId);
       return NextResponse.json({ automation: serializeAutomation(automation) });
     }
 
     return NextResponse.json(
-      { error: "action precisa ser 'update', 'activate', 'pause', 'archive' ou 'duplicate'." },
+      { error: "action precisa ser 'update', 'update-shared', 'activate', 'pause', 'archive' ou 'duplicate'." },
       { status: 400 },
     );
   } catch (error) {

@@ -1,6 +1,11 @@
 import "server-only";
 import { getDb } from "@/lib/db/client";
 import {
+  planScheduleReconciliation,
+  type ReconcileRow,
+  type SharedScheduleInput,
+} from "../shared-schedule";
+import {
   DAYS_OF_WEEK,
   MAX_SLOTS_PER_DAY,
   type AutomationContentCategory,
@@ -8,6 +13,8 @@ import {
   type AutomationContentType,
   type AutomationDayRecord,
   type AutomationRecord,
+  type AutomationScheduleMode,
+  type AutomationSharedConfig,
   type AutomationStatus,
   type AutomationWithDays,
   type DayOfWeek,
@@ -36,6 +43,36 @@ import {
  * parâmetro).
  */
 
+function parseStyleConfig(raw: unknown): Record<string, unknown> | null {
+  if (raw && typeof raw === "object") return raw as Record<string, unknown>;
+  if (typeof raw === "string" && raw.length > 0) {
+    try {
+      return JSON.parse(raw) as Record<string, unknown>;
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
+function mapSharedConfig(row: Record<string, unknown>): AutomationSharedConfig {
+  return {
+    contentType: ((row.shared_content_type as AutomationContentType | null) ?? "POST"),
+    contentMode: ((row.shared_content_mode as AutomationContentMode | null) ?? "AI"),
+    contentCategory: (row.shared_content_category as AutomationContentCategory | null) ?? null,
+    prompt: (row.shared_prompt as string | null) ?? "",
+    manualCaption: (row.shared_manual_caption as string | null) ?? null,
+    visualText: (row.shared_visual_text as string | null) ?? null,
+    templateId: (row.shared_template_id as string | null) ?? null,
+    styleConfig: parseStyleConfig(row.shared_style_config),
+    overlayOpacity:
+      row.shared_overlay_opacity === null || row.shared_overlay_opacity === undefined ? null : Number(row.shared_overlay_opacity),
+    visualTextColor: (row.shared_visual_text_color as string | null) ?? null,
+    imageMediaId: (row.shared_image_media_id as string | null) ?? null,
+    videoMediaId: (row.shared_video_media_id as string | null) ?? null,
+  };
+}
+
 function mapAutomationRow(row: Record<string, unknown>): AutomationRecord {
   return {
     id: row.id as string,
@@ -44,6 +81,8 @@ function mapAutomationRow(row: Record<string, unknown>): AutomationRecord {
     name: row.name as string,
     description: (row.description as string | null) ?? "",
     status: row.status as AutomationStatus,
+    scheduleMode: ((row.schedule_mode as AutomationScheduleMode | null) ?? "CUSTOM"),
+    shared: mapSharedConfig(row),
     timezone: row.timezone as string,
     brandContext: (row.brand_context as string | null) ?? "",
     autoPublish: Boolean(row.auto_publish),
@@ -108,6 +147,10 @@ export interface CreateAutomationInput {
   fixedImageMediaId: string | null;
   videoSelection: VideoSelection;
   fixedVideoMediaId: string | null;
+  /** Ausente = "CUSTOM" (modelo de sempre). */
+  scheduleMode?: AutomationScheduleMode;
+  /** Conteúdo compartilhado inicial (só faz sentido em "SHARED_PROMPT"). */
+  shared?: AutomationSharedConfig;
 }
 
 /** Cria a automação PAUSADA (o usuário ativa explicitamente depois de revisar) e as 7 linhas de dia. */
@@ -117,16 +160,17 @@ export async function createAutomation(input: CreateAutomationInput): Promise<st
     insert into content_automations (
       user_id, instagram_account_id, name, description, status, timezone, brand_context,
       auto_publish, require_approval, generation_lead_minutes, image_mode, fixed_image_media_id,
-      video_selection, fixed_video_media_id
+      video_selection, fixed_video_media_id, schedule_mode
     ) values (
       ${input.userId}, ${input.instagramAccountId}, ${input.name}, ${input.description}, 'PAUSED',
       ${input.timezone}, ${input.brandContext}, ${input.autoPublish}, ${input.requireApproval},
       ${input.generationLeadMinutes}, ${input.imageMode}, ${input.fixedImageMediaId},
-      ${input.videoSelection}, ${input.fixedVideoMediaId}
+      ${input.videoSelection}, ${input.fixedVideoMediaId}, ${input.scheduleMode ?? "CUSTOM"}
     )
     returning id
   `;
   const automationId = rows[0].id as string;
+  if (input.shared) await updateSharedConfig(automationId, input.userId, input.shared);
 
   for (const dayOfWeek of DAYS_OF_WEEK) {
     await db`
@@ -166,23 +210,30 @@ export async function getAutomationForUser(id: string, userId: string): Promise<
 
 export interface AutomationListItem extends AutomationRecord {
   activeDaysCount: number;
+  /** Execuções por semana (linhas dia+horário habilitadas). */
+  activeSlotsCount: number;
 }
 
 /** Lista para "Minhas automações" — sem carregar os 7 dias de cada uma, só a contagem de dias ativos. */
 export async function listAutomationsForUser(userId: string): Promise<AutomationListItem[]> {
   const db = getDb();
   const rows = await db`
-    select a.*, coalesce(d.active_days, 0) as active_days_count
+    select a.*, coalesce(d.active_days, 0) as active_days_count, coalesce(d.active_slots, 0) as active_slots_count
     from content_automations a
     left join (
-      select automation_id, count(distinct day_of_week) filter (where enabled) as active_days
+      select automation_id, count(distinct day_of_week) filter (where enabled) as active_days,
+        count(*) filter (where enabled) as active_slots
       from content_automation_days
       group by automation_id
     ) d on d.automation_id = a.id
     where a.user_id = ${userId}
     order by a.created_at desc
   `;
-  return rows.map((row) => ({ ...mapAutomationRow(row), activeDaysCount: Number(row.active_days_count) }));
+  return rows.map((row) => ({
+    ...mapAutomationRow(row),
+    activeDaysCount: Number(row.active_days_count),
+    activeSlotsCount: Number(row.active_slots_count),
+  }));
 }
 
 export interface UpdateAutomationInput {
@@ -331,6 +382,154 @@ export async function updateAutomationDay(
   return true;
 }
 
+/**
+ * Atualiza o conteúdo compartilhado (modo "Prompt único recorrente") —
+ * UM único UPDATE, e todas as execuções futuras passam a usar o novo
+ * conteúdo (o cron lê esta linha na hora de gerar). undefined = mantém.
+ * Se o tipo de conteúdo mudou, espelha só `content_type` nas linhas de
+ * dia/horário (o histórico e o painel leem o tipo dali).
+ */
+export async function updateSharedConfig(
+  id: string,
+  userId: string,
+  patch: Partial<AutomationSharedConfig>,
+): Promise<boolean> {
+  const row = await fetchAutomationRow(id, userId);
+  if (!row) return false;
+  const current = mapSharedConfig(row);
+  const next: AutomationSharedConfig = {
+    contentType: patch.contentType ?? current.contentType,
+    contentMode: patch.contentMode ?? current.contentMode,
+    contentCategory: patch.contentCategory === undefined ? current.contentCategory : patch.contentCategory,
+    prompt: patch.prompt ?? current.prompt,
+    manualCaption: patch.manualCaption === undefined ? current.manualCaption : patch.manualCaption,
+    visualText: patch.visualText === undefined ? current.visualText : patch.visualText,
+    templateId: patch.templateId === undefined ? current.templateId : patch.templateId,
+    styleConfig: patch.styleConfig === undefined ? current.styleConfig : patch.styleConfig,
+    overlayOpacity: patch.overlayOpacity === undefined ? current.overlayOpacity : patch.overlayOpacity,
+    visualTextColor: patch.visualTextColor === undefined ? current.visualTextColor : patch.visualTextColor,
+    imageMediaId: patch.imageMediaId === undefined ? current.imageMediaId : patch.imageMediaId,
+    videoMediaId: patch.videoMediaId === undefined ? current.videoMediaId : patch.videoMediaId,
+  };
+  const styleConfigJson = next.styleConfig === null ? null : JSON.stringify(next.styleConfig);
+
+  const db = getDb();
+  await db`
+    update content_automations set
+      shared_content_type = ${next.contentType}, shared_content_mode = ${next.contentMode},
+      shared_content_category = ${next.contentCategory}, shared_prompt = ${next.prompt},
+      shared_manual_caption = ${next.manualCaption}, shared_visual_text = ${next.visualText},
+      shared_template_id = ${next.templateId}, shared_style_config = ${styleConfigJson},
+      shared_overlay_opacity = ${next.overlayOpacity}, shared_visual_text_color = ${next.visualTextColor},
+      shared_image_media_id = ${next.imageMediaId}, shared_video_media_id = ${next.videoMediaId},
+      updated_at = now()
+    where id = ${id} and user_id = ${userId}
+  `;
+  if (next.contentType !== current.contentType && (row.schedule_mode as string) === "SHARED_PROMPT") {
+    await db`
+      update content_automation_days set content_type = ${next.contentType}, updated_at = now()
+      where automation_id = ${id}
+    `;
+  }
+  return true;
+}
+
+/**
+ * Troca o modo da agenda. Ao voltar para "CUSTOM", copia o conteúdo
+ * compartilhado para as linhas habilitadas — nada que o usuário escreveu
+ * se perde. Ao ir para "SHARED_PROMPT" as linhas ficam como estão (só
+ * dia/horário/habilitado passam a valer) e o tipo é espelhado nelas.
+ * Quem chama garante que a automação não está ATIVA.
+ */
+export async function setScheduleMode(id: string, userId: string, mode: AutomationScheduleMode): Promise<boolean> {
+  const row = await fetchAutomationRow(id, userId);
+  if (!row) return false;
+  if ((row.schedule_mode as string) === mode) return true;
+  const shared = mapSharedConfig(row);
+  const db = getDb();
+  await db`
+    update content_automations set schedule_mode = ${mode}, updated_at = now()
+    where id = ${id} and user_id = ${userId}
+  `;
+  if (mode === "CUSTOM") {
+    const styleConfigJson = shared.styleConfig === null ? null : JSON.stringify(shared.styleConfig);
+    await db`
+      update content_automation_days set
+        content_type = ${shared.contentType}, content_mode = ${shared.contentMode},
+        content_category = ${shared.contentCategory}, prompt = ${shared.prompt},
+        manual_caption = ${shared.manualCaption}, visual_text = ${shared.visualText},
+        template_id = ${shared.templateId}, style_config = ${styleConfigJson},
+        overlay_opacity = ${shared.overlayOpacity}, visual_text_color = ${shared.visualTextColor},
+        image_media_id = ${shared.imageMediaId}, video_media_id = ${shared.videoMediaId},
+        updated_at = now()
+      where automation_id = ${id} and enabled = true
+    `;
+  } else {
+    await db`
+      update content_automation_days set content_type = ${shared.contentType}, updated_at = now()
+      where automation_id = ${id}
+    `;
+  }
+  return true;
+}
+
+/**
+ * Faz as linhas de dia/horário refletirem a agenda do modo compartilhado
+ * (dias × horários) — ver planScheduleReconciliation. Nunca apaga linhas
+ * (o histórico de execuções depende delas): o que sai da agenda é
+ * desabilitado. Devolve o número de execuções por semana, ou null se a
+ * automação não for do usuário.
+ */
+export async function replaceSharedSchedule(
+  id: string,
+  userId: string,
+  schedule: SharedScheduleInput,
+): Promise<number | null> {
+  const row = await fetchAutomationRow(id, userId);
+  if (!row) return null;
+  const contentType = mapSharedConfig(row).contentType;
+
+  const db = getDb();
+  const dayRows = await db`
+    select d.id, d.day_of_week, d.slot_index, d.publish_time, d.enabled,
+      exists (select 1 from automation_runs r where r.automation_day_id = d.id) as has_runs
+    from content_automation_days d
+    where d.automation_id = ${id}
+  `;
+  const reconcileRows: ReconcileRow[] = dayRows.map((dayRow) => ({
+    id: dayRow.id as string,
+    dayOfWeek: dayRow.day_of_week as DayOfWeek,
+    slotIndex: Number(dayRow.slot_index),
+    publishTime: dayRow.publish_time as string,
+    enabled: Boolean(dayRow.enabled),
+    hasRuns: Boolean(dayRow.has_runs),
+  }));
+
+  const plan = planScheduleReconciliation(reconcileRows, schedule);
+
+  for (const rowId of plan.disable) {
+    await db`
+      update content_automation_days set enabled = false, updated_at = now()
+      where id = ${rowId} and automation_id = ${id}
+    `;
+  }
+  for (const item of plan.update) {
+    await db`
+      update content_automation_days
+      set enabled = true, publish_time = ${item.publishTime}, content_type = ${contentType}, updated_at = now()
+      where id = ${item.id} and automation_id = ${id}
+    `;
+  }
+  for (const item of plan.insert) {
+    await db`
+      insert into content_automation_days (automation_id, day_of_week, slot_index, enabled, publish_time, content_type)
+      values (${id}, ${item.dayOfWeek}, ${item.slotIndex}, true, ${item.publishTime}, ${contentType})
+    `;
+  }
+  await db`update content_automations set updated_at = now() where id = ${id}`;
+  return schedule.days.length * schedule.times.length;
+}
+
 export class AutomationSlotLimitError extends Error {}
 
 /**
@@ -418,7 +617,8 @@ export async function listAutomationNamesUsingMedia(mediaId: string, userId: str
   const rows = await db`
     select distinct name from content_automations
     where user_id = ${userId}
-      and (fixed_image_media_id = ${mediaId} or fixed_video_media_id = ${mediaId})
+      and (fixed_image_media_id = ${mediaId} or fixed_video_media_id = ${mediaId}
+        or shared_image_media_id = ${mediaId} or shared_video_media_id = ${mediaId})
     union
     select distinct ca.name from content_automation_days cad
     join content_automations ca on ca.id = cad.automation_id
@@ -447,6 +647,8 @@ export async function duplicateAutomation(id: string, userId: string, newName: s
     fixedImageMediaId: original.fixedImageMediaId,
     videoSelection: original.videoSelection,
     fixedVideoMediaId: original.fixedVideoMediaId,
+    scheduleMode: original.scheduleMode,
+    shared: original.shared,
   });
 
   for (const day of original.days) {

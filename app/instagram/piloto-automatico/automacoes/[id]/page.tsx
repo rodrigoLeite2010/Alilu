@@ -9,6 +9,7 @@ import {
 } from "@/lib/content-automation/backend/automation-service";
 import { SchedulingIntro } from "@/components/instagram/SchedulingIntro";
 import { AutomationEditor } from "@/components/instagram/content-automation/AutomationEditor";
+import { deriveSharedSchedule } from "@/lib/content-automation/shared-schedule";
 
 export const metadata: Metadata = {
   robots: { index: false, follow: false },
@@ -53,6 +54,8 @@ export default async function AutomationDetailPage({ params }: PageProps) {
         </Link>
       </div>
       <AutomationEditor
+        // Trocar o modo remonta o formulário com o estado novo do servidor.
+        key={automation.scheduleMode}
         userId={userId}
         automation={{
           id: automation.id,
@@ -68,6 +71,25 @@ export default async function AutomationDetailPage({ params }: PageProps) {
           imageMode: automation.imageMode,
           fixedImageMediaId: automation.fixedImageMediaId,
           fixedVideoMediaId: automation.fixedVideoMediaId,
+          scheduleMode: automation.scheduleMode,
+          shared: {
+            dayOfWeek: "MONDAY",
+            slotIndex: 0,
+            enabled: true,
+            publishTime: "09:00",
+            contentCategory: automation.shared.contentCategory,
+            contentType: automation.shared.contentType,
+            contentMode: automation.shared.contentMode,
+            prompt: automation.shared.prompt,
+            manualCaption: automation.shared.manualCaption ?? "",
+            visualText: automation.shared.visualText ?? "",
+            templateId: automation.shared.templateId,
+            overlayOpacity: automation.shared.overlayOpacity,
+            visualTextColor: automation.shared.visualTextColor,
+            imageMediaId: automation.shared.imageMediaId,
+            videoMediaId: automation.shared.videoMediaId,
+          },
+          schedule: deriveSharedSchedule(automation.days),
           days: automation.days.map((day) => ({
             id: day.id,
             dayOfWeek: day.dayOfWeek,

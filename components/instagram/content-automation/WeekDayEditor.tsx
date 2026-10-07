@@ -77,6 +77,7 @@ export function WeekDayEditor({
   onChange,
   onRemove,
   previewContext,
+  shared = false,
 }: {
   userId: string;
   day: DayFormState;
@@ -88,6 +89,12 @@ export function WeekDayEditor({
   /** Só para horários extras (slotIndex > 0): mostra "Remover horário". */
   onRemove?: () => void;
   previewContext?: StoryPreviewContext;
+  /**
+   * Modo "Prompt único recorrente": este card edita o conteúdo
+   * COMPARTILHADO por todas as execuções — sem dia, sem liga/desliga e
+   * sem horário próprio (dias e horários ficam em SharedPromptEditor).
+   */
+  shared?: boolean;
 }) {
   const [overrideMedia, setOverrideMedia] = useState(Boolean(day.imageMediaId || day.videoMediaId));
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -113,7 +120,7 @@ export function WeekDayEditor({
   const [storyPreviewError, setStoryPreviewError] = useState<string | null>(null);
   const isCarousel = day.contentType === "CAROUSEL";
   const isStory = day.contentType === "STORY";
-  const radioPrefix = `${day.dayOfWeek}-${day.slotIndex}`;
+  const radioPrefix = shared ? "shared" : `${day.dayOfWeek}-${day.slotIndex}`;
   const isAutoTemplateImage = imageMode === "AUTO_TEMPLATE" && (day.contentType === "POST" || isCarousel);
   const previewImageMediaId = day.imageMediaId ?? defaultImageMediaId;
   const visualTextMaxLength = isCarousel ? MAX_CAROUSEL_VISUAL_TEXT_LENGTH : MAX_VISUAL_TEXT_LENGTH;
@@ -239,12 +246,13 @@ export function WeekDayEditor({
   }
 
   return (
-    <fieldset className={`rounded-lg border p-4 transition-colors ${day.enabled ? "border-teal-300 bg-teal-50/30" : "border-zinc-200"}`}>
+    <fieldset className={`min-w-0 rounded-lg border p-3 transition-colors sm:p-4 ${day.enabled ? "border-teal-300 bg-teal-50/30" : "border-zinc-200"}`}>
       <legend className="px-1 text-sm font-semibold text-zinc-900">
-        {DAY_OF_WEEK_LABEL[day.dayOfWeek]}
-        {day.slotIndex > 0 ? <span className="font-normal text-zinc-600"> · horário extra ({day.publishTime})</span> : null}
+        {shared ? "Conteúdo (o mesmo em todas as execuções)" : DAY_OF_WEEK_LABEL[day.dayOfWeek]}
+        {!shared && day.slotIndex > 0 ? <span className="font-normal text-zinc-600"> · horário extra ({day.publishTime})</span> : null}
       </legend>
 
+      {shared ? null : (
       <div className="flex flex-wrap items-center gap-2">
         <input
           id={checkboxId}
@@ -266,6 +274,7 @@ export function WeekDayEditor({
           </button>
         ) : null}
       </div>
+      )}
 
       {day.enabled ? (
         <div className="mt-3 space-y-3">
@@ -301,6 +310,7 @@ export function WeekDayEditor({
             ) : null}
           </div>
 
+          {shared ? null : (
           <div>
             <label htmlFor={timeId} className="mb-1 block text-xs font-medium text-zinc-700">
               Horário de publicação
@@ -313,6 +323,7 @@ export function WeekDayEditor({
               className="min-h-11 rounded-md border border-zinc-300 px-3 py-2 text-sm"
             />
           </div>
+          )}
 
           <div>
             <label htmlFor={categoryId} className="mb-1 block text-xs font-medium text-zinc-700">
@@ -407,7 +418,7 @@ export function WeekDayEditor({
           ) : (
             <div>
               <label htmlFor={promptId} className="mb-1 block text-xs font-medium text-zinc-700">
-                O que publicar em {DAY_OF_WEEK_LABEL[day.dayOfWeek]}
+                {shared ? "Prompt" : `O que publicar em ${DAY_OF_WEEK_LABEL[day.dayOfWeek]}`}
               </label>
               <textarea
                 id={promptId}
@@ -424,15 +435,20 @@ export function WeekDayEditor({
                   isStory
                     ? `Descreva o texto curto do Story. Ex.: Hoje é {{diaSemana}}. Crie uma frase motivacional curta para começar bem o dia. Máximo 20 palavras, sem hashtags.`
                     : day.contentType === "POST"
-                    ? `Descreva o conteúdo que deve ser criado para este dia. Ex.: Crie uma frase motivacional para ${DAY_OF_WEEK_LABEL[day.dayOfWeek].toLowerCase()} com tom leve, inspirador e humano.`
+                    ? shared
+                      ? "Descreva o conteúdo. Ex.: Crie uma reflexão motivacional sobre persistência, família, amizade, fé e superação, com tom leve, inspirador e humano."
+                      : `Descreva o conteúdo que deve ser criado para este dia. Ex.: Crie uma frase motivacional para ${DAY_OF_WEEK_LABEL[day.dayOfWeek].toLowerCase()} com tom leve, inspirador e humano.`
                     : isCarousel
-                      ? `Descreva o carrossel que deve ser criado para este dia. Ex.: Conte, em vários parágrafos, uma história inspiradora sobre superação, para ${DAY_OF_WEEK_LABEL[day.dayOfWeek].toLowerCase()} — a IA escreve um texto comprido, dividido automaticamente entre os slides.`
+                      ? `Descreva o carrossel que deve ser criado${shared ? "" : " para este dia"}. Ex.: Conte, em vários parágrafos, uma história inspiradora sobre superação${shared ? "" : `, para ${DAY_OF_WEEK_LABEL[day.dayOfWeek].toLowerCase()}`} — a IA escreve um texto comprido, dividido automaticamente entre os slides.`
                       : `Descreva o Reel que deve ser criado para este dia. Ex.: Crie um Reel curto mostrando uma dica sobre ferramentas online, com tom leve e direto.`
                 }
                 className="w-full min-h-[144px] resize-y rounded-md border border-zinc-300 px-3 py-2 text-sm leading-relaxed"
               />
               <p className="mt-1 text-xs text-zinc-500">
-                {day.prompt.length}/800 — a IA usa exatamente {DAY_OF_WEEK_LABEL[day.dayOfWeek]} como o dia deste conteúdo, nunca outro dia.
+                {day.prompt.length}/800 —{" "}
+                {shared
+                  ? "o mesmo prompt vale para todos os dias e horários; {{diaSemana}}, {{data}} e {{hora}} são preenchidos a cada execução."
+                  : `a IA usa exatamente ${DAY_OF_WEEK_LABEL[day.dayOfWeek]} como o dia deste conteúdo, nunca outro dia.`}
               </p>
               <p className="mt-1 text-xs text-zinc-500">
                 Variáveis: {PROMPT_VARIABLES.map((name) => `{{${name}}}`).join(" ")}
@@ -659,7 +675,7 @@ export function WeekDayEditor({
                 }}
                 className="h-4 w-4 rounded border-zinc-300 text-teal-700"
               />
-              Usar {day.contentType === "POST" || isCarousel || isStory ? "uma imagem" : "um vídeo"} diferente do padrão da automação neste {day.slotIndex > 0 ? "horário" : "dia"}
+              Usar {day.contentType === "POST" || isCarousel || isStory ? "uma imagem" : "um vídeo"} diferente do padrão da automação {shared ? "nesta automação" : `neste ${day.slotIndex > 0 ? "horário" : "dia"}`}
             </label>
             {overrideMedia ? (
               <div className="mt-2">
