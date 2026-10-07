@@ -25,6 +25,7 @@ import {
 import { getInstagramAccountByIdForUser } from "@/lib/instagram/backend/instagram-account-repository";
 import { MIN_CAROUSEL_ITEMS, MAX_CAROUSEL_ITEMS } from "@/lib/instagram/backend/instagram-post-service";
 import { renderAndStoreAutomationArt, renderAndStoreAutomationCarousel } from "@/lib/instagram/backend/template-render-service";
+import { generateSmartCarouselForRun, type SmartCarouselRunDeps } from "./smart-carousel-service";
 import { reserveAutomationUse, releaseAutomationUse } from "@/lib/billing/backend/automation-access-service";
 import { CONTENT_CATEGORY_LABEL, DAY_OF_WEEK_LABEL, type AutomationDayRecord, type AutomationRecord, type AutomationRunStatus } from "./automation-types";
 import { applyPromptVariables, displaySiteUrl } from "../prompt-variables";
@@ -76,10 +77,14 @@ export interface RunContentAutomationOptions {
   now?: () => Date;
   limit?: number;
   timeBudgetMs?: number;
+  /** Injeção de dependências do Carrossel Inteligente (testes: IA e fotos falsas). */
+  smartCarouselDeps?: SmartCarouselRunDeps;
 }
 
 export const DEFAULT_CONTENT_AUTOMATION_LIMIT = 10;
-const DEFAULT_TIME_BUDGET_MS = 45_000;
+const DEFAULT_TIME_BUDGET_MS = 200_000;
+/** Carrossel Inteligente (IA + fotos + render) é longo: só começa se sobrar este tempo no orçamento do cron (maxDuration 300 s). */
+const SMART_CAROUSEL_MIN_REMAINING_MS = 120_000;
 
 /**
  * Resolve a mídia de imagem a usar para um dia (override do dia > padrão
@@ -526,7 +531,13 @@ async function generateAndCreatePublication(
   publishAtUtc: Date,
   nowDate: Date,
   runDate: string,
+  smartCarouselDeps: SmartCarouselRunDeps = {},
 ): Promise<{ publicationId: string; status: Extract<AutomationRunStatus, "WAITING_APPROVAL" | "SCHEDULED"> }> {
+  if (day.contentType === "SMART_CAROUSEL") {
+    // Carrossel Inteligente: cota PRÓPRIA (plano do Carrossel). Não reserva uso do Piloto.
+    const result = await generateSmartCarouselForRun(automation, day, runId, publishAtUtc, smartCarouselDeps);
+    return { publicationId: result.publicationId, status: result.status };
+  }
   // Texto manual não consome a franquia nem exige plano com IA; só o modo IA conta (referência = a execução, p/ não contar duas vezes em retry).
   const reservation = await reserveAutomationUse(automation.userId, nowDate, {
     usesAi: day.contentMode === "AI",
@@ -579,7 +590,9 @@ export async function runContentAutomationCron(
       if (results.length >= limit || Date.now() - startedAt > timeBudgetMs) break;
 
       const hasContentSource =
-        day.contentType === "STORY"
+        day.contentType === "SMART_CAROUSEL"
+          ? Boolean(day.prompt.trim()) || Boolean(day.contentCategory)
+          : day.contentType === "STORY"
           ? automation.smartStory.enabled
             ? Boolean(day.prompt.trim())
             : day.contentMode === "MANUAL" || Boolean(day.prompt.trim())
@@ -597,13 +610,17 @@ export async function runContentAutomationCron(
         continue;
       }
 
+      if (day.contentType === "SMART_CAROUSEL" && Date.now() - startedAt > timeBudgetMs - SMART_CAROUSEL_MIN_REMAINING_MS) {
+        continue; // sem tempo seguro neste ciclo: a execução fica PENDING e o próximo cron a pega.
+      }
+
       const lockToken = randomUUID();
       const claimed = await claimRunForGeneration(run.id, lockToken);
       if (!claimed) continue; // outra instância pegou o claim, ou o retry ainda não está pronto.
 
       const runStartedAt = Date.now();
       try {
-        const { publicationId, status } = await generateAndCreatePublication(automation, day, run.id, publishAtUtc, nowDate, date);
+        const { publicationId, status } = await generateAndCreatePublication(automation, day, run.id, publishAtUtc, nowDate, date, options.smartCarouselDeps);
         await markRunGenerated(run.id, lockToken, publicationId, status);
         results.push({ automationId: automation.id, runId: run.id, status });
         console.info("[content-automation-cron] execução gerada", {

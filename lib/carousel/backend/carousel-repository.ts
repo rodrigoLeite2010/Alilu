@@ -685,3 +685,35 @@ export async function replaceSlides(projectId: string, slides: ReplacementSlide[
 export async function clearRenderedSlides(projectId: string): Promise<void> {
   await getDb()`update carousel_slides set rendered_media_id = null, updated_at = now() where project_id = ${projectId}`;
 }
+
+// ---------------------------------------------------------------------------
+// Vínculo com o Piloto Automático (execução ↔ projeto)
+// ---------------------------------------------------------------------------
+/** Projeto já criado para esta execução (idempotência: automação + horário). */
+export async function getProjectByAutomationRun(runId: string): Promise<CarouselProjectRecord | null> {
+  const rows = await getDb()`select * from carousel_projects where automation_run_id = ${runId} limit 1`;
+  return rows[0] ? toProject(rows[0] as Row) : null;
+}
+
+/**
+ * Liga o projeto à execução. O índice único em automation_run_id garante UM
+ * projeto por execução; devolve false se a execução já tem outro projeto.
+ */
+export async function linkProjectToAutomationRun(
+  userId: string,
+  projectId: string,
+  link: { automationId: string; runId: string; scheduledFor: Date },
+): Promise<boolean> {
+  try {
+    const rows = await getDb()`
+      update carousel_projects
+      set automation_id = ${link.automationId}, automation_run_id = ${link.runId}, scheduled_for = ${link.scheduledFor.toISOString()}
+      where id = ${projectId} and user_id = ${userId} and automation_run_id is null
+      returning id
+    `;
+    return rows.length > 0;
+  } catch (error) {
+    if (error instanceof Error && /unique|duplicate/i.test(error.message)) return false;
+    throw error;
+  }
+}

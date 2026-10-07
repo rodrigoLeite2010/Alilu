@@ -11,6 +11,7 @@ import {
   updateAutomation,
   updateSharedAutomation,
   updateSmartStory,
+  updateSmartCarousel,
 } from "@/lib/content-automation/backend/automation-service";
 import { serializeAutomation } from "@/lib/content-automation/backend/automation-dto";
 import type { AutomationScheduleMode, ImageMode, VideoSelection } from "@/lib/content-automation/backend/automation-types";
@@ -107,6 +108,13 @@ export async function PATCH(request: Request, { params }: RouteParams): Promise<
     if (action === "update-smart-story") {
       const { enabled, config } = body as { enabled?: unknown; config?: unknown };
       await updateSmartStory(id, userId, { enabled: enabled as boolean | undefined, config });
+      const automation = await getAutomationDetails(id, userId);
+      return NextResponse.json({ automation: serializeAutomation(automation) });
+    }
+
+    if (action === "update-smart-carousel") {
+      const { config } = body as { config?: unknown };
+      await updateSmartCarousel(id, userId, { config });
       const automation = await getAutomationDetails(id, userId);
       return NextResponse.json({ automation: serializeAutomation(automation) });
     }

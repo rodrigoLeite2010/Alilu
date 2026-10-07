@@ -36,6 +36,8 @@ export interface PublishCarouselInput {
   /** Perfil de destino (se o projeto ainda não tem um). */
   accountId?: string | null;
   caption?: string;
+  /** Origem do post (padrão MANUAL; o Piloto Automático envia AUTOMATION). */
+  source?: "MANUAL" | "AUTOMATION";
 }
 
 export interface PublishCarouselResult {
@@ -132,6 +134,7 @@ export async function publishCarousel(userId: string, projectId: string, input: 
     caption: finalProject.caption,
     scheduledAtUtc,
     timezone: input.timezone ?? undefined,
+    source: input.source,
   });
   if (endItem || endResolution.notApplied) {
     await markPostEndMedia(postId, userId, { applied: Boolean(endItem), type: endItem ? "IMAGE" : null, urlUsed: endItem?.urlUsed ?? null, error: endResolution.notApplied });

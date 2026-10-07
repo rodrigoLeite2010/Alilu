@@ -41,6 +41,8 @@ export function serializeAutomation(automation: AutomationWithDays) {
     scheduleMode: automation.scheduleMode,
     /** Modo inteligente de Stories (config já normalizada). */
     smartStory: automation.smartStory,
+    /** Configuração do Carrossel Inteligente automático. */
+    smartCarousel: automation.smartCarousel,
     /** Conteúdo compartilhado — só vale quando scheduleMode = "SHARED_PROMPT". */
     shared: serializeSharedConfig(automation.shared),
     /** Agenda do modo compartilhado (dias e horários habilitados) + total de execuções por semana. */

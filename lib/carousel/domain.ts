@@ -8,7 +8,7 @@ import { CAROUSEL_LIMITS } from "./carousel-plans";
 export const CAROUSEL_PROJECT_STATUSES = ["DRAFT", "GENERATING", "READY", "SCHEDULED", "PUBLISHED", "FAILED"] as const;
 export type CarouselProjectStatus = (typeof CAROUSEL_PROJECT_STATUSES)[number];
 
-export const CAROUSEL_SOURCE_KINDS = ["TOPIC", "SUGGESTED", "TREND", "URL", "PROFILE"] as const;
+export const CAROUSEL_SOURCE_KINDS = ["TOPIC", "SUGGESTED", "TREND", "URL", "PROFILE", "AUTOMATION"] as const;
 export type CarouselSourceKind = (typeof CAROUSEL_SOURCE_KINDS)[number];
 
 export const HOOK_STYLES = ["ORIGINAL", "PROVOCATIVE", "AUTHORITY", "STORYTELLING", "CUSTOM"] as const;

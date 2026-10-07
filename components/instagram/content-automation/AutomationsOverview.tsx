@@ -12,7 +12,7 @@ import type { AutomationStatus } from "@/lib/content-automation/backend/automati
 export interface AutomationDashboardDto {
   next: {
     automationName: string;
-    contentType: "POST" | "REEL" | "CAROUSEL" | "STORY";
+    contentType: "POST" | "REEL" | "CAROUSEL" | "STORY" | "SMART_CAROUSEL";
     publishTime: string;
     date: string;
     isToday: boolean;
@@ -26,7 +26,7 @@ export interface AutomationDashboardDto {
   };
 }
 
-const CONTENT_TYPE_LABEL = { POST: "Post", REEL: "Reel", CAROUSEL: "Carrossel", STORY: "Story" } as const;
+const CONTENT_TYPE_LABEL = { POST: "Post", REEL: "Reel", CAROUSEL: "Carrossel", STORY: "Story", SMART_CAROUSEL: "Carrossel Inteligente" } as const;
 
 function formatNextDate(date: string, isToday: boolean): string {
   if (isToday) return "Hoje";

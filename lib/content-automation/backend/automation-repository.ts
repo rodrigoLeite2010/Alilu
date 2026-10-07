@@ -1,6 +1,7 @@
 import "server-only";
 import { getDb } from "@/lib/db/client";
 import { normalizeSmartStoryConfig, type SmartStoryConfig } from "../smart-story/config";
+import { normalizeSmartCarouselConfig, type SmartCarouselConfig } from "../smart-carousel/config";
 import {
   planScheduleReconciliation,
   type ReconcileRow,
@@ -80,6 +81,10 @@ function mapSmartStory(row: Record<string, unknown>): AutomationSmartStory {
   return { enabled, config: normalizeSmartStoryConfig(parseStyleConfig(row.smart_story_config), enabled) };
 }
 
+function mapSmartCarousel(row: Record<string, unknown>) {
+  return normalizeSmartCarouselConfig(parseStyleConfig(row.smart_carousel_config));
+}
+
 function mapAutomationRow(row: Record<string, unknown>): AutomationRecord {
   return {
     id: row.id as string,
@@ -90,6 +95,7 @@ function mapAutomationRow(row: Record<string, unknown>): AutomationRecord {
     status: row.status as AutomationStatus,
     scheduleMode: ((row.schedule_mode as AutomationScheduleMode | null) ?? "CUSTOM"),
     smartStory: mapSmartStory(row),
+    smartCarousel: mapSmartCarousel(row),
     shared: mapSharedConfig(row),
     timezone: row.timezone as string,
     brandContext: (row.brand_context as string | null) ?? "",
@@ -464,6 +470,19 @@ export async function updateSmartStoryConfig(
   return rows.length > 0;
 }
 
+/** Grava a configuração do Carrossel Inteligente automático (já normalizada). */
+export async function updateSmartCarouselConfig(id: string, userId: string, config: SmartCarouselConfig): Promise<boolean> {
+  const db = getDb();
+  const rows = await db`
+    update content_automations set
+      smart_carousel_config = ${JSON.stringify(config)}::jsonb,
+      updated_at = now()
+    where id = ${id} and user_id = ${userId}
+    returning id
+  `;
+  return rows.length > 0;
+}
+
 /**
  * Troca o modo da agenda. Ao voltar para "CUSTOM", copia o conteúdo
  * compartilhado para as linhas habilitadas — nada que o usuário escreveu
@@ -683,6 +702,7 @@ export async function duplicateAutomation(id: string, userId: string, newName: s
   if (original.smartStory.enabled || Object.keys(original.smartStory.config).length > 0) {
     await updateSmartStoryConfig(newId, userId, original.smartStory);
   }
+  await updateSmartCarouselConfig(newId, userId, original.smartCarousel);
 
   for (const day of original.days) {
     let ref: AutomationDayRef = day.dayOfWeek;

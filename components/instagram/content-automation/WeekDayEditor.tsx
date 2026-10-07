@@ -54,6 +54,7 @@ const CONTENT_TYPE_LABEL: Record<AutomationContentType, string> = {
   CAROUSEL: "Carrossel",
   STORY: "Story",
   REEL: "Reel",
+  SMART_CAROUSEL: "Carrossel Inteligente",
 };
 
 /** Contexto opcional só para a prévia do Story resolver {{nomeConta}}/{{tema}} e o contexto da marca. */
@@ -291,8 +292,8 @@ export function WeekDayEditor({
             <div className="flex flex-wrap gap-3 text-sm">
               {(
                 imageMode === "AUTO_TEMPLATE"
-                  ? (["POST", "CAROUSEL", "STORY", "REEL"] as AutomationContentType[])
-                  : (["POST", "STORY", "REEL"] as AutomationContentType[])
+                  ? (["POST", "CAROUSEL", "SMART_CAROUSEL", "STORY", "REEL"] as AutomationContentType[])
+                  : (["POST", "SMART_CAROUSEL", "STORY", "REEL"] as AutomationContentType[])
               ).map((type) => (
                 <label key={type} className="inline-flex items-center gap-1.5">
                   <input

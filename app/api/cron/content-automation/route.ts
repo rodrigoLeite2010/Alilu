@@ -6,7 +6,7 @@ import {
 } from "@/lib/content-automation/backend/content-automation-cron";
 import { generateWeeklyTopics } from "@/lib/carousel/backend/carousel-editorial-service";
 
-export const maxDuration = 60;
+export const maxDuration = 300;
 export const dynamic = "force-dynamic";
 
 /**

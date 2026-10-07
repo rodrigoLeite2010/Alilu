@@ -64,7 +64,7 @@ export function sharedContentPayload(content: DayFormState) {
   };
 }
 
-const TYPE_LABEL = { POST: "Post", CAROUSEL: "Carrossel", STORY: "Story", REEL: "Reel" } as const;
+const TYPE_LABEL = { POST: "Post", CAROUSEL: "Carrossel", STORY: "Story", REEL: "Reel", SMART_CAROUSEL: "Carrossel Inteligente" } as const;
 
 /**
  * Formulário do modo "Prompt único recorrente": UM conteúdo (prompt…),

@@ -52,7 +52,7 @@ const PUBLICATION_STATUS_LABEL: Record<string, { label: string; tone: "neutral" 
   NEEDS_REVIEW: { label: "Erro — precisa de atenção", tone: "warning" },
 };
 
-const CONTENT_TYPE_LABEL: Record<string, string> = { POST: "Post", CAROUSEL: "Carrossel", STORY: "Story", REEL: "Reel" };
+const CONTENT_TYPE_LABEL: Record<string, string> = { POST: "Post", CAROUSEL: "Carrossel", STORY: "Story", REEL: "Reel", SMART_CAROUSEL: "Carrossel Inteligente" };
 
 function formatRunDate(runDate: string): string {
   const [year, month, day] = runDate.split("-");

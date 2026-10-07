@@ -30,6 +30,7 @@ import {
   type UpdateAutomationDayInput,
   type UpdateAutomationInput,
   updateSmartStoryConfig as updateSmartStoryConfigInDb,
+  updateSmartCarouselConfig as updateSmartCarouselConfigInDb,
 } from "./automation-repository";
 import {
   cancelPendingRunsForAutomation,
@@ -41,6 +42,7 @@ import {
 } from "./automation-run-repository";
 import { findNextSlot, publishInstantUtc, zonedToday } from "./automation-time";
 import { normalizeSmartStoryConfig, validateSmartStoryConfigInput } from "../smart-story/config";
+import { normalizeSmartCarouselConfig, validateSmartCarouselConfigInput, type SmartCarouselConfig } from "../smart-carousel/config";
 import {
   effectiveDays,
   SharedScheduleError,
@@ -271,7 +273,7 @@ export async function updateAutomation(
   if (modeChange) await setScheduleModeInDb(id, userId, modeChange);
 }
 
-const SUPPORTED_CONTENT_TYPES: AutomationContentType[] = ["POST", "REEL", "CAROUSEL", "STORY"];
+const SUPPORTED_CONTENT_TYPES: AutomationContentType[] = ["POST", "REEL", "CAROUSEL", "STORY", "SMART_CAROUSEL"];
 
 /** Campos de conteúdo (iguais em uma linha de dia/horário e no conteúdo compartilhado). */
 type ContentFieldsInput = Pick<
@@ -311,7 +313,7 @@ async function buildContentPatch(userId: string, input: ContentFieldsInput): Pro
     patch.contentCategory = input.contentCategory;
   }
   if (input.contentMode !== undefined) {
-    if (input.contentMode === "AI") await assertPlanAllowsAi(userId);
+    if (input.contentMode === "AI" && input.contentType !== "SMART_CAROUSEL") await assertPlanAllowsAi(userId);
     patch.contentMode = input.contentMode;
   }
   if (input.prompt !== undefined) {
@@ -532,6 +534,26 @@ export async function updateSmartStory(
   return { enabled, config };
 }
 
+export interface UpdateSmartCarouselServiceInput {
+  /** Configuração parcial (o que não vier é mantido). Valor inválido é ERRO. */
+  config?: unknown;
+}
+
+/** Salva a configuração do Carrossel Inteligente automático. Só mexe nela. */
+export async function updateSmartCarousel(id: string, userId: string, input: UpdateSmartCarouselServiceInput): Promise<SmartCarouselConfig> {
+  const current = await getAutomationDetails(id, userId);
+  if (input.config !== undefined) {
+    const problems = validateSmartCarouselConfigInput(input.config);
+    if (problems.length > 0) throw new AutomationValidationError(problems.join(" "));
+  }
+  const config = normalizeSmartCarouselConfig(
+    input.config === undefined ? current.smartCarousel : { ...current.smartCarousel, ...(input.config as Record<string, unknown>) },
+  );
+  const updated = await updateSmartCarouselConfigInDb(id, userId, config);
+  if (!updated) throw new AutomationValidationError("Automação não encontrada.");
+  return config;
+}
+
 /** "+ Adicionar horário" num dia da semana. Devolve o id do novo horário. */
 export async function addAutomationSlot(automationId: string, userId: string, dayOfWeek: DayOfWeek): Promise<string> {
   if (!DAYS_OF_WEEK.includes(dayOfWeek)) throw new AutomationValidationError("Dia da semana inválido.");
@@ -591,6 +613,13 @@ function assertReadyToActivate(automation: AutomationWithDays): void {
       }
       continue;
     }
+    if (day.contentType === "SMART_CAROUSEL") {
+      // O motor escolhe imagens, template e texto: precisa só de um tema (prompt) OU de uma categoria.
+      if (!day.prompt.trim() && !day.contentCategory) {
+        throw new AutomationValidationError(`Defina o tema ou a categoria do Carrossel Inteligente (${slotLabel(day)}) antes de ativar.`);
+      }
+      continue;
+    }
     if (day.contentType === "CAROUSEL" && automation.imageMode !== "AUTO_TEMPLATE") {
       throw new AutomationValidationError(
         `${day.dayOfWeek.toLowerCase()} está configurado como Carrossel, mas isso só funciona com o modo de imagem "Gerar com IA sobre a imagem" (AUTO_TEMPLATE) — mude o modo de imagem da automação ou o tipo de conteúdo deste dia.`,
@@ -626,7 +655,7 @@ export async function activateAutomation(id: string, userId: string): Promise<vo
   // effectiveDays devolve as linhas como estão).
   const automation: AutomationWithDays = { ...loaded, days: effectiveDays(loaded) };
   assertReadyToActivate(automation);
-  if (automation.days.some((day) => day.enabled && day.contentMode === "AI")) await assertPlanAllowsAi(userId);
+  if (automation.days.some((day) => day.enabled && day.contentMode === "AI" && day.contentType !== "SMART_CAROUSEL")) await assertPlanAllowsAi(userId);
   const updated = await setAutomationStatus(id, userId, "ACTIVE");
   if (!updated) throw new AutomationValidationError("Automação não encontrada.");
 }

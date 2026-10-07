@@ -5,6 +5,7 @@
  */
 
 import type { SmartStoryConfig } from "../smart-story/config";
+import type { SmartCarouselConfig } from "../smart-carousel/config";
 
 export type AutomationStatus = "ACTIVE" | "PAUSED" | "ARCHIVED" | "ERROR";
 
@@ -43,7 +44,13 @@ export const DAY_OF_WEEK_LABEL: Record<DayOfWeek, string> = {
  * (media_type=STORIES) — mesma geração de arte do POST, só que no formato
  * de Stories e sem legenda (Stories não têm legenda na API).
  */
-export type AutomationContentType = "POST" | "REEL" | "CAROUSEL" | "STORY";
+export type AutomationContentType = "POST" | "REEL" | "CAROUSEL" | "STORY" | "SMART_CAROUSEL";
+
+/**
+ * "SMART_CAROUSEL": usa o pipeline do Carrossel Inteligente (IA + pesquisa,
+ * fotos, template, imagem final, legenda) — NÃO o "CAROUSEL" antigo do Piloto,
+ * que continua exatamente como era. Cobra só a cota do Carrossel Inteligente.
+ */
 
 /** Quantos horários um mesmo dia pode ter (o principal + extras). */
 export const MAX_SLOTS_PER_DAY = 6;
@@ -222,6 +229,8 @@ export interface AutomationRecord {
   scheduleMode: AutomationScheduleMode;
   /** Modo inteligente de Stories (SmartStoryEngine). Desligado = Stories exatamente como sempre. */
   smartStory: AutomationSmartStory;
+  /** Configuração do Carrossel Inteligente automático (usada nos dias SMART_CAROUSEL). */
+  smartCarousel: SmartCarouselConfig;
   /** Só usado quando scheduleMode = "SHARED_PROMPT" (no modo CUSTOM fica com os valores vazios). */
   shared: AutomationSharedConfig;
   timezone: string;
