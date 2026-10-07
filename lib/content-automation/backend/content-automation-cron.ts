@@ -1,4 +1,6 @@
 import "server-only";
+import { createSmartStoryPublication } from "./smart-story-publication";
+import { syncSmartStoryStatuses } from "./smart-story-repository";
 import { randomUUID, timingSafeEqual } from "node:crypto";
 import {
   listActiveAutomationsWithDaysForCron,
@@ -225,6 +227,21 @@ async function generateAndCreatePublicationUnchecked(
   const willAutoPublish = automation.autoPublish && !automation.requireApproval;
   const scheduledAtUtc = willAutoPublish ? publishAtUtc : null;
   const day = await resolveDayVariables(automation, rawDay, runDate);
+
+  if (day.contentType === "STORY" && automation.smartStory.enabled && day.contentMode === "AI") {
+    // Modo inteligente de Stories (SmartStoryEngine): o motor decide tipo,
+    // tema, texto estruturado e layout; renderiza e cria a MESMA publicação
+    // de Story de sempre (instagram_posts) — publicar continua sendo o
+    // agendador existente. Retry/duplicata reaproveitam o mesmo Story.
+    const { publicationId } = await createSmartStoryPublication({
+      automation,
+      day,
+      runId,
+      publishAtUtc,
+      scheduledAtUtc,
+    });
+    return { publicationId, status: willAutoPublish ? "SCHEDULED" : "WAITING_APPROVAL" };
+  }
 
   if (day.contentType === "STORY") {
     // Story = UMA imagem 9:16 (1080×1920), sem legenda. O texto (IA ou
@@ -528,6 +545,12 @@ export async function runContentAutomationCron(
   const limit = Math.max(1, Math.min(options.limit ?? DEFAULT_CONTENT_AUTOMATION_LIMIT, 50));
   const timeBudgetMs = options.timeBudgetMs ?? DEFAULT_TIME_BUDGET_MS;
   const startedAt = Date.now();
+
+  // Espelha o status dos Stories inteligentes já publicados/falhos (só leitura de
+  // instagram_posts; melhor esforço — nunca atrapalha a geração).
+  await syncSmartStoryStatuses().catch((error) => {
+    console.error("[content-automation-cron] falha ao sincronizar status dos Stories inteligentes", error instanceof Error ? error.message : error);
+  });
 
   const automations = await listActiveAutomationsWithDaysForCron();
   const results: ContentAutomationRunResult[] = [];

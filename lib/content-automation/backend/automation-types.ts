@@ -4,6 +4,8 @@
  * — qualquer novo valor precisa ser adicionado nos dois lugares.
  */
 
+import type { SmartStoryConfig } from "../smart-story/config";
+
 export type AutomationStatus = "ACTIVE" | "PAUSED" | "ARCHIVED" | "ERROR";
 
 export type DayOfWeek =
@@ -174,6 +176,12 @@ export type AutomationScheduleMode = "CUSTOM" | "SHARED_PROMPT";
 export const SCHEDULE_MODES: AutomationScheduleMode[] = ["CUSTOM", "SHARED_PROMPT"];
 
 /** Conteúdo compartilhado do modo SHARED_PROMPT — mesmos campos de conteúdo de uma linha de dia/horário. */
+/** Configuração do modo inteligente de Stories (ver lib/content-automation/smart-story). */
+export interface AutomationSmartStory {
+  enabled: boolean;
+  config: SmartStoryConfig;
+}
+
 export interface AutomationSharedConfig {
   contentType: AutomationContentType;
   contentMode: AutomationContentMode;
@@ -212,6 +220,8 @@ export interface AutomationRecord {
   description: string;
   status: AutomationStatus;
   scheduleMode: AutomationScheduleMode;
+  /** Modo inteligente de Stories (SmartStoryEngine). Desligado = Stories exatamente como sempre. */
+  smartStory: AutomationSmartStory;
   /** Só usado quando scheduleMode = "SHARED_PROMPT" (no modo CUSTOM fica com os valores vazios). */
   shared: AutomationSharedConfig;
   timezone: string;

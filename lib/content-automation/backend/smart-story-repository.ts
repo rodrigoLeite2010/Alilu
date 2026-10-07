@@ -27,6 +27,8 @@ export interface SmartStoryRecord {
   attempts: number;
   generationError: string | null;
   imageUrl: string | null;
+  imageMediaId: string | null;
+  backgroundId: string | null;
   instagramPostId: string | null;
   instagramMediaId: string | null;
   status: StoryStatus;
@@ -68,6 +70,8 @@ function toRecord(row: Row): SmartStoryRecord {
     attempts: Number(row.attempts ?? 1),
     generationError: (row.generation_error as string | null) ?? null,
     imageUrl: (row.image_url as string | null) ?? null,
+    imageMediaId: (row.image_media_id as string | null) ?? null,
+    backgroundId: (row.background_id as string | null) ?? null,
     instagramPostId: (row.instagram_post_id as string | null) ?? null,
     instagramMediaId: (row.instagram_media_id as string | null) ?? null,
     status: row.status as StoryStatus,
@@ -161,10 +165,16 @@ export interface SmartStoryProgress {
   status: StoryStatus;
   templateId?: string | null;
   imageUrl?: string | null;
+  imageMediaId?: string | null;
+  backgroundId?: string | null;
+  /** O mascote realmente apareceu na arte (verdade do render, não só o plano). */
+  usedMascot?: boolean;
   instagramPostId?: string | null;
   instagramMediaId?: string | null;
   publishedAt?: Date | null;
   runId?: string | null;
+  /** Mensagem de falha (render etc.) — gravada em generation_error. */
+  error?: string | null;
 }
 
 /** Atualiza só o que foi informado (COALESCE) e o status — para o fluxo Generated→…→Published. */
@@ -175,11 +185,69 @@ export async function updateSmartStoryProgress(id: string, progress: SmartStoryP
       status = ${progress.status},
       template_id = coalesce(${progress.templateId ?? null}, template_id),
       image_url = coalesce(${progress.imageUrl ?? null}, image_url),
+      image_media_id = coalesce(${progress.imageMediaId ?? null}, image_media_id),
+      background_id = coalesce(${progress.backgroundId ?? null}, background_id),
+      used_mascot = coalesce(${progress.usedMascot ?? null}, used_mascot),
       instagram_post_id = coalesce(${progress.instagramPostId ?? null}, instagram_post_id),
       instagram_media_id = coalesce(${progress.instagramMediaId ?? null}, instagram_media_id),
       published_at = coalesce(${progress.publishedAt ? progress.publishedAt.toISOString() : null}, published_at),
       run_id = coalesce(${progress.runId ?? null}, run_id),
+      generation_error = coalesce(${progress.error ? progress.error.slice(0, 1000) : null}, generation_error),
       updated_at = now()
     where id = ${id}
   `;
+}
+
+/**
+ * Publicação existente para uma arte (instagram_post_items.media_id).
+ * Protege o caso raro de o processo cair DEPOIS de criar o post e ANTES de
+ * gravar o vínculo no Story: o retry encontra o post e não cria outro.
+ */
+export async function findPostIdByMedia(mediaId: string): Promise<string | null> {
+  const db = getDb();
+  const rows = await db`select post_id from instagram_post_items where media_id = ${mediaId} limit 1`;
+  return rows[0] ? (rows[0].post_id as string) : null;
+}
+
+/**
+ * Espelha o status do POST (a camada única de publicação) no histórico do
+ * Story: PROCESSING → Publishing, PUBLISHED → Published (+ id da mídia no
+ * Instagram e data), FAILED → Failed, e volta a Ready quando o post é
+ * reagendado/retentado. NÃO mexe no publicador: só lê instagram_posts.
+ * Um UPDATE só, idempotente; devolve quantos Stories mudaram.
+ */
+export async function syncSmartStoryStatuses(): Promise<number> {
+  const db = getDb();
+  const rows = await db`
+    update smart_story_generations s set
+      status = case p.status
+        when 'PUBLISHED' then 'PUBLISHED'
+        when 'PROCESSING' then 'PUBLISHING'
+        when 'FAILED' then 'FAILED'
+        when 'DRAFT' then 'READY'
+        when 'SCHEDULED' then 'READY'
+        when 'NEEDS_REVIEW' then 'READY'
+        else s.status
+      end,
+      instagram_media_id = coalesce(p.meta_media_id, s.instagram_media_id),
+      published_at = coalesce(p.published_at, s.published_at),
+      updated_at = now()
+    from instagram_posts p
+    where s.instagram_post_id = p.id
+      and s.status <> 'PUBLISHED'
+      and (
+        s.status is distinct from (case p.status
+          when 'PUBLISHED' then 'PUBLISHED'
+          when 'PROCESSING' then 'PUBLISHING'
+          when 'FAILED' then 'FAILED'
+          when 'DRAFT' then 'READY'
+          when 'SCHEDULED' then 'READY'
+          when 'NEEDS_REVIEW' then 'READY'
+          else s.status
+        end)
+        or (p.meta_media_id is not null and s.instagram_media_id is null)
+      )
+    returning s.id
+  `;
+  return rows.length;
 }

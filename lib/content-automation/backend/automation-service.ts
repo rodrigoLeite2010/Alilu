@@ -29,6 +29,7 @@ import {
   type AutomationListItem,
   type UpdateAutomationDayInput,
   type UpdateAutomationInput,
+  updateSmartStoryConfig as updateSmartStoryConfigInDb,
 } from "./automation-repository";
 import {
   cancelPendingRunsForAutomation,
@@ -39,6 +40,7 @@ import {
   setRunStatus,
 } from "./automation-run-repository";
 import { findNextSlot, publishInstantUtc, zonedToday } from "./automation-time";
+import { normalizeSmartStoryConfig, validateSmartStoryConfigInput } from "../smart-story/config";
 import {
   effectiveDays,
   SharedScheduleError,
@@ -493,6 +495,41 @@ export async function updateSharedAutomation(
   const weekly = await replaceSharedScheduleInDb(id, userId, schedule);
   if (weekly === null) throw new AutomationValidationError("Automação não encontrada.");
   return weekly;
+}
+
+export interface UpdateSmartStoryServiceInput {
+  /** Liga/desliga o modo inteligente de Stories (omitido = mantém). */
+  enabled?: boolean;
+  /** Configuração parcial (o que não vier é mantido). Valor inválido é ERRO, nunca trocado em silêncio. */
+  config?: unknown;
+}
+
+/**
+ * Salva o "Modo inteligente de Stories". Só mexe na flag e na configuração:
+ * dias, horários, conteúdo e execuções ficam como estão — e, desligado, os
+ * Stories saem exatamente como antes. Devolve a configuração salva.
+ */
+export async function updateSmartStory(
+  id: string,
+  userId: string,
+  input: UpdateSmartStoryServiceInput,
+): Promise<{ enabled: boolean; config: ReturnType<typeof normalizeSmartStoryConfig> }> {
+  const current = await getAutomationDetails(id, userId);
+  if (input.enabled !== undefined && typeof input.enabled !== "boolean") {
+    throw new AutomationValidationError("enabled precisa ser verdadeiro ou falso.");
+  }
+  if (input.config !== undefined) {
+    const problems = validateSmartStoryConfigInput(input.config);
+    if (problems.length > 0) throw new AutomationValidationError(problems.join(" "));
+  }
+  const enabled = input.enabled ?? current.smartStory.enabled;
+  const config = normalizeSmartStoryConfig(
+    input.config === undefined ? current.smartStory.config : { ...current.smartStory.config, ...(input.config as Record<string, unknown>) },
+    enabled,
+  );
+  const updated = await updateSmartStoryConfigInDb(id, userId, { enabled, config });
+  if (!updated) throw new AutomationValidationError("Automação não encontrada.");
+  return { enabled, config };
 }
 
 /** "+ Adicionar horário" num dia da semana. Devolve o id do novo horário. */

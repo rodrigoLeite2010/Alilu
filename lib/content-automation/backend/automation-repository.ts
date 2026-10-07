@@ -1,5 +1,6 @@
 import "server-only";
 import { getDb } from "@/lib/db/client";
+import { normalizeSmartStoryConfig, type SmartStoryConfig } from "../smart-story/config";
 import {
   planScheduleReconciliation,
   type ReconcileRow,
@@ -15,6 +16,7 @@ import {
   type AutomationRecord,
   type AutomationScheduleMode,
   type AutomationSharedConfig,
+  type AutomationSmartStory,
   type AutomationStatus,
   type AutomationWithDays,
   type DayOfWeek,
@@ -73,6 +75,11 @@ function mapSharedConfig(row: Record<string, unknown>): AutomationSharedConfig {
   };
 }
 
+function mapSmartStory(row: Record<string, unknown>): AutomationSmartStory {
+  const enabled = row.smart_story_enabled === true;
+  return { enabled, config: normalizeSmartStoryConfig(parseStyleConfig(row.smart_story_config), enabled) };
+}
+
 function mapAutomationRow(row: Record<string, unknown>): AutomationRecord {
   return {
     id: row.id as string,
@@ -82,6 +89,7 @@ function mapAutomationRow(row: Record<string, unknown>): AutomationRecord {
     description: (row.description as string | null) ?? "",
     status: row.status as AutomationStatus,
     scheduleMode: ((row.schedule_mode as AutomationScheduleMode | null) ?? "CUSTOM"),
+    smartStory: mapSmartStory(row),
     shared: mapSharedConfig(row),
     timezone: row.timezone as string,
     brandContext: (row.brand_context as string | null) ?? "",
@@ -435,6 +443,28 @@ export async function updateSharedConfig(
 }
 
 /**
+ * Liga/desliga o modo inteligente de Stories e grava a configuração
+ * (já normalizada por quem chama). Um UPDATE só — não toca em dias,
+ * horários, execuções nem no conteúdo compartilhado.
+ */
+export async function updateSmartStoryConfig(
+  id: string,
+  userId: string,
+  next: { enabled: boolean; config: SmartStoryConfig },
+): Promise<boolean> {
+  const db = getDb();
+  const rows = await db`
+    update content_automations set
+      smart_story_enabled = ${next.enabled},
+      smart_story_config = ${JSON.stringify(next.config)}::jsonb,
+      updated_at = now()
+    where id = ${id} and user_id = ${userId}
+    returning id
+  `;
+  return rows.length > 0;
+}
+
+/**
  * Troca o modo da agenda. Ao voltar para "CUSTOM", copia o conteúdo
  * compartilhado para as linhas habilitadas — nada que o usuário escreveu
  * se perde. Ao ir para "SHARED_PROMPT" as linhas ficam como estão (só
@@ -650,6 +680,9 @@ export async function duplicateAutomation(id: string, userId: string, newName: s
     scheduleMode: original.scheduleMode,
     shared: original.shared,
   });
+  if (original.smartStory.enabled || Object.keys(original.smartStory.config).length > 0) {
+    await updateSmartStoryConfig(newId, userId, original.smartStory);
+  }
 
   for (const day of original.days) {
     let ref: AutomationDayRef = day.dayOfWeek;

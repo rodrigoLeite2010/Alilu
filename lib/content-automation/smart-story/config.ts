@@ -103,8 +103,9 @@ function intInRange(value: unknown, min: number, max: number, fallback: number):
   return Math.min(max, Math.max(min, Math.round(value)));
 }
 
-function normalizeBuckets(value: unknown): TimeBucket[] {
-  if (!Array.isArray(value) || value.length === 0) return defaultSmartStoryConfig().timeBuckets;
+/** Faixas válidas, ordenadas e sem sobreposição — ou null se qualquer faixa for inválida. */
+function parseBuckets(value: unknown): TimeBucket[] | null {
+  if (!Array.isArray(value) || value.length === 0) return null;
   const buckets: TimeBucket[] = [];
   for (const raw of value) {
     const item = asRecord(raw);
@@ -122,7 +123,7 @@ function normalizeBuckets(value: unknown): TimeBucket[] {
       from >= to ||
       types.length === 0
     ) {
-      return defaultSmartStoryConfig().timeBuckets; // faixa inválida → volta ao padrão inteiro (nunca meia configuração)
+      return null;
     }
     buckets.push({
       id: item.id.slice(0, 40),
@@ -132,12 +133,16 @@ function normalizeBuckets(value: unknown): TimeBucket[] {
       types: [...new Set(types)],
     });
   }
-  // Faixas sobrepostas são ambíguas → padrão.
   const sorted = [...buckets].sort((a, b) => a.fromMinute - b.fromMinute);
   for (let index = 1; index < sorted.length; index += 1) {
-    if (sorted[index].fromMinute < sorted[index - 1].toMinute) return defaultSmartStoryConfig().timeBuckets;
+    if (sorted[index].fromMinute < sorted[index - 1].toMinute) return null;
   }
   return sorted;
+}
+
+/** Faixa inválida/sobreposta → volta ao padrão inteiro (nunca meia configuração). */
+function normalizeBuckets(value: unknown): TimeBucket[] {
+  return parseBuckets(value) ?? defaultSmartStoryConfig().timeBuckets;
 }
 
 /**
@@ -186,4 +191,54 @@ export function bucketForTime(config: SmartStoryConfig, time: string): TimeBucke
   return (
     config.timeBuckets.find((bucket) => minute >= bucket.fromMinute && minute < bucket.toMinute) ?? config.timeBuckets[0]
   );
+}
+
+/**
+ * Valida uma configuração VINDA DO USUÁRIO (API) com mensagens claras.
+ * Diferente de normalizeSmartStoryConfig (tolerante, lê o que já está salvo),
+ * aqui valor inválido é erro — não é silenciosamente trocado pelo padrão.
+ */
+export function validateSmartStoryConfigInput(raw: unknown): string[] {
+  const problems: string[] = [];
+  if (typeof raw !== "object" || raw === null || Array.isArray(raw)) return ["A configuração precisa ser um objeto."];
+  const input = raw as Record<string, unknown>;
+
+  const list = (key: string, valid: (value: unknown) => boolean, label: string) => {
+    if (input[key] === undefined) return;
+    const value = input[key];
+    if (!Array.isArray(value) || value.length === 0) problems.push(`${label}: escolha pelo menos um.`);
+    else if (!value.every(valid)) problems.push(`${label}: há um valor inválido.`);
+  };
+  list("enabledTypes", isStoryType, "Tipos de Story");
+  list("themes", isStoryTheme, "Temas");
+
+  if (input.typeWeights !== undefined) {
+    const weights = input.typeWeights;
+    if (typeof weights !== "object" || weights === null || Array.isArray(weights)) {
+      problems.push("Pesos: formato inválido.");
+    } else {
+      for (const [type, weight] of Object.entries(weights)) {
+        if (!isStoryType(type)) problems.push(`Pesos: tipo desconhecido "${type}".`);
+        else if (typeof weight !== "number" || !Number.isFinite(weight) || weight < 0 || weight > 1000) {
+          problems.push(`Pesos: o peso de ${type} precisa ser um número de 0 a 1000.`);
+        }
+      }
+    }
+  }
+  const range = (key: string, min: number, max: number, label: string) => {
+    if (input[key] === undefined) return;
+    const value = input[key];
+    if (typeof value !== "number" || !Number.isInteger(value) || value < min || value > max) {
+      problems.push(`${label}: use um número inteiro de ${min} a ${max}.`);
+    }
+  };
+  range("avoidTypeWindow", 0, 10, "Janela de repetição");
+  range("contextWindow", 0, 10, "Stories recentes no contexto");
+  if (input.mascotEveryN !== undefined && input.mascotEveryN !== 0) range("mascotEveryN", 2, 20, "Frequência do mascote");
+  if (input.showBrandHandle !== undefined && typeof input.showBrandHandle !== "boolean") problems.push("Marca discreta: use ligado ou desligado.");
+  if (input.language !== undefined && input.language !== "pt-BR") problems.push('Idioma: só "pt-BR" por enquanto.');
+  if (input.timeBuckets !== undefined && parseBuckets(input.timeBuckets) === null) {
+    problems.push("Faixas de horário inválidas: use faixas de 0 a 1440 minutos, sem sobreposição e com pelo menos um tipo cada.");
+  }
+  return problems;
 }

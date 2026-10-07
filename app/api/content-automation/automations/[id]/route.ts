@@ -10,6 +10,7 @@ import {
   pauseAutomation,
   updateAutomation,
   updateSharedAutomation,
+  updateSmartStory,
 } from "@/lib/content-automation/backend/automation-service";
 import { serializeAutomation } from "@/lib/content-automation/backend/automation-dto";
 import type { AutomationScheduleMode, ImageMode, VideoSelection } from "@/lib/content-automation/backend/automation-types";
@@ -103,6 +104,13 @@ export async function PATCH(request: Request, { params }: RouteParams): Promise<
       return NextResponse.json({ automation: serializeAutomation(automation), weeklyExecutions });
     }
 
+    if (action === "update-smart-story") {
+      const { enabled, config } = body as { enabled?: unknown; config?: unknown };
+      await updateSmartStory(id, userId, { enabled: enabled as boolean | undefined, config });
+      const automation = await getAutomationDetails(id, userId);
+      return NextResponse.json({ automation: serializeAutomation(automation) });
+    }
+
     if (action === "update") {
       const {
         name,
@@ -142,7 +150,7 @@ export async function PATCH(request: Request, { params }: RouteParams): Promise<
     }
 
     return NextResponse.json(
-      { error: "action precisa ser 'update', 'update-shared', 'activate', 'pause', 'archive' ou 'duplicate'." },
+      { error: "action precisa ser 'update', 'update-shared', 'update-smart-story', 'activate', 'pause', 'archive' ou 'duplicate'." },
       { status: 400 },
     );
   } catch (error) {
