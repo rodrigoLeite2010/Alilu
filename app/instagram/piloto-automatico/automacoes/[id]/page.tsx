@@ -90,6 +90,7 @@ export default async function AutomationDetailPage({ params }: PageProps) {
             videoMediaId: automation.shared.videoMediaId,
           },
           schedule: deriveSharedSchedule(automation.days),
+          smartStory: automation.smartStory,
           days: automation.days.map((day) => ({
             id: day.id,
             dayOfWeek: day.dayOfWeek,

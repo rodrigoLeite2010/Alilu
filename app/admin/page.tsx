@@ -58,6 +58,11 @@ export const ADMIN_SECTIONS: { title: string; links: AdminLink[] }[] = [
         title: "Importar do Instagram",
         description: "Cota e uso do importador de publicações.",
       },
+      {
+        href: "/admin/stories-inteligentes",
+        title: "Stories inteligentes",
+        description: "Tipos gerados, uso do texto de reserva e últimos problemas.",
+      },
     ],
   },
   {

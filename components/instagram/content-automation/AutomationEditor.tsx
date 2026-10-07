@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/Button";
 import { MediaPicker } from "./MediaPicker";
 import { WeekDayEditor, type DayFormState } from "./WeekDayEditor";
 import { autoResizeTextarea } from "./textarea-utils";
+import { SmartStoryPanel, type SmartStoryState } from "./SmartStoryPanel";
 import { SharedPromptEditor, sharedContentPayload, sharedScheduleError, type SharedScheduleState } from "./SharedPromptEditor";
 import {
   DAYS_OF_WEEK,
@@ -88,6 +89,8 @@ export interface AutomationDetailDto {
   /** Dias e horários habilitados (só usado no modo "SHARED_PROMPT"). */
   schedule: SharedScheduleState;
   days: DayFormState[];
+  /** Modo inteligente de Stories (opcional: ausente = desligado, config padrão). */
+  smartStory?: SmartStoryState;
 }
 
 export interface PendingRunDto {
@@ -350,6 +353,10 @@ export function AutomationEditor({
   }
 
   const formatDays = isShared ? [sharedContent] : days.filter((day) => day.enabled);
+  const storyDays = isShared ? (sharedContent.contentType === "STORY" ? [sharedContent] : []) : days.filter((day) => day.enabled && day.contentType === "STORY");
+  const hasStory = storyDays.some((day) => day.contentMode === "AI");
+  const smartBasePrompt = storyDays.find((day) => day.prompt.trim())?.prompt ?? "";
+  const smartPreviewTime = isShared ? (sharedSchedule.times[0] ?? "09:00") : (storyDays[0]?.publishTime ?? "09:00");
   const needsImage = formatDays.some(
     (day) => day.contentType === "POST" || day.contentType === "CAROUSEL" || day.contentType === "STORY",
   );
@@ -529,6 +536,16 @@ export function AutomationEditor({
           {savingConfig ? "Salvando…" : "Salvar configurações"}
         </Button>
       </section>
+
+      {hasStory ? (
+        <SmartStoryPanel
+          automationId={automation.id}
+          initial={automation.smartStory}
+          basePrompt={smartBasePrompt}
+          brandContext={brandContext}
+          previewTime={smartPreviewTime}
+        />
+      ) : null}
 
       {isShared ? (
         <section className="space-y-4">
