@@ -594,3 +594,94 @@ export async function listUsersNeedingWeeklyTopics(weekKey: string, limit: numbe
   `;
   return rows.map((row) => ({ userId: (row as Row).user_id as string, niche: (row as Row).niche as string }));
 }
+
+// ---------------------------------------------------------------------------
+// Editor (Fase 4)
+// ---------------------------------------------------------------------------
+export interface SlidePatch {
+  headline?: string;
+  body?: string;
+  cta?: string;
+  visualKind?: VisualKind;
+  imageQuery?: string | null;
+  templateId?: string | null;
+  style?: Record<string, unknown>;
+  imageMediaId?: string | null;
+}
+
+/** Edita UM slide. Mudou conteúdo/visual → a arte renderizada fica obsoleta (vira null). */
+export async function patchSlide(projectId: string, position: number, patch: SlidePatch, invalidateRender: boolean): Promise<CarouselSlideRecord | null> {
+  const rows = await getDb()`
+    update carousel_slides set
+      headline = coalesce(${patch.headline ?? null}, headline),
+      body = coalesce(${patch.body ?? null}, body),
+      cta = coalesce(${patch.cta ?? null}, cta),
+      visual_kind = coalesce(${patch.visualKind ?? null}, visual_kind),
+      image_query = case when ${patch.imageQuery !== undefined} then ${patch.imageQuery ?? null} else image_query end,
+      template_id = case when ${patch.templateId !== undefined} then ${patch.templateId ?? null} else template_id end,
+      image_media_id = case when ${patch.imageMediaId !== undefined} then ${patch.imageMediaId ?? null}::uuid else image_media_id end,
+      style = case when ${patch.style !== undefined} then ${JSON.stringify(patch.style ?? {})}::jsonb else style end,
+      rendered_media_id = case when ${invalidateRender} then null else rendered_media_id end,
+      updated_at = now()
+    where project_id = ${projectId} and position = ${position}
+    returning *
+  `;
+  return rows[0] ? toSlide(rows[0] as Row) : null;
+}
+
+export interface ReplacementSlide {
+  position: number;
+  role: string;
+  headline: string;
+  body: string;
+  cta: string;
+  visualKind: VisualKind;
+  imageQuery: string | null;
+  imageMediaId: string | null;
+  renderedMediaId: string | null;
+  templateId: string | null;
+  style: Record<string, unknown>;
+}
+
+/** Troca TODOS os slides do projeto num único comando atômico (reordenar, duplicar, remover, adicionar): regrava as posições 1..N e apaga as que sobraram. */
+export async function replaceSlides(projectId: string, slides: ReplacementSlide[]): Promise<CarouselSlideRecord[]> {
+  const payload = JSON.stringify(
+    slides.map((slide) => ({
+      position: slide.position,
+      role: slide.role,
+      headline: slide.headline,
+      body: slide.body,
+      cta: slide.cta,
+      visual_kind: slide.visualKind,
+      image_query: slide.imageQuery,
+      image_media_id: slide.imageMediaId,
+      rendered_media_id: slide.renderedMediaId,
+      template_id: slide.templateId,
+      style: slide.style,
+    })),
+  );
+  const rows = await getDb()`
+    with added as (
+      insert into carousel_slides (project_id, position, role, headline, body, cta, visual_kind, image_query, image_media_id, rendered_media_id, template_id, style)
+      select ${projectId}::uuid, x.position, x.role, x.headline, x.body, x.cta, x.visual_kind, x.image_query, x.image_media_id, x.rendered_media_id, x.template_id, x.style
+      from jsonb_to_recordset(${payload}::jsonb) as x(
+        position int, role text, headline text, body text, cta text, visual_kind text, image_query text,
+        image_media_id uuid, rendered_media_id uuid, template_id text, style jsonb
+      )
+      on conflict (project_id, position) do update set
+        role = excluded.role, headline = excluded.headline, body = excluded.body, cta = excluded.cta,
+        visual_kind = excluded.visual_kind, image_query = excluded.image_query,
+        image_media_id = excluded.image_media_id, rendered_media_id = excluded.rendered_media_id,
+        template_id = excluded.template_id, style = excluded.style, updated_at = now()
+      returning *
+    ),
+    trimmed as (delete from carousel_slides where project_id = ${projectId} and position > ${slides.length} returning 1)
+    select * from added order by position
+  `;
+  return rows.map((row) => toSlide(row as Row));
+}
+
+/** Template/identidade do projeto mudou: todas as artes renderizadas ficam obsoletas. */
+export async function clearRenderedSlides(projectId: string): Promise<void> {
+  await getDb()`update carousel_slides set rendered_media_id = null, updated_at = now() where project_id = ${projectId}`;
+}
