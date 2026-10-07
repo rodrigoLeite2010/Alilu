@@ -1,3 +1,4 @@
+export const maxDuration = 300;
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import {
@@ -12,6 +13,7 @@ import {
   updateSharedAutomation,
   updateSmartStory,
   updateSmartCarousel,
+  previewSmartCarousel,
 } from "@/lib/content-automation/backend/automation-service";
 import { serializeAutomation } from "@/lib/content-automation/backend/automation-dto";
 import type { AutomationScheduleMode, ImageMode, VideoSelection } from "@/lib/content-automation/backend/automation-types";
@@ -117,6 +119,11 @@ export async function PATCH(request: Request, { params }: RouteParams): Promise<
       await updateSmartCarousel(id, userId, { config });
       const automation = await getAutomationDetails(id, userId);
       return NextResponse.json({ automation: serializeAutomation(automation) });
+    }
+
+    if (action === "smart-carousel-preview") {
+      const preview = await previewSmartCarousel(id, userId);
+      return NextResponse.json({ projectId: preview.projectId, warnings: preview.warnings });
     }
 
     if (action === "update") {

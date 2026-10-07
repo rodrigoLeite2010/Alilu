@@ -127,6 +127,11 @@ export default async function AutomationHistoryPage({ params }: PageProps) {
                   ) : run.completedAt ? (
                     <p className="mt-1 text-xs text-zinc-500">Gerado: {formatInTimeZone(run.completedAt.toISOString(), automation.timezone)}</p>
                   ) : null}
+                  {run.carouselProjectId ? (
+                    <Link href={`/instagram/carrossel-inteligente/${run.carouselProjectId}`} className="mt-1 inline-flex min-h-8 items-center text-xs font-medium text-teal-800 underline">
+                      Abrir carrossel
+                    </Link>
+                  ) : null}
                   {run.metaMediaId ? <p className="mt-1 text-xs text-zinc-500">ID da mídia no Instagram: {run.metaMediaId}</p> : null}
                   {tokenExpired ? (
                     <p className="mt-1 text-xs text-red-700">

@@ -39,7 +39,13 @@ import {
   listRunHistoryForAutomationOwnedByUser,
   listRecentRunsForUser,
   setRunStatus,
+  setRunPublication,
+  resetRunForRegeneration,
 } from "./automation-run-repository";
+import { generateSmartCarouselPreview, type SmartCarouselPreviewResult, type SmartCarouselRunDeps } from "./smart-carousel-service";
+import { CarouselError } from "@/lib/carousel/backend/carousel-project-service";
+import { publishCarousel } from "@/lib/carousel/backend/carousel-publish-service";
+import { detachProjectFromAutomationRun, getProjectByAutomationRun } from "@/lib/carousel/backend/carousel-repository";
 import { findNextSlot, publishInstantUtc, zonedToday } from "./automation-time";
 import { normalizeSmartStoryConfig, validateSmartStoryConfigInput } from "../smart-story/config";
 import { normalizeSmartCarouselConfig, validateSmartCarouselConfigInput, type SmartCarouselConfig } from "../smart-carousel/config";
@@ -724,6 +730,26 @@ export async function approveAutomationRun(runId: string, userId: string): Promi
   const originalInstant = day ? publishInstantUtc(run.runDate, day.publishTime, automation.timezone) : new Date();
   const target = originalInstant.getTime() > Date.now() + 30_000 ? originalInstant : new Date(Date.now() + 120_000);
 
+  // Carrossel Inteligente: publica a versão ATUAL do projeto (inclui edições feitas no editor) e aponta a execução para o novo post.
+  const carousel = await getProjectByAutomationRun(run.id);
+  if (carousel) {
+    try {
+      const result = await publishCarousel(userId, carousel.id, {
+        mode: "SCHEDULE",
+        scheduledAt: target.toISOString(),
+        timezone: automation.timezone,
+        accountId: automation.instagramAccountId,
+        source: "AUTOMATION",
+      });
+      await setRunPublication(run.id, result.postId);
+    } catch (error) {
+      if (error instanceof CarouselError) throw new AutomationValidationError(error.message);
+      throw error;
+    }
+    await setRunStatus(run.id, "SCHEDULED");
+    return;
+  }
+
   try {
     await reschedulePost(run.publicationId, userId, target.toISOString(), automation.timezone);
   } catch (error) {
@@ -749,6 +775,41 @@ export async function rejectAutomationRun(runId: string, userId: string): Promis
     }
   }
   await setRunStatus(run.id, "CANCELLED");
+}
+
+/**
+ * "Regenerar" um Carrossel Inteligente que aguarda aprovação: cancela o rascunho, guarda o
+ * projeto antigo como histórico (continua valendo na anti-repetição) e devolve a execução
+ * para PENDING — o cron gera um conteúdo novo no próximo ciclo.
+ */
+export async function regenerateAutomationRun(runId: string, userId: string): Promise<void> {
+  const run = await getRunOwnedByUser(runId, userId);
+  if (!run) throw new AutomationValidationError("Execução não encontrada.");
+  if (run.status !== "WAITING_APPROVAL") throw new AutomationValidationError("Esta execução não está aguardando aprovação.");
+  const carousel = await getProjectByAutomationRun(run.id);
+  if (!carousel) throw new AutomationValidationError("Só o Carrossel Inteligente pode ser regenerado.");
+  if (run.publicationId) {
+    try {
+      await cancelPost(run.publicationId, userId);
+    } catch (error) {
+      if (!(error instanceof InstagramPostValidationError)) throw error;
+    }
+  }
+  await detachProjectFromAutomationRun(carousel.id);
+  await resetRunForRegeneration(run.id);
+}
+
+/** "Gerar exemplo" do Carrossel Inteligente: gera um carrossel completo para conferir — não publica, não agenda, não cobra a cota. */
+export async function previewSmartCarousel(id: string, userId: string, deps: SmartCarouselRunDeps = {}): Promise<SmartCarouselPreviewResult> {
+  const loaded = await getAutomationDetails(id, userId);
+  const day = effectiveDays(loaded).find((candidate) => candidate.enabled && candidate.contentType === "SMART_CAROUSEL");
+  if (!day) throw new AutomationValidationError("Nenhum dia está configurado como Carrossel Inteligente.");
+  try {
+    return await generateSmartCarouselPreview(loaded, day, deps);
+  } catch (error) {
+    if (error instanceof CarouselError) throw new AutomationValidationError(error.message);
+    throw error;
+  }
 }
 
 export { zonedToday };

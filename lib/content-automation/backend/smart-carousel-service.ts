@@ -68,24 +68,34 @@ function detectRepetition(slides: CarouselSlideRecord[], history: CarouselHistor
   return { hook: hook ? slides[0].headline : null, headlines };
 }
 
-export async function generateSmartCarouselForRun(
+interface PreparedCarousel {
+  project: CarouselProjectRecord;
+  warnings: string[];
+  reusedProject: boolean;
+}
+
+/**
+ * Cria (ou reaproveita) o projeto e gera texto → imagens → artes. SEM publicar e SEM cobrar.
+ * `runId = null` = "Gerar exemplo": projeto avulso, não vinculado a execução (não entra no histórico anti-repetição).
+ */
+async function prepareSmartCarousel(
   automation: AutomationRecord,
   day: AutomationDayRecord,
-  runId: string,
+  runId: string | null,
   publishAtUtc: Date,
-  deps: SmartCarouselRunDeps = {},
-): Promise<SmartCarouselRunResult> {
+  deps: SmartCarouselRunDeps,
+): Promise<PreparedCarousel> {
   const config = automation.smartCarousel;
   const userId = automation.userId;
   const now = deps.now ?? new Date();
   const warnings: string[] = [];
   const categoryLabel = day.contentCategory ? CONTENT_CATEGORY_LABEL[day.contentCategory] : null;
 
-  let project: CarouselProjectRecord | null = await getProjectByAutomationRun(runId);
+  let project: CarouselProjectRecord | null = runId ? await getProjectByAutomationRun(runId) : null;
   const reusedProject = project !== null;
   if (!project) {
     const history = await loadCarouselHistory(automation.id, config.antiRepeatWindow);
-    const topic = resolveSmartCarouselTopic(day, history, runId);
+    const topic = resolveSmartCarouselTopic(day, history, runId ?? `preview-${now.getTime()}`);
     const available = CAROUSEL_TEMPLATES.map((template) => template.id);
     const templateId =
       config.templateMode === "FIXED" && isCarouselTemplateId(config.templateId)
@@ -95,7 +105,7 @@ export async function generateSmartCarouselForRun(
       userId,
       topic,
       sourceKind: "AUTOMATION",
-      sourceRef: runId,
+      sourceRef: runId ?? `preview:${automation.id}`,
       niche: categoryLabel,
       instagramAccountId: automation.instagramAccountId,
       slideCount: config.slideCount,
@@ -103,8 +113,8 @@ export async function generateSmartCarouselForRun(
       includeEndMedia: config.addFinalImage,
       now,
     });
-    const linked = await linkProjectToAutomationRun(userId, created.id, { automationId: automation.id, runId, scheduledFor: publishAtUtc });
-    if (!linked) {
+    const linked = runId ? await linkProjectToAutomationRun(userId, created.id, { automationId: automation.id, runId, scheduledFor: publishAtUtc }) : true;
+    if (!linked && runId) {
       // Outra instância criou o projeto desta execução primeiro: usa o dela.
       project = await getProjectByAutomationRun(runId);
       if (!project) throw new CarouselError("INVALID", "Não foi possível vincular o carrossel à execução.");
@@ -180,6 +190,33 @@ export async function generateSmartCarouselForRun(
     warnings.push(...rendered.warnings);
   }
 
+  return { project, warnings, reusedProject };
+}
+
+export interface SmartCarouselPreviewResult {
+  projectId: string;
+  warnings: string[];
+}
+
+/** "Gerar exemplo": gera um carrossel completo para conferir o estilo — não publica, não agenda e não consome a cota. */
+export async function generateSmartCarouselPreview(
+  automation: AutomationRecord,
+  day: AutomationDayRecord,
+  deps: SmartCarouselRunDeps = {},
+): Promise<SmartCarouselPreviewResult> {
+  const prepared = await prepareSmartCarousel(automation, day, null, new Date(), deps);
+  return { projectId: prepared.project.id, warnings: prepared.warnings };
+}
+
+export async function generateSmartCarouselForRun(
+  automation: AutomationRecord,
+  day: AutomationDayRecord,
+  runId: string,
+  publishAtUtc: Date,
+  deps: SmartCarouselRunDeps = {},
+): Promise<SmartCarouselRunResult> {
+  const userId = automation.userId;
+  const { project, warnings, reusedProject } = await prepareSmartCarousel(automation, day, runId, publishAtUtc, deps);
   const willAutoPublish = automation.autoPublish && !automation.requireApproval;
   const minimum = Date.now() + MIN_SCHEDULE_LEAD_MS;
   const scheduleAt = new Date(Math.max(publishAtUtc.getTime(), minimum));

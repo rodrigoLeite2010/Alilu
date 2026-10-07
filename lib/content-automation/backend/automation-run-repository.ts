@@ -138,6 +138,8 @@ export async function markRunFailed(
   lockToken: string,
   errorMessage: string,
   now: () => Date = () => new Date(),
+  /** Erro que repetir não resolve (ex.: sem plano/cota): falha direto, sem backoff. */
+  permanent = false,
 ): Promise<{ status: "FAILED" | "PENDING"; nextAttemptAt: Date | null }> {
   const db = getDb();
   const rows = await db`
@@ -146,7 +148,7 @@ export async function markRunFailed(
     where id = ${runId} and processing_lock_token = ${lockToken}
     returning generation_attempt
   `;
-  const attempt = rows[0] ? Number(rows[0].generation_attempt) : MAX_GENERATION_ATTEMPTS + 1;
+  const attempt = permanent || !rows[0] ? MAX_GENERATION_ATTEMPTS + 1 : Number(rows[0].generation_attempt);
   const nextAttemptAt = computeNextGenerationRetryAt(attempt, now);
   const status: "FAILED" | "PENDING" = nextAttemptAt ? "PENDING" : "FAILED";
 
@@ -202,6 +204,8 @@ export interface AutomationRunHistoryItem extends AutomationRunRecord {
   publishedAt: Date | null;
   /** URL pública da 1ª mídia da publicação (a arte gerada) — prévia no histórico. */
   previewUrl: string | null;
+  /** Carrossel Inteligente gerado nesta execução (abre o editor). */
+  carouselProjectId: string | null;
 }
 
 /** Histórico detalhado (mais recente primeiro), restrito ao dono via join. */
@@ -221,7 +225,8 @@ export async function listRunHistoryForAutomationOwnedByUser(
         where pi.post_id = p.id
         order by pi.position
         limit 1
-      ) as publication_preview_url
+      ) as publication_preview_url,
+      (select c.id from carousel_projects c where c.automation_run_id = r.id limit 1) as carousel_project_id
     from automation_runs r
     join content_automations a on a.id = r.automation_id
     left join content_automation_days d on d.id = r.automation_day_id
@@ -241,6 +246,7 @@ export async function listRunHistoryForAutomationOwnedByUser(
     publicationError: (row.publication_error as string | null) ?? null,
     publishedAt: row.publication_published_at ? new Date(row.publication_published_at as string) : null,
     previewUrl: (row.publication_preview_url as string | null) ?? null,
+    carouselProjectId: (row.carousel_project_id as string | null) ?? null,
   }));
 }
 
@@ -274,6 +280,23 @@ export async function listRecentGenerationsForAutomation(
     limit ${limit}
   `;
   return rows.map((row) => ({ runDate: row.run_date as string, caption: (row.caption as string | null) ?? "" }));
+}
+
+/** Aponta a execução para outra publicação (ex.: o post foi recriado após editar o carrossel). */
+export async function setRunPublication(runId: string, publicationId: string): Promise<void> {
+  const db = getDb();
+  await db`update automation_runs set publication_id = ${publicationId} where id = ${runId}`;
+}
+
+/** "Regenerar": devolve a execução para PENDING (o cron gera um novo conteúdo no próximo ciclo). */
+export async function resetRunForRegeneration(runId: string): Promise<void> {
+  const db = getDb();
+  await db`
+    update automation_runs
+    set status = 'PENDING', publication_id = null, generation_attempt = 0, error_message = null,
+        next_attempt_at = null, completed_at = null, processing_lock_token = null, processing_lock_expires_at = null
+    where id = ${runId}
+  `;
 }
 
 export async function setRunStatus(runId: string, status: AutomationRunStatus): Promise<void> {

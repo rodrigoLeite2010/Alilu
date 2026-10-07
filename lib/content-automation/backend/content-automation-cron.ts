@@ -25,6 +25,7 @@ import {
 import { getInstagramAccountByIdForUser } from "@/lib/instagram/backend/instagram-account-repository";
 import { MIN_CAROUSEL_ITEMS, MAX_CAROUSEL_ITEMS } from "@/lib/instagram/backend/instagram-post-service";
 import { renderAndStoreAutomationArt, renderAndStoreAutomationCarousel } from "@/lib/instagram/backend/template-render-service";
+import { CarouselError } from "@/lib/carousel/backend/carousel-project-service";
 import { generateSmartCarouselForRun, type SmartCarouselRunDeps } from "./smart-carousel-service";
 import { reserveAutomationUse, releaseAutomationUse } from "@/lib/billing/backend/automation-access-service";
 import { CONTENT_CATEGORY_LABEL, DAY_OF_WEEK_LABEL, type AutomationDayRecord, type AutomationRecord, type AutomationRunStatus } from "./automation-types";
@@ -636,7 +637,8 @@ export async function runContentAutomationCron(
         });
       } catch (error) {
         const message = error instanceof Error ? error.message : "Falha desconhecida ao gerar conteúdo.";
-        const outcome = await markRunFailed(run.id, lockToken, message, now);
+        const permanent = error instanceof CarouselError && (error.code === "ACCESS_DENIED" || error.code === "PROFILE_LIMIT");
+        const outcome = await markRunFailed(run.id, lockToken, message, now, permanent);
         results.push({ automationId: automation.id, runId: run.id, status: outcome.status, error: message });
         console.error("[content-automation-cron] falha ao gerar execução", {
           automationId: automation.id,

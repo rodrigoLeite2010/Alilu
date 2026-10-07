@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { approveAutomationRun, AutomationValidationError, rejectAutomationRun } from "@/lib/content-automation/backend/automation-service";
+import { approveAutomationRun, AutomationValidationError, regenerateAutomationRun, rejectAutomationRun } from "@/lib/content-automation/backend/automation-service";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -36,7 +36,11 @@ export async function PATCH(request: Request, { params }: RouteParams): Promise<
       await rejectAutomationRun(id, userId);
       return NextResponse.json({ status: "CANCELLED" });
     }
-    return NextResponse.json({ error: "action precisa ser 'approve' ou 'reject'." }, { status: 400 });
+    if (action === "regenerate") {
+      await regenerateAutomationRun(id, userId);
+      return NextResponse.json({ status: "PENDING" });
+    }
+    return NextResponse.json({ error: "action precisa ser 'approve', 'reject' ou 'regenerate'." }, { status: 400 });
   } catch (error) {
     console.error("[content-automation/runs/id] falha ao processar aprovação", error);
     const message = error instanceof AutomationValidationError ? error.message : "Não foi possível processar esta ação.";

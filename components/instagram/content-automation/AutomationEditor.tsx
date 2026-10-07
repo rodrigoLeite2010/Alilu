@@ -8,6 +8,8 @@ import { MediaPicker } from "./MediaPicker";
 import { WeekDayEditor, type DayFormState } from "./WeekDayEditor";
 import { autoResizeTextarea } from "./textarea-utils";
 import { SmartStoryPanel, type SmartStoryState } from "./SmartStoryPanel";
+import { SmartCarouselPanel } from "./SmartCarouselPanel";
+import type { SmartCarouselConfig } from "@/lib/content-automation/smart-carousel/config";
 import { SharedPromptEditor, sharedContentPayload, sharedScheduleError, type SharedScheduleState } from "./SharedPromptEditor";
 import {
   DAYS_OF_WEEK,
@@ -91,6 +93,8 @@ export interface AutomationDetailDto {
   days: DayFormState[];
   /** Modo inteligente de Stories (opcional: ausente = desligado, config padrão). */
   smartStory?: SmartStoryState;
+  /** Carrossel Inteligente automático (config normalizada). */
+  smartCarousel?: SmartCarouselConfig;
 }
 
 export interface PendingRunDto {
@@ -98,6 +102,8 @@ export interface PendingRunDto {
   runDate: string;
   status: string;
   errorMessage: string | null;
+  /** Carrossel Inteligente gerado nesta execução (habilita Editar/Regenerar). */
+  projectId?: string | null;
 }
 
 const STATUS_LABEL: Record<AutomationStatus, string> = {
@@ -334,7 +340,7 @@ export function AutomationEditor({
     }
   }
 
-  async function handleRunAction(runId: string, action: "approve" | "reject") {
+  async function handleRunAction(runId: string, action: "approve" | "reject" | "regenerate") {
     setRunBusy(runId);
     setError(null);
     try {
@@ -369,6 +375,7 @@ export function AutomationEditor({
   const formatDays = isShared ? [sharedContent] : days.filter((day) => day.enabled);
   const storyDays = isShared ? (sharedContent.contentType === "STORY" ? [sharedContent] : []) : days.filter((day) => day.enabled && day.contentType === "STORY");
   const hasStory = storyDays.length > 0;
+  const hasSmartCarousel = formatDays.some((day) => day.contentType === "SMART_CAROUSEL");
   const smartBasePrompt = storyDays.find((day) => day.prompt.trim())?.prompt ?? "";
   const smartPreviewTime = isShared ? (sharedSchedule.times[0] ?? "09:00") : (storyDays[0]?.publishTime ?? "09:00");
   // Com o modo inteligente ligado, Story não usa imagem de fundo (o motor escolhe
@@ -407,13 +414,29 @@ export function AutomationEditor({
           <ul className="mt-2 space-y-2">
             {runs.map((run) => (
               <li key={run.id} className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-white px-3 py-2 text-sm">
-                <span>{run.runDate}</span>
-                <div className="flex gap-2">
+                <span>
+                  {run.runDate}
+                  {run.projectId ? <span className="ml-2 text-xs text-zinc-500">Carrossel Inteligente</span> : null}
+                </span>
+                <div className="flex flex-wrap gap-2">
                   <Button disabled={runBusy === run.id} onClick={() => handleRunAction(run.id, "approve")}>
                     Aprovar
                   </Button>
+                  {run.projectId ? (
+                    <>
+                      <a
+                        href={`/instagram/carrossel-inteligente/${run.projectId}`}
+                        className="inline-flex min-h-10 items-center rounded-md border border-zinc-300 px-3 text-sm font-medium text-zinc-800 hover:bg-zinc-50"
+                      >
+                        Editar
+                      </a>
+                      <Button variant="secondary" disabled={runBusy === run.id} onClick={() => handleRunAction(run.id, "regenerate")}>
+                        Regenerar
+                      </Button>
+                    </>
+                  ) : null}
                   <Button variant="ghost" disabled={runBusy === run.id} onClick={() => handleRunAction(run.id, "reject")}>
-                    Rejeitar
+                    {run.projectId ? "Cancelar" : "Rejeitar"}
                   </Button>
                 </div>
               </li>
@@ -564,6 +587,8 @@ export function AutomationEditor({
           onEnabledChange={handleSmartEnabled}
         />
       ) : null}
+
+      {hasSmartCarousel ? <SmartCarouselPanel automationId={automation.id} userId={userId} initial={automation.smartCarousel} /> : null}
 
       {isShared ? (
         <section className="space-y-4">

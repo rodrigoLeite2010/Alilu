@@ -695,6 +695,11 @@ export async function getProjectByAutomationRun(runId: string): Promise<Carousel
   return rows[0] ? toProject(rows[0] as Row) : null;
 }
 
+/** Desvincula o projeto da execução (regeneração): o projeto antigo fica como histórico. */
+export async function detachProjectFromAutomationRun(projectId: string): Promise<void> {
+  await getDb()`update carousel_projects set automation_run_id = null where id = ${projectId}`;
+}
+
 /**
  * Liga o projeto à execução. O índice único em automation_run_id garante UM
  * projeto por execução; devolve false se a execução já tem outro projeto.

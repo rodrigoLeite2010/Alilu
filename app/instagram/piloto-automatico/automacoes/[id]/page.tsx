@@ -5,7 +5,7 @@ import { auth } from "@/auth";
 import {
   AutomationValidationError,
   getAutomationDetails,
-  listAutomationHistory,
+  listAutomationHistoryDetailed,
 } from "@/lib/content-automation/backend/automation-service";
 import { SchedulingIntro } from "@/components/instagram/SchedulingIntro";
 import { AutomationEditor } from "@/components/instagram/content-automation/AutomationEditor";
@@ -40,10 +40,10 @@ export default async function AutomationDetailPage({ params }: PageProps) {
     throw error;
   }
 
-  const history = await listAutomationHistory(id, userId);
+  const history = await listAutomationHistoryDetailed(id, userId);
   const pendingRuns = history
     .filter((run) => run.status === "WAITING_APPROVAL")
-    .map((run) => ({ id: run.id, runDate: run.runDate, status: run.status, errorMessage: run.errorMessage }));
+    .map((run) => ({ id: run.id, runDate: run.runDate, status: run.status, errorMessage: run.errorMessage, projectId: run.carouselProjectId }));
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-10">
@@ -91,6 +91,7 @@ export default async function AutomationDetailPage({ params }: PageProps) {
           },
           schedule: deriveSharedSchedule(automation.days),
           smartStory: automation.smartStory,
+          smartCarousel: automation.smartCarousel,
           days: automation.days.map((day) => ({
             id: day.id,
             dayOfWeek: day.dayOfWeek,
