@@ -22,6 +22,16 @@ export const ADMIN_SECTIONS: { title: string; links: AdminLink[] }[] = [
     ],
   },
   {
+    title: "Carrossel Inteligente",
+    links: [
+      {
+        href: "/admin/carrossel",
+        title: "Carrossel Inteligente",
+        description: "Assinantes e MRR do produto, desconto de cliente Alilu, teste grátis, uso, custo de IA (tokens e buscas), receita líquida e margem.",
+      },
+    ],
+  },
+  {
     title: "Créditos e IA",
     links: [
       {

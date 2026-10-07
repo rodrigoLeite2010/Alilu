@@ -5,6 +5,7 @@ import { getAsaasPayment, getAsaasSubscription, updateAsaasSubscriptionValue } f
 import { parsePlanUpgradeReference } from "./subscription-service";
 import { getPlan, PLAN_CODES, type PlanCode } from "../plans";
 import { handleCreditPurchasePaymentEvent } from "@/lib/ai-video/backend/credit-purchase-service";
+import { handleCarouselSubscriptionCanceled, handleCarouselSubscriptionPayment, handleCarouselUpgradePayment } from "@/lib/carousel/backend/carousel-billing-webhook";
 import {
   getByAsaasSubscriptionId,
   getSubscriptionByUserId,
@@ -129,6 +130,8 @@ async function handlePaymentEvent(eventType: string, payload: Record<string, unk
   if (!payment.subscription) {
     // Cobrança proporcional de upgrade de plano (criada por changeAutomationPlan).
     if (await handlePlanUpgradePayment(eventType, payment)) return;
+    // Upgrade do Carrossel Inteligente (produto separado, referência própria).
+    if (await handleCarouselUpgradePayment(eventType, payment)) return;
     // Cobrança avulsa: hoje, só a compra de créditos de IA usa. Se não for
     // uma compra conhecida, o evento só fica registrado (auditoria).
     await handleCreditPurchasePaymentEvent(eventType, payment, now);
@@ -138,7 +141,11 @@ async function handlePaymentEvent(eventType: string, payload: Record<string, unk
   if (CREDIT_PURCHASE_EXTRA_EVENTS.has(eventType)) return;
 
   const subscriptionRow = await getByAsaasSubscriptionId(payment.subscription);
-  if (!subscriptionRow) return; // assinatura não é do Piloto Automático (ou o usuário já não existe mais aqui).
+  if (!subscriptionRow) {
+    // Não é do Piloto Automático: pode ser do Carrossel Inteligente.
+    await handleCarouselSubscriptionPayment(eventType, payment, now);
+    return;
+  }
 
   if (PAYMENT_CONFIRMATION_EVENTS.has(eventType)) {
     const asaasSubscription = await getAsaasSubscription(payment.subscription);
@@ -170,6 +177,7 @@ async function handleSubscriptionCancelEvent(payload: Record<string, unknown>, n
   const subscriptionId = subscriptionRef && typeof subscriptionRef.id === "string" ? subscriptionRef.id : null;
   if (!subscriptionId) return;
   await markCanceledByAsaasSubscriptionId(subscriptionId, now);
+  await handleCarouselSubscriptionCanceled(subscriptionId, now);
 }
 
 const PAID_STATUSES = new Set(["CONFIRMED", "RECEIVED", "RECEIVED_IN_CASH"]);
