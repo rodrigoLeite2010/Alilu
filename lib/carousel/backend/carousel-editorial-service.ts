@@ -25,6 +25,7 @@ import {
   type SourceRef,
   type TopicsMode,
 } from "../editorial/prompts";
+import { findCreatorBias } from "../editorial/theme-bias";
 import { copyOverlap, findGenericPhrases, htmlToText, isPrivateAddress, isSensitiveNiche, MAX_COPY_OVERLAP, parseInstagramTarget, parsePublicHttpsUrl } from "../editorial/rules";
 import { getCarouselAccess } from "./carousel-access-service";
 import { createCarouselLlmFromEnv, type CarouselLlm, type LlmCitation, type LlmRequest, type LlmResponse } from "./carousel-llm";
@@ -71,10 +72,27 @@ export const EDITORIAL_LIMITS = {
 
 const SENSITIVE_DISCLAIMER = "Conteúdo informativo, não substitui a orientação de um profissional.";
 
+/** Rastro de uma geração (diagnóstico): provedor/modelo realmente usados, chamadas e viés temático encontrado. */
+export interface GenerationTrace {
+  provider?: string;
+  model?: string;
+  calls: Array<{ feature: string; promptChars: number; webSearches: number }>;
+  /** Grupos de termos de criação de conteúdo que sobraram no texto final (vazio = limpo). */
+  creatorBias: string[];
+  biasRetries: number;
+}
+
 export interface EditorialDeps {
   llm?: CarouselLlm;
   now?: Date;
   fetchPage?: (url: URL) => Promise<string>;
+  /** Diretiva estruturada (prompt base + categoria + tema + histórico + regras) enviada em TODAS as etapas. */
+  directive?: string | null;
+  /** true = o tema NÃO é criação de conteúdo: texto com esse viés é refeito (uma vez). */
+  forbidCreatorTopics?: boolean;
+  trace?: GenerationTrace;
+  /** Perfil de marca reduzido (só nome e tom): o público/objetivo do perfil não entra no prompt. */
+  neutralBrand?: boolean;
 }
 
 function getLlm(deps: EditorialDeps): CarouselLlm {
@@ -90,12 +108,13 @@ function todayLabel(now: Date): string {
   return now.toISOString().slice(0, 10);
 }
 
-function brandContext(brand: Awaited<ReturnType<typeof getCarouselBrand>>, niche: string | null): BrandContext {
+function brandContext(brand: Awaited<ReturnType<typeof getCarouselBrand>>, niche: string | null, neutral = false): BrandContext {
   return {
     brandName: brand?.brandName ?? null,
     niche: niche ?? brand?.niche ?? null,
-    audience: brand?.audience ?? null,
-    objective: brand?.objective ?? null,
+    // Automação com categoria: público/objetivo do perfil (que podem falar de criadores) não entram.
+    audience: neutral ? null : (brand?.audience ?? null),
+    objective: neutral ? null : (brand?.objective ?? null),
     tone: brand?.tone ?? null,
   };
 }
@@ -104,6 +123,7 @@ interface CallContext {
   userId: string;
   projectId: string | null;
   feature: string;
+  trace?: GenerationTrace;
 }
 
 /** Chama a IA, registra tokens/buscas (custo) e devolve o JSON interpretado. */
@@ -113,6 +133,11 @@ async function callJson(llm: CarouselLlm, ctx: CallContext, request: Omit<LlmReq
     response = await llm.complete({ ...request, system: CAROUSEL_SYSTEM_PROMPT });
   } catch (error) {
     throw new CarouselError("AI_UNAVAILABLE", error instanceof Error ? error.message : "Falha ao chamar a IA.");
+  }
+  if (ctx.trace) {
+    ctx.trace.provider = llm.provider;
+    ctx.trace.model = response.model;
+    ctx.trace.calls.push({ feature: ctx.feature, promptChars: request.prompt.length, webSearches: response.webSearches });
   }
   await recordCarouselAiUsage({
     userId: ctx.userId,
@@ -329,8 +354,8 @@ export async function researchProject(userId: string, projectId: string, deps: E
   await assertProjectBudget(projectId);
   const brand = await getCarouselBrand(userId);
   const { sourceText } = readStoredResearch(project);
-  const { json, response } = await callJson(getLlm(deps), { userId, projectId, feature: "research" }, {
-    prompt: buildResearchPrompt({ topic: project.topic, brand: brandContext(brand, project.niche), today: todayLabel(now), slideCount: project.slideCount }),
+  const { json, response } = await callJson(getLlm(deps), { userId, projectId, feature: "research", trace: deps.trace }, {
+    prompt: buildResearchPrompt({ topic: project.topic, brand: brandContext(brand, project.niche, deps.neutralBrand), today: todayLabel(now), slideCount: project.slideCount, directive: deps.directive }),
     maxOutputTokens: 2000,
     webSearchMax: EDITORIAL_LIMITS.webSearchesResearch,
   });
@@ -355,11 +380,14 @@ export async function generateProjectHooks(userId: string, projectId: string, st
   const brand = await getCarouselBrand(userId);
   const wanted = styles.filter((style) => style !== "CUSTOM" && (HOOK_STYLES as readonly string[]).includes(style));
   const { research } = readStoredResearch(project);
-  const { json } = await callJson(getLlm(deps), { userId, projectId, feature: "hooks" }, {
-    prompt: buildHooksPrompt({ topic: project.topic, brand: brandContext(brand, project.niche), research, wanted }),
+  const { json } = await callJson(getLlm(deps), { userId, projectId, feature: "hooks", trace: deps.trace }, {
+    prompt: buildHooksPrompt({ topic: project.topic, brand: brandContext(brand, project.niche, deps.neutralBrand), research, wanted, directive: deps.directive }),
     maxOutputTokens: 1200,
   });
-  const hooks = parseHooks(json).filter((hook) => wanted.includes(hook.style));
+  const parsedHooks = parseHooks(json).filter((hook) => wanted.includes(hook.style));
+  // Gancho com viés de criação de conteúdo (quando o tema não é esse) é descartado, se sobrar outro.
+  const cleanHooks = deps.forbidCreatorTopics ? parsedHooks.filter((hook) => findCreatorBias(`${hook.headline} ${hook.subtitle ?? ""}`).length === 0) : parsedHooks;
+  const hooks = cleanHooks.length > 0 ? cleanHooks : parsedHooks;
   if (hooks.length === 0) throw new CarouselError("AI_UNAVAILABLE", "Não consegui criar ganchos agora. Tente novamente.");
   await clearGeneratedHooks(projectId);
   for (const hook of hooks) await insertHook(projectId, hook);
@@ -376,7 +404,13 @@ export async function addCustomHook(userId: string, projectId: string, headline:
   return hook;
 }
 
-async function writeScript(llm: CarouselLlm, ctx: CallContext, args: Parameters<typeof buildScriptPrompt>[0], sourceText: string | null): Promise<ScriptSlide[]> {
+async function writeScript(
+  llm: CarouselLlm,
+  ctx: CallContext,
+  args: Parameters<typeof buildScriptPrompt>[0],
+  sourceText: string | null,
+  forbidCreatorTopics = false,
+): Promise<ScriptSlide[]> {
   let extra = args.extraInstruction ?? null;
   let last: ScriptSlide[] | null = null;
   for (let attempt = 0; attempt < 2; attempt += 1) {
@@ -388,10 +422,16 @@ async function writeScript(llm: CarouselLlm, ctx: CallContext, args: Parameters<
     }
     last = slides;
     const joined = slides.map((slide) => `${slide.headline} ${slide.body}`).join(" ");
+    const bias = forbidCreatorTopics ? findCreatorBias(joined) : [];
+    if (ctx.trace) ctx.trace.creatorBias = bias;
     const generic = findGenericPhrases(joined);
     const copied = sourceText ? copyOverlap(joined, sourceText) > MAX_COPY_OVERLAP : false;
-    if (!generic.length && !hasDuplicateSlides(slides) && !copied) return slides;
+    if (!generic.length && !hasDuplicateSlides(slides) && !copied && !bias.length) return slides;
     const notes: string[] = [];
+    if (bias.length) {
+      if (ctx.trace) ctx.trace.biasRetries += 1;
+      notes.push(`Este carrossel NÃO é sobre criação de conteúdo: remova qualquer menção a ${bias.join(", ")} e volte ao tema indicado.`);
+    }
     if (generic.length) notes.push(`Remova frases genéricas (${generic.join(", ")}) e use exemplos concretos.`);
     if (hasDuplicateSlides(slides)) notes.push("Não repita slides: cada um traz uma ideia nova.");
     if (copied) notes.push("O texto está parecido demais com o material de apoio: reescreva com outro ângulo e outras palavras.");
@@ -405,9 +445,13 @@ async function writeScript(llm: CarouselLlm, ctx: CallContext, args: Parameters<
   return last;
 }
 
-async function writeCaption(llm: CarouselLlm, ctx: CallContext, args: Parameters<typeof buildCaptionPrompt>[0], sensitive: boolean) {
-  const { json } = await callJson(llm, ctx, { prompt: buildCaptionPrompt(args), maxOutputTokens: 1500 });
-  const parsed = parseCaption(json);
+async function writeCaption(llm: CarouselLlm, ctx: CallContext, args: Parameters<typeof buildCaptionPrompt>[0], sensitive: boolean, forbidCreatorTopics = false) {
+  let parsed = parseCaption((await callJson(llm, ctx, { prompt: buildCaptionPrompt(args), maxOutputTokens: 1500 })).json);
+  if (parsed && forbidCreatorTopics && findCreatorBias(parsed.caption).length > 0) {
+    // legenda genérica de criador num tema que não é esse: uma nova tentativa, explícita
+    const retry = await callJson(llm, ctx, { prompt: `${buildCaptionPrompt(args)}\nIMPORTANTE: a legenda anterior falou de criação de conteúdo/redes sociais. Reescreva falando SOMENTE do tema do carrossel.`, maxOutputTokens: 1500 });
+    parsed = parseCaption(retry.json) ?? parsed;
+  }
   if (!parsed) return null;
   const caption = sensitive && !parsed.caption.includes(SENSITIVE_DISCLAIMER) ? `${parsed.caption}\n\n${SENSITIVE_DISCLAIMER}` : parsed.caption;
   return { caption: caption.slice(0, CAROUSEL_LIMITS.caption), hashtags: parsed.hashtags };
@@ -438,9 +482,9 @@ export async function generateCarousel(userId: string, projectId: string, option
   project = await changeProjectStatus(userId, projectId, "GENERATING");
   try {
     const brand = await getCarouselBrand(userId);
-    const context = brandContext(brand, project.niche);
+    const context = brandContext(brand, project.niche, options.neutralBrand);
     const sensitive = isSensitiveNiche(context.niche) || isSensitiveNiche(project.topic);
-    const ctx = (feature: string): CallContext => ({ userId, projectId, feature });
+    const ctx = (feature: string): CallContext => ({ userId, projectId, feature, trace: options.trace });
 
     const stored = readStoredResearch(project);
     const { sourceText, seeded } = stored;
@@ -473,8 +517,9 @@ export async function generateCarousel(userId: string, projectId: string, option
     const slides = await writeScript(
       llm,
       ctx("script"),
-      { topic: project.topic, brand: context, research, hook: chosen ? { headline: chosen.headline, subtitle: chosen.subtitle } : null, slideCount, sourceText, profilePatterns: patternsText, extraInstruction: options.extraInstruction ?? null },
+      { topic: project.topic, brand: context, research, hook: chosen ? { headline: chosen.headline, subtitle: chosen.subtitle } : null, slideCount, sourceText, profilePatterns: patternsText, extraInstruction: options.extraInstruction ?? null, directive: options.directive ?? null },
       sourceText,
+      options.forbidCreatorTopics === true,
     );
     if (chosen) {
       slides[0] = { ...slides[0], headline: chosen.headline, body: chosen.subtitle ?? slides[0].body };
@@ -482,7 +527,7 @@ export async function generateCarousel(userId: string, projectId: string, option
     await saveProjectSlides(userId, projectId, slides);
 
     const sourceTitles = (await listSources(projectId)).filter((source) => source.kind === "WEB").map((source) => source.title);
-    const caption = options.skipCaption ? null : await writeCaption(llm, ctx("caption"), { topic: project.topic, brand: context, slides, sourceTitles }, sensitive);
+    const caption = options.skipCaption ? null : await writeCaption(llm, ctx("caption"), { topic: project.topic, brand: context, slides, sourceTitles, directive: options.directive ?? null }, sensitive, options.forbidCreatorTopics === true);
     await updateProjectFields(userId, projectId, {
       title: chosen?.headline ?? project.title,
       caption: caption?.caption ?? "",
@@ -532,9 +577,12 @@ export async function regenerateCaption(userId: string, projectId: string, deps:
   if (slides.length === 0) throw new CarouselError("INCOMPLETE", "Gere o roteiro antes da legenda.");
   await assertProjectBudget(projectId);
   const brand = await getCarouselBrand(userId);
-  const context = brandContext(brand, project.niche);
+  // Carrossel gerado pela automação: a legenda refeita continua seguindo categoria/tema (diretiva guardada).
+  const stored = typeof project.generationMeta.directive === "string" ? project.generationMeta.directive : null;
+  const forbid = project.generationMeta.allowCreatorTopics === false;
+  const context = brandContext(brand, project.niche, stored !== null);
   const titles = (await listSources(projectId)).filter((source) => source.kind === "WEB").map((source) => source.title);
-  const caption = await writeCaption(getLlm(deps), { userId, projectId, feature: "caption" }, { topic: project.topic, brand: context, slides, sourceTitles: titles }, isSensitiveNiche(context.niche) || isSensitiveNiche(project.topic));
+  const caption = await writeCaption(getLlm(deps), { userId, projectId, feature: "caption" }, { topic: project.topic, brand: context, slides, sourceTitles: titles, directive: stored }, isSensitiveNiche(context.niche) || isSensitiveNiche(project.topic), forbid);
   if (!caption) throw new CarouselError("AI_UNAVAILABLE", "Não consegui criar a legenda agora. Tente novamente.");
   return updateProjectFields(userId, projectId, { caption: caption.caption, hashtags: caption.hashtags });
 }

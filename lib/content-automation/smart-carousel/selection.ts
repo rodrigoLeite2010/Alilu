@@ -148,6 +148,14 @@ export function pickTheme(input: { category: ThemeCategory | null; recentTopics:
   return { topic: oldest, exhausted: true };
 }
 
+/** Template por lista de preferência (ids): o primeiro livre que não foi usado nos últimos carrosséis. */
+export function pickTemplateByPreference(input: { preferred: readonly string[]; recentTemplateIds: readonly string[]; available: readonly string[] }): string {
+  const order = input.preferred.filter((id) => input.available.includes(id));
+  const ranked = order.length > 0 ? order : [...input.available];
+  const avoid = input.recentTemplateIds.slice(0, Math.min(2, Math.max(0, ranked.length - 1)));
+  return ranked.find((id) => !avoid.includes(id)) ?? ranked[0];
+}
+
 /** Template automático: respeita a preferência da categoria e evita os usados recentemente. */
 export function pickTemplate(input: { category: ThemeCategory | null; recentTemplateIds: readonly string[]; available: readonly string[] }): string {
   const order = TEMPLATE_PREFERENCE[input.category ?? "PERSONALIZADO"].filter((id) => input.available.includes(id));

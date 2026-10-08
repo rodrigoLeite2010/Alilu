@@ -8,7 +8,8 @@ import { CAROUSEL_LIMITS } from "../carousel-plans";
 import { normalizeHashtags, isSensitiveNiche, GENERIC_PHRASES } from "./rules";
 
 export const CAROUSEL_SYSTEM_PROMPT = [
-  "Você é o editor de carrosséis do ALILU, plataforma brasileira de ferramentas para criadores.",
+  "Você é o editor de carrosséis da ALILU, marca brasileira de conteúdo que fala com pessoas comuns sobre psicologia, dinheiro, família, comportamento, motivação e curiosidades (e também de ferramentas úteis do dia a dia).",
+  "Não presuma que o leitor é criador de conteúdo: só fale de criação de conteúdo, redes sociais, Instagram, roteiros ou produtividade de criador quando o TEMA indicado pedir isso explicitamente.",
   "Escreva sempre em português do Brasil, com linguagem natural e específica.",
   "Responda SOMENTE com um objeto JSON válido, sem markdown, sem texto antes ou depois.",
   "Nunca invente dados, números, datas, leis, estudos ou citações. Se não houver fonte, não afirme como fato.",
@@ -160,11 +161,12 @@ export interface ResearchResult {
   caution: string | null;
 }
 
-export function buildResearchPrompt(input: { topic: string; brand: BrandContext; today: string; slideCount: number }): string {
+export function buildResearchPrompt(input: { topic: string; brand: BrandContext; today: string; slideCount: number; directive?: string | null }): string {
   return [
     `Data de hoje: ${input.today}.`,
     ...brandLines(input.brand),
     ...sensitiveLine(input.brand.niche),
+    input.directive ? `${input.directive}\nPesquise sobre o TEMA acima (e não sobre carrosséis, redes sociais ou criação de conteúdo).` : "",
     `Tema do carrossel: ${input.topic}`,
     "Pesquise na web fontes confiáveis e recentes sobre o tema. Extraia fatos verificáveis, cada um ligado a uma fonte. Não copie frases: resuma com suas palavras.",
     `O carrossel terá ${input.slideCount} slides, então traga fatos suficientes (de 4 a 8) e um resumo curto do panorama.`,
@@ -202,9 +204,10 @@ export interface HookSuggestion {
   objective: string | null;
 }
 
-export function buildHooksPrompt(input: { topic: string; brand: BrandContext; research: ResearchResult | null; wanted: HookStyle[] }): string {
+export function buildHooksPrompt(input: { topic: string; brand: BrandContext; research: ResearchResult | null; wanted: HookStyle[]; directive?: string | null }): string {
   return [
     ...brandLines(input.brand),
+    input.directive ?? "",
     `Tema: ${input.topic}`,
     input.research?.summary ? `Resumo da pesquisa: ${input.research.summary}` : "",
     `Crie um gancho (primeiro slide) para cada estilo: ${input.wanted.map((style) => `${style} (${HOOK_STYLE_LABEL[style]})`).join(", ")}.`,
@@ -251,11 +254,13 @@ export function buildScriptPrompt(input: {
   sourceText?: string | null;
   profilePatterns?: string | null;
   extraInstruction?: string | null;
+  directive?: string | null;
 }): string {
   const roles: SlideRole[] = slideRolesFor(input.slideCount);
   return [
     ...brandLines(input.brand),
     ...sensitiveLine(input.brand.niche),
+    input.directive ?? "",
     `Tema: ${input.topic}`,
     input.hook ? `Gancho escolhido (slide 1): "${input.hook.headline}"${input.hook.subtitle ? ` — ${input.hook.subtitle}` : ""}` : "",
     input.research
@@ -266,7 +271,7 @@ export function buildScriptPrompt(input: {
     input.extraInstruction ? `Instrução do usuário: ${input.extraInstruction}` : "",
     `Escreva EXATAMENTE ${input.slideCount} slides, na ordem e papéis: ${roles.map((role, index) => `${index + 1}=${SLIDE_ROLE_LABEL[role]}`).join(", ")}.`,
     `Limites: título até ${CAROUSEL_LIMITS.headline} caracteres; corpo até ${CAROUSEL_LIMITS.body} caracteres, uma ideia por slide, progressão lógica, sem repetir slides; o último slide traz uma chamada para ação natural no campo cta (até 40 caracteres); nos demais, cta vazio.`,
-    "visualKind: PHOTO (cena real), GRAPHIC (texto/dado em destaque) ou ILLUSTRATION. Em PHOTO, imageQuery é uma busca curta em inglês (2 a 4 palavras) por foto de banco de imagens.",
+    "visualKind: PHOTO (cena real), GRAPHIC (texto/dado em destaque) ou ILLUSTRATION. Em PHOTO, imageQuery é uma busca em inglês (3 a 5 palavras) por uma cena concreta de banco de imagens que ilustre o que ESTE slide diz (não repita o título; cada slide com uma cena diferente).",
     'Formato JSON exato: {"slides":[{"headline":string,"body":string,"cta":string,"visualKind":"PHOTO"|"GRAPHIC"|"ILLUSTRATION","imageQuery":string|null}]}',
   ]
     .filter(Boolean)
@@ -309,14 +314,15 @@ export function hasDuplicateSlides(slides: ScriptSlide[]): boolean {
 // ---------------------------------------------------------------------------
 // Legenda
 // ---------------------------------------------------------------------------
-export function buildCaptionPrompt(input: { topic: string; brand: BrandContext; slides: Array<{ headline: string; body: string }>; sourceTitles: string[] }): string {
+export function buildCaptionPrompt(input: { topic: string; brand: BrandContext; slides: Array<{ headline: string; body: string }>; sourceTitles: string[]; directive?: string | null }): string {
   return [
     ...brandLines(input.brand),
     ...sensitiveLine(input.brand.niche),
+    input.directive ?? "",
     `Tema: ${input.topic}`,
     `Resumo dos slides:\n${input.slides.map((slide, index) => `${index + 1}. ${slide.headline} — ${slide.body}`).join("\n")}`,
     input.sourceTitles.length ? `Fontes usadas (cite de forma natural no final, sem links): ${input.sourceTitles.slice(0, 4).join("; ")}` : "",
-    "Escreva a legenda do post: primeira linha forte, 2 a 4 parágrafos curtos, chamada para ação natural (salvar, comentar ou compartilhar) e de 6 a 12 hashtags relevantes (sem repetir, sem hashtags enganosas). Sem promessa de viralização.",
+    "Escreva a legenda do post: primeira linha forte, 2 a 4 parágrafos curtos, chamada para ação natural (salvar, comentar ou compartilhar) e de 6 a 12 hashtags relevantes à CATEGORIA e ao TEMA acima (sem repetir, sem hashtags enganosas, sem hashtags de criação de conteúdo quando o tema não for esse). Sem promessa de viralização.",
     'Formato JSON exato: {"caption":string (até 1800 caracteres, com quebras de linha),"hashtags":string[]}',
   ]
     .filter(Boolean)

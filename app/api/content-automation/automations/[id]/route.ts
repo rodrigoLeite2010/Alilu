@@ -123,7 +123,7 @@ export async function PATCH(request: Request, { params }: RouteParams): Promise<
 
     if (action === "smart-carousel-preview") {
       const preview = await previewSmartCarousel(id, userId);
-      return NextResponse.json({ projectId: preview.projectId, warnings: preview.warnings });
+      return NextResponse.json({ projectId: preview.projectId, warnings: preview.warnings, category: preview.category, topic: preview.topic, diagnostic: preview.diagnostic });
     }
 
     if (action === "update") {

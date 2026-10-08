@@ -16,10 +16,10 @@
  */
 import { CAROUSEL_LIMITS } from "../carousel-plans";
 import { isCarouselTemplateId } from "../design/templates";
-import { generateCarousel, type EditorialDeps } from "./carousel-editorial-service";
+import { generateCarousel, type EditorialDeps, type GenerationTrace } from "./carousel-editorial-service";
 import { createCarouselProject, CarouselError, requireProject } from "./carousel-project-service";
 import { listSlides, updateProjectFields, type CarouselProjectRecord } from "./carousel-repository";
-import { autoAssignPhotos, renderProjectSlides, setProjectTemplate, type AutoPhotoResult, type RenderProjectResult, type StudioDeps } from "./carousel-studio-service";
+import { autoAssignPhotos, renderProjectSlides, setProjectTemplate, type AutoPhotoPlan, type AutoPhotoResult, type RenderProjectResult, type StudioDeps } from "./carousel-studio-service";
 import type { CarouselSourceKind } from "../domain";
 
 export type CarouselGenerationStage = "TEXT" | "IMAGES" | "RENDER";
@@ -54,6 +54,19 @@ export interface GenerateCarouselRequest {
   avoid?: { topics?: string[]; hooks?: string[] };
   /** Etapas a executar (padrão: todas). */
   stages?: readonly CarouselGenerationStage[];
+  /**
+   * Diretiva estruturada (Piloto): prompt base + categoria + tema + histórico + regras. Vai em TODAS as etapas
+   * (pesquisa, ganchos, roteiro, legenda). Sem ela, o `prompt` do usuário é usado como instrução (editor manual).
+   */
+  directive?: string | null;
+  /** false = o tema NÃO é criação de conteúdo (texto com esse viés é refeito). Padrão: não verifica. */
+  allowCreatorTopics?: boolean;
+  /** Perfil de marca reduzido (só nome/tom) — usado pelo Piloto. */
+  neutralBrand?: boolean;
+  /** Quantidade de fotos (entre `target` e `max`); sem isso, vale a regra histórica do editor. */
+  photoPlan?: AutoPhotoPlan;
+  /** Rastro de diagnóstico preenchido durante a geração. */
+  trace?: GenerationTrace;
 }
 
 export interface GenerateCarouselResult {
@@ -67,9 +80,13 @@ export interface GenerateCarouselResult {
 
 export type GenerationDeps = EditorialDeps & StudioDeps;
 
-function avoidInstruction(prompt: string | null | undefined, avoid: GenerateCarouselRequest["avoid"]): string | null {
+/** Máximo do prompt do usuário repassado à IA (antes eram só 600 caracteres, o que cortava o final do prompt). */
+export const USER_PROMPT_MAX = 2500;
+
+function avoidInstruction(prompt: string | null | undefined, avoid: GenerateCarouselRequest["avoid"], hasDirective: boolean): string | null {
   const parts: string[] = [];
-  if (prompt?.trim()) parts.push(prompt.trim().slice(0, 600));
+  // Com diretiva, o prompt base já está inteiro nela: não duplica.
+  if (!hasDirective && prompt?.trim()) parts.push(prompt.trim().slice(0, USER_PROMPT_MAX));
   const topics = (avoid?.topics ?? []).map((item) => item.trim()).filter(Boolean).slice(0, 15);
   const hooks = (avoid?.hooks ?? []).map((item) => item.trim()).filter(Boolean).slice(0, 15);
   if (topics.length) parts.push(`NÃO repita nem reaproveite estes temas já publicados recentemente: ${topics.join(" | ")}.`);
@@ -125,11 +142,17 @@ export async function generateCarouselProject(request: GenerateCarouselRequest, 
   }
 
   if (stages.has("TEXT")) {
+    // Sem diretiva (editor manual) o prompt do usuário também vai à pesquisa, aos ganchos e à legenda.
+    const directive = request.directive ?? (request.prompt?.trim() ? `INSTRUÇÃO DO USUÁRIO: ${request.prompt.trim().slice(0, USER_PROMPT_MAX)}` : null);
     project = await generateCarousel(request.userId, project.id, {
       ...deps,
       now,
-      extraInstruction: avoidInstruction(request.prompt, request.avoid),
+      extraInstruction: avoidInstruction(request.prompt, request.avoid, directive != null),
       skipCaption: request.generateCaption === false,
+      directive,
+      forbidCreatorTopics: request.allowCreatorTopics === false,
+      neutralBrand: request.neutralBrand === true,
+      trace: request.trace,
     });
     stagesRun.push("TEXT");
   }
@@ -138,7 +161,7 @@ export async function generateCarouselProject(request: GenerateCarouselRequest, 
     if (request.imageSource === "NONE") {
       warnings.push("Imagens desligadas: os slides usam só o modelo visual.");
     } else {
-      images = await autoAssignPhotos(request.userId, project.id, deps);
+      images = await autoAssignPhotos(request.userId, project.id, deps, request.photoPlan);
       if (!images.providerAvailable) warnings.push("Banco de fotos não configurado: os slides usam só o modelo visual.");
       else if (images.missing.length) warnings.push(`Sem foto nos slides ${images.missing.join(", ")}: usado o modelo visual.`);
     }

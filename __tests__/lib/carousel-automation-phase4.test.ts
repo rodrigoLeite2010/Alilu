@@ -150,8 +150,13 @@ describe("anti-repetição no cron", () => {
     await runWith(llm, DAY2, provider);
     const projects = await db.sql`select * from carousel_projects where automation_id = ${id} order by created_at`;
     expect(projects).toHaveLength(2);
-    expect(sel.THEME_POOLS.FINANCEIRO).toContain(projects[0].topic);
+    // Modo AUTO (padrão): o plano sorteia categoria + tema do banco das categorias; a categoria legada do dia não manda.
+    const bank = (await import("@/lib/content-automation/smart-carousel/categories")).CAROUSEL_CATEGORIES.flatMap((c) => c.themes);
+    const catOf = (row: Record<string, unknown>) => ((typeof row.generation_meta === "string" ? JSON.parse(row.generation_meta) : row.generation_meta) as { categoryId: string }).categoryId;
+    expect(bank).toContain(projects[0].topic);
+    expect(bank).toContain(projects[1].topic);
     expect(projects[1].topic).not.toBe(projects[0].topic);
+    expect(catOf(projects[1])).not.toBe(catOf(projects[0]));
     expect(projects[1].template_id).not.toBe(projects[0].template_id);
     const ids = async (p: Record<string, unknown>) => (await slidesOf(p.id as string)).map((s) => (typeof s.style === "string" ? JSON.parse(s.style) : s.style).photo?.id).filter(Boolean);
     const a = await ids(projects[0]);
@@ -225,7 +230,10 @@ describe("fonte de imagens", () => {
       if (Number(slide.position) % 2 === 1) expect(slide.image_media_id).toBeTruthy();
       else expect(slide.image_media_id).toBeNull();
     }
-    expect(slides.filter((s) => Number(s.position) % 2 === 0).every((s) => (typeof s.style === "string" ? JSON.parse(s.style) : s.style).photo?.id)).toBe(true);
+    // Nova regra: não força foto em todo slide — entre 3 e 5 imagens reais (próprias + banco) por carrossel.
+    const withImage = slides.filter((s) => s.image_media_id || (typeof s.style === "string" ? JSON.parse(s.style) : s.style).photo?.id);
+    expect(withImage.length).toBeGreaterThanOrEqual(3);
+    expect(withImage.length).toBeLessThanOrEqual(5);
   });
 
   it("sem fotos no banco: o carrossel sai só com o modelo visual (nunca quebra)", async () => {

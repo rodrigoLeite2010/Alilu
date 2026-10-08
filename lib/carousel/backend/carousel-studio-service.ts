@@ -4,6 +4,7 @@ import { getInstagramMediaById } from "@/lib/instagram/backend/media-repository"
 import { CAROUSEL_LIMITS } from "../carousel-plans";
 import { isCarouselTemplateId } from "../design/templates";
 import { isVisualKind, maxGeneratedSlides, normalizeSlideText, slideRolesFor, type VisualKind } from "../domain";
+import { choosePhotoPositions } from "../photos/photo-plan";
 import { createPhotoProviderFromEnv, isAllowedPhotoUrl, normalizePhotoQuery, type PhotoProvider, type StockPhoto } from "../photos/photo-provider";
 import { renderAndStoreCarouselSlide, type RenderSlideInput } from "../render/carousel-render-service";
 import { CarouselError, completeCarouselProject, requireProject, type CompleteProjectResult } from "./carousel-project-service";
@@ -212,34 +213,71 @@ export interface AutoPhotoResult {
   /** Slides PHOTO que ficaram sem foto (sem provedor, sem resultado). Renderizam só com o template. */
   missing: number[];
   providerAvailable: boolean;
+  /** Fotos escolhidas (para diagnóstico/histórico): posição, origem, id e a consulta usada. */
+  picks?: Array<{ position: number; provider: string; id: string; query: string }>;
 }
 
-/** Procura foto para cada slide PHOTO sem imagem, sem repetir foto no carrossel. */
-export async function autoAssignPhotos(userId: string, projectId: string, deps: StudioDeps = {}): Promise<AutoPhotoResult> {
+/** Regra de quantidade: entre `target` e `max` fotos no carrossel (inclui as já atribuídas, ex.: imagens próprias). */
+export interface AutoPhotoPlan {
+  target: number;
+  max: number;
+  /** Cenas coerentes com a categoria, usadas quando o slide não trouxe uma busca própria. */
+  fallbackScenes?: readonly string[];
+}
+
+/**
+ * Procura foto para os slides, sem repetir foto no carrossel.
+ * Sem `plan` (editor manual): um slide PHOTO sem imagem recebe foto (comportamento histórico).
+ * Com `plan` (Piloto): só de `target` a `max` fotos no carrossel, nos slides que a IA marcou como PHOTO
+ * e, se faltar, em posições espaçadas; a busca é a imageQuery do slide (nunca o título) ou uma cena da categoria.
+ */
+export async function autoAssignPhotos(userId: string, projectId: string, deps: StudioDeps = {}, plan?: AutoPhotoPlan): Promise<AutoPhotoResult> {
   await requireProject(userId, projectId);
   const slides = await listSlides(projectId);
   const provider = photosFrom(deps);
   const without = slides.filter((slide) => !slide.imageMediaId && !slidePhotoUrl(slide));
-  // Prioriza os slides marcados para foto; se nenhum foi marcado, o usuário pediu fotos, então preenche todos.
-  const marked = without.filter((slide) => slide.visualKind === "PHOTO");
-  const wanting = marked.length > 0 ? marked : without;
+  let wanting: CarouselSlideRecord[];
+  if (plan) {
+    const have = slides.length - without.length;
+    const positions = new Set(
+      choosePhotoPositions(without, { target: Math.max(0, plan.target - have), max: Math.max(0, plan.max - have) }),
+    );
+    wanting = without.filter((slide) => positions.has(slide.position));
+  } else {
+    // Prioriza os slides marcados para foto; se nenhum foi marcado, o usuário pediu fotos, então preenche todos.
+    const marked = without.filter((slide) => slide.visualKind === "PHOTO");
+    wanting = marked.length > 0 ? marked : without;
+  }
   if (!provider) return { assigned: 0, missing: wanting.map((slide) => slide.position), providerAvailable: false };
   const used = new Set(slides.map((slide) => (slide.style.photo as { id?: string } | undefined)?.id).filter(Boolean) as string[]);
   let assigned = 0;
   const missing: number[] = [];
+  const picks: NonNullable<AutoPhotoResult["picks"]> = [];
+  let sceneIndex = 0;
   for (const slide of wanting) {
-    const query = slide.imageQuery ?? slide.headline;
-    const results = await provider.search(query, { limit: 8 });
-    const pick = results.find((photo) => !used.has(photo.id));
+    const scene = plan?.fallbackScenes?.length ? plan.fallbackScenes[sceneIndex % plan.fallbackScenes.length] : null;
+    const queries = plan ? [slide.imageQuery, scene].filter((query): query is string => Boolean(query)) : [slide.imageQuery ?? slide.headline];
+    let pick: StockPhoto | undefined;
+    let usedQuery = queries[0] ?? "";
+    for (const query of queries) {
+      const results = await provider.search(query, { limit: 8 });
+      pick = results.find((photo) => !used.has(photo.id));
+      if (pick) {
+        usedQuery = query;
+        break;
+      }
+    }
+    if (!slide.imageQuery || usedQuery === scene) sceneIndex += 1;
     if (!pick) {
       missing.push(slide.position);
       continue;
     }
     used.add(pick.id);
     await patchSlide(projectId, slide.position, { style: photoStyle(slide, pick) }, true);
+    picks.push({ position: slide.position, provider: pick.provider, id: pick.id, query: usedQuery });
     assigned += 1;
   }
-  return { assigned, missing, providerAvailable: true };
+  return { assigned, missing, providerAvailable: true, picks };
 }
 
 // ---------------------------------------------------------------------------

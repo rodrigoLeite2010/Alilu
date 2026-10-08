@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/Button";
 import { MediaPicker } from "./MediaPicker";
 import { PlansLink } from "@/components/carousel/PlansLink";
 import { CAROUSEL_TEMPLATES } from "@/lib/carousel/design/templates";
+import { CAROUSEL_CATEGORIES, type CarouselCategoryId } from "@/lib/content-automation/smart-carousel/categories";
 import { DEFAULT_SMART_CAROUSEL_CONFIG, type SmartCarouselConfig } from "@/lib/content-automation/smart-carousel/config";
 
 async function readError(response: Response, fallback: string): Promise<string> {
@@ -37,8 +38,14 @@ export function SmartCarouselPanel({ automationId, userId, initial }: { automati
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [previewId, setPreviewId] = useState<string | null>(null);
+  const [previewInfo, setPreviewInfo] = useState<{ category: string | null; topic: string; diagnostic: string | null } | null>(null);
 
   const patch = (next: Partial<SmartCarouselConfig>) => setConfig((current) => ({ ...current, ...next }));
+  const toggleCategory = (id: CarouselCategoryId, on: boolean) =>
+    patch({ enabledCategories: on ? [...config.enabledCategories.filter((item) => item !== id), id] : config.enabledCategories.filter((item) => item !== id) });
+  const setWeight = (id: CarouselCategoryId, value: number) =>
+    patch({ categoryWeights: { ...config.categoryWeights, [id]: Math.min(100, Math.max(0, Math.floor(Number.isFinite(value) ? value : 0))) } });
+  const totalWeight = CAROUSEL_CATEGORIES.reduce((sum, category) => sum + (config.enabledCategories.includes(category.id) ? (config.categoryWeights[category.id] ?? 0) : 0), 0);
   const usesOwn = config.imageSource === "OWN" || config.imageSource === "COMBINED";
 
   async function call(action: string, body: Record<string, unknown>): Promise<Response> {
@@ -70,13 +77,15 @@ export function SmartCarouselPanel({ automationId, userId, initial }: { automati
     setError(null);
     setNotice(null);
     setPreviewId(null);
+    setPreviewInfo(null);
     if (!(await save())) return;
     setPreviewing(true);
     try {
       const response = await call("smart-carousel-preview", {});
       if (!response.ok) throw new Error(await readError(response, "Não foi possível gerar o exemplo."));
-      const body = (await response.json()) as { projectId: string };
+      const body = (await response.json()) as { projectId: string; category?: string | null; topic?: string; diagnostic?: string | null };
       setPreviewId(body.projectId);
+      setPreviewInfo({ category: body.category ?? null, topic: body.topic ?? "", diagnostic: body.diagnostic ?? null });
       setNotice("Exemplo gerado. Nada foi publicado nem agendado.");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Não foi possível gerar o exemplo.");
@@ -164,6 +173,70 @@ export function SmartCarouselPanel({ automationId, userId, initial }: { automati
           </div>
         ) : null}
 
+
+        <fieldset className="space-y-3 sm:col-span-2">
+          <legend className="text-sm font-medium text-zinc-800">Temas dos carrosséis</legend>
+          <div>
+            <label htmlFor={`${baseId}-topic-source`} className="mb-1 block text-xs text-zinc-600">De onde vem o tema</label>
+            <select id={`${baseId}-topic-source`} className={field} value={config.topicSource} onChange={(e) => patch({ topicSource: e.target.value as SmartCarouselConfig["topicSource"] })}>
+              <option value="AUTO">Automático: a Alilu escolhe categoria e tema (o prompt define só o estilo)</option>
+              <option value="PROMPT">Usar o texto do prompt como tema (modo antigo)</option>
+            </select>
+          </div>
+          {config.topicSource === "AUTO" ? (
+            <>
+              <p className="text-xs text-zinc-500">
+                Marque as categorias e ajuste o peso (quanto maior, mais frequente). Peso 0 nunca sorteia. Criação de conteúdo é só uma entre várias.
+              </p>
+              <ul className="grid gap-2 sm:grid-cols-2">
+                {CAROUSEL_CATEGORIES.map((category) => {
+                  const on = config.enabledCategories.includes(category.id);
+                  const weight = config.categoryWeights[category.id] ?? category.weight;
+                  const share = on && totalWeight > 0 ? Math.round((weight / totalWeight) * 100) : 0;
+                  return (
+                    <li key={category.id} className="flex min-h-11 items-center justify-between gap-2 rounded-md bg-white px-3 py-1">
+                      <label className="flex min-h-10 flex-1 items-center gap-2 text-sm text-zinc-800">
+                        <input type="checkbox" className="h-4 w-4" checked={on} onChange={(e) => toggleCategory(category.id, e.target.checked)} />
+                        {category.label}
+                      </label>
+                      <span className="text-xs text-zinc-500">{on ? `${share}%` : ""}</span>
+                      <input
+                        aria-label={`Peso de ${category.label}`}
+                        type="number"
+                        inputMode="numeric"
+                        min={0}
+                        max={100}
+                        disabled={!on}
+                        className="min-h-9 w-16 rounded-md border border-zinc-300 px-2 text-sm"
+                        value={weight}
+                        onChange={(e) => setWeight(category.id, Number(e.target.value))}
+                      />
+                    </li>
+                  );
+                })}
+              </ul>
+              <div className="grid gap-3 sm:grid-cols-4">
+                <div>
+                  <label htmlFor={`${baseId}-cat-window`} className="mb-1 block text-xs text-zinc-600">Não repetir categoria nos últimos</label>
+                  <input id={`${baseId}-cat-window`} type="number" inputMode="numeric" min={0} max={10} className={field} value={config.avoidCategoryWindow} onChange={(e) => patch({ avoidCategoryWindow: Math.min(10, Math.max(0, Math.floor(Number(e.target.value) || 0))) })} />
+                </div>
+                <div>
+                  <label htmlFor={`${baseId}-topic-window`} className="mb-1 block text-xs text-zinc-600">Não repetir tema nos últimos</label>
+                  <input id={`${baseId}-topic-window`} type="number" inputMode="numeric" min={1} max={60} className={field} value={config.avoidTopicWindow} onChange={(e) => patch({ avoidTopicWindow: Math.min(60, Math.max(1, Math.floor(Number(e.target.value) || 1))) })} />
+                </div>
+                <div>
+                  <label htmlFor={`${baseId}-min-photos`} className="mb-1 block text-xs text-zinc-600">Fotos por carrossel (mín.)</label>
+                  <input id={`${baseId}-min-photos`} type="number" inputMode="numeric" min={0} max={8} className={field} value={config.minPhotos} onChange={(e) => { const v = Math.min(8, Math.max(0, Math.floor(Number(e.target.value) || 0))); patch({ minPhotos: v, maxPhotos: Math.max(v, config.maxPhotos) }); }} />
+                </div>
+                <div>
+                  <label htmlFor={`${baseId}-max-photos`} className="mb-1 block text-xs text-zinc-600">Fotos por carrossel (máx.)</label>
+                  <input id={`${baseId}-max-photos`} type="number" inputMode="numeric" min={0} max={8} className={field} value={config.maxPhotos} onChange={(e) => { const v = Math.min(8, Math.max(0, Math.floor(Number(e.target.value) || 0))); patch({ maxPhotos: v, minPhotos: Math.min(v, config.minPhotos) }); }} />
+                </div>
+              </div>
+            </>
+          ) : null}
+        </fieldset>
+
         <div>
           <label htmlFor={`${baseId}-window`} className="mb-1 block text-sm font-medium text-zinc-800">Não repetir os últimos</label>
           <input
@@ -197,6 +270,18 @@ export function SmartCarouselPanel({ automationId, userId, initial }: { automati
           {previewing ? "Gerando exemplo… (pode levar 1–2 min)" : "Gerar exemplo"}
         </Button>
       </div>
+      {previewInfo ? (
+        <div className="rounded-md bg-white px-3 py-2 text-sm text-zinc-700">
+          {previewInfo.category ? <p><span className="font-medium">Categoria:</span> {previewInfo.category}</p> : null}
+          {previewInfo.topic ? <p><span className="font-medium">Tema:</span> {previewInfo.topic}</p> : null}
+          {previewInfo.diagnostic ? (
+            <details className="mt-1">
+              <summary className="cursor-pointer text-xs text-zinc-500">Diagnóstico da geração</summary>
+              <p className="mt-1 break-words text-xs text-zinc-600">{previewInfo.diagnostic}</p>
+            </details>
+          ) : null}
+        </div>
+      ) : null}
       {previewId ? (
         <Link href={`/instagram/carrossel-inteligente/${previewId}`} className="inline-flex min-h-10 items-center text-sm font-medium text-teal-800 underline">
           Abrir o exemplo no editor

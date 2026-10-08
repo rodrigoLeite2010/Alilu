@@ -100,6 +100,8 @@ export interface CarouselProjectRecord {
   profileAnalysisId: string | null;
   instagramPostId: string | null;
   error: string | null;
+  /** Como foi gerado (categoria, tema, estrutura, convite, diretiva…) — ver CarouselGenerationMeta. */
+  generationMeta: Record<string, unknown>;
   completedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
@@ -128,6 +130,7 @@ function toProject(row: Row): CarouselProjectRecord {
     profileAnalysisId: str(row.profile_analysis_id),
     instagramPostId: str(row.instagram_post_id),
     error: str(row.error),
+    generationMeta: row.generation_meta && typeof row.generation_meta === "object" && !Array.isArray(row.generation_meta) ? (row.generation_meta as Record<string, unknown>) : {},
     completedAt: toDate(row.completed_at),
     createdAt: toDate(row.created_at) ?? new Date(),
     updatedAt: toDate(row.updated_at) ?? new Date(),
@@ -193,6 +196,14 @@ export async function updateProjectFields(
     returning *
   `;
   return rows[0] ? toProject(rows[0] as Row) : null;
+}
+
+/** Mescla (jsonb ||) metadados de geração no projeto. */
+export async function mergeProjectGenerationMeta(userId: string, projectId: string, meta: Record<string, unknown>): Promise<void> {
+  await getDb()`
+    update carousel_projects set generation_meta = coalesce(generation_meta, '{}'::jsonb) || ${JSON.stringify(meta)}::jsonb, updated_at = now()
+    where id = ${projectId} and user_id = ${userId}
+  `;
 }
 
 export async function setProjectStatus(

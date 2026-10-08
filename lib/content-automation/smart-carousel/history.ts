@@ -11,6 +11,10 @@ export interface CarouselHistory {
   templateIds: string[];
   combinations: Set<string>;
   count: number;
+  /** Do mais novo ao mais antigo (null = carrossel anterior ao planejador por categorias). */
+  categories: Array<string | null>;
+  structures: Array<string | null>;
+  invites: Array<string | null>;
 }
 
 export const DEFAULT_ANTI_REPEAT_WINDOW = 15;
@@ -19,13 +23,40 @@ export const DEFAULT_ANTI_REPEAT_WINDOW = 15;
 export async function loadCarouselHistory(automationId: string, window: number, excludeProjectId?: string | null): Promise<CarouselHistory> {
   const limit = Math.min(Math.max(Math.floor(window), 1), 60);
   const db = getDb();
-  const projects = await db`
-    select id, topic, title, template_id from carousel_projects
-    where automation_id = ${automationId} and (${excludeProjectId ?? null}::uuid is null or id <> ${excludeProjectId ?? null}::uuid)
-    order by created_at desc limit ${limit}
-  `;
-  const history: CarouselHistory = { topics: [], hooks: [], headlines: [], photoIds: new Set(), ownMediaIds: new Set(), templateIds: [], combinations: new Set(), count: projects.length };
+  const exclude = excludeProjectId ?? null;
+  let projects: Array<Record<string, unknown>>;
+  try {
+    projects = await db`
+      select id, topic, title, template_id, generation_meta from carousel_projects
+      where automation_id = ${automationId} and (${exclude}::uuid is null or id <> ${exclude}::uuid)
+      order by created_at desc limit ${limit}
+    `;
+  } catch {
+    // Migração 0043 ainda não aplicada: segue sem categoria/estrutura (a anti-repetição por tema continua).
+    projects = await db`
+      select id, topic, title, template_id from carousel_projects
+      where automation_id = ${automationId} and (${exclude}::uuid is null or id <> ${exclude}::uuid)
+      order by created_at desc limit ${limit}
+    `;
+  }
+  const history: CarouselHistory = {
+    topics: [],
+    hooks: [],
+    headlines: [],
+    photoIds: new Set(),
+    ownMediaIds: new Set(),
+    templateIds: [],
+    combinations: new Set(),
+    count: projects.length,
+    categories: [],
+    structures: [],
+    invites: [],
+  };
   for (const project of projects) {
+    const meta = (typeof project.generation_meta === "string" ? JSON.parse(project.generation_meta) : project.generation_meta) as Record<string, unknown> | null | undefined;
+    history.categories.push(typeof meta?.categoryId === "string" ? meta.categoryId : null);
+    history.structures.push(typeof meta?.structureId === "string" ? meta.structureId : null);
+    history.invites.push(typeof meta?.inviteId === "string" ? meta.inviteId : null);
     history.topics.push(project.topic as string);
     if (project.template_id) history.templateIds.push(project.template_id as string);
     const slides = await db`select position, headline, image_media_id, style from carousel_slides where project_id = ${project.id} order by position`;
