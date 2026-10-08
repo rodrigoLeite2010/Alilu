@@ -34,13 +34,19 @@ export default function PrivacyPolicyPage() {
           não são enviados nem armazenados em nossos servidores.
         </p>
 
-        <h2>Cookies</h2>
+        <h2>Cookies e estatísticas de acesso</h2>
         <p>
-          O {SITE_NAME} não utiliza cookies próprios de rastreamento nem
-          armazena dados em cookies, localStorage ou sessionStorage do seu
-          navegador. Os valores digitados nas calculadoras ficam apenas na
-          memória da página enquanto você a utiliza e são descartados ao
-          fechá-la ou atualizá-la.
+          Os valores digitados nas calculadoras ficam apenas na memória da
+          página enquanto você a utiliza e são descartados ao fechá-la ou
+          atualizá-la. Para entender quantas pessoas usam o {SITE_NAME} e quais
+          páginas são mais úteis, usamos a ferramenta de estatísticas PostHog,
+          que grava um identificador anônimo no cookie/armazenamento local do
+          seu navegador. Registramos apenas as páginas visitadas (sem
+          parâmetros da URL), a origem da visita e, se você estiver logado,
+          o identificador interno da sua conta. Não registramos senhas,
+          cartões, textos ou arquivos que você digita ou envia, e não usamos
+          essas informações para publicidade. Você pode apagar os dados do
+          site nas configurações do navegador a qualquer momento.
         </p>
 
         <h2>Dados técnicos de hospedagem</h2>
@@ -48,9 +54,8 @@ export default function PrivacyPolicyPage() {
           Como qualquer site na internet, a infraestrutura que hospeda o{" "}
           {SITE_NAME} pode registrar dados técnicos básicos de acesso (como
           endereço IP, data/hora da visita e páginas acessadas) para fins de
-          segurança e funcionamento do serviço. O {SITE_NAME} não utiliza,
-          nesta fase, nenhuma ferramenta própria de análise de audiência
-          (como Google Analytics) nem identificador de publicidade ativo.
+          segurança e funcionamento do serviço. Não utilizamos identificador
+          de publicidade ativo.
         </p>
 
         <h2>Publicidade</h2>

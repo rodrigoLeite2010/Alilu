@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { UserMenu } from "@/components/layout/UserMenu";
 import type { HeaderUser } from "@/components/layout/auth-state";
 
@@ -63,7 +63,7 @@ describe("UserMenu", () => {
     fireEvent.click(screen.getByRole("button", { name: /Ana/ }));
     fireEvent.click(screen.getByRole("menuitem", { name: /Sair/ }));
 
-    expect(signOutMock).toHaveBeenCalledWith({ callbackUrl: "/?saiu=1" });
+    await waitFor(() => expect(signOutMock).toHaveBeenCalledWith({ callbackUrl: "/?saiu=1" }));
   });
 
   it("fecha o menu ao pressionar Escape e devolve o foco ao gatilho", () => {

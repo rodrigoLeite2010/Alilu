@@ -66,6 +66,16 @@ export const ADMIN_SECTIONS: { title: string; links: AdminLink[] }[] = [
     ],
   },
   {
+    title: "Acessos",
+    links: [
+      {
+        href: "/admin/acessos",
+        title: "Acessos ao site",
+        description: "Online agora, visitantes, sessões e páginas mais acessadas hoje (PostHog).",
+      },
+    ],
+  },
+  {
     title: "Infraestrutura",
     links: [
       {

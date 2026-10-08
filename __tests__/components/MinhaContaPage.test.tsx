@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 
 const authMock = vi.fn();
 vi.mock("@/auth", () => ({ auth: (...args: unknown[]) => authMock(...args) }));
@@ -116,6 +116,6 @@ describe("MinhaContaPage", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /Sair da conta/ }));
 
-    expect(signOutMock).toHaveBeenCalledWith({ callbackUrl: "/?saiu=1" });
+    await waitFor(() => expect(signOutMock).toHaveBeenCalledWith({ callbackUrl: "/?saiu=1" }));
   });
 });

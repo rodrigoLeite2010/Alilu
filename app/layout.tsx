@@ -10,6 +10,7 @@ import { SuggestionPrompt } from "@/components/layout/SuggestionPrompt";
 import { SiteSidebar } from "@/components/navigation/SiteNav";
 import { DonationProvider } from "@/components/donation/DonationProvider";
 import { DonationFloatingButton } from "@/components/donation/DonationFloatingButton";
+import { PostHogProvider } from "@/components/analytics/PostHogProvider";
 import { MobileBottomNavigation } from "@/components/mobile/MobileBottomNavigation";
 import { SITE_DESCRIPTION, SITE_NAME, SITE_TITLE_TEMPLATE, SITE_URL } from "@/lib/seo/site";
 
@@ -63,6 +64,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <Suspense fallback={null}>
           <LogoutNotice />
         </Suspense>
+        {/* Analytics (PostHog): best-effort, só em produção — ver lib/analytics/posthog-client.ts */}
+        <PostHogProvider />
         {/*
           Script oficial de verificação do Google AdSense. `strategy="beforeInteractive"`
           garante que o Next.js injete esta tag dentro do <head> do HTML

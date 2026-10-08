@@ -1,5 +1,6 @@
 "use client";
 
+import { trackLogoutAndReset } from "@/lib/analytics/posthog-client";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
@@ -267,7 +268,7 @@ function MobileAccountSection({ auth, onNavigate }: { auth: HeaderAuthState; onN
           type="button"
           onClick={() => {
             onNavigate?.();
-            void signOut({ callbackUrl: "/?saiu=1" });
+            void trackLogoutAndReset().then(() => signOut({ callbackUrl: "/?saiu=1" }));
           }}
           className="flex min-h-9 items-center gap-2 rounded px-2 text-left text-sm text-zinc-700 hover:bg-white"
         >

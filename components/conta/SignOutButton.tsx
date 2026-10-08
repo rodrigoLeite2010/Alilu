@@ -1,5 +1,6 @@
 "use client";
 
+import { trackLogoutAndReset } from "@/lib/analytics/posthog-client";
 import { useState } from "react";
 import { signOut } from "next-auth/react";
 import { LogOut } from "lucide-react";
@@ -20,7 +21,7 @@ export function SignOutButton() {
       disabled={signingOut}
       onClick={() => {
         setSigningOut(true);
-        void signOut({ callbackUrl: "/?saiu=1" });
+        void trackLogoutAndReset().then(() => signOut({ callbackUrl: "/?saiu=1" }));
       }}
       className="w-full justify-center sm:w-auto"
     >

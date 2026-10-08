@@ -1,5 +1,6 @@
 "use client";
 
+import { trackLogoutAndReset } from "@/lib/analytics/posthog-client";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { signOut } from "next-auth/react";
@@ -49,6 +50,7 @@ export function UserMenu({ user }: { user: HeaderUser }) {
 
   async function handleSignOut() {
     setSigningOut(true);
+    await trackLogoutAndReset();
     await signOut({ callbackUrl: "/?saiu=1" });
   }
 
