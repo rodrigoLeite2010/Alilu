@@ -65,7 +65,19 @@ export interface BillingDto {
 
 export interface MeDto {
   billing: BillingDto;
-  brand: { niche: string | null; brandName: string | null } | null;
+  brand: {
+    brandName: string | null;
+    handle: string | null;
+    niche: string | null;
+    audience: string | null;
+    objective: string | null;
+    tone: string | null;
+    accentColor: string | null;
+    secondaryColor: string | null;
+    fontId: string | null;
+    defaultTemplateId: string | null;
+    logoUrl: string | null;
+  } | null;
   maxProfiles: number;
   accounts: Array<{ id: string; username: string | null; status: string }>;
   templates: Array<{ id: string; name: string; description: string }>;

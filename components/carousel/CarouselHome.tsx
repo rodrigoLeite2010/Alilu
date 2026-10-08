@@ -29,6 +29,28 @@ interface CarouselSummaryDto {
 
 const POTENTIAL: Record<TopicDto["engagementPotential"], string> = { LOW: "Potencial baixo", MEDIUM: "Potencial médio", HIGH: "Alto potencial" };
 
+type BrandDraft = {
+  brandName: string;
+  handle: string;
+  niche: string;
+  audience: string;
+  objective: string;
+  tone: string;
+};
+
+const EMPTY_BRAND: BrandDraft = { brandName: "", handle: "", niche: "", audience: "", objective: "", tone: "" };
+
+function brandDraftFromMe(me: MeDto): BrandDraft {
+  return {
+    brandName: me.brand?.brandName ?? "",
+    handle: me.brand?.handle ?? "",
+    niche: me.brand?.niche ?? "",
+    audience: me.brand?.audience ?? "",
+    objective: me.brand?.objective ?? "",
+    tone: me.brand?.tone ?? "",
+  };
+}
+
 function QuotaCard({ me }: { me: MeDto }) {
   const { access } = me.billing;
   if (access.kind === "TRIAL" && access.allowed) {
@@ -91,6 +113,8 @@ export function CarouselHome() {
   const [target, setTarget] = useState("");
   const [analysis, setAnalysis] = useState<{ id: string; target: string; summary: string } | null>(null);
   const [toDelete, setToDelete] = useState<CarouselSummaryDto | null>(null);
+  const [brandDraft, setBrandDraft] = useState<BrandDraft>(EMPTY_BRAND);
+  const [brandNotice, setBrandNotice] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -100,6 +124,7 @@ export function CarouselHome() {
         carouselApi<{ carousels: CarouselSummaryDto[] }>("/api/carousel/projects"),
       ]);
       setMe(meData);
+      setBrandDraft(brandDraftFromMe(meData));
       setTopics(topicData.topics);
       setCarousels(listData.carousels);
     } catch (e) {
@@ -142,7 +167,23 @@ export function CarouselHome() {
     if (result) setAnalysis(result.analysis);
   }
 
+  async function saveBrand() {
+    const saved = await run("brand", () => carouselApi<{ brand: NonNullable<MeDto["brand"]> }>("/api/carousel/brand", { method: "PUT", body: brandDraft }));
+    if (!saved) return;
+    setMe((current) => (current ? { ...current, brand: saved.brand } : current));
+    setBrandDraft({
+      brandName: saved.brand.brandName ?? "",
+      handle: saved.brand.handle ?? "",
+      niche: saved.brand.niche ?? "",
+      audience: saved.brand.audience ?? "",
+      objective: saved.brand.objective ?? "",
+      tone: saved.brand.tone ?? "",
+    });
+    setBrandNotice("Perfil salvo. As próximas pautas já usarão esse nicho.");
+  }
+
   const canCreate = me?.billing.access.allowed ?? false;
+  const hasNiche = brandDraft.niche.trim().length > 0;
   const tabs: Array<[typeof tab, string]> = [
     ["topics", "Pautas"],
     ["theme", "Meu tema"],
@@ -159,6 +200,119 @@ export function CarouselHome() {
         </p>
       ) : null}
       {me ? <QuotaCard me={me} /> : <p className="text-sm text-zinc-500">Carregando…</p>}
+
+      <section aria-labelledby="perfil-conteudo" className="rounded-lg border border-zinc-200 p-4 sm:p-5">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 id="perfil-conteudo" className="text-base font-semibold text-zinc-900">Perfil do conteúdo</h2>
+            <p className="mt-1 text-sm text-zinc-600">Defina os nichos e o contexto do seu perfil para a IA sugerir pautas fora do genérico.</p>
+          </div>
+          {hasNiche ? <span className="rounded-full bg-teal-50 px-3 py-1 text-xs font-medium text-teal-800">Nicho definido</span> : null}
+        </div>
+        <form
+          className="mt-4 grid gap-3"
+          onSubmit={(event) => {
+            event.preventDefault();
+            void saveBrand();
+          }}
+        >
+          <label className="block text-sm font-medium text-zinc-800" htmlFor="brand-niche">
+            Nichos do perfil
+            <input
+              id="brand-niche"
+              value={brandDraft.niche}
+              onChange={(event) => {
+                setBrandNotice(null);
+                setBrandDraft((current) => ({ ...current, niche: event.target.value }));
+              }}
+              maxLength={80}
+              className="mt-1 min-h-11 w-full rounded-md border border-zinc-300 px-3 text-base font-normal"
+              placeholder="Ex.: confeitaria artesanal, estética, mercado imobiliário"
+            />
+          </label>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="block text-sm font-medium text-zinc-800" htmlFor="brand-name">
+              Nome da marca ou perfil
+              <input
+                id="brand-name"
+                value={brandDraft.brandName}
+                onChange={(event) => {
+                  setBrandNotice(null);
+                  setBrandDraft((current) => ({ ...current, brandName: event.target.value }));
+                }}
+                maxLength={60}
+                className="mt-1 min-h-11 w-full rounded-md border border-zinc-300 px-3 text-base font-normal"
+                placeholder="Ex.: Studio Ana"
+              />
+            </label>
+            <label className="block text-sm font-medium text-zinc-800" htmlFor="brand-handle">
+              @ do Instagram
+              <input
+                id="brand-handle"
+                value={brandDraft.handle}
+                onChange={(event) => {
+                  setBrandNotice(null);
+                  setBrandDraft((current) => ({ ...current, handle: event.target.value }));
+                }}
+                maxLength={40}
+                className="mt-1 min-h-11 w-full rounded-md border border-zinc-300 px-3 text-base font-normal"
+                placeholder="@seuperfil"
+              />
+            </label>
+          </div>
+          <label className="block text-sm font-medium text-zinc-800" htmlFor="brand-audience">
+            Público-alvo
+            <input
+              id="brand-audience"
+              value={brandDraft.audience}
+              onChange={(event) => {
+                setBrandNotice(null);
+                setBrandDraft((current) => ({ ...current, audience: event.target.value }));
+              }}
+              maxLength={200}
+              className="mt-1 min-h-11 w-full rounded-md border border-zinc-300 px-3 text-base font-normal"
+              placeholder="Ex.: mulheres de 25 a 45 anos que querem emagrecer com saúde"
+            />
+          </label>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="block text-sm font-medium text-zinc-800" htmlFor="brand-objective">
+              Objetivo
+              <input
+                id="brand-objective"
+                value={brandDraft.objective}
+                onChange={(event) => {
+                  setBrandNotice(null);
+                  setBrandDraft((current) => ({ ...current, objective: event.target.value }));
+                }}
+                maxLength={200}
+                className="mt-1 min-h-11 w-full rounded-md border border-zinc-300 px-3 text-base font-normal"
+                placeholder="Ex.: atrair clientes para orçamento"
+              />
+            </label>
+            <label className="block text-sm font-medium text-zinc-800" htmlFor="brand-tone">
+              Tom de voz
+              <input
+                id="brand-tone"
+                value={brandDraft.tone}
+                onChange={(event) => {
+                  setBrandNotice(null);
+                  setBrandDraft((current) => ({ ...current, tone: event.target.value }));
+                }}
+                maxLength={120}
+                className="mt-1 min-h-11 w-full rounded-md border border-zinc-300 px-3 text-base font-normal"
+                placeholder="Ex.: simples, direto e acolhedor"
+              />
+            </label>
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <Button type="submit" disabled={busy !== null || !hasNiche}>
+              {busy === "brand" ? "Salvando…" : "Salvar nicho"}
+            </Button>
+            {brandNotice ? <p className="text-sm text-teal-800">{brandNotice}</p> : null}
+            {!hasNiche ? <p className="text-sm text-red-700">Preencha pelo menos um nicho para receber pautas sugeridas.</p> : null}
+          </div>
+        </form>
+      </section>
 
       <section aria-labelledby="novo" className="rounded-lg border border-zinc-200 p-4 sm:p-5">
         <h2 id="novo" className="text-base font-semibold text-zinc-900">Novo carrossel</h2>
