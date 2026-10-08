@@ -13,6 +13,7 @@ import { VideoHighlight } from "@/components/home/VideoHighlight";
 import { BenefitsSection } from "@/components/home/BenefitsSection";
 import { HomeCTA } from "@/components/home/HomeCTA";
 import { AgendaHomeCard } from "@/components/agenda/AgendaHomeCard";
+import { SecretSantaHomeCard } from "@/components/secret-santa/SecretSantaHomeCard";
 import { MobileHome } from "@/components/mobile/MobileHome";
 
 export const metadata: Metadata = buildPageMetadata({
@@ -58,6 +59,7 @@ export default function HomePage() {
 
       {/* Só aparece para quem está logado (busca no navegador — a home continua estática). */}
       <AgendaHomeCard />
+      <SecretSantaHomeCard />
 
       <FeaturedTools />
       <InstagramHighlight />

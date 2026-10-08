@@ -63,6 +63,9 @@ const agendaLink: NavigationLink = { href: "/agenda", label: "Agenda", icon: "ca
 // Mesada (/mesada) — mesada, cofrinho, metas e tarefas dos filhos (área privada).
 const mesadaLink: NavigationLink = { href: "/mesada", label: "Mesada", icon: "piggy-bank" };
 
+// Amigo Secreto (/amigo-secreto) — sorteio privado entre amigos e família (área privada).
+const secretSantaLink: NavigationLink = { href: "/amigo-secreto", label: "Amigo Secreto", icon: "gift" };
+
 function isActiveLink(pathname: string, href: string) {
   if (href === "/" || href === "/utilitarios") {
     return pathname === href;
@@ -320,6 +323,7 @@ function NavigationList({
         <NavigationItem link={videosCategoryLink} pathname={pathname} onNavigate={onNavigate} />
         <NavigationItem link={agendaLink} pathname={pathname} onNavigate={onNavigate} />
         <NavigationItem link={mesadaLink} pathname={pathname} onNavigate={onNavigate} />
+        <NavigationItem link={secretSantaLink} pathname={pathname} onNavigate={onNavigate} />
         {categoryLinks.map((link) => (
           <NavigationItem
             key={link.href}
