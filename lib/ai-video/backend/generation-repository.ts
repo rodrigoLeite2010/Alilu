@@ -52,6 +52,11 @@ export interface AiVideoGenerationRecord {
   listCreditCost: number | null;
   postprocessAttempts: number;
   userFeedback: "LIKED" | null;
+  /** Isenção de créditos (admin): nada foi reservado/debitado. creditCost = equivalente em créditos. */
+  creditBypass: boolean;
+  /** Créditos realmente cobrados da carteira (0 na isenção). */
+  creditsCharged: number | null;
+  bypassReason: string | null;
 }
 
 const date = (value: unknown) => (value ? new Date(value as string) : null);
@@ -99,6 +104,9 @@ function mapGeneration(row: Record<string, unknown>): AiVideoGenerationRecord {
     listCreditCost: numOrNull(row.list_credit_cost),
     postprocessAttempts: Number(row.postprocess_attempts ?? 0),
     userFeedback: row.user_feedback === "LIKED" ? "LIKED" : null,
+    creditBypass: Boolean(row.credit_bypass),
+    creditsCharged: numOrNull(row.credits_charged),
+    bypassReason: (row.bypass_reason as string | null) ?? null,
   };
 }
 
@@ -139,6 +147,8 @@ export interface InsertGenerationInput {
   parentGenerationId?: string | null;
   pricingKind?: "FULL" | "RETRY_DISCOUNT";
   listCreditCost?: number | null;
+  creditBypass?: boolean;
+  bypassReason?: string | null;
 }
 
 /** Insere a geração — idempotente por (user_id, idempotency_key): devolve `created: false` com a linha que já existia. */
@@ -149,14 +159,16 @@ export async function insertGenerationOnce(input: InsertGenerationInput): Promis
       user_id, idempotency_key, tier, provider, provider_model, prompt, input_image_url, duration_seconds,
       aspect_ratio, resolution, credit_cost, status, provider_estimated_cost_usd, exchange_rate_reference,
       estimated_cost_brl, revenue_allocated_brl, error_code, error_message,
-      preserve_text, overlays, parent_generation_id, pricing_kind, list_credit_cost
+      preserve_text, overlays, parent_generation_id, pricing_kind, list_credit_cost,
+      credit_bypass, credits_charged, bypass_reason
     ) values (
       ${input.userId}, ${input.idempotencyKey}, ${input.tier}, ${input.provider}, ${input.providerModel}, ${input.prompt},
       ${input.inputImageUrl}, ${input.durationSeconds}, ${input.aspectRatio}, ${input.resolution}, ${input.creditCost},
       ${input.status}, ${input.providerEstimatedCostUsd}, ${input.exchangeRateReference}, ${input.estimatedCostBrl},
       ${input.revenueAllocatedBrl}, ${input.errorCode ?? null}, ${input.errorMessage ?? null},
       ${input.preserveText ?? false}, ${JSON.stringify(input.overlays ?? [])}::jsonb, ${input.parentGenerationId ?? null},
-      ${input.pricingKind ?? "FULL"}, ${input.listCreditCost ?? null}
+      ${input.pricingKind ?? "FULL"}, ${input.listCreditCost ?? null},
+      ${input.creditBypass ?? false}, ${input.creditBypass ? 0 : null}, ${input.bypassReason ?? null}
     )
     on conflict (user_id, idempotency_key) do nothing
     returning *
@@ -348,6 +360,7 @@ export async function listDueGenerationIds(now: Date, limit: number): Promise<st
 }
 
 export interface GenerationPatch {
+  creditsCharged?: number | null;
   status?: AiVideoGenerationStatus;
   externalTaskId?: string | null;
   attempts?: number;
@@ -397,6 +410,7 @@ export async function updateGeneration(id: string, patch: GenerationPatch, lockT
       error_message = ${pick(patch.errorMessage, current.errorMessage)},
       expires_at = ${iso(pick(patch.expiresAt, current.expiresAt))},
       postprocess_attempts = ${pick(patch.postprocessAttempts, current.postprocessAttempts)},
+      credits_charged = ${pick(patch.creditsCharged, current.creditsCharged)},
       processing_lock_token = null,
       processing_lock_expires_at = null
     where id = ${id}

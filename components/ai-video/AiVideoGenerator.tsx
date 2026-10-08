@@ -139,18 +139,22 @@ function withTimeout<T>(promise: Promise<T>, ms: number, message: string): Promi
 export function AiVideoGenerator({
   userId,
   initialAvailable,
+  initialCreditBypass = false,
   options,
   initialGenerations,
   draft,
 }: {
   userId: string;
   initialAvailable: number;
+  /** Admin autorizado (decidido no servidor): sem consumo de créditos. Só afeta a tela — o servidor revalida. */
+  initialCreditBypass?: boolean;
   options: AiVideoOptionDto[];
   initialGenerations: AiVideoGenerationClientDto[];
   draft: AiVideoDraftDto | null;
 }) {
   const tiers = useMemo(() => AI_VIDEO_TIERS.filter((value) => options.some((option) => option.tier === value)), [options]);
   const [available, setAvailable] = useState(initialAvailable);
+  const [creditBypass, setCreditBypass] = useState(initialCreditBypass);
   const router = useRouter();
   const [imageUrl, setImageUrl] = useState<string | null>(draft?.inputImageUrl ?? null);
   /** Prévia local enquanto a imagem sobe (celular). */
@@ -242,9 +246,10 @@ export function AiVideoGenerator({
           const force = generation && Date.now() - new Date(generation.createdAt).getTime() >= SLOW_GENERATION_MS;
           const response = await fetch(`/api/ai-video/generations/${id}${force ? "?force=1" : ""}`, { cache: "no-store" });
           if (!response.ok) continue;
-          const payload = (await response.json()) as { generation: AiVideoGenerationClientDto; wallet: { available: number } };
+          const payload = (await response.json()) as { generation: AiVideoGenerationClientDto; wallet: { available: number; creditBypass?: boolean } };
           setGenerations((list) => list.map((item) => (item.id === id ? payload.generation : item)));
           setAvailable(payload.wallet.available);
+          setCreditBypass(Boolean(payload.wallet.creditBypass));
         } catch {
           // tenta de novo no próximo ciclo
         }
@@ -373,7 +378,7 @@ export function AiVideoGenerator({
       setError("Escolha uma qualidade e uma duração disponíveis.");
       return;
     }
-    if (available < cost) {
+    if (!creditBypass && available < cost) {
       setInsufficient({ required: cost, available });
       return;
     }
@@ -408,9 +413,10 @@ export function AiVideoGenerator({
         try {
           const list = await fetch("/api/ai-video/generations", { cache: "no-store" });
           if (list.ok) {
-            const data = (await list.json()) as { generations: AiVideoGenerationClientDto[]; wallet: { available: number } };
+            const data = (await list.json()) as { generations: AiVideoGenerationClientDto[]; wallet: { available: number; creditBypass?: boolean } };
             setGenerations(data.generations);
             setAvailable(data.wallet.available);
+            setCreditBypass(Boolean(data.wallet.creditBypass));
           }
         } catch {
           // a mensagem já orienta o usuário
@@ -418,9 +424,10 @@ export function AiVideoGenerator({
         return;
       }
       if (!response.ok) throw new Error(await readErrorMessage(response, "Não foi possível iniciar a geração."));
-      const payload = (await response.json()) as { generation: AiVideoGenerationClientDto; wallet: { available: number } };
+      const payload = (await response.json()) as { generation: AiVideoGenerationClientDto; wallet: { available: number; creditBypass?: boolean } };
       setGenerations((list) => [payload.generation, ...list.filter((item) => item.id !== payload.generation.id)]);
       setAvailable(payload.wallet.available);
+          setCreditBypass(Boolean(payload.wallet.creditBypass));
       setRetryOf(null);
       idempotencyKeyRef.current = newIdempotencyKey();
       historyRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -438,9 +445,13 @@ export function AiVideoGenerator({
         <p className="text-sm text-zinc-700">
           Saldo: <strong className="text-zinc-900">{formatCredits(available)}</strong>
         </p>
-        <LinkButton href="/minha-conta/creditos-ia" variant="secondary">
-          Comprar créditos
-        </LinkButton>
+        {creditBypass ? (
+          <p className="text-sm font-medium text-teal-800">Uso administrativo — sem consumo de créditos</p>
+        ) : (
+          <LinkButton href="/minha-conta/creditos-ia" variant="secondary">
+            Comprar créditos
+          </LinkButton>
+        )}
       </div>
 
       {notice ? (
@@ -610,9 +621,13 @@ export function AiVideoGenerator({
               ) : null}
             </p>
             <p>Seu saldo: {formatCredits(available)}</p>
-            <p>
-              Saldo após geração: {available >= cost ? formatCredits(available - cost) : <span className="text-red-700">saldo insuficiente</span>}
-            </p>
+            {creditBypass ? (
+              <p>Uso administrativo — sem consumo de créditos (seu saldo não muda).</p>
+            ) : (
+              <p>
+                Saldo após geração: {available >= cost ? formatCredits(available - cost) : <span className="text-red-700">saldo insuficiente</span>}
+              </p>
+            )}
           </div>
         ) : null}
 
@@ -746,6 +761,7 @@ export function AiVideoGenerator({
           setIssueFor(null);
           setGenerations((list) => list.map((item) => (item.id === payload.generation.id ? payload.generation : item)));
           setAvailable(payload.wallet.available);
+          setCreditBypass(Boolean(payload.wallet.creditBypass));
           setNotice(
             payload.resolution === "REFUNDED"
               ? `Confirmamos o defeito no vídeo e devolvemos ${formatCredits(payload.refundedCredits)}.`
@@ -792,7 +808,7 @@ interface IssueResponse {
   resolution: "REFUNDED" | "RETRY_OFFERED" | "PENDING_REVIEW";
   refundedCredits: number;
   generation: AiVideoGenerationClientDto;
-  wallet: { available: number };
+  wallet: { available: number; creditBypass?: boolean };
 }
 
 function IssueDialog({

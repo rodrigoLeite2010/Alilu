@@ -13,6 +13,7 @@ import {
 import { economicsForCredits, providerCostUsd, retryCreditCost } from "../pricing";
 import { OverlayValidationError, validateOverlays, type AiVideoOverlay } from "../overlays";
 import { getActiveModelPricing, getActivePricingConfig, listModelPricing } from "./pricing-repository";
+import { canBypassAiCredits, AI_CREDIT_BYPASS_REASON_ADMIN } from "./credit-bypass";
 import { applyWalletMovement, consumeDeliveredGeneration, ensureWallet, getWallet, grantWelcomeBonusOnce, type WalletRecord } from "./wallet-repository";
 import {
   claimGeneration,
@@ -272,6 +273,9 @@ export async function createGeneration(
     throw new AiVideoError("Você atingiu o limite de gerações por hora. Tente novamente em alguns minutos.", "HOURLY_LIMIT", 429);
   }
 
+  // Isenção (admin autorizado): decidida AQUI, no servidor, pelo usuário autenticado.
+  const bypass = await canBypassAiCredits(userId);
+
   const base = {
     userId,
     idempotencyKey: input.idempotencyKey,
@@ -287,7 +291,10 @@ export async function createGeneration(
     providerEstimatedCostUsd: quote.providerCostUsd,
     exchangeRateReference: config.usdBrlReferenceRate,
     estimatedCostBrl: quote.estimatedCostBrl,
-    revenueAllocatedBrl: quote.revenueBrl,
+    // Isenção: nenhuma receita é alocada (o custo do provedor fica registrado como custo operacional).
+    revenueAllocatedBrl: bypass ? 0 : quote.revenueBrl,
+    creditBypass: bypass,
+    bypassReason: bypass ? AI_CREDIT_BYPASS_REASON_ADMIN : null,
     preserveText,
     overlays,
     parentGenerationId,
@@ -297,7 +304,7 @@ export async function createGeneration(
 
   // Trava de preço: protege contra mudança de preço do provedor, modelo
   // errado, duração inesperada ou configuração incorreta.
-  const guard = await evaluatePriceGuard(quote, now, { skipMarginCheck: parentGenerationId !== null });
+  const guard = await evaluatePriceGuard(quote, now, { skipMarginCheck: parentGenerationId !== null || bypass });
   if (guard) {
     const { generation } = await insertGenerationOnce({ ...base, status: "PRICE_GUARD_BLOCKED", errorCode: guard.code, errorMessage: guard.adminMessage });
     console.error("[ai-video] PRICE_GUARD_BLOCKED", {
@@ -314,7 +321,10 @@ export async function createGeneration(
   const { created, generation } = await insertGenerationOnce({ ...base, status: "CREATED" });
   if (!created) return (await recoverCompletedProviderResult(generation, now)) ?? generation;
 
-  const reserve = await applyWalletMovement({
+  // Admin isento: sem reserva e sem bloqueio por saldo; a geração segue normalmente.
+  const reserve = bypass
+    ? ({ status: "applied" } as const)
+    : await applyWalletMovement({
     userId,
     type: "RESERVE",
     availableDelta: -quote.credits,
@@ -378,6 +388,33 @@ async function refundGeneration(
   now: Date,
   failure: { kind: "USER_ERROR" | "TECHNICAL_ERROR"; code: string; message: string; providerCharged: boolean },
 ): Promise<void> {
+  if (generation.creditBypass) {
+    // Isenção: nada foi debitado, então NÃO há devolução fictícia. O erro fica registrado.
+    await updateGeneration(
+      generation.id,
+      {
+        status: "FAILED",
+        errorKind: failure.kind,
+        errorCode: failure.code,
+        errorMessage: failure.message.replace(/\s*Seus créditos foram devolvidos\./, "").slice(0, 1000),
+        providerCharged: failure.providerCharged,
+        providerActualCostUsd: failure.providerCharged ? generation.providerEstimatedCostUsd : 0,
+        completedAt: now,
+        nextCheckAt: null,
+      },
+      lockToken,
+    );
+    console.warn("[ai-video] geração (admin, sem créditos) falhou — nada a devolver", {
+      generationId: generation.id,
+      userId: generation.userId,
+      provider: generation.provider,
+      model: generation.providerModel,
+      errorCode: failure.code,
+      providerCharged: failure.providerCharged,
+      creditBypass: true,
+    });
+    return;
+  }
   // Devolve PRIMEIRO (idempotente pela referência): se o processo cair
   // logo depois, o próximo ciclo marca o status sem devolver duas vezes.
   const result = await applyWalletMovement({
@@ -393,6 +430,7 @@ async function refundGeneration(
     generation.id,
     {
       status: result.status === "insufficient" ? "FAILED" : "REFUNDED",
+      creditsCharged: 0,
       errorKind: failure.kind,
       errorCode: failure.code,
       errorMessage: failure.message.slice(0, 1000),
@@ -505,13 +543,15 @@ async function finalizeGeneration(generation: AiVideoGenerationRecord, lockToken
   const grossProfitBrl = generation.revenueAllocatedBrl * netFactor - generation.estimatedCostBrl - postprocessCost;
 
   // Consome PRIMEIRO (idempotente pela referência) — mesmo raciocínio da devolução.
-  const consume = await consumeDeliveredGeneration({
-    userId: generation.userId,
-    credits: generation.creditCost,
-    referenceType: "ai_video_generation",
-    referenceId: generation.id,
-    description: `Vídeo de ${generation.durationSeconds}s gerado`,
-  });
+  const consume = generation.creditBypass
+    ? { status: "duplicate" as const, transaction: null, unrecovered: 0 }
+    : await consumeDeliveredGeneration({
+        userId: generation.userId,
+        credits: generation.creditCost,
+        referenceType: "ai_video_generation",
+        referenceId: generation.id,
+        description: `Vídeo de ${generation.durationSeconds}s gerado`,
+      });
   if (consume.unrecovered > 0) {
     console.warn("[ai-video] recuperação entregou vídeo com créditos já usados", {
       generationId: generation.id,
@@ -523,6 +563,7 @@ async function finalizeGeneration(generation: AiVideoGenerationRecord, lockToken
     generation.id,
     {
       status: "COMPLETED",
+      creditsCharged: generation.creditBypass ? 0 : generation.creditCost,
       storageVideoUrl: storageUrl,
       completedAt: now,
       nextCheckAt: null,
@@ -544,6 +585,8 @@ async function finalizeGeneration(generation: AiVideoGenerationRecord, lockToken
     tier: generation.tier,
     durationSeconds: generation.durationSeconds,
     credits: generation.creditCost,
+    creditsCharged: generation.creditBypass ? 0 : generation.creditCost,
+    creditBypass: generation.creditBypass,
     pricingKind: generation.pricingKind,
     overlays: generation.overlays.length,
     providerCostUsd: generation.providerEstimatedCostUsd,

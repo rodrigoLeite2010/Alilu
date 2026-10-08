@@ -81,8 +81,10 @@ export async function reportGenerationIssue(
   if (AI_VIDEO_ISSUE_TYPES_REVALIDATED.includes(issueType)) {
     const check = await revalidateStoredVideo(generation);
     if (check === "INVALID") {
-      // Créditos já consumidos voltam ao disponível (idempotente pela referência).
-      const refund = await applyWalletMovement({
+      // Créditos já consumidos voltam ao disponível (idempotente pela referência). Admin isento: nada foi cobrado.
+      const refund = generation.creditBypass
+        ? ({ status: "duplicate" } as const)
+        : await applyWalletMovement({
         userId,
         type: "REFUND",
         availableDelta: generation.creditCost,

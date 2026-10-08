@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { AiVideoError, createGeneration } from "@/lib/ai-video/backend/generation-service";
 import { listGenerationsForUser, clearDraft } from "@/lib/ai-video/backend/generation-repository";
+import { canBypassAiCredits } from "@/lib/ai-video/backend/credit-bypass";
 import { getWallet } from "@/lib/ai-video/backend/wallet-repository";
 import { serializeGenerationForUser, serializeWallet } from "@/lib/ai-video/backend/ai-video-dto";
 
@@ -13,8 +14,8 @@ export async function GET(): Promise<NextResponse> {
   const session = await auth();
   const userId = session?.user?.id;
   if (!userId) return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
-  const [generations, wallet] = await Promise.all([listGenerationsForUser(userId), getWallet(userId)]);
-  return NextResponse.json({ generations: generations.map(serializeGenerationForUser), wallet: serializeWallet(wallet) });
+  const [generations, wallet, bypass] = await Promise.all([listGenerationsForUser(userId), getWallet(userId), canBypassAiCredits(userId)]);
+  return NextResponse.json({ generations: generations.map(serializeGenerationForUser), wallet: serializeWallet(wallet, bypass) });
 }
 
 /**
@@ -52,7 +53,7 @@ export async function POST(request: Request): Promise<NextResponse> {
     });
     await clearDraft(userId);
     const wallet = await getWallet(userId);
-    return NextResponse.json({ generation: serializeGenerationForUser(generation), wallet: serializeWallet(wallet) });
+    return NextResponse.json({ generation: serializeGenerationForUser(generation), wallet: serializeWallet(wallet, await canBypassAiCredits(userId)) });
   } catch (error) {
     if (error instanceof AiVideoError) {
       return NextResponse.json({ error: error.message, code: error.code, ...error.details }, { status: error.httpStatus });

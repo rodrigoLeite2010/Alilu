@@ -238,8 +238,9 @@ async function summarize(since: Date): Promise<CostPeriodSummary> {
       count(*) filter (where status <> 'PRICE_GUARD_BLOCKED')::int as generations,
       count(*) filter (where status in ('COMPLETED', 'EXPIRED'))::int as completed,
       count(*) filter (where status in ('FAILED', 'REFUNDED'))::int as failed,
-      coalesce(sum(credit_cost) filter (where status in ('COMPLETED', 'EXPIRED')), 0) as credits_consumed,
-      coalesce(sum(credit_cost) filter (where status = 'REFUNDED'), 0) as credits_refunded,
+      coalesce(sum(credit_cost) filter (where status in ('COMPLETED', 'EXPIRED') and not credit_bypass), 0) as credits_consumed,
+      count(*) filter (where credit_bypass and status <> 'PRICE_GUARD_BLOCKED')::int as bypass_generations,
+      coalesce(sum(credit_cost) filter (where status = 'REFUNDED' and not credit_bypass), 0) as credits_refunded,
       coalesce(sum(revenue_allocated_brl) filter (where status in ('COMPLETED', 'EXPIRED')), 0) as revenue,
       coalesce(sum(estimated_cost_brl) filter (where status in ('COMPLETED', 'EXPIRED')), 0) as api_cost,
       coalesce(sum(estimated_cost_brl) filter (where status in ('FAILED', 'REFUNDED') and provider_charged), 0) as failure_cost,
@@ -306,7 +307,7 @@ export async function getCostsDashboard(now: Date = new Date()): Promise<{
   const modelRows = await db`
     select tier, provider, provider_model, count(*)::int as generations,
       coalesce(avg(estimated_cost_brl), 0) as avg_cost,
-      coalesce(sum(credit_cost), 0) as credits,
+      coalesce(sum(credit_cost) filter (where not credit_bypass), 0) as credits,
       coalesce(sum(revenue_allocated_brl), 0) as revenue,
       coalesce(sum(estimated_cost_brl), 0) as cost
     from ai_video_generations

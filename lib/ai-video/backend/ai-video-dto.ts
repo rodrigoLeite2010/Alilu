@@ -25,6 +25,8 @@ export function serializeGenerationForUser(generation: AiVideoGenerationRecord) 
     durationSeconds: generation.durationSeconds,
     aspectRatio: generation.aspectRatio,
     creditCost: generation.creditCost,
+    creditBypass: generation.creditBypass,
+    creditsCharged: generation.creditBypass ? 0 : generation.creditsCharged ?? generation.creditCost,
     status: generation.status,
     videoUrl: generation.storageVideoUrl,
     errorMessage: generation.status === "FAILED" || generation.status === "REFUNDED" ? generation.errorMessage : null,
@@ -36,8 +38,9 @@ export function serializeGenerationForUser(generation: AiVideoGenerationRecord) 
 
 export type AiVideoGenerationDto = ReturnType<typeof serializeGenerationForUser>;
 
-export function serializeWallet(wallet: WalletRecord | null) {
-  return { available: wallet?.available ?? 0, reserved: wallet?.reserved ?? 0 };
+/** `creditBypass`: isenção administrativa (decidida no servidor); o saldo real continua sendo exibido. */
+export function serializeWallet(wallet: WalletRecord | null, creditBypass = false) {
+  return { available: wallet?.available ?? 0, reserved: wallet?.reserved ?? 0, creditBypass };
 }
 
 export function serializeTransaction(transaction: CreditTransactionRecord) {

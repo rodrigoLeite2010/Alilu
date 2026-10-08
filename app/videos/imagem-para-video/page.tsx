@@ -3,6 +3,7 @@ import Link from "next/link";
 import { auth } from "@/auth";
 import { Container } from "@/components/ui/Container";
 import { AccountLoginGate } from "@/components/conta/AccountLoginGate";
+import { canBypassAiCredits } from "@/lib/ai-video/backend/credit-bypass";
 import { AiVideoGenerator } from "@/components/ai-video/AiVideoGenerator";
 import { getWalletWithWelcomeBonus, listGenerationOptions } from "@/lib/ai-video/backend/generation-service";
 import { getDraft, listGenerationsForUser } from "@/lib/ai-video/backend/generation-repository";
@@ -41,11 +42,12 @@ export default async function ImageToVideoPage() {
 }
 
 async function GeneratorSection({ userId }: { userId: string }) {
-  const [wallet, options, generations, draft] = await Promise.all([
+  const [wallet, options, generations, draft, creditBypass] = await Promise.all([
     getWalletWithWelcomeBonus(userId),
     listGenerationOptions(),
     listGenerationsForUser(userId),
     getDraft(userId),
+    canBypassAiCredits(userId),
   ]);
   if (options.length === 0) {
     return <p className="rounded-md border border-dashed border-zinc-300 p-6 text-center text-sm text-zinc-600">A geração de vídeos está temporariamente indisponível.</p>;
@@ -54,6 +56,7 @@ async function GeneratorSection({ userId }: { userId: string }) {
     <AiVideoGenerator
       userId={userId}
       initialAvailable={wallet.available}
+      initialCreditBypass={creditBypass}
       options={options}
       initialGenerations={generations.map(serializeGenerationForUser)}
       draft={draft}
