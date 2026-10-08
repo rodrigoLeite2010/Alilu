@@ -60,6 +60,9 @@ const videosCategoryLink: NavigationLink = {
 // Agenda pessoal (/agenda) — compromissos com lembrete por e-mail.
 const agendaLink: NavigationLink = { href: "/agenda", label: "Agenda", icon: "calendar" };
 
+// Mesada (/mesada) — mesada, cofrinho, metas e tarefas dos filhos (área privada).
+const mesadaLink: NavigationLink = { href: "/mesada", label: "Mesada", icon: "piggy-bank" };
+
 function isActiveLink(pathname: string, href: string) {
   if (href === "/" || href === "/utilitarios") {
     return pathname === href;
@@ -316,6 +319,7 @@ function NavigationList({
         <NavigationItem link={lotteriesCategoryLink} pathname={pathname} onNavigate={onNavigate} />
         <NavigationItem link={videosCategoryLink} pathname={pathname} onNavigate={onNavigate} />
         <NavigationItem link={agendaLink} pathname={pathname} onNavigate={onNavigate} />
+        <NavigationItem link={mesadaLink} pathname={pathname} onNavigate={onNavigate} />
         {categoryLinks.map((link) => (
           <NavigationItem
             key={link.href}
