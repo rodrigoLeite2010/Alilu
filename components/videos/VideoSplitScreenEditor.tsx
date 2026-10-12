@@ -347,6 +347,17 @@ function VideoUploadSlot({
         onFileChange(readable);
       })
       .catch((error: unknown) => {
+        if (isConstrainedMobileUploadEnvironment()) {
+          failedFileRef.current = null;
+          setCanRetry(false);
+          trackUpload("split-screen", "prepare_done", {
+            file: original,
+            message: `pré-leitura falhou; tentando upload direto no celular: ${readFailureReason(error)}`,
+          });
+          setLocalFileError(null);
+          onFileChange(normalizedFile);
+          return;
+        }
         if (input) input.value = "";
         failedFileRef.current = { normalized: normalizedFile, original };
         setCanRetry(true);

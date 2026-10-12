@@ -121,6 +121,29 @@ describe("VideoSplitScreenEditor — upload dos dois vídeos", () => {
     expect(uploadPresignedMock.mock.calls[1][1]).toMatchObject({ type: "video/mp4" });
   });
 
+  it("no celular não bloqueia o vídeo quando só a pré-leitura local falha", async () => {
+    mockUserAgent("Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 Chrome/140.0 Mobile Safari/537.36");
+    const picked = makeVideoFile("google-fotos.mp4");
+    const notReadable = Object.assign(new Error("The requested file could not be read"), { name: "NotReadableError" });
+    vi.spyOn(picked, "slice").mockReturnValue({
+      arrayBuffer: () => Promise.reject(notReadable),
+      stream: () => ({
+        getReader: () => ({
+          read: () => Promise.reject(notReadable),
+        }),
+      }),
+    } as unknown as Blob);
+
+    renderEditor();
+    fireEvent.change(screen.getByLabelText("Vídeo principal (fica em cima)"), {
+      target: { files: [picked] },
+    });
+
+    expect(await screen.findByTestId("preview-video-primary")).toBeInTheDocument();
+    expect(screen.getByTestId("video-slot-primary")).toHaveTextContent("google-fotos.mp4");
+    expect(screen.queryByText(/O celular não liberou a leitura/)).not.toBeInTheDocument();
+  }, 25_000);
+
   it("rejeita um arquivo de formato não suportado, com mensagem amigável, e nunca cria o preview", () => {
     renderEditor();
 
