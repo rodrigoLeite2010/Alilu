@@ -135,6 +135,10 @@ const SPLIT_SCREEN_RESULT_DRAFT_KEY = "alilu.videos.splitScreenResult.v1";
  */
 const PROCESSING_TO_FINALIZING_DELAY_MS = 8000;
 const FRAMING_STEP = 0.05;
+const MOBILE_VIDEO_MATERIALIZE_MAX_BYTES = 8 * 1024 * 1024;
+const DESKTOP_VIDEO_MATERIALIZE_MAX_BYTES = 60 * 1024 * 1024;
+const UPLOAD_STALL_TIMEOUT_MS = 60_000;
+const PROCESSING_RESPONSE_TIMEOUT_MS = 210_000;
 
 function formatClock(totalSeconds: number): string {
   const safeSeconds = Math.max(0, Math.floor(totalSeconds));
@@ -190,6 +194,17 @@ async function readErrorMessage(response: Response, fallback: string): Promise<s
 
 function buildResultFilename(prefix = "alilu-split-screen"): string {
   return `${prefix}-${Date.now()}.mp4`;
+}
+
+function isConstrainedMobileUploadEnvironment(): boolean {
+  if (typeof navigator === "undefined") return false;
+  const nav = navigator as Navigator & { userAgentData?: { mobile?: boolean } };
+  if (nav.userAgentData?.mobile) return true;
+  return /Android|iPhone|iPad|iPod|Mobile/i.test(nav.userAgent);
+}
+
+function materializeLimitForCurrentDevice(): number {
+  return isConstrainedMobileUploadEnvironment() ? MOBILE_VIDEO_MATERIALIZE_MAX_BYTES : DESKTOP_VIDEO_MATERIALIZE_MAX_BYTES;
 }
 
 function triggerBrowserDownload(blob: Blob, filename: string) {
@@ -319,6 +334,7 @@ function VideoUploadSlot({
     setChecking(true);
     // Celular: confirma que o arquivo pode ser lido (e copia para a memória) antes de usar.
     ensureReadableFile(normalizedFile, {
+      materializeUpTo: materializeLimitForCurrentDevice(),
       allowOriginalWhenMaterializeFails: true,
       onMaterializeFailure: (reason) => {
         trackUpload("split-screen", "prepare_done", { file: original, message: `sem cópia em memória: ${reason}` });
@@ -868,6 +884,7 @@ export function VideoSplitScreenEditor({
     setUploadPercent(0);
 
     const jobId = typeof crypto.randomUUID === "function" ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const mobileUpload = isConstrainedMobileUploadEnvironment();
     const totalBytes = primary.file.size + secondary.file.size;
     const loaded = { primary: 0, secondary: 0 };
     const reportProgress = (key: "primary" | "secondary", bytes: number) => {
@@ -887,8 +904,13 @@ export function VideoSplitScreenEditor({
       }
       trackUpload("split-screen", "upload_start", { file, message: `job ${jobId} ${key}` });
       // Envio parado sem progresso por 60 s = cancela e avisa (antes ficava travado para sempre).
-      const guard = createStallGuard(60_000);
+      const guard = createStallGuard(UPLOAD_STALL_TIMEOUT_MS);
       const startedAt = Date.now();
+      if (mobileUpload) {
+        // Celular: evita upload por ReadableStream e upload paralelo com dois vídeos,
+        // ambos instáveis em Safari/Chrome móveis com arquivos grandes.
+        setSlotPercent((current) => ({ ...current, [key]: -1 }));
+      }
       try {
         const { result, usedFallback } = await uploadPresignedResilient(
           buildUploadPathname(file),
@@ -898,10 +920,14 @@ export function VideoSplitScreenEditor({
             handleUploadUrl: "/api/videos/upload",
             clientPayload: JSON.stringify({ originalFilename: file.name, fileSizeBytes: file.size, contentType: file.type }),
             abortSignal: guard.signal,
-            onUploadProgress: ({ loaded: bytes }) => {
-              guard.touch();
-              reportProgress(key, bytes);
-            },
+            ...(mobileUpload
+              ? {}
+              : {
+                  onUploadProgress: ({ loaded: bytes }) => {
+                    guard.touch();
+                    reportProgress(key, bytes);
+                  },
+                }),
           },
           {
             onFallback: (firstError) => {
@@ -933,11 +959,20 @@ export function VideoSplitScreenEditor({
     };
 
     try {
-      // Os dois em paralelo, cada um com o próprio token/controller; se um falhar, o outro termina e fica guardado.
-      const settled = await Promise.allSettled([uploadOne("primary", primary.file), uploadOne("secondary", secondary.file)]);
-      const failed = settled.find((item): item is PromiseRejectedResult => item.status === "rejected");
-      if (failed) throw failed.reason;
-      const [primaryUpload, secondaryUpload] = settled.map((item) => (item as PromiseFulfilledResult<{ url: string }>).value);
+      let primaryUpload: { url: string };
+      let secondaryUpload: { url: string };
+      if (mobileUpload) {
+        // Celular: upload sequencial reduz pico de memória, rádio de rede e chance
+        // de o navegador matar a aba enquanto dois arquivos grandes sobem juntos.
+        primaryUpload = await uploadOne("primary", primary.file);
+        secondaryUpload = await uploadOne("secondary", secondary.file);
+      } else {
+        // Desktop: mantém o fluxo rápido em paralelo, cada vídeo com token/controller próprio.
+        const settled = await Promise.allSettled([uploadOne("primary", primary.file), uploadOne("secondary", secondary.file)]);
+        const failed = settled.find((item): item is PromiseRejectedResult => item.status === "rejected");
+        if (failed) throw failed.reason;
+        [primaryUpload, secondaryUpload] = settled.map((item) => (item as PromiseFulfilledResult<{ url: string }>).value);
+      }
 
       setStage("processando");
       setProcessingLabel("Processando...");
@@ -949,9 +984,12 @@ export function VideoSplitScreenEditor({
 
       // A partir daqui o servidor apaga as entradas (sucesso ou erro): não reaproveita mais.
       uploadedRef.current = {};
+      const processingController = new AbortController();
+      const processingTimeout = window.setTimeout(() => processingController.abort(), PROCESSING_RESPONSE_TIMEOUT_MS);
       const response = await fetch("/api/videos/split-screen", {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-split-job-id": jobId },
+        signal: processingController.signal,
         body: JSON.stringify({
           primaryBlobUrl: primaryUpload.url,
           secondaryBlobUrl: secondaryUpload.url,
@@ -968,7 +1006,14 @@ export function VideoSplitScreenEditor({
         }),
       }).catch((error: unknown) => {
         trackUpload("split-screen", "processing_error", { message: `job ${jobId} rede: ${error instanceof Error ? error.message : "erro"}` });
-        throw new Error("Os vídeos foram enviados, mas a resposta do processamento não chegou (conexão caiu ou demorou demais). Tente de novo.");
+        const aborted = error instanceof DOMException && error.name === "AbortError";
+        throw new Error(
+          aborted
+            ? "Os vídeos foram enviados, mas o processamento demorou demais para responder. Tente um trecho mais curto ou vídeos em 1080p."
+            : "Os vídeos foram enviados, mas a resposta do processamento não chegou (conexão caiu ou demorou demais). Tente de novo.",
+        );
+      }).finally(() => {
+        window.clearTimeout(processingTimeout);
       });
 
       if (!response.ok) {

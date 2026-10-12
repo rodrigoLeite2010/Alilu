@@ -23,6 +23,7 @@ vi.mock("next/navigation", () => ({
 }));
 
 const { VideoSplitScreenEditor } = await import("@/components/videos/VideoSplitScreenEditor");
+const DEFAULT_TEST_USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/140.0 Safari/537.36";
 
 function makeVideoFile(name: string, type = "video/mp4"): File {
   return new File([new Uint8Array(10)], name, { type });
@@ -36,6 +37,13 @@ function getSplitScreenRequestInit(): RequestInit {
   const call = (global.fetch as ReturnType<typeof vi.fn>).mock.calls.find(([url]) => url === "/api/videos/split-screen");
   if (!call) throw new Error("Chamada para /api/videos/split-screen não encontrada.");
   return call[1] as RequestInit;
+}
+
+function mockUserAgent(userAgent: string) {
+  Object.defineProperty(window.navigator, "userAgent", {
+    configurable: true,
+    value: userAgent,
+  });
 }
 
 function setVideoDuration(videoEl: HTMLVideoElement, seconds: number) {
@@ -53,6 +61,7 @@ async function selectFile(label: string, previewTestId: string, file: File, dura
 }
 
 beforeEach(() => {
+  mockUserAgent(DEFAULT_TEST_USER_AGENT);
   URL.createObjectURL = vi.fn(() => "blob:preview");
   URL.revokeObjectURL = vi.fn();
   vi.spyOn(window.HTMLMediaElement.prototype, "load").mockImplementation(() => undefined);
@@ -252,6 +261,37 @@ describe("VideoSplitScreenEditor — fluxo completo de geração", () => {
     const body = JSON.parse(requestInit.body as string);
     expect(body.primaryFraming).toEqual({ positionX: 0, positionY: 0, zoom: 1.5 });
     expect(body.secondaryFraming).toEqual({ positionX: 0, positionY: 0, zoom: 1 });
+  });
+
+  it("no celular envia os vídeos em sequência e sem upload por stream/progresso fino", async () => {
+    mockUserAgent("Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148 Safari/604.1");
+    const order: string[] = [];
+    uploadPresignedMock.mockImplementation(
+      (pathname: string, file: File, options: { onUploadProgress?: unknown }) =>
+        new Promise((resolve) => {
+          order.push(`start:${file.name}:${options.onUploadProgress ? "stream" : "plain"}`);
+          setTimeout(() => {
+            order.push(`done:${file.name}`);
+            resolve({ url: `https://blob.example.com/${pathname}` });
+          }, file.name === "principal.mp4" ? 20 : 0);
+        }),
+    );
+
+    renderEditor();
+    await selectFile("Vídeo principal (fica em cima)", "preview-video-primary", makeVideoFile("principal.mp4"), 10);
+    await selectFile("Vídeo complementar (fica embaixo)", "preview-video-secondary", makeVideoFile("complementar.mp4"), 4);
+
+    fireEvent.click(screen.getByTestId("generate-button"));
+
+    await waitFor(() => expect(global.fetch).toHaveBeenCalledWith("/api/videos/split-screen", expect.anything()));
+    expect(order).toEqual([
+      "start:principal.mp4:plain",
+      "done:principal.mp4",
+      "start:complementar.mp4:plain",
+      "done:complementar.mp4",
+    ]);
+    expect(uploadPresignedMock.mock.calls[0][2]).not.toHaveProperty("onUploadProgress");
+    expect(uploadPresignedMock.mock.calls[1][2]).not.toHaveProperty("onUploadProgress");
   });
 
   it('mostra uma mensagem de erro quando a rota de processamento falha, sem quebrar a interface', async () => {
