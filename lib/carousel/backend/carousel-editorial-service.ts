@@ -91,8 +91,8 @@ export interface EditorialDeps {
   /** true = o tema NÃO é criação de conteúdo: texto com esse viés é refeito (uma vez). */
   forbidCreatorTopics?: boolean;
   trace?: GenerationTrace;
-  /** Perfil de marca reduzido (só nome e tom): o público/objetivo do perfil não entra no prompt. */
-  neutralBrand?: boolean;
+  /** Perfil de marca reduzido (só nome e tom): o público/objetivo do perfil não entra no prompt. "FULL" = nada do perfil entra. */
+  neutralBrand?: boolean | "FULL";
 }
 
 function getLlm(deps: EditorialDeps): CarouselLlm {
@@ -108,7 +108,9 @@ function todayLabel(now: Date): string {
   return now.toISOString().slice(0, 10);
 }
 
-function brandContext(brand: Awaited<ReturnType<typeof getCarouselBrand>>, niche: string | null, neutral = false): BrandContext {
+function brandContext(brand: Awaited<ReturnType<typeof getCarouselBrand>>, niche: string | null, neutral: boolean | "FULL" = false): BrandContext {
+  // Piloto com prompt próprio (ex.: outra empresa/conta): o perfil de marca do usuário não pode sobrepor a marca do prompt.
+  if (neutral === "FULL") return { brandName: null, niche, audience: null, objective: null, tone: null };
   return {
     brandName: brand?.brandName ?? null,
     niche: niche ?? brand?.niche ?? null,

@@ -179,12 +179,16 @@ export function SmartCarouselPanel({ automationId, userId, initial }: { automati
           <div>
             <label htmlFor={`${baseId}-topic-source`} className="mb-1 block text-xs text-zinc-600">De onde vem o tema</label>
             <select id={`${baseId}-topic-source`} className={field} value={config.topicSource} onChange={(e) => patch({ topicSource: e.target.value as SmartCarouselConfig["topicSource"] })}>
-              <option value="AUTO">Automático: a Alilu escolhe categoria e tema (o prompt define só o estilo)</option>
+              <option value="AUTO">Automático: segue o seu prompt (marca, assuntos e chamada final) e varia o tema a cada carrossel</option>
               <option value="PROMPT">Usar o texto do prompt como tema (modo antigo)</option>
             </select>
           </div>
           {config.topicSource === "AUTO" ? (
             <>
+              <p className="text-xs text-zinc-500">
+                Se o seu prompt listar os assuntos (ex.: &quot;explore um tema diferente: assunto 1, assunto 2, assunto 3&quot;), cada carrossel usa um deles,
+                sem repetir. As categorias abaixo só valem quando o prompt não lista assuntos.
+              </p>
               <p className="text-xs text-zinc-500">
                 Marque as categorias e ajuste o peso (quanto maior, mais frequente). Peso 0 nunca sorteia. Criação de conteúdo é só uma entre várias.
               </p>

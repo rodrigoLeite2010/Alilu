@@ -61,8 +61,8 @@ export interface GenerateCarouselRequest {
   directive?: string | null;
   /** false = o tema NÃO é criação de conteúdo (texto com esse viés é refeito). Padrão: não verifica. */
   allowCreatorTopics?: boolean;
-  /** Perfil de marca reduzido (só nome/tom) — usado pelo Piloto. */
-  neutralBrand?: boolean;
+  /** Perfil de marca reduzido (só nome/tom) — usado pelo Piloto. "FULL" = ignora o perfil inteiro (vale a marca do prompt). */
+  neutralBrand?: boolean | "FULL";
   /** Quantidade de fotos (entre `target` e `max`); sem isso, vale a regra histórica do editor. */
   photoPlan?: AutoPhotoPlan;
   /** Rastro de diagnóstico preenchido durante a geração. */
@@ -151,7 +151,7 @@ export async function generateCarouselProject(request: GenerateCarouselRequest, 
       skipCaption: request.generateCaption === false,
       directive,
       forbidCreatorTopics: request.allowCreatorTopics === false,
-      neutralBrand: request.neutralBrand === true,
+      neutralBrand: request.neutralBrand === "FULL" ? "FULL" : request.neutralBrand === true,
       trace: request.trace,
     });
     stagesRun.push("TEXT");

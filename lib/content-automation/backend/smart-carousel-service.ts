@@ -11,6 +11,7 @@ import { cachedPhotoProvider } from "@/lib/carousel/photos/photo-cache";
 import { targetPhotoCount } from "@/lib/carousel/photos/photo-plan";
 import { getCarouselCategory } from "../smart-carousel/categories";
 import { buildGenerationDirective } from "../smart-carousel/directive";
+import { extractBriefingThemes, pickBriefingTheme } from "../smart-carousel/briefing";
 import { formatCarouselDiagnostic } from "../smart-carousel/diagnostics";
 import { planCarousel, type CarouselPlan } from "../smart-carousel/planner";
 import { loadCarouselHistory, type CarouselHistory } from "../smart-carousel/history";
@@ -126,6 +127,7 @@ async function prepareSmartCarousel(
   let project: CarouselProjectRecord | null = runId ? await getProjectByAutomationRun(runId) : null;
   const reusedProject = project !== null;
   let plan: CarouselPlan | null = project ? planFromMeta(project.generationMeta) : null;
+  let topicFromPrompt = project ? project.generationMeta.topicFromPrompt === true : false;
   if (!project) {
     const history = await loadCarouselHistory(automation.id, historyWindow);
     const seed = runId ?? `preview-${automation.id}-${now.getTime()}`;
@@ -136,8 +138,15 @@ async function prepareSmartCarousel(
     if (auto) {
       // ETAPA 1 — o Alilu escolhe categoria + tema (+ estrutura e convite) sem repetir o recente.
       plan = planCarousel({ config, history, seed });
+      // Prompt que lista os assuntos da SUA empresa (ex.: "explore um tema diferente: a, b, c…"):
+      // o tema sai dessa lista, não do banco genérico de temas da Alilu.
+      const briefingTheme = pickBriefingTheme(extractBriefingThemes(day.prompt), history.topics.slice(0, config.avoidTopicWindow), seed);
+      if (briefingTheme) {
+        plan = { ...plan, topic: briefingTheme };
+        topicFromPrompt = true;
+      }
       topic = plan.topic;
-      niche = plan.categoryLabel;
+      niche = topicFromPrompt ? null : plan.categoryLabel;
       const category = getCarouselCategory(plan.categoryId);
       templateId =
         config.templateMode === "FIXED" && isCarouselTemplateId(config.templateId)
@@ -170,13 +179,14 @@ async function prepareSmartCarousel(
       project = await getProjectByAutomationRun(runId);
       if (!project) throw new CarouselError("INVALID", "Não foi possível vincular o carrossel à execução.");
       plan = planFromMeta(project.generationMeta);
+      topicFromPrompt = project.generationMeta.topicFromPrompt === true;
     } else {
       project = created;
       await mergeProjectGenerationMeta(userId, created.id, {
         schema: 2,
         topicSource: config.topicSource,
         ...(plan
-          ? { categoryId: plan.categoryId, category: plan.categoryLabel, structureId: plan.structureId, inviteId: plan.inviteId, plan, allowCreatorTopics: plan.categoryId === "CRIACAO_CONTEUDO" }
+          ? { categoryId: plan.categoryId, category: plan.categoryLabel, structureId: plan.structureId, inviteId: plan.inviteId, plan, topicFromPrompt, allowCreatorTopics: plan.categoryId === "CRIACAO_CONTEUDO" && !topicFromPrompt }
           : { category: legacyLabel, allowCreatorTopics: true }),
       });
     }
@@ -187,7 +197,8 @@ async function prepareSmartCarousel(
   let diagnostic: string | null = typeof project.generationMeta.diagnostic === "string" ? project.generationMeta.diagnostic : null;
   if (slides.length === 0) {
     const history = await loadCarouselHistory(automation.id, historyWindow, project.id);
-    const category = plan ? getCarouselCategory(plan.categoryId) : null;
+    // Tema vindo do prompt: a categoria sorteada não manda em fotos/cenas.
+    const category = plan && !topicFromPrompt ? getCarouselCategory(plan.categoryId) : null;
     const basePrompt = day.prompt.trim() || null;
     const textSlides = config.slideCount - (config.addFinalImage ? 1 : 0);
     const wantsPhotos = config.imageSource === "AUTO" || config.imageSource === "COMBINED";
@@ -202,13 +213,14 @@ async function prepareSmartCarousel(
           recentTopics,
           recentCategories: history.categories.filter((id): id is string => Boolean(id)).map((id) => getCarouselCategory(id)?.label ?? id),
           photos: wantsPhotos && photoTarget > 0 ? { min: Math.min(config.minPhotos, config.maxPhotos), max: config.maxPhotos, target: photoTarget } : null,
+          topicFromPrompt,
         })
       : null;
     const trace: GenerationTrace = { calls: [], creatorBias: [], biasRetries: 0 };
     const base = {
       userId,
       projectId: project.id,
-      category: plan?.categoryLabel ?? legacyLabel,
+      category: topicFromPrompt ? null : (plan?.categoryLabel ?? legacyLabel),
       prompt: day.prompt || null,
       slideCount: config.slideCount,
       templateMode: "FIXED" as const,
@@ -216,7 +228,10 @@ async function prepareSmartCarousel(
       addFinalImage: config.addFinalImage,
       generateCaption: config.generateCaption,
       instagramAccountId: automation.instagramAccountId,
-      ...(plan ? { directive, allowCreatorTopics: plan.categoryId === "CRIACAO_CONTEUDO", neutralBrand: true } : {}),
+      // Com prompt próprio, o perfil de marca (nome/nicho/tom, normalmente "Alilu") sai do caminho: vale a marca do prompt.
+      ...(plan
+        ? { directive, allowCreatorTopics: plan.categoryId === "CRIACAO_CONTEUDO" && !topicFromPrompt, neutralBrand: basePrompt ? ("FULL" as const) : true }
+        : {}),
       trace,
     };
 
