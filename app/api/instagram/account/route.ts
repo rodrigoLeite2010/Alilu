@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { disconnectInstagramAccountsForUser, getInstagramAccountForUser } from "@/lib/instagram/backend/instagram-account-repository";
+import {
+  disconnectInstagramAccountsForUser,
+  getInstagramAccountForUser,
+  setPrimaryInstagramAccount,
+} from "@/lib/instagram/backend/instagram-account-repository";
 import { logInstagramOAuth } from "@/lib/instagram/backend/oauth-log";
 
 export const dynamic = "force-dynamic";
@@ -42,12 +46,39 @@ export async function GET(): Promise<NextResponse> {
  * DELETE: "Desconectar Instagram" — apaga o token guardado e marca a conta
  * como desconectada (publicações/automações ficam, mas não publicam até
  * reconectar). Sempre restrito ao usuário logado.
+ *
+ * Multi-conta: `?accountId=<id>` desconecta SÓ aquela conta (as outras, e o
+ * piloto automático delas, continuam funcionando). Sem accountId, desconecta
+ * todas (comportamento antigo).
  */
-export async function DELETE(): Promise<NextResponse> {
+export async function DELETE(request: Request): Promise<NextResponse> {
   const session = await auth();
   const userId = session?.user?.id;
   if (!userId) return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
-  const count = await disconnectInstagramAccountsForUser(userId);
-  await logInstagramOAuth("disconnect", "Instagram desconectado pelo usuário", { userId, accounts: count });
+  const accountId = new URL(request.url).searchParams.get("accountId");
+  const count = await disconnectInstagramAccountsForUser(userId, accountId);
+  await logInstagramOAuth("disconnect", "Instagram desconectado pelo usuário", { userId, accounts: count, single: Boolean(accountId) });
   return NextResponse.json({ disconnected: count });
+}
+
+/**
+ * PATCH { accountId }: "Usar como principal" — a conta usada pelas telas que
+ * ainda publicam em uma conta só (calendário, Posts Virais, Reels).
+ */
+export async function PATCH(request: Request): Promise<NextResponse> {
+  const session = await auth();
+  const userId = session?.user?.id;
+  if (!userId) return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
+  let accountId: unknown;
+  try {
+    accountId = ((await request.json()) as { accountId?: unknown }).accountId;
+  } catch {
+    accountId = null;
+  }
+  if (typeof accountId !== "string" || !accountId) {
+    return NextResponse.json({ error: "Conta inválida." }, { status: 400 });
+  }
+  const ok = await setPrimaryInstagramAccount(accountId, userId);
+  if (!ok) return NextResponse.json({ error: "Conta não encontrada ou desconectada." }, { status: 404 });
+  return NextResponse.json({ primary: accountId });
 }

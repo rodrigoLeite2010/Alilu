@@ -76,9 +76,13 @@ export function loadAppCredentials(): InstagramAppCredentials {
 }
 
 /** Monta a URL de autorização para o botão "Conectar Instagram" do painel. */
-export function buildAuthorizeUrlForConnect(redirectUri: string, state: string): string {
+export function buildAuthorizeUrlForConnect(
+  redirectUri: string,
+  state: string,
+  options: { forceReauth?: boolean } = {},
+): string {
   const { appId } = loadAppCredentials();
-  return buildInstagramAuthorizeUrl({ appId, redirectUri, state });
+  return buildInstagramAuthorizeUrl({ appId, redirectUri, state, forceReauth: options.forceReauth });
 }
 
 export interface CompleteInstagramConnectionInput {

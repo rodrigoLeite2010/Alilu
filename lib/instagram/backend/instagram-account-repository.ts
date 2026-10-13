@@ -142,7 +142,11 @@ export async function getInstagramAccountByIdForUser(id: string, userId: string)
   return row ? mapRow(row) : null;
 }
 
-/** Conta conectada mais recente do usuário (um usuário pode, em tese, ter mais de uma no futuro). */
+/**
+ * Conta "principal" do usuário (multi-conta): a conectada mais recente/escolhida
+ * como principal. Contas desconectadas só voltam se não houver nenhuma conectada —
+ * assim desconectar @alilu não derruba as telas que publicam na @outra.
+ */
 export async function getInstagramAccountForUser(userId: string): Promise<InstagramAccountRecord | null> {
   const db = getDb();
   const rows = await db`
@@ -151,11 +155,26 @@ export async function getInstagramAccountForUser(userId: string): Promise<Instag
       default_music_external_id, default_music_url, default_audio_file_url, default_audio_file_name
     from instagram_accounts
     where user_id = ${userId}
-    order by connected_at desc
+    order by (status = 'connected') desc, connected_at desc
     limit 1
   `;
   const row = rows[0];
   return row ? mapRow(row) : null;
+}
+
+/**
+ * "Usar como principal": a conta principal é a de connected_at mais recente
+ * (ver getInstagramAccountForUser), então basta trazê-la para agora. Só para
+ * contas conectadas do próprio usuário.
+ */
+export async function setPrimaryInstagramAccount(accountId: string, userId: string): Promise<boolean> {
+  const db = getDb();
+  const rows = await db`
+    update instagram_accounts set connected_at = now(), updated_at = now()
+    where id = ${accountId} and user_id = ${userId} and status = 'connected'
+    returning id
+  `;
+  return rows.length > 0;
 }
 
 export interface UpdateAccountDefaultMusicInput {

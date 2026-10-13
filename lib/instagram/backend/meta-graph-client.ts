@@ -82,6 +82,11 @@ export interface BuildAuthorizeUrlInput {
   appId: string;
   redirectUri: string;
   state: string;
+  /**
+   * Multi-conta: força a tela de login do Instagram (em vez de reaproveitar a
+   * conta já logada no navegador), para a pessoa poder escolher OUTRA conta.
+   */
+  forceReauth?: boolean;
 }
 
 /** Monta a URL para onde o usuário é redirecionado para autorizar o app no Instagram. */
@@ -92,6 +97,7 @@ export function buildInstagramAuthorizeUrl(input: BuildAuthorizeUrlInput): strin
   url.searchParams.set("response_type", "code");
   url.searchParams.set("scope", INSTAGRAM_OAUTH_SCOPES.join(","));
   url.searchParams.set("state", input.state);
+  if (input.forceReauth) url.searchParams.set("force_reauth", "true");
   return url.toString();
 }
 

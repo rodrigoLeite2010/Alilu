@@ -6,9 +6,9 @@ vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn(), push: 
 const authMock = vi.fn();
 vi.mock("@/auth", () => ({ auth: (...args: unknown[]) => authMock(...args) }));
 
-const getInstagramAccountForUserMock = vi.fn();
+const listInstagramAccountsForUserMock = vi.fn();
 vi.mock("@/lib/instagram/backend/instagram-account-repository", () => ({
-  getInstagramAccountForUser: (...args: unknown[]) => getInstagramAccountForUserMock(...args),
+  listInstagramAccountsForUser: (...args: unknown[]) => listInstagramAccountsForUserMock(...args),
 }));
 
 const { default: InstagramPainelPage } = await import("@/app/instagram/painel/page");
@@ -21,7 +21,7 @@ const { default: InstagramPainelPage } = await import("@/app/instagram/painel/pa
 describe("InstagramPainelPage", () => {
   beforeEach(() => {
     authMock.mockReset();
-    getInstagramAccountForUserMock.mockReset();
+    listInstagramAccountsForUserMock.mockReset();
   });
 
   it("mostra o link de entrar quando não há sessão", async () => {
@@ -31,12 +31,12 @@ describe("InstagramPainelPage", () => {
     render(jsx);
 
     expect(screen.getByRole("link", { name: "Entrar e conectar Instagram" })).toBeInTheDocument();
-    expect(getInstagramAccountForUserMock).not.toHaveBeenCalled();
+    expect(listInstagramAccountsForUserMock).not.toHaveBeenCalled();
   });
 
   it("mostra a faixa de sucesso quando status=conectado", async () => {
     authMock.mockResolvedValue({ user: { id: "user-1" } });
-    getInstagramAccountForUserMock.mockResolvedValue(null);
+    listInstagramAccountsForUserMock.mockResolvedValue([]);
 
     const jsx = await InstagramPainelPage({ searchParams: Promise.resolve({ status: "conectado" }) });
     render(jsx);
@@ -46,7 +46,7 @@ describe("InstagramPainelPage", () => {
 
   it("mostra a mensagem de erro recebida na query string", async () => {
     authMock.mockResolvedValue({ user: { id: "user-1" } });
-    getInstagramAccountForUserMock.mockResolvedValue(null);
+    listInstagramAccountsForUserMock.mockResolvedValue([]);
 
     const jsx = await InstagramPainelPage({
       searchParams: Promise.resolve({ status: "erro", mensagem: "Falha específica de teste." }),
@@ -58,7 +58,7 @@ describe("InstagramPainelPage", () => {
 
   it("mostra a conta conectada (username) quando já existe uma conexão", async () => {
     authMock.mockResolvedValue({ user: { id: "user-1" } });
-    getInstagramAccountForUserMock.mockResolvedValue({
+    listInstagramAccountsForUserMock.mockResolvedValue([{
       id: "account-1",
       userId: "user-1",
       igUserId: "178414000",
@@ -78,7 +78,7 @@ describe("InstagramPainelPage", () => {
         audioFileUrl: null,
         audioFileName: null,
       },
-    });
+    }]);
 
     const jsx = await InstagramPainelPage({ searchParams: Promise.resolve({}) });
     render(jsx);
@@ -87,9 +87,36 @@ describe("InstagramPainelPage", () => {
     expect(screen.queryByRole("link", { name: "Conectar Instagram" })).not.toBeInTheDocument();
   });
 
+  it("multi-conta: lista todas as contas, cada uma com seu status, e oferece adicionar outra", async () => {
+    authMock.mockResolvedValue({ user: { id: "user-1" } });
+    const base = {
+      userId: "user-1",
+      tokenExpiresAt: null,
+      scopes: null,
+      connectedAt: new Date(),
+      updatedAt: new Date(),
+      defaultMusic: { enabled: false, type: "None", name: null, artist: null, externalId: null, url: null, audioFileUrl: null, audioFileName: null },
+    };
+    listInstagramAccountsForUserMock.mockResolvedValue([
+      { ...base, id: "account-2", igUserId: "2", igUsername: "prestador.seguro", status: "connected" },
+      { ...base, id: "account-1", igUserId: "1", igUsername: "alilu.tec", status: "revoked" },
+    ]);
+
+    const jsx = await InstagramPainelPage({ searchParams: Promise.resolve({}) });
+    render(jsx);
+
+    expect(screen.getByText("@prestador.seguro")).toBeInTheDocument();
+    expect(screen.getByText("principal")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Reconectar @alilu.tec" })).toHaveAttribute(
+      "href",
+      "/api/instagram/oauth/start?addAccount=1&returnTo=%2Finstagram%2Fpainel",
+    );
+    expect(screen.getByRole("link", { name: "+ Adicionar outra conta do Instagram" })).toBeInTheDocument();
+  });
+
   it("mostra o link para conectar quando não há conta conectada", async () => {
     authMock.mockResolvedValue({ user: { id: "user-1" } });
-    getInstagramAccountForUserMock.mockResolvedValue(null);
+    listInstagramAccountsForUserMock.mockResolvedValue([]);
 
     const jsx = await InstagramPainelPage({ searchParams: Promise.resolve({}) });
     render(jsx);

@@ -37,7 +37,7 @@ export default async function NewContentAutomationPage() {
       <div className="mt-6">
         <AutomationWizard
           userId={session.user.id}
-          accounts={accounts.map((account) => ({ id: account.id, igUsername: account.igUsername }))}
+          accounts={accounts.map((account) => ({ id: account.id, igUsername: account.igUsername, status: account.status }))}
         />
       </div>
     </div>

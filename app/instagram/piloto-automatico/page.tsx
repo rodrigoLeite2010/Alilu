@@ -48,6 +48,8 @@ export default async function ContentAutomationDashboardPage() {
     weeklyExecutions: item.activeSlotsCount,
     lastRunAt: item.lastRunAt ? item.lastRunAt.toISOString() : null,
     nextRunAt: item.nextRunAt ? item.nextRunAt.toISOString() : null,
+    accountUsername: item.accountUsername,
+    accountStatus: item.accountStatus,
   }));
 
   return (

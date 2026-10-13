@@ -33,6 +33,15 @@ function jsonResponse(status: number, body: unknown): Response {
 }
 
 describe("buildInstagramAuthorizeUrl", () => {
+  it("multi-conta: forceReauth pede login de novo no Instagram (force_reauth=true)", () => {
+    const url = new URL(
+      buildInstagramAuthorizeUrl({ appId: "app-123", redirectUri: "https://alilu.com.br/cb", state: "s", forceReauth: true }),
+    );
+    expect(url.searchParams.get("force_reauth")).toBe("true");
+    const plain = new URL(buildInstagramAuthorizeUrl({ appId: "app-123", redirectUri: "https://alilu.com.br/cb", state: "s" }));
+    expect(plain.searchParams.has("force_reauth")).toBe(false);
+  });
+
   it("monta a URL de autorização com todos os parâmetros esperados", () => {
     const url = new URL(
       buildInstagramAuthorizeUrl({ appId: "app-123", redirectUri: "https://alilu.com.br/cb", state: "state-abc" }),

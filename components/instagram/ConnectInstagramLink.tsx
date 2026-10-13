@@ -11,13 +11,20 @@ export function ConnectInstagramLink({
   returnTo,
   label = "Conectar Instagram",
   className = "flex h-11 items-center justify-center rounded-md bg-zinc-900 px-4 text-sm font-medium text-white transition-colors hover:bg-zinc-800",
+  addAccount = false,
 }: {
   returnTo?: string | null;
   label?: string;
   className?: string;
+  /** Multi-conta: força o Instagram a pedir login para poder escolher outra conta. */
+  addAccount?: boolean;
 }) {
   const [opening, setOpening] = useState(false);
-  const href = returnTo ? `/api/instagram/oauth/start?returnTo=${encodeURIComponent(returnTo)}` : "/api/instagram/oauth/start";
+  const params = new URLSearchParams();
+  if (addAccount) params.set("addAccount", "1");
+  if (returnTo) params.set("returnTo", returnTo);
+  const query = params.toString();
+  const href = query ? `/api/instagram/oauth/start?${query}` : "/api/instagram/oauth/start";
   return (
     <a
       href={href}

@@ -48,6 +48,10 @@ export interface AutomationListItemDto {
   weeklyExecutions?: number;
   lastRunAt: string | null;
   nextRunAt: string | null;
+  /** @ da conta do Instagram em que esta automação publica (multi-conta). */
+  accountUsername?: string | null;
+  /** Situação da conta; diferente de "connected" = não publica até reconectar. */
+  accountStatus?: string | null;
 }
 
 const STATUS_TONE: Record<AutomationStatus, "neutral" | "brand" | "warning"> = {
@@ -226,6 +230,18 @@ export function AutomationsOverview({
                   <Link href={`/instagram/piloto-automatico/automacoes/${item.id}`} className="font-semibold text-zinc-900 hover:underline">
                     {item.name}
                   </Link>
+                  {item.accountUsername ? (
+                    <p className="mt-0.5 text-xs font-medium text-teal-800">@{item.accountUsername}</p>
+                  ) : null}
+                  {item.accountStatus && item.accountStatus !== "connected" ? (
+                    <p className="mt-1 text-xs text-amber-800">
+                      Conta desconectada — não publica até você{" "}
+                      <Link href="/instagram/painel" className="font-medium underline">
+                        reconectar
+                      </Link>
+                      .
+                    </p>
+                  ) : null}
                   <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
                     <Badge tone={STATUS_TONE[item.status]}>{STATUS_LABEL[item.status]}</Badge>
                     {item.scheduleMode === "SHARED_PROMPT" ? (

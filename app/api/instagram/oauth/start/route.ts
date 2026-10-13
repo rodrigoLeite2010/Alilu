@@ -30,6 +30,9 @@ export async function GET(request: Request): Promise<NextResponse> {
   const requestUrl = new URL(request.url);
   const returnTo = sanitizeOAuthReturnPath(requestUrl.searchParams.get("returnTo"));
   const device = getOAuthDeviceHint(request.headers.get("user-agent"));
+  // "Adicionar outra conta" / "Reconectar @x": força o Instagram a pedir login,
+  // senão ele reaproveita a conta já logada no navegador e nunca troca.
+  const forceReauth = requestUrl.searchParams.get("addAccount") === "1";
 
   let redirectUri: string;
   try {
@@ -61,7 +64,7 @@ export async function GET(request: Request): Promise<NextResponse> {
   const state = generateOAuthState(userId);
   let authorizeUrl: string;
   try {
-    authorizeUrl = buildAuthorizeUrlForConnect(redirectUri, state);
+    authorizeUrl = buildAuthorizeUrlForConnect(redirectUri, state, { forceReauth });
   } catch (error) {
     if (error instanceof InstagramOAuthConfigError) {
       await logInstagramOAuth("start", "App da Meta não configurado", { userId, outcome: "error", error: "app_not_configured" });

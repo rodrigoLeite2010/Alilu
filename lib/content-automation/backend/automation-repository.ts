@@ -226,14 +226,20 @@ export interface AutomationListItem extends AutomationRecord {
   activeDaysCount: number;
   /** Execuções por semana (linhas dia+horário habilitadas). */
   activeSlotsCount: number;
+  /** @ da conta do Instagram desta automação (multi-conta). */
+  accountUsername: string | null;
+  /** Situação da conta: "connected" | "expired" | "revoked" | "error" (null se a conta sumiu). */
+  accountStatus: string | null;
 }
 
 /** Lista para "Minhas automações" — sem carregar os 7 dias de cada uma, só a contagem de dias ativos. */
 export async function listAutomationsForUser(userId: string): Promise<AutomationListItem[]> {
   const db = getDb();
   const rows = await db`
-    select a.*, coalesce(d.active_days, 0) as active_days_count, coalesce(d.active_slots, 0) as active_slots_count
+    select a.*, coalesce(d.active_days, 0) as active_days_count, coalesce(d.active_slots, 0) as active_slots_count,
+      ia.ig_username as account_username, ia.status as account_status
     from content_automations a
+    left join instagram_accounts ia on ia.id = a.instagram_account_id
     left join (
       select automation_id, count(distinct day_of_week) filter (where enabled) as active_days,
         count(*) filter (where enabled) as active_slots
@@ -247,6 +253,8 @@ export async function listAutomationsForUser(userId: string): Promise<Automation
     ...mapAutomationRow(row),
     activeDaysCount: Number(row.active_days_count),
     activeSlotsCount: Number(row.active_slots_count),
+    accountUsername: (row.account_username as string | null) ?? null,
+    accountStatus: (row.account_status as string | null) ?? null,
   }));
 }
 

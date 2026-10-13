@@ -27,6 +27,8 @@ import { autoResizeTextarea } from "./textarea-utils";
 export interface AccountOption {
   id: string;
   igUsername: string | null;
+  /** "connected" | "expired" | "revoked" | "error" — contas não conectadas aparecem marcadas. */
+  status?: string;
 }
 
 function emptyDay(dayOfWeek: DayOfWeek): DayFormState {
@@ -73,7 +75,9 @@ export function AutomationWizard({ userId, accounts }: { userId: string; account
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const [instagramAccountId, setInstagramAccountId] = useState(accounts[0]?.id ?? "");
+  const [instagramAccountId, setInstagramAccountId] = useState(
+    (accounts.find((account) => account.status === undefined || account.status === "connected") ?? accounts[0])?.id ?? "",
+  );
   const [name, setName] = useState("");
   const [brandContext, setBrandContext] = useState("");
   const [requireApproval, setRequireApproval] = useState(true);
@@ -312,8 +316,17 @@ export function AutomationWizard({ userId, accounts }: { userId: string; account
                     className="h-4 w-4 border-zinc-300 text-teal-700"
                   />
                   @{account.igUsername ?? "conta conectada"}
+                  {account.status && account.status !== "connected" ? (
+                    <span className="ml-auto rounded bg-amber-100 px-2 py-0.5 text-xs text-amber-900">desconectada — reconecte no painel</span>
+                  ) : null}
                 </label>
               ))}
+              <a
+                href="/api/instagram/oauth/start?addAccount=1&returnTo=%2Finstagram%2Fpiloto-automatico%2Fnova"
+                className="inline-block pt-1 text-sm font-medium text-teal-800 underline"
+              >
+                + Conectar outra conta do Instagram
+              </a>
             </div>
           )}
         </section>
