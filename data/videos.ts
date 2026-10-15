@@ -37,6 +37,8 @@ export interface VideoTool {
   description: string;
   icon: string;
   status: "ativo" | "em-breve";
+  /** Disponibilidade no catálogo não implica indexação de uma área com login. */
+  indexable: boolean;
 }
 
 /**
@@ -54,6 +56,7 @@ export const videoTools: VideoTool[] = [
       "Combine um vídeo principal com um vídeo complementar em split-screen — corte trechos, repita o complementar em loop e escolha o áudio. Baixe pronto para Reels, Shorts e TikTok.",
     icon: "columns",
     status: "ativo",
+    indexable: true,
   },
   {
     id: "imagem-para-video",
@@ -64,6 +67,7 @@ export const videoTools: VideoTool[] = [
       "Envie uma imagem, descreva o movimento e gere um vídeo curto com IA (Runway). Usa Créditos de IA da Alilu — o custo aparece antes de gerar.",
     icon: "video",
     status: "ativo",
+    indexable: false,
   },
   {
     id: "importar-instagram",
@@ -74,6 +78,7 @@ export const videoTools: VideoTool[] = [
       "Cole o link de um Reel, vídeo ou foto pública do Instagram (seu ou com autorização) e importe para usar no Split-Screen, publicar no Reels ou baixar.",
     icon: "instagram",
     status: "ativo",
+    indexable: false,
   },
 ];
 

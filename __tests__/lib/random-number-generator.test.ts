@@ -7,6 +7,16 @@ import {
 } from "@/lib/calculators/random-number-generator";
 
 describe("random-number-generator", () => {
+  it("sorteia um lote pequeno em um bilhão de números sem alocar o intervalo", () => {
+    const result = generateRandomNumbers({ min: -500_000_000, max: 500_000_000, count: 1000, allowRepeat: false });
+    expect(result).toHaveLength(1000);
+    expect(new Set(result).size).toBe(1000);
+    expect(result.every((n) => n >= -500_000_000 && n <= 500_000_000)).toBe(true);
+  });
+
+  it("rejeita limites sem precisão inteira segura", () => {
+    expect(validateRandomNumberGeneratorInput({ min: 1e20, max: 1e20, count: 1, allowRepeat: true })).toHaveProperty("min");
+  });
   it("gera a quantidade pedida de números dentro do intervalo, com repetição", () => {
     const numbers = generateRandomNumbers({ min: 1, max: 10, count: 30, allowRepeat: true });
     expect(numbers).toHaveLength(30);

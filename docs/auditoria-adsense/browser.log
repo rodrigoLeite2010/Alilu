@@ -1,0 +1,1617 @@
+OK 390 /
+OK 390 /utilitarios/financeiro/financiamento-veiculo
+OK 390 /utilitarios/pdf/unir-pdf
+OK 390 /utilitarios/funcoes-string/contador-caracteres
+OK 390 /loterias/lotofacil
+OK 390 /videos
+OK 390 /privacidade
+OK 1440 /
+OK 1440 /utilitarios/financeiro/financiamento-veiculo
+OK 1440 /utilitarios/pdf/unir-pdf
+OK 1440 /utilitarios/funcoes-string/contador-caracteres
+OK 1440 /loterias/lotofacil
+OK 1440 /videos
+OK 1440 /privacidade
+[
+  {
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "route": "/",
+    "visibleH1": [
+      "Ferramentas online para o seu dia a dia"
+    ],
+    "overflow": false,
+    "landingMetrics": {
+      "lcp": 1236,
+      "cls": 0.008393276055552006,
+      "longestInteractionMs": 0
+    },
+    "metrics": {
+      "lcp": 1236,
+      "cls": 0.008393276055552006,
+      "longestInteractionMs": 0,
+      "scripts": [
+        {
+          "url": "/_next/static/chunks/2ey_icn33wsjp.js",
+          "transferBytes": 7964,
+          "decodedBytes": 29000
+        },
+        {
+          "url": "/_next/static/chunks/26swit4g4lpuz.js",
+          "transferBytes": 71700,
+          "decodedBytes": 228084
+        },
+        {
+          "url": "/_next/static/chunks/3ajnhh-2s2fvq.js",
+          "transferBytes": 45522,
+          "decodedBytes": 166064
+        },
+        {
+          "url": "/_next/static/chunks/turbopack-1-i7j81amu6-l.js",
+          "transferBytes": 4151,
+          "decodedBytes": 9722
+        },
+        {
+          "url": "/_next/static/chunks/3279l710q8skp.js",
+          "transferBytes": 4061,
+          "decodedBytes": 14537
+        },
+        {
+          "url": "/_next/static/chunks/0ixx15dnt6d-z.js",
+          "transferBytes": 9253,
+          "decodedBytes": 23019
+        },
+        {
+          "url": "/_next/static/chunks/2sxwhusr020f4.js",
+          "transferBytes": 12730,
+          "decodedBytes": 39272
+        },
+        {
+          "url": "/_next/static/chunks/2njbpapoh8kgo.js",
+          "transferBytes": 9885,
+          "decodedBytes": 34598
+        },
+        {
+          "url": "/_next/static/chunks/42t5am4xfcidi.js",
+          "transferBytes": 9143,
+          "decodedBytes": 23817
+        },
+        {
+          "url": "/_next/static/chunks/1zce05deltsh7.js",
+          "transferBytes": 2458,
+          "decodedBytes": 4554
+        },
+        {
+          "url": "/_next/static/chunks/1ucy2h0l02mus.js",
+          "transferBytes": 21904,
+          "decodedBytes": 90887
+        },
+        {
+          "url": "https://pagead2.googlesyndication.com/pagead/managed/js/adsense/m202610130101/show_ads_impl.js?bust=122881614",
+          "transferBytes": 192097,
+          "decodedBytes": 613212
+        },
+        {
+          "url": "/_next/static/chunks/3n91h65qtcn6l.js",
+          "transferBytes": 1941,
+          "decodedBytes": 4311
+        },
+        {
+          "url": "/_next/static/chunks/23f_nud89rqa1.js",
+          "transferBytes": 3226,
+          "decodedBytes": 10581
+        },
+        {
+          "url": "/_next/static/chunks/04ntgb-g5xjin.js",
+          "transferBytes": 137174,
+          "decodedBytes": 589015
+        },
+        {
+          "url": "/_next/static/chunks/28ccx5xl06mlk.js",
+          "transferBytes": 1748,
+          "decodedBytes": 3532
+        },
+        {
+          "url": "/_next/static/chunks/1aa9e7ktlo-rg.js",
+          "transferBytes": 1177,
+          "decodedBytes": 1499
+        },
+        {
+          "url": "https://ep2.adtrafficquality.google/sodar/sodar2.js",
+          "transferBytes": 0,
+          "decodedBytes": 0
+        }
+      ]
+    },
+    "errors": []
+  },
+  {
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "route": "/utilitarios/financeiro/financiamento-veiculo",
+    "visibleH1": [
+      "Calculadora de Financiamento de Veículo"
+    ],
+    "overflow": false,
+    "landingMetrics": {
+      "lcp": 180,
+      "cls": 0.000522746504242596,
+      "longestInteractionMs": 0
+    },
+    "metrics": {
+      "lcp": 180,
+      "cls": 0.000522746504242596,
+      "longestInteractionMs": 40,
+      "scripts": [
+        {
+          "url": "/_next/static/chunks/2ey_icn33wsjp.js",
+          "transferBytes": 0,
+          "decodedBytes": 29000
+        },
+        {
+          "url": "/_next/static/chunks/26swit4g4lpuz.js",
+          "transferBytes": 0,
+          "decodedBytes": 228084
+        },
+        {
+          "url": "/_next/static/chunks/3ajnhh-2s2fvq.js",
+          "transferBytes": 0,
+          "decodedBytes": 166064
+        },
+        {
+          "url": "/_next/static/chunks/turbopack-1-i7j81amu6-l.js",
+          "transferBytes": 0,
+          "decodedBytes": 9722
+        },
+        {
+          "url": "/_next/static/chunks/3279l710q8skp.js",
+          "transferBytes": 0,
+          "decodedBytes": 14537
+        },
+        {
+          "url": "/_next/static/chunks/0ixx15dnt6d-z.js",
+          "transferBytes": 0,
+          "decodedBytes": 23019
+        },
+        {
+          "url": "/_next/static/chunks/2sxwhusr020f4.js",
+          "transferBytes": 0,
+          "decodedBytes": 39272
+        },
+        {
+          "url": "/_next/static/chunks/2njbpapoh8kgo.js",
+          "transferBytes": 0,
+          "decodedBytes": 34598
+        },
+        {
+          "url": "/_next/static/chunks/42t5am4xfcidi.js",
+          "transferBytes": 0,
+          "decodedBytes": 23817
+        },
+        {
+          "url": "/_next/static/chunks/23f_nud89rqa1.js",
+          "transferBytes": 0,
+          "decodedBytes": 10581
+        },
+        {
+          "url": "/_next/static/chunks/04ntgb-g5xjin.js",
+          "transferBytes": 0,
+          "decodedBytes": 589015
+        },
+        {
+          "url": "https://pagead2.googlesyndication.com/pagead/managed/js/adsense/m202610130101/show_ads_impl.js?bust=122881614",
+          "transferBytes": 0,
+          "decodedBytes": 613212
+        },
+        {
+          "url": "https://ep2.adtrafficquality.google/sodar/sodar2.js",
+          "transferBytes": 0,
+          "decodedBytes": 0
+        },
+        {
+          "url": "/_next/static/chunks/3n91h65qtcn6l.js",
+          "transferBytes": 0,
+          "decodedBytes": 4311
+        },
+        {
+          "url": "/_next/static/chunks/1zce05deltsh7.js",
+          "transferBytes": 0,
+          "decodedBytes": 4554
+        },
+        {
+          "url": "/_next/static/chunks/1ucy2h0l02mus.js",
+          "transferBytes": 0,
+          "decodedBytes": 90887
+        },
+        {
+          "url": "/_next/static/chunks/28ccx5xl06mlk.js",
+          "transferBytes": 0,
+          "decodedBytes": 3532
+        },
+        {
+          "url": "/_next/static/chunks/1aa9e7ktlo-rg.js",
+          "transferBytes": 0,
+          "decodedBytes": 1499
+        },
+        {
+          "url": "/_next/static/chunks/37tnnj6gh4zsq.js",
+          "transferBytes": 1858,
+          "decodedBytes": 3864
+        }
+      ]
+    },
+    "errors": []
+  },
+  {
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "route": "/utilitarios/pdf/unir-pdf",
+    "visibleH1": [
+      "Unir PDF Online Grátis"
+    ],
+    "overflow": false,
+    "landingMetrics": {
+      "lcp": 172,
+      "cls": 0.000522746504242596,
+      "longestInteractionMs": 0
+    },
+    "metrics": {
+      "lcp": 172,
+      "cls": 0.049587765662588504,
+      "longestInteractionMs": 40,
+      "scripts": [
+        {
+          "url": "/_next/static/chunks/2ey_icn33wsjp.js",
+          "transferBytes": 0,
+          "decodedBytes": 29000
+        },
+        {
+          "url": "/_next/static/chunks/26swit4g4lpuz.js",
+          "transferBytes": 0,
+          "decodedBytes": 228084
+        },
+        {
+          "url": "/_next/static/chunks/3ajnhh-2s2fvq.js",
+          "transferBytes": 0,
+          "decodedBytes": 166064
+        },
+        {
+          "url": "/_next/static/chunks/turbopack-1-i7j81amu6-l.js",
+          "transferBytes": 0,
+          "decodedBytes": 9722
+        },
+        {
+          "url": "/_next/static/chunks/3279l710q8skp.js",
+          "transferBytes": 0,
+          "decodedBytes": 14537
+        },
+        {
+          "url": "/_next/static/chunks/0ixx15dnt6d-z.js",
+          "transferBytes": 0,
+          "decodedBytes": 23019
+        },
+        {
+          "url": "/_next/static/chunks/2sxwhusr020f4.js",
+          "transferBytes": 0,
+          "decodedBytes": 39272
+        },
+        {
+          "url": "/_next/static/chunks/2njbpapoh8kgo.js",
+          "transferBytes": 0,
+          "decodedBytes": 34598
+        },
+        {
+          "url": "/_next/static/chunks/42t5am4xfcidi.js",
+          "transferBytes": 0,
+          "decodedBytes": 23817
+        },
+        {
+          "url": "/_next/static/chunks/23f_nud89rqa1.js",
+          "transferBytes": 0,
+          "decodedBytes": 10581
+        },
+        {
+          "url": "/_next/static/chunks/04ntgb-g5xjin.js",
+          "transferBytes": 0,
+          "decodedBytes": 589015
+        },
+        {
+          "url": "https://pagead2.googlesyndication.com/pagead/managed/js/adsense/m202610130101/show_ads_impl.js?bust=122881614",
+          "transferBytes": 0,
+          "decodedBytes": 613212
+        },
+        {
+          "url": "/_next/static/chunks/1zce05deltsh7.js",
+          "transferBytes": 0,
+          "decodedBytes": 4554
+        },
+        {
+          "url": "/_next/static/chunks/1ucy2h0l02mus.js",
+          "transferBytes": 0,
+          "decodedBytes": 90887
+        },
+        {
+          "url": "/_next/static/chunks/3n91h65qtcn6l.js",
+          "transferBytes": 0,
+          "decodedBytes": 4311
+        },
+        {
+          "url": "/_next/static/chunks/28ccx5xl06mlk.js",
+          "transferBytes": 0,
+          "decodedBytes": 3532
+        },
+        {
+          "url": "/_next/static/chunks/37tnnj6gh4zsq.js",
+          "transferBytes": 0,
+          "decodedBytes": 3864
+        },
+        {
+          "url": "/_next/static/chunks/1aa9e7ktlo-rg.js",
+          "transferBytes": 0,
+          "decodedBytes": 1499
+        },
+        {
+          "url": "https://ep2.adtrafficquality.google/sodar/sodar2.js",
+          "transferBytes": 0,
+          "decodedBytes": 0
+        },
+        {
+          "url": "/_next/static/chunks/14oyx3pqy7y0k.js",
+          "transferBytes": 4662,
+          "decodedBytes": 15904
+        },
+        {
+          "url": "/_next/static/chunks/0okmsfcg4q2mp.js",
+          "transferBytes": 165913,
+          "decodedBytes": 391479
+        },
+        {
+          "url": "/_next/static/chunks/2hmmswcvqvp60.js",
+          "transferBytes": 14027,
+          "decodedBytes": 44269
+        }
+      ]
+    },
+    "errors": []
+  },
+  {
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "route": "/utilitarios/funcoes-string/contador-caracteres",
+    "visibleH1": [
+      "Contador de Caracteres"
+    ],
+    "overflow": false,
+    "landingMetrics": {
+      "lcp": 356,
+      "cls": 0.000522746504242596,
+      "longestInteractionMs": 0
+    },
+    "metrics": {
+      "lcp": 356,
+      "cls": 0.000522746504242596,
+      "longestInteractionMs": 0,
+      "scripts": [
+        {
+          "url": "/_next/static/chunks/2ey_icn33wsjp.js",
+          "transferBytes": 0,
+          "decodedBytes": 29000
+        },
+        {
+          "url": "/_next/static/chunks/26swit4g4lpuz.js",
+          "transferBytes": 0,
+          "decodedBytes": 228084
+        },
+        {
+          "url": "/_next/static/chunks/3ajnhh-2s2fvq.js",
+          "transferBytes": 0,
+          "decodedBytes": 166064
+        },
+        {
+          "url": "/_next/static/chunks/turbopack-1-i7j81amu6-l.js",
+          "transferBytes": 0,
+          "decodedBytes": 9722
+        },
+        {
+          "url": "/_next/static/chunks/3279l710q8skp.js",
+          "transferBytes": 0,
+          "decodedBytes": 14537
+        },
+        {
+          "url": "/_next/static/chunks/0ixx15dnt6d-z.js",
+          "transferBytes": 0,
+          "decodedBytes": 23019
+        },
+        {
+          "url": "/_next/static/chunks/2sxwhusr020f4.js",
+          "transferBytes": 0,
+          "decodedBytes": 39272
+        },
+        {
+          "url": "/_next/static/chunks/2njbpapoh8kgo.js",
+          "transferBytes": 0,
+          "decodedBytes": 34598
+        },
+        {
+          "url": "/_next/static/chunks/42t5am4xfcidi.js",
+          "transferBytes": 0,
+          "decodedBytes": 23817
+        },
+        {
+          "url": "/_next/static/chunks/23f_nud89rqa1.js",
+          "transferBytes": 0,
+          "decodedBytes": 10581
+        },
+        {
+          "url": "/_next/static/chunks/04ntgb-g5xjin.js",
+          "transferBytes": 0,
+          "decodedBytes": 589015
+        },
+        {
+          "url": "https://pagead2.googlesyndication.com/pagead/managed/js/adsense/m202610130101/show_ads_impl.js?bust=122881614",
+          "transferBytes": 0,
+          "decodedBytes": 613212
+        },
+        {
+          "url": "/_next/static/chunks/1zce05deltsh7.js",
+          "transferBytes": 0,
+          "decodedBytes": 4554
+        },
+        {
+          "url": "/_next/static/chunks/1ucy2h0l02mus.js",
+          "transferBytes": 0,
+          "decodedBytes": 90887
+        },
+        {
+          "url": "/_next/static/chunks/37tnnj6gh4zsq.js",
+          "transferBytes": 0,
+          "decodedBytes": 3864
+        },
+        {
+          "url": "/_next/static/chunks/1aa9e7ktlo-rg.js",
+          "transferBytes": 0,
+          "decodedBytes": 1499
+        },
+        {
+          "url": "/_next/static/chunks/3n91h65qtcn6l.js",
+          "transferBytes": 0,
+          "decodedBytes": 4311
+        },
+        {
+          "url": "/_next/static/chunks/28ccx5xl06mlk.js",
+          "transferBytes": 0,
+          "decodedBytes": 3532
+        },
+        {
+          "url": "https://ep2.adtrafficquality.google/sodar/sodar2.js",
+          "transferBytes": 0,
+          "decodedBytes": 0
+        }
+      ]
+    },
+    "errors": []
+  },
+  {
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "route": "/loterias/lotofacil",
+    "visibleH1": [
+      "Gerador Estatístico da Lotofácil"
+    ],
+    "overflow": false,
+    "landingMetrics": {
+      "lcp": 2944,
+      "cls": 0.20673571773821514,
+      "longestInteractionMs": 0
+    },
+    "metrics": {
+      "lcp": 2944,
+      "cls": 0.20673571773821514,
+      "longestInteractionMs": 0,
+      "scripts": [
+        {
+          "url": "/_next/static/chunks/2ey_icn33wsjp.js",
+          "transferBytes": 0,
+          "decodedBytes": 29000
+        },
+        {
+          "url": "/_next/static/chunks/26swit4g4lpuz.js",
+          "transferBytes": 0,
+          "decodedBytes": 228084
+        },
+        {
+          "url": "/_next/static/chunks/3ajnhh-2s2fvq.js",
+          "transferBytes": 0,
+          "decodedBytes": 166064
+        },
+        {
+          "url": "/_next/static/chunks/turbopack-1-i7j81amu6-l.js",
+          "transferBytes": 0,
+          "decodedBytes": 9722
+        },
+        {
+          "url": "/_next/static/chunks/3279l710q8skp.js",
+          "transferBytes": 0,
+          "decodedBytes": 14537
+        },
+        {
+          "url": "/_next/static/chunks/0ixx15dnt6d-z.js",
+          "transferBytes": 0,
+          "decodedBytes": 23019
+        },
+        {
+          "url": "/_next/static/chunks/2sxwhusr020f4.js",
+          "transferBytes": 0,
+          "decodedBytes": 39272
+        },
+        {
+          "url": "/_next/static/chunks/2njbpapoh8kgo.js",
+          "transferBytes": 0,
+          "decodedBytes": 34598
+        },
+        {
+          "url": "/_next/static/chunks/42t5am4xfcidi.js",
+          "transferBytes": 0,
+          "decodedBytes": 23817
+        },
+        {
+          "url": "/_next/static/chunks/0p6x2gq0koi-k.js",
+          "transferBytes": 8296,
+          "decodedBytes": 25402
+        },
+        {
+          "url": "https://pagead2.googlesyndication.com/pagead/managed/js/adsense/m202610130101/show_ads_impl.js?bust=122881614",
+          "transferBytes": 0,
+          "decodedBytes": 613212
+        },
+        {
+          "url": "/_next/static/chunks/1zce05deltsh7.js",
+          "transferBytes": 0,
+          "decodedBytes": 4554
+        },
+        {
+          "url": "/_next/static/chunks/1ucy2h0l02mus.js",
+          "transferBytes": 0,
+          "decodedBytes": 90887
+        },
+        {
+          "url": "/_next/static/chunks/3n91h65qtcn6l.js",
+          "transferBytes": 0,
+          "decodedBytes": 4311
+        },
+        {
+          "url": "/_next/static/chunks/1aa9e7ktlo-rg.js",
+          "transferBytes": 0,
+          "decodedBytes": 1499
+        },
+        {
+          "url": "https://ep2.adtrafficquality.google/sodar/sodar2.js",
+          "transferBytes": 0,
+          "decodedBytes": 0
+        }
+      ]
+    },
+    "errors": []
+  },
+  {
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "route": "/videos",
+    "visibleH1": [
+      "Editor de Vídeo Split-Screen para Reels e Shorts"
+    ],
+    "overflow": false,
+    "landingMetrics": {
+      "lcp": 184,
+      "cls": 0.000522746504242596,
+      "longestInteractionMs": 0
+    },
+    "metrics": {
+      "lcp": 184,
+      "cls": 0.000522746504242596,
+      "longestInteractionMs": 0,
+      "scripts": [
+        {
+          "url": "/_next/static/chunks/2ey_icn33wsjp.js",
+          "transferBytes": 0,
+          "decodedBytes": 29000
+        },
+        {
+          "url": "/_next/static/chunks/26swit4g4lpuz.js",
+          "transferBytes": 0,
+          "decodedBytes": 228084
+        },
+        {
+          "url": "/_next/static/chunks/3ajnhh-2s2fvq.js",
+          "transferBytes": 0,
+          "decodedBytes": 166064
+        },
+        {
+          "url": "/_next/static/chunks/turbopack-1-i7j81amu6-l.js",
+          "transferBytes": 0,
+          "decodedBytes": 9722
+        },
+        {
+          "url": "/_next/static/chunks/3279l710q8skp.js",
+          "transferBytes": 0,
+          "decodedBytes": 14537
+        },
+        {
+          "url": "/_next/static/chunks/0ixx15dnt6d-z.js",
+          "transferBytes": 0,
+          "decodedBytes": 23019
+        },
+        {
+          "url": "/_next/static/chunks/2sxwhusr020f4.js",
+          "transferBytes": 0,
+          "decodedBytes": 39272
+        },
+        {
+          "url": "/_next/static/chunks/2njbpapoh8kgo.js",
+          "transferBytes": 0,
+          "decodedBytes": 34598
+        },
+        {
+          "url": "/_next/static/chunks/42t5am4xfcidi.js",
+          "transferBytes": 0,
+          "decodedBytes": 23817
+        },
+        {
+          "url": "https://pagead2.googlesyndication.com/pagead/managed/js/adsense/m202610130101/show_ads_impl.js?bust=122881614",
+          "transferBytes": 0,
+          "decodedBytes": 613212
+        },
+        {
+          "url": "/_next/static/chunks/3n91h65qtcn6l.js",
+          "transferBytes": 0,
+          "decodedBytes": 4311
+        },
+        {
+          "url": "/_next/static/chunks/1zce05deltsh7.js",
+          "transferBytes": 0,
+          "decodedBytes": 4554
+        },
+        {
+          "url": "/_next/static/chunks/1ucy2h0l02mus.js",
+          "transferBytes": 0,
+          "decodedBytes": 90887
+        },
+        {
+          "url": "/_next/static/chunks/1aa9e7ktlo-rg.js",
+          "transferBytes": 0,
+          "decodedBytes": 1499
+        },
+        {
+          "url": "https://ep2.adtrafficquality.google/sodar/sodar2.js",
+          "transferBytes": 0,
+          "decodedBytes": 0
+        }
+      ]
+    },
+    "errors": []
+  },
+  {
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "route": "/privacidade",
+    "visibleH1": [
+      "Política de Privacidade"
+    ],
+    "overflow": false,
+    "landingMetrics": {
+      "lcp": 104,
+      "cls": 0.000522746504242596,
+      "longestInteractionMs": 0
+    },
+    "metrics": {
+      "lcp": 104,
+      "cls": 0.000522746504242596,
+      "longestInteractionMs": 0,
+      "scripts": [
+        {
+          "url": "/_next/static/chunks/2ey_icn33wsjp.js",
+          "transferBytes": 0,
+          "decodedBytes": 29000
+        },
+        {
+          "url": "/_next/static/chunks/26swit4g4lpuz.js",
+          "transferBytes": 0,
+          "decodedBytes": 228084
+        },
+        {
+          "url": "/_next/static/chunks/3ajnhh-2s2fvq.js",
+          "transferBytes": 0,
+          "decodedBytes": 166064
+        },
+        {
+          "url": "/_next/static/chunks/turbopack-1-i7j81amu6-l.js",
+          "transferBytes": 0,
+          "decodedBytes": 9722
+        },
+        {
+          "url": "/_next/static/chunks/3279l710q8skp.js",
+          "transferBytes": 0,
+          "decodedBytes": 14537
+        },
+        {
+          "url": "/_next/static/chunks/0ixx15dnt6d-z.js",
+          "transferBytes": 0,
+          "decodedBytes": 23019
+        },
+        {
+          "url": "/_next/static/chunks/2sxwhusr020f4.js",
+          "transferBytes": 0,
+          "decodedBytes": 39272
+        },
+        {
+          "url": "/_next/static/chunks/2njbpapoh8kgo.js",
+          "transferBytes": 0,
+          "decodedBytes": 34598
+        },
+        {
+          "url": "/_next/static/chunks/42t5am4xfcidi.js",
+          "transferBytes": 0,
+          "decodedBytes": 23817
+        },
+        {
+          "url": "https://pagead2.googlesyndication.com/pagead/managed/js/adsense/m202610130101/show_ads_impl.js?bust=122881614",
+          "transferBytes": 0,
+          "decodedBytes": 613212
+        },
+        {
+          "url": "/_next/static/chunks/1zce05deltsh7.js",
+          "transferBytes": 0,
+          "decodedBytes": 4554
+        },
+        {
+          "url": "/_next/static/chunks/1ucy2h0l02mus.js",
+          "transferBytes": 0,
+          "decodedBytes": 90887
+        },
+        {
+          "url": "/_next/static/chunks/1aa9e7ktlo-rg.js",
+          "transferBytes": 0,
+          "decodedBytes": 1499
+        },
+        {
+          "url": "/_next/static/chunks/3n91h65qtcn6l.js",
+          "transferBytes": 0,
+          "decodedBytes": 4311
+        },
+        {
+          "url": "https://ep2.adtrafficquality.google/sodar/sodar2.js",
+          "transferBytes": 0,
+          "decodedBytes": 0
+        }
+      ]
+    },
+    "errors": []
+  },
+  {
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "route": "/",
+    "visibleH1": [
+      "Ferramentas simples para facilitar o seu dia a dia."
+    ],
+    "overflow": false,
+    "landingMetrics": {
+      "lcp": 684,
+      "cls": 0.0008389892578124999,
+      "longestInteractionMs": 0
+    },
+    "metrics": {
+      "lcp": 684,
+      "cls": 0.0008389892578124999,
+      "longestInteractionMs": 0,
+      "scripts": [
+        {
+          "url": "/_next/static/chunks/2ey_icn33wsjp.js",
+          "transferBytes": 7964,
+          "decodedBytes": 29000
+        },
+        {
+          "url": "/_next/static/chunks/26swit4g4lpuz.js",
+          "transferBytes": 71700,
+          "decodedBytes": 228084
+        },
+        {
+          "url": "/_next/static/chunks/3279l710q8skp.js",
+          "transferBytes": 4061,
+          "decodedBytes": 14537
+        },
+        {
+          "url": "/_next/static/chunks/turbopack-1-i7j81amu6-l.js",
+          "transferBytes": 4151,
+          "decodedBytes": 9722
+        },
+        {
+          "url": "/_next/static/chunks/3ajnhh-2s2fvq.js",
+          "transferBytes": 45522,
+          "decodedBytes": 166064
+        },
+        {
+          "url": "/_next/static/chunks/0ixx15dnt6d-z.js",
+          "transferBytes": 9253,
+          "decodedBytes": 23019
+        },
+        {
+          "url": "/_next/static/chunks/2sxwhusr020f4.js",
+          "transferBytes": 12730,
+          "decodedBytes": 39272
+        },
+        {
+          "url": "/_next/static/chunks/2njbpapoh8kgo.js",
+          "transferBytes": 9885,
+          "decodedBytes": 34598
+        },
+        {
+          "url": "/_next/static/chunks/1zce05deltsh7.js",
+          "transferBytes": 2458,
+          "decodedBytes": 4554
+        },
+        {
+          "url": "/_next/static/chunks/42t5am4xfcidi.js",
+          "transferBytes": 9143,
+          "decodedBytes": 23817
+        },
+        {
+          "url": "/_next/static/chunks/1ucy2h0l02mus.js",
+          "transferBytes": 21904,
+          "decodedBytes": 90887
+        },
+        {
+          "url": "https://pagead2.googlesyndication.com/pagead/managed/js/adsense/m202610120101/show_ads_impl.js",
+          "transferBytes": 192007,
+          "decodedBytes": 613081
+        },
+        {
+          "url": "/_next/static/chunks/37tnnj6gh4zsq.js",
+          "transferBytes": 1858,
+          "decodedBytes": 3864
+        },
+        {
+          "url": "/_next/static/chunks/1aa9e7ktlo-rg.js",
+          "transferBytes": 1177,
+          "decodedBytes": 1499
+        },
+        {
+          "url": "/_next/static/chunks/28ccx5xl06mlk.js",
+          "transferBytes": 1748,
+          "decodedBytes": 3532
+        },
+        {
+          "url": "/_next/static/chunks/3n91h65qtcn6l.js",
+          "transferBytes": 1941,
+          "decodedBytes": 4311
+        },
+        {
+          "url": "https://ep2.adtrafficquality.google/sodar/sodar2.js",
+          "transferBytes": 0,
+          "decodedBytes": 0
+        }
+      ]
+    },
+    "errors": []
+  },
+  {
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "route": "/utilitarios/financeiro/financiamento-veiculo",
+    "visibleH1": [
+      "Calculadora de Financiamento de Veículo"
+    ],
+    "overflow": false,
+    "landingMetrics": {
+      "lcp": 120,
+      "cls": 0.00016491518373842594,
+      "longestInteractionMs": 0
+    },
+    "metrics": {
+      "lcp": 120,
+      "cls": 0.00016491518373842594,
+      "longestInteractionMs": 40,
+      "scripts": [
+        {
+          "url": "/_next/static/chunks/2ey_icn33wsjp.js",
+          "transferBytes": 0,
+          "decodedBytes": 29000
+        },
+        {
+          "url": "/_next/static/chunks/26swit4g4lpuz.js",
+          "transferBytes": 0,
+          "decodedBytes": 228084
+        },
+        {
+          "url": "/_next/static/chunks/3ajnhh-2s2fvq.js",
+          "transferBytes": 0,
+          "decodedBytes": 166064
+        },
+        {
+          "url": "/_next/static/chunks/turbopack-1-i7j81amu6-l.js",
+          "transferBytes": 0,
+          "decodedBytes": 9722
+        },
+        {
+          "url": "/_next/static/chunks/3279l710q8skp.js",
+          "transferBytes": 0,
+          "decodedBytes": 14537
+        },
+        {
+          "url": "/_next/static/chunks/0ixx15dnt6d-z.js",
+          "transferBytes": 0,
+          "decodedBytes": 23019
+        },
+        {
+          "url": "/_next/static/chunks/2sxwhusr020f4.js",
+          "transferBytes": 0,
+          "decodedBytes": 39272
+        },
+        {
+          "url": "/_next/static/chunks/2njbpapoh8kgo.js",
+          "transferBytes": 0,
+          "decodedBytes": 34598
+        },
+        {
+          "url": "/_next/static/chunks/42t5am4xfcidi.js",
+          "transferBytes": 0,
+          "decodedBytes": 23817
+        },
+        {
+          "url": "/_next/static/chunks/23f_nud89rqa1.js",
+          "transferBytes": 3226,
+          "decodedBytes": 10581
+        },
+        {
+          "url": "/_next/static/chunks/04ntgb-g5xjin.js",
+          "transferBytes": 137174,
+          "decodedBytes": 589015
+        },
+        {
+          "url": "https://pagead2.googlesyndication.com/pagead/managed/js/adsense/m202610120101/show_ads_impl.js",
+          "transferBytes": 0,
+          "decodedBytes": 613081
+        },
+        {
+          "url": "https://ep2.adtrafficquality.google/sodar/sodar2.js",
+          "transferBytes": 0,
+          "decodedBytes": 0
+        },
+        {
+          "url": "/_next/static/chunks/3n91h65qtcn6l.js",
+          "transferBytes": 0,
+          "decodedBytes": 4311
+        },
+        {
+          "url": "/_next/static/chunks/1zce05deltsh7.js",
+          "transferBytes": 0,
+          "decodedBytes": 4554
+        },
+        {
+          "url": "/_next/static/chunks/1ucy2h0l02mus.js",
+          "transferBytes": 0,
+          "decodedBytes": 90887
+        },
+        {
+          "url": "/_next/static/chunks/1aa9e7ktlo-rg.js",
+          "transferBytes": 0,
+          "decodedBytes": 1499
+        },
+        {
+          "url": "/_next/static/chunks/37tnnj6gh4zsq.js",
+          "transferBytes": 0,
+          "decodedBytes": 3864
+        },
+        {
+          "url": "/_next/static/chunks/28ccx5xl06mlk.js",
+          "transferBytes": 0,
+          "decodedBytes": 3532
+        }
+      ]
+    },
+    "errors": []
+  },
+  {
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "route": "/utilitarios/pdf/unir-pdf",
+    "visibleH1": [
+      "Unir PDF Online Grátis"
+    ],
+    "overflow": false,
+    "landingMetrics": {
+      "lcp": 116,
+      "cls": 0.00016491518373842594,
+      "longestInteractionMs": 0
+    },
+    "metrics": {
+      "lcp": 116,
+      "cls": 0.048919236171392745,
+      "longestInteractionMs": 40,
+      "scripts": [
+        {
+          "url": "/_next/static/chunks/2ey_icn33wsjp.js",
+          "transferBytes": 0,
+          "decodedBytes": 29000
+        },
+        {
+          "url": "/_next/static/chunks/26swit4g4lpuz.js",
+          "transferBytes": 0,
+          "decodedBytes": 228084
+        },
+        {
+          "url": "/_next/static/chunks/3ajnhh-2s2fvq.js",
+          "transferBytes": 0,
+          "decodedBytes": 166064
+        },
+        {
+          "url": "/_next/static/chunks/turbopack-1-i7j81amu6-l.js",
+          "transferBytes": 0,
+          "decodedBytes": 9722
+        },
+        {
+          "url": "/_next/static/chunks/3279l710q8skp.js",
+          "transferBytes": 0,
+          "decodedBytes": 14537
+        },
+        {
+          "url": "/_next/static/chunks/0ixx15dnt6d-z.js",
+          "transferBytes": 0,
+          "decodedBytes": 23019
+        },
+        {
+          "url": "/_next/static/chunks/2sxwhusr020f4.js",
+          "transferBytes": 0,
+          "decodedBytes": 39272
+        },
+        {
+          "url": "/_next/static/chunks/2njbpapoh8kgo.js",
+          "transferBytes": 0,
+          "decodedBytes": 34598
+        },
+        {
+          "url": "/_next/static/chunks/42t5am4xfcidi.js",
+          "transferBytes": 0,
+          "decodedBytes": 23817
+        },
+        {
+          "url": "/_next/static/chunks/23f_nud89rqa1.js",
+          "transferBytes": 0,
+          "decodedBytes": 10581
+        },
+        {
+          "url": "/_next/static/chunks/04ntgb-g5xjin.js",
+          "transferBytes": 0,
+          "decodedBytes": 589015
+        },
+        {
+          "url": "https://pagead2.googlesyndication.com/pagead/managed/js/adsense/m202610120101/show_ads_impl.js",
+          "transferBytes": 0,
+          "decodedBytes": 613081
+        },
+        {
+          "url": "/_next/static/chunks/1zce05deltsh7.js",
+          "transferBytes": 0,
+          "decodedBytes": 4554
+        },
+        {
+          "url": "/_next/static/chunks/1ucy2h0l02mus.js",
+          "transferBytes": 0,
+          "decodedBytes": 90887
+        },
+        {
+          "url": "/_next/static/chunks/3n91h65qtcn6l.js",
+          "transferBytes": 0,
+          "decodedBytes": 4311
+        },
+        {
+          "url": "/_next/static/chunks/37tnnj6gh4zsq.js",
+          "transferBytes": 0,
+          "decodedBytes": 3864
+        },
+        {
+          "url": "/_next/static/chunks/1aa9e7ktlo-rg.js",
+          "transferBytes": 0,
+          "decodedBytes": 1499
+        },
+        {
+          "url": "/_next/static/chunks/28ccx5xl06mlk.js",
+          "transferBytes": 0,
+          "decodedBytes": 3532
+        },
+        {
+          "url": "https://ep2.adtrafficquality.google/sodar/sodar2.js",
+          "transferBytes": 0,
+          "decodedBytes": 0
+        },
+        {
+          "url": "/_next/static/chunks/14oyx3pqy7y0k.js",
+          "transferBytes": 4662,
+          "decodedBytes": 15904
+        },
+        {
+          "url": "/_next/static/chunks/0okmsfcg4q2mp.js",
+          "transferBytes": 165913,
+          "decodedBytes": 391479
+        },
+        {
+          "url": "/_next/static/chunks/2hmmswcvqvp60.js",
+          "transferBytes": 14027,
+          "decodedBytes": 44269
+        }
+      ]
+    },
+    "errors": []
+  },
+  {
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "route": "/utilitarios/funcoes-string/contador-caracteres",
+    "visibleH1": [
+      "Contador de Caracteres"
+    ],
+    "overflow": false,
+    "landingMetrics": {
+      "lcp": 108,
+      "cls": 0.00016491518373842594,
+      "longestInteractionMs": 0
+    },
+    "metrics": {
+      "lcp": 108,
+      "cls": 0.00016491518373842594,
+      "longestInteractionMs": 0,
+      "scripts": [
+        {
+          "url": "/_next/static/chunks/2ey_icn33wsjp.js",
+          "transferBytes": 0,
+          "decodedBytes": 29000
+        },
+        {
+          "url": "/_next/static/chunks/26swit4g4lpuz.js",
+          "transferBytes": 0,
+          "decodedBytes": 228084
+        },
+        {
+          "url": "/_next/static/chunks/3ajnhh-2s2fvq.js",
+          "transferBytes": 0,
+          "decodedBytes": 166064
+        },
+        {
+          "url": "/_next/static/chunks/turbopack-1-i7j81amu6-l.js",
+          "transferBytes": 0,
+          "decodedBytes": 9722
+        },
+        {
+          "url": "/_next/static/chunks/3279l710q8skp.js",
+          "transferBytes": 0,
+          "decodedBytes": 14537
+        },
+        {
+          "url": "/_next/static/chunks/0ixx15dnt6d-z.js",
+          "transferBytes": 0,
+          "decodedBytes": 23019
+        },
+        {
+          "url": "/_next/static/chunks/2sxwhusr020f4.js",
+          "transferBytes": 0,
+          "decodedBytes": 39272
+        },
+        {
+          "url": "/_next/static/chunks/2njbpapoh8kgo.js",
+          "transferBytes": 0,
+          "decodedBytes": 34598
+        },
+        {
+          "url": "/_next/static/chunks/42t5am4xfcidi.js",
+          "transferBytes": 0,
+          "decodedBytes": 23817
+        },
+        {
+          "url": "/_next/static/chunks/23f_nud89rqa1.js",
+          "transferBytes": 0,
+          "decodedBytes": 10581
+        },
+        {
+          "url": "/_next/static/chunks/04ntgb-g5xjin.js",
+          "transferBytes": 0,
+          "decodedBytes": 589015
+        },
+        {
+          "url": "https://pagead2.googlesyndication.com/pagead/managed/js/adsense/m202610120101/show_ads_impl.js",
+          "transferBytes": 0,
+          "decodedBytes": 613081
+        },
+        {
+          "url": "/_next/static/chunks/3n91h65qtcn6l.js",
+          "transferBytes": 0,
+          "decodedBytes": 4311
+        },
+        {
+          "url": "/_next/static/chunks/1zce05deltsh7.js",
+          "transferBytes": 0,
+          "decodedBytes": 4554
+        },
+        {
+          "url": "/_next/static/chunks/1ucy2h0l02mus.js",
+          "transferBytes": 0,
+          "decodedBytes": 90887
+        },
+        {
+          "url": "/_next/static/chunks/37tnnj6gh4zsq.js",
+          "transferBytes": 0,
+          "decodedBytes": 3864
+        },
+        {
+          "url": "/_next/static/chunks/1aa9e7ktlo-rg.js",
+          "transferBytes": 0,
+          "decodedBytes": 1499
+        },
+        {
+          "url": "/_next/static/chunks/28ccx5xl06mlk.js",
+          "transferBytes": 0,
+          "decodedBytes": 3532
+        },
+        {
+          "url": "https://ep2.adtrafficquality.google/sodar/sodar2.js",
+          "transferBytes": 0,
+          "decodedBytes": 0
+        }
+      ]
+    },
+    "errors": []
+  },
+  {
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "route": "/loterias/lotofacil",
+    "visibleH1": [
+      "Gerador Estatístico da Lotofácil"
+    ],
+    "overflow": false,
+    "landingMetrics": {
+      "lcp": 132,
+      "cls": 0.1068182224754051,
+      "longestInteractionMs": 0
+    },
+    "metrics": {
+      "lcp": 132,
+      "cls": 0.1068182224754051,
+      "longestInteractionMs": 0,
+      "scripts": [
+        {
+          "url": "/_next/static/chunks/2ey_icn33wsjp.js",
+          "transferBytes": 0,
+          "decodedBytes": 29000
+        },
+        {
+          "url": "/_next/static/chunks/26swit4g4lpuz.js",
+          "transferBytes": 0,
+          "decodedBytes": 228084
+        },
+        {
+          "url": "/_next/static/chunks/3ajnhh-2s2fvq.js",
+          "transferBytes": 0,
+          "decodedBytes": 166064
+        },
+        {
+          "url": "/_next/static/chunks/turbopack-1-i7j81amu6-l.js",
+          "transferBytes": 0,
+          "decodedBytes": 9722
+        },
+        {
+          "url": "/_next/static/chunks/3279l710q8skp.js",
+          "transferBytes": 0,
+          "decodedBytes": 14537
+        },
+        {
+          "url": "/_next/static/chunks/0ixx15dnt6d-z.js",
+          "transferBytes": 0,
+          "decodedBytes": 23019
+        },
+        {
+          "url": "/_next/static/chunks/2sxwhusr020f4.js",
+          "transferBytes": 0,
+          "decodedBytes": 39272
+        },
+        {
+          "url": "/_next/static/chunks/2njbpapoh8kgo.js",
+          "transferBytes": 0,
+          "decodedBytes": 34598
+        },
+        {
+          "url": "/_next/static/chunks/42t5am4xfcidi.js",
+          "transferBytes": 0,
+          "decodedBytes": 23817
+        },
+        {
+          "url": "/_next/static/chunks/0p6x2gq0koi-k.js",
+          "transferBytes": 8296,
+          "decodedBytes": 25402
+        },
+        {
+          "url": "https://pagead2.googlesyndication.com/pagead/managed/js/adsense/m202610120101/show_ads_impl.js",
+          "transferBytes": 0,
+          "decodedBytes": 613081
+        },
+        {
+          "url": "/_next/static/chunks/3n91h65qtcn6l.js",
+          "transferBytes": 0,
+          "decodedBytes": 4311
+        },
+        {
+          "url": "/_next/static/chunks/1zce05deltsh7.js",
+          "transferBytes": 0,
+          "decodedBytes": 4554
+        },
+        {
+          "url": "/_next/static/chunks/1ucy2h0l02mus.js",
+          "transferBytes": 0,
+          "decodedBytes": 90887
+        },
+        {
+          "url": "/_next/static/chunks/1aa9e7ktlo-rg.js",
+          "transferBytes": 0,
+          "decodedBytes": 1499
+        },
+        {
+          "url": "/_next/static/chunks/37tnnj6gh4zsq.js",
+          "transferBytes": 0,
+          "decodedBytes": 3864
+        },
+        {
+          "url": "/_next/static/chunks/28ccx5xl06mlk.js",
+          "transferBytes": 0,
+          "decodedBytes": 3532
+        },
+        {
+          "url": "https://ep2.adtrafficquality.google/sodar/sodar2.js",
+          "transferBytes": 0,
+          "decodedBytes": 0
+        }
+      ]
+    },
+    "errors": []
+  },
+  {
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "route": "/videos",
+    "visibleH1": [
+      "Editor de Vídeo Split-Screen para Reels e Shorts"
+    ],
+    "overflow": false,
+    "landingMetrics": {
+      "lcp": 92,
+      "cls": 0.00016491518373842594,
+      "longestInteractionMs": 0
+    },
+    "metrics": {
+      "lcp": 92,
+      "cls": 0.00016491518373842594,
+      "longestInteractionMs": 0,
+      "scripts": [
+        {
+          "url": "/_next/static/chunks/2ey_icn33wsjp.js",
+          "transferBytes": 0,
+          "decodedBytes": 29000
+        },
+        {
+          "url": "/_next/static/chunks/26swit4g4lpuz.js",
+          "transferBytes": 0,
+          "decodedBytes": 228084
+        },
+        {
+          "url": "/_next/static/chunks/3ajnhh-2s2fvq.js",
+          "transferBytes": 0,
+          "decodedBytes": 166064
+        },
+        {
+          "url": "/_next/static/chunks/turbopack-1-i7j81amu6-l.js",
+          "transferBytes": 0,
+          "decodedBytes": 9722
+        },
+        {
+          "url": "/_next/static/chunks/3279l710q8skp.js",
+          "transferBytes": 0,
+          "decodedBytes": 14537
+        },
+        {
+          "url": "/_next/static/chunks/0ixx15dnt6d-z.js",
+          "transferBytes": 0,
+          "decodedBytes": 23019
+        },
+        {
+          "url": "/_next/static/chunks/2sxwhusr020f4.js",
+          "transferBytes": 0,
+          "decodedBytes": 39272
+        },
+        {
+          "url": "/_next/static/chunks/2njbpapoh8kgo.js",
+          "transferBytes": 0,
+          "decodedBytes": 34598
+        },
+        {
+          "url": "/_next/static/chunks/42t5am4xfcidi.js",
+          "transferBytes": 0,
+          "decodedBytes": 23817
+        },
+        {
+          "url": "https://pagead2.googlesyndication.com/pagead/managed/js/adsense/m202610120101/show_ads_impl.js",
+          "transferBytes": 0,
+          "decodedBytes": 613081
+        },
+        {
+          "url": "/_next/static/chunks/3n91h65qtcn6l.js",
+          "transferBytes": 0,
+          "decodedBytes": 4311
+        },
+        {
+          "url": "/_next/static/chunks/1zce05deltsh7.js",
+          "transferBytes": 0,
+          "decodedBytes": 4554
+        },
+        {
+          "url": "/_next/static/chunks/1ucy2h0l02mus.js",
+          "transferBytes": 0,
+          "decodedBytes": 90887
+        },
+        {
+          "url": "/_next/static/chunks/37tnnj6gh4zsq.js",
+          "transferBytes": 0,
+          "decodedBytes": 3864
+        },
+        {
+          "url": "/_next/static/chunks/1aa9e7ktlo-rg.js",
+          "transferBytes": 0,
+          "decodedBytes": 1499
+        },
+        {
+          "url": "/_next/static/chunks/28ccx5xl06mlk.js",
+          "transferBytes": 0,
+          "decodedBytes": 3532
+        },
+        {
+          "url": "https://ep2.adtrafficquality.google/sodar/sodar2.js",
+          "transferBytes": 0,
+          "decodedBytes": 0
+        }
+      ]
+    },
+    "errors": []
+  },
+  {
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "route": "/privacidade",
+    "visibleH1": [
+      "Política de Privacidade"
+    ],
+    "overflow": false,
+    "landingMetrics": {
+      "lcp": 100,
+      "cls": 0.00016491518373842594,
+      "longestInteractionMs": 0
+    },
+    "metrics": {
+      "lcp": 100,
+      "cls": 0.00016491518373842594,
+      "longestInteractionMs": 0,
+      "scripts": [
+        {
+          "url": "/_next/static/chunks/2ey_icn33wsjp.js",
+          "transferBytes": 0,
+          "decodedBytes": 29000
+        },
+        {
+          "url": "/_next/static/chunks/26swit4g4lpuz.js",
+          "transferBytes": 0,
+          "decodedBytes": 228084
+        },
+        {
+          "url": "/_next/static/chunks/3ajnhh-2s2fvq.js",
+          "transferBytes": 0,
+          "decodedBytes": 166064
+        },
+        {
+          "url": "/_next/static/chunks/turbopack-1-i7j81amu6-l.js",
+          "transferBytes": 0,
+          "decodedBytes": 9722
+        },
+        {
+          "url": "/_next/static/chunks/3279l710q8skp.js",
+          "transferBytes": 0,
+          "decodedBytes": 14537
+        },
+        {
+          "url": "/_next/static/chunks/0ixx15dnt6d-z.js",
+          "transferBytes": 0,
+          "decodedBytes": 23019
+        },
+        {
+          "url": "/_next/static/chunks/2sxwhusr020f4.js",
+          "transferBytes": 0,
+          "decodedBytes": 39272
+        },
+        {
+          "url": "/_next/static/chunks/2njbpapoh8kgo.js",
+          "transferBytes": 0,
+          "decodedBytes": 34598
+        },
+        {
+          "url": "/_next/static/chunks/42t5am4xfcidi.js",
+          "transferBytes": 0,
+          "decodedBytes": 23817
+        },
+        {
+          "url": "https://pagead2.googlesyndication.com/pagead/managed/js/adsense/m202610120101/show_ads_impl.js",
+          "transferBytes": 0,
+          "decodedBytes": 613081
+        },
+        {
+          "url": "/_next/static/chunks/1zce05deltsh7.js",
+          "transferBytes": 0,
+          "decodedBytes": 4554
+        },
+        {
+          "url": "/_next/static/chunks/1ucy2h0l02mus.js",
+          "transferBytes": 0,
+          "decodedBytes": 90887
+        },
+        {
+          "url": "/_next/static/chunks/3n91h65qtcn6l.js",
+          "transferBytes": 0,
+          "decodedBytes": 4311
+        },
+        {
+          "url": "/_next/static/chunks/37tnnj6gh4zsq.js",
+          "transferBytes": 0,
+          "decodedBytes": 3864
+        },
+        {
+          "url": "/_next/static/chunks/1aa9e7ktlo-rg.js",
+          "transferBytes": 0,
+          "decodedBytes": 1499
+        },
+        {
+          "url": "/_next/static/chunks/28ccx5xl06mlk.js",
+          "transferBytes": 0,
+          "decodedBytes": 3532
+        },
+        {
+          "url": "https://ep2.adtrafficquality.google/sodar/sodar2.js",
+          "transferBytes": 0,
+          "decodedBytes": 0
+        }
+      ]
+    },
+    "errors": []
+  }
+]

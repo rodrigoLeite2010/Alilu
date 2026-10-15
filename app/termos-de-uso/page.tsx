@@ -6,7 +6,7 @@ import { SITE_NAME } from "@/lib/seo/site";
 
 export const metadata: Metadata = buildPageMetadata({
   title: "Termos de Uso",
-  description: `Condições de uso das calculadoras e utilitários gratuitos do ${SITE_NAME}.`,
+  description: `Condições de uso das ferramentas públicas, contas e recursos com planos ou créditos do ${SITE_NAME}.`,
   path: "/termos-de-uso",
 });
 
@@ -24,10 +24,13 @@ export default function TermsOfUsePage() {
       </h1>
 
       <div className="legal-content mt-6">
-        <h2>Uso gratuito</h2>
+        <h2>Ferramentas públicas e recursos com conta</h2>
         <p>
-          As ferramentas do {SITE_NAME} são oferecidas gratuitamente, sem
-          necessidade de cadastro, para uso pessoal ou profissional.
+          As calculadoras e os utilitários públicos do {SITE_NAME} são gratuitos
+          e podem ser usados sem cadastro. Recursos que guardam dados da conta,
+          publicam no Instagram ou utilizam serviços de IA podem exigir login,
+          assinatura, cotas ou créditos. As condições e o custo aplicável são
+          apresentados nas respectivas telas; consulte também <a href="/planos">Planos</a>.
         </p>
 
         <h2>Resultados são estimativas</h2>
@@ -61,6 +64,15 @@ export default function TermsOfUsePage() {
           <a href="/privacidade">Política de Privacidade</a>. Sempre que
           possível, os cálculos são feitos localmente no seu navegador, sem
           envio dos valores digitados para os nossos servidores.
+        </p>
+        <h2>Arquivos, publicações e inteligência artificial</h2>
+        <p>
+          Envie ou importe somente conteúdo próprio ou para o qual você tenha
+          autorização de uso. Você é responsável por conferir textos, imagens,
+          direitos de uso e informações antes de baixar, publicar ou agendar.
+          Respostas de IA podem conter erros e precisam de revisão. A disponibilidade
+          de processamento e publicação também depende dos serviços externos
+          utilizados e das permissões da conta conectada.
         </p>
 
         <h2>Alterações</h2>

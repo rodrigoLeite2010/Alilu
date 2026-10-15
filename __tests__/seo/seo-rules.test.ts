@@ -10,6 +10,8 @@ import { toolComponents } from "@/components/tools/tool-registry";
 import { toolContent } from "@/components/tools/tool-content";
 import nextConfig from "@/next.config";
 import { buildFaqJsonLd } from "@/lib/seo/faq";
+import { videoTools } from "@/data/videos";
+import { metadata as loginMetadata } from "@/app/entrar/layout";
 
 /**
  * Testes de comportamento da regra central de SEO "em-breve" x "ativo"
@@ -122,13 +124,13 @@ describe("D) metadata de ferramenta ativo permite indexação", () => {
 });
 
 describe("E) robots.txt continua correto", () => {
-  it("permite todos os agentes, aponta para o sitemap correto e nunca indexa login/API/painel/área financeira privada", () => {
+  it("permite rastrear o login para observar noindex e protege APIs e áreas privadas", () => {
     const result = robots();
     expect(result.rules).toEqual({
       userAgent: "*",
       allow: "/",
       disallow: [
-        "/entrar",
+        "/admin",
         "/minha-conta",
         "/api/",
         "/instagram/painel",
@@ -152,6 +154,17 @@ describe("E) robots.txt continua correto", () => {
       ],
     });
     expect(result.sitemap).toBe(`${SITE_URL}/sitemap.xml`);
+    expect(loginMetadata.robots).toEqual({ index: false, follow: true });
+  });
+});
+
+describe("vídeos disponíveis e indexação", () => {
+  it("mantém o editor público e exclui ferramentas que exibem login e noindex", () => {
+    const urls = sitemap().map((entry) => entry.url);
+    expect(urls).toContain(`${SITE_URL}/videos/editor-split-screen`);
+    expect(urls).not.toContain(`${SITE_URL}/videos/imagem-para-video`);
+    expect(urls).not.toContain(`${SITE_URL}/videos/importar-instagram`);
+    expect(videoTools.every((tool) => tool.status === "ativo")).toBe(true);
   });
 });
 

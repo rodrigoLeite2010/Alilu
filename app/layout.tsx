@@ -60,6 +60,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="flex min-h-full flex-col bg-background text-foreground max-md:pb-[calc(3.5rem+env(safe-area-inset-bottom))] print:pb-0">
+        <a href="#conteudo" className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[100] focus:rounded focus:bg-white focus:px-4 focus:py-3 focus:text-brand-primary-dark focus:shadow-lg">Pular para o conteúdo</a>
         {/* max-md:pb no body = altura da barra inferior (3.5rem) + safe area, para ela nunca cobrir conteúdo. */}
         <Suspense fallback={null}>
           <LogoutNotice />
@@ -87,7 +88,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           <Header />
           <div className="flex min-h-0 flex-1">
             <SiteSidebar />
-            <main className="min-w-0 flex-1">{children}</main>
+            <main id="conteudo" tabIndex={-1} className="min-w-0 flex-1">{children}</main>
           </div>
           {/*
             Pilha de widgets flutuantes do canto inferior direito: cada um

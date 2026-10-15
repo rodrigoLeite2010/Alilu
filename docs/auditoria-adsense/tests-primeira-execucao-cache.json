@@ -1,0 +1,2595 @@
+{
+  "version": "5.0.1",
+  "results": [
+    [
+      ":__tests__/lib/text.test.ts",
+      {
+        "duration": 9.488400000000183,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/number.test.ts",
+      {
+        "duration": 13.104899999999816,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/currency.test.ts",
+      {
+        "duration": 11.606000000000222,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/components/ToolCard.test.tsx",
+      {
+        "duration": 714.7592000000004,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/data/catalog.test.ts",
+      {
+        "duration": 31.635200000000168,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/seo/seo-rules.test.ts",
+      {
+        "duration": 150.23919999999998,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/money-words.test.ts",
+      {
+        "duration": 18.241300000000138,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/components/ReceiptTool.test.tsx",
+      {
+        "duration": 1895.2997999999998,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/document.test.ts",
+      {
+        "duration": 34.481300000000374,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/receipt/build-receipt.test.ts",
+      {
+        "duration": 31.095100000000002,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/components/CompoundInterestTool.test.tsx",
+      {
+        "duration": 1618.6819,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/compound-interest.test.ts",
+      {
+        "duration": 21.40430000000015,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/components/FinancingTool.test.tsx",
+      {
+        "duration": 1485.8910999999998,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/financing.test.ts",
+      {
+        "duration": 49.62689999999975,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/net-salary.test.ts",
+      {
+        "duration": 11.25380000000041,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/bill-split.test.ts",
+      {
+        "duration": 30.20550000000003,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/severance.test.ts",
+      {
+        "duration": 12.802500000000236,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/parse-nfe-xml.test.ts",
+      {
+        "duration": 76.80069999999978,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/percentage.test.ts",
+      {
+        "duration": 11.621300000000247,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/business-days.test.ts",
+      {
+        "duration": 18.565399999999954,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/savings-goal.test.ts",
+      {
+        "duration": 27.991299999999683,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/payroll-tables.test.ts",
+      {
+        "duration": 14.783100000000104,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/build-quote.test.ts",
+      {
+        "duration": 23.876400000000103,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/vacation.test.ts",
+      {
+        "duration": 12.798400000000129,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/overtime.test.ts",
+      {
+        "duration": 10.650700000000143,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/employee-cost.test.ts",
+      {
+        "duration": 11.330699999999979,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/site.test.ts",
+      {
+        "duration": 31.752300000000105,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/qr-code.test.ts",
+      {
+        "duration": 15.279500000000098,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/markup.test.ts",
+      {
+        "duration": 10.63000000000011,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/thirteenth-salary.test.ts",
+      {
+        "duration": 11.644400000000132,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/profit-margin.test.ts",
+      {
+        "duration": 9.328700000000026,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/components/NfeReaderTool.test.tsx",
+      {
+        "duration": 1052.8973999999998,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/components/FinanciamentoVeiculoTool.test.tsx",
+      {
+        "duration": 1061.7039999999997,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/components/ParcelamentoTool.test.tsx",
+      {
+        "duration": 811.9008999999996,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/components/CpfGeneratorTool.test.tsx",
+      {
+        "duration": 1482.6267000000003,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/components/CreditCardGeneratorTool.test.tsx",
+      {
+        "duration": 1361.2534,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/components/CnpjGeneratorTool.test.tsx",
+      {
+        "duration": 1976.3631999999998,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/components/ValidadorCpfTool.test.tsx",
+      {
+        "duration": 1010.5146999999997,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/components/ValidadorCartaoCreditoTool.test.tsx",
+      {
+        "duration": 707.9971,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/cnpj-generator.test.ts",
+      {
+        "duration": 183.37139999999954,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/credit-card-generator.test.ts",
+      {
+        "duration": 142.0954999999999,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/cpf-generator.test.ts",
+      {
+        "duration": 94.65929999999935,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/components/CertificateRegistryGeneratorTool.test.tsx",
+      {
+        "duration": 1005.5150000000003,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/components/ValidadorCnpjTool.test.tsx",
+      {
+        "duration": 1198.0292,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/password-generator.test.ts",
+      {
+        "duration": 47.674699999999575,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/secure-random.test.ts",
+      {
+        "duration": 136.22040000000015,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/voter-id-generator.test.ts",
+      {
+        "duration": 66.71070000000009,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/components/VoterIdGeneratorTool.test.tsx",
+      {
+        "duration": 1121.5427,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/components/ValidadorRgTool.test.tsx",
+      {
+        "duration": 702.7773000000002,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/components/StateTaxIdGeneratorTool.test.tsx",
+      {
+        "duration": 831.9874,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/components/BankAccountGeneratorTool.test.tsx",
+      {
+        "duration": 1125.1819999999998,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/components/ValidadorContaBancariaTool.test.tsx",
+      {
+        "duration": 1031.8898,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/name-generator.test.ts",
+      {
+        "duration": 52.795900000000074,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/components/MeuSistemaOperacionalTool.test.tsx",
+      {
+        "duration": 219.68049999999994,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/components/ResumeBuilderTool.test.tsx",
+      {
+        "duration": 1173.7101000000002,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/fancy-text-generator.test.ts",
+      {
+        "duration": 21.086300000000392,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/components/ValidadorTituloEleitorTool.test.tsx",
+      {
+        "duration": 907.4197000000004,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/components/ValidadorCnhTool.test.tsx",
+      {
+        "duration": 1648.1463000000003,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/components/PisPasepGeneratorTool.test.tsx",
+      {
+        "duration": 743.4750999999997,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/pis-pasep-generator.test.ts",
+      {
+        "duration": 51.57360000000017,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/components/PasswordGeneratorTool.test.tsx",
+      {
+        "duration": 713.6045999999997,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/components/NameGeneratorTool.test.tsx",
+      {
+        "duration": 1762.9475000000002,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/bank-account-generator.test.ts",
+      {
+        "duration": 33.88220000000001,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/components/RenavamGeneratorTool.test.tsx",
+      {
+        "duration": 1571.0387,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/alphabetical-sort.test.ts",
+      {
+        "duration": 37.288800000000265,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/lorem-ipsum-generator.test.ts",
+      {
+        "duration": 13.268600000000333,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/renavam-generator.test.ts",
+      {
+        "duration": 105.02700000000004,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/components/NumberDrawTool.test.tsx",
+      {
+        "duration": 1116.7428,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/components/CnhGeneratorTool.test.tsx",
+      {
+        "duration": 905.5844000000006,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/components/ValidadorInscricaoEstadualTool.test.tsx",
+      {
+        "duration": 986.7395999999999,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/components/LoremIpsumGeneratorTool.test.tsx",
+      {
+        "duration": 1186.3092000000001,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/components/MaiusculasMinusculasTool.test.tsx",
+      {
+        "duration": 967.2071999999998,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/components/ValidadorCertidoesTool.test.tsx",
+      {
+        "duration": 1153.6867000000002,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/components/ValidadorRenavamTool.test.tsx",
+      {
+        "duration": 1454.7781999999997,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/components/ValidadorPisPasepTool.test.tsx",
+      {
+        "duration": 1328.9092,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/cnh-generator.test.ts",
+      {
+        "duration": 103.17730000000029,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/components/RandomNumberGeneratorTool.test.tsx",
+      {
+        "duration": 1482.9529000000002,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/components/CompanyGeneratorTool.test.tsx",
+      {
+        "duration": 1103.0040999999997,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/components/LicensePlateGeneratorTool.test.tsx",
+      {
+        "duration": 1172.0417999999995,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/components/PersonGeneratorTool.test.tsx",
+      {
+        "duration": 973.7834999999995,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/components/NumeroDoBancoTool.test.tsx",
+      {
+        "duration": 1470.5042000000003,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/components/VehicleGeneratorTool.test.tsx",
+      {
+        "duration": 1354.5881,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/components/RgGeneratorTool.test.tsx",
+      {
+        "duration": 1383.9951,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/components/CepGeneratorTool.test.tsx",
+      {
+        "duration": 1022.4955999999997,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/nickname-generator.test.ts",
+      {
+        "duration": 14.761999999999716,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/components/DividirStringTool.test.tsx",
+      {
+        "duration": 707.7431999999999,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/certificate-registry-generator.test.ts",
+      {
+        "duration": 48.88090000000011,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/components/TextoParaHtmlTool.test.tsx",
+      {
+        "duration": 755.4420999999998,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/components/NicknameGeneratorTool.test.tsx",
+      {
+        "duration": 713.5842999999995,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/html-converter.test.ts",
+      {
+        "duration": 9.31979999999976,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/components/SymbolPickerTool.test.tsx",
+      {
+        "duration": 915.3840999999998,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/components/MeuNavegadorTool.test.tsx",
+      {
+        "duration": 202.94479999999976,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/components/CortarTextosTool.test.tsx",
+      {
+        "duration": 437.55679999999984,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/components/MeuIpTool.test.tsx",
+      {
+        "duration": 150.86410000000024,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/certificate-registry.test.ts",
+      {
+        "duration": 10.428800000000138,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/license-plate-generator.test.ts",
+      {
+        "duration": 137.01900000000023,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/company-generator.test.ts",
+      {
+        "duration": 60.77230000000009,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/rg.test.ts",
+      {
+        "duration": 39.56690000000026,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/resume-builder.test.ts",
+      {
+        "duration": 7.4278000000003885,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/person-generator.test.ts",
+      {
+        "duration": 62.80729999999994,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/word-occurrence.test.ts",
+      {
+        "duration": 10.344299999999748,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/random-number-generator.test.ts",
+      {
+        "duration": 30.845299999999952,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/rg-generator.test.ts",
+      {
+        "duration": 58.527500000000146,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/text-truncate.test.ts",
+      {
+        "duration": 11.097199999999702,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/placeholder-image-generator.test.ts",
+      {
+        "duration": 7.981600000000071,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/state-tax-id-generator.test.ts",
+      {
+        "duration": 57.76260000000002,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/remove-line-breaks.test.ts",
+      {
+        "duration": 9.80410000000029,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/vehicle-generator.test.ts",
+      {
+        "duration": 132.52150000000074,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/components/FancyTextGeneratorTool.test.tsx",
+      {
+        "duration": 1372.6921000000002,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/bank-account.test.ts",
+      {
+        "duration": 8.496200000000044,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/string-splitter.test.ts",
+      {
+        "duration": 10.222399999999652,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/components/RemoverQuebrasLinhaTool.test.tsx",
+      {
+        "duration": 350.5288999999998,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/components/NumeroPorExtensoTool.test.tsx",
+      {
+        "duration": 594.9094999999998,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/components/PlaceholderImageGeneratorTool.test.tsx",
+      {
+        "duration": 997.8679999999999,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/components/OrdemAlfabeticaTool.test.tsx",
+      {
+        "duration": 377.43769999999995,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/number-draw.test.ts",
+      {
+        "duration": 12.4054000000001,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/components/ContadorOcorrenciaPalavraTool.test.tsx",
+      {
+        "duration": 401.5292999999997,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/symbols.test.ts",
+      {
+        "duration": 18.07320000000027,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/brazilian-banks.test.ts",
+      {
+        "duration": 11.233400000000074,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/credit-card-brand.test.ts",
+      {
+        "duration": 8.241899999999987,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/character-counter.test.ts",
+      {
+        "duration": 10.436499999999796,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/cep-generator.test.ts",
+      {
+        "duration": 30.509000000000015,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/components/InformacoesCaractereTool.test.tsx",
+      {
+        "duration": 372.70759999999973,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/state-tax-id.test.ts",
+      {
+        "duration": 8.49270000000024,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/text-case.test.ts",
+      {
+        "duration": 9.077000000000226,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/components/CorretorOrtograficoTool.test.tsx",
+      {
+        "duration": 263.5174000000002,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/character-info.test.ts",
+      {
+        "duration": 8.633000000000266,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/components/InverterTextoTool.test.tsx",
+      {
+        "duration": 238.1536000000001,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/components/ContadorCaracteresTool.test.tsx",
+      {
+        "duration": 220.94150000000036,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/text-reverse.test.ts",
+      {
+        "duration": 7.900499999999738,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/remove-accents.test.ts",
+      {
+        "duration": 8.233699999999772,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/components/RemoverAcentosTool.test.tsx",
+      {
+        "duration": 137.15729999999985,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/merge-pdfs.test.ts",
+      {
+        "duration": 185.89829999999984,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/components/MergePdfsTool.test.tsx",
+      {
+        "duration": 1804.0904,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/split-pdf.test.ts",
+      {
+        "duration": 127.36880000000019,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/page-selection.test.ts",
+      {
+        "duration": 7.788199999999961,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/jpg-to-pdf.test.ts",
+      {
+        "duration": 95.47639999999956,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/rotate-pdf.test.ts",
+      {
+        "duration": 123.01950000000033,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/watermark-pdf.test.ts",
+      {
+        "duration": 149.36569999999983,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/components/PdfTools.test.tsx",
+      {
+        "duration": 1226.4624,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/pdf-to-jpg.test.ts",
+      {
+        "duration": 143.54479999999967,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/office-to-pdf.test.ts",
+      {
+        "duration": 210.15269999999964,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/pdf-edit-sign.test.ts",
+      {
+        "duration": 235.59180000000015,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/pdf-security.test.ts",
+      {
+        "duration": 5085.636299999999,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/html-to-pdf.test.ts",
+      {
+        "duration": 117.09259999999995,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/pdf-to-office.test.ts",
+      {
+        "duration": 711.7906999999996,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/compress-pdf.test.ts",
+      {
+        "duration": 110.97639999999956,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/pdf-text.test.ts",
+      {
+        "duration": 20285.613900000004,
+        "failed": true
+      }
+    ],
+    [
+      ":__tests__/lib/instagram-meta-graph-client.test.ts",
+      {
+        "duration": 205.45000000000005,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/instagram-oauth-service.test.ts",
+      {
+        "duration": 26.21309999999994,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/instagram-oauth-callback-route.test.ts",
+      {
+        "duration": 48.63650000000007,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/components/InstagramPainelPage.test.tsx",
+      {
+        "duration": 975.2025000000003,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/instagram-oauth-start-route.test.ts",
+      {
+        "duration": 22.82809999999995,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/instagram-oauth-state.test.ts",
+      {
+        "duration": 16.969799999999964,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/carousel-state.test.ts",
+      {
+        "duration": 25.362899999999627,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/caption-generate.test.ts",
+      {
+        "duration": 28.140699999999924,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/instagram-editor-state.test.ts",
+      {
+        "duration": 17.396000000000186,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/instagram-layout-math.test.ts",
+      {
+        "duration": 15.998900000000049,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/instagram-templates.test.ts",
+      {
+        "duration": 19.3757999999998,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/carousel-presets.test.ts",
+      {
+        "duration": 42.884700000000066,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/caption-clipboard.test.ts",
+      {
+        "duration": 128.57670000000007,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/instagram-fonts-colors.test.ts",
+      {
+        "duration": 11.376600000000053,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/instagram-image-utils.test.ts",
+      {
+        "duration": 76.84259999999995,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/instagram-formats.test.ts",
+      {
+        "duration": 12.59479999999985,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/instagram-media-upload-route.test.ts",
+      {
+        "duration": 33.94599999999991,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/instagram-otp-service.test.ts",
+      {
+        "duration": 23.19769999999994,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/instagram-media-service.test.ts",
+      {
+        "duration": 13.692999999999984,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/instagram-request-code-route.test.ts",
+      {
+        "duration": 26.009200000000078,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/instagram-token-encryption.test.ts",
+      {
+        "duration": 18.87239999999997,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/instagram-otp.test.ts",
+      {
+        "duration": 20.716000000000008,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/components/InstagramCarouselEditorTool.test.tsx",
+      {
+        "duration": 24562.3818,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/components/InstagramCaptionGeneratorTool.test.tsx",
+      {
+        "duration": 4569.9331,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/components/LoginPage.test.tsx",
+      {
+        "duration": 1370.6792999999998,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/components/InstagramPostEditorTool.test.tsx",
+      {
+        "duration": 5982.5983,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/components/SiteNav.test.tsx",
+      {
+        "duration": 3660.9993999999997,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/components/InstagramBackgroundControls.test.tsx",
+      {
+        "duration": 1000.9827000000005,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/components/HomepageCategories.test.tsx",
+      {
+        "duration": 1672.3946999999998,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/components/Footer.test.tsx",
+      {
+        "duration": 854.6233000000002,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/data/instagram-catalog.test.ts",
+      {
+        "duration": 14.126099999999951,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/instagram-publish-service.test.ts",
+      {
+        "duration": 436.1617000000001,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/components/InstagramCarouselPublishPanel.test.tsx",
+      {
+        "duration": 1304.8338999999996,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/components/InstagramPublishPanel.test.tsx",
+      {
+        "duration": 652.9279000000001,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/components/InstagramCalendarPostCard.test.tsx",
+      {
+        "duration": 2737.6924,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/instagram-post-service.test.ts",
+      {
+        "duration": 6238.9636,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/instagram-post-repository.test.ts",
+      {
+        "duration": 28.267599999999902,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/instagram-posts-route.test.ts",
+      {
+        "duration": 58.117599999999584,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/instagram-posts-id-route.test.ts",
+      {
+        "duration": 33.28379999999993,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/instagram-posts-publish-route.test.ts",
+      {
+        "duration": 21.07680000000005,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/seo/instagram-seo.test.ts",
+      {
+        "duration": 15.182600000000093,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/components/InstagramCalendarioPage.test.tsx",
+      {
+        "duration": 1080.9072999999999,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/components/InstagramCalendarioNovoCarrosselPage.test.tsx",
+      {
+        "duration": 2347.1223,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/components/InstagramCalendarioNovoPage.test.tsx",
+      {
+        "duration": 1816.3215,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/components/InstagramAuthenticatedCarouselComposer.test.tsx",
+      {
+        "duration": 1994.4643999999998,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/instagram-media-repository.test.ts",
+      {
+        "duration": 9.890100000000075,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/components/InstagramAuthenticatedPostComposer.test.tsx",
+      {
+        "duration": 1597.5635000000002,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/content-automation.test.ts",
+      {
+        "duration": 323735.0645,
+        "failed": true
+      }
+    ],
+    [
+      ":__tests__/lib/content-automation-time.test.ts",
+      {
+        "duration": 88.69439999999986,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/media-delete-service.test.ts",
+      {
+        "duration": 36300.0942,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/template-render-service.test.ts",
+      {
+        "duration": 2945.5698999999986,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/components/InstagramBackgroundControlsImage.test.tsx",
+      {
+        "duration": 1121.266,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/components/InstagramPublicationComposerPanel.test.tsx",
+      {
+        "duration": 2828.9763000000003,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/components/InstagramPublishingDiscovery.test.tsx",
+      {
+        "duration": 7962.089799999999,
+        "failed": true
+      }
+    ],
+    [
+      ":__tests__/lib/instagram-image-crop.test.ts",
+      {
+        "duration": 13.882300000000214,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/vehicle-financing.test.ts",
+      {
+        "duration": 48.434799999999996,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/instagram-posts-edit-route.test.ts",
+      {
+        "duration": 43.129700000000184,
+        "failed": true
+      }
+    ],
+    [
+      ":__tests__/lib/instagram-scheduler.test.ts",
+      {
+        "duration": 185865.6308,
+        "failed": true
+      }
+    ],
+    [
+      ":__tests__/lib/base64-converters.test.ts",
+      {
+        "duration": 1963.3871,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/components/Base64Tool.test.tsx",
+      {
+        "duration": 2670.7695000000003,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/components/InstagramPublicationsManager.test.tsx",
+      {
+        "duration": 1359.7924999999996,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/instagram-schedule-time.test.ts",
+      {
+        "duration": 66.2179000000001,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/instagram-publish-errors.test.ts",
+      {
+        "duration": 12.263100000000009,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/instagram-post-request.test.ts",
+      {
+        "duration": 12.426900000000046,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/financas.test.ts",
+      {
+        "duration": 30.21510000000012,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/financas-repository.test.ts",
+      {
+        "duration": 48252.7961,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/components/FinanceEntryDialog.test.tsx",
+      {
+        "duration": 1291.9803999999995,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/financas-goals-repository.test.ts",
+      {
+        "duration": 25485.716699999997,
+        "failed": true
+      }
+    ],
+    [
+      ":__tests__/components/FinancePrivatePages.test.tsx",
+      {
+        "duration": 2053.9981,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/components/FinanceLoginGate.test.tsx",
+      {
+        "duration": 530.8166000000001,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/components/ToolPageTemplate.test.tsx",
+      {
+        "duration": 258.40290000000005,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/faq-jsonld.test.ts",
+      {
+        "duration": 7.672199999999975,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/category-content.test.ts",
+      {
+        "duration": 15.579400000000078,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/components/CategoryPage.test.tsx",
+      {
+        "duration": 2503.1409000000003,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/components/AccountLoginGate.test.tsx",
+      {
+        "duration": 541.44,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/components/MinhaContaPage.test.tsx",
+      {
+        "duration": 976.4225000000006,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/components/UserMenu.test.tsx",
+      {
+        "duration": 1173.6227000000003,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/components/LogoutNotice.test.tsx",
+      {
+        "duration": 482.0536000000002,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/components/HeaderAuthArea.test.tsx",
+      {
+        "duration": 798.5933999999997,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/instagram-carousel-generate-slides.test.ts",
+      {
+        "duration": 79.99140000000034,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/instagram-carousel-text-fit.test.ts",
+      {
+        "duration": 14.527399999999943,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/instagram-carousel-auto-carousel.test.ts",
+      {
+        "duration": 24.602499999999964,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/components/InstagramCarouselQuickCreate.test.tsx",
+      {
+        "duration": 4943.878699999999,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/instagram-music-support.test.ts",
+      {
+        "duration": 13.516599999999926,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/instagram-account-repository.test.ts",
+      {
+        "duration": 15.844900000000052,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/instagram-account-music-route.test.ts",
+      {
+        "duration": 32.408100000000104,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/donation-pix-payload.test.ts",
+      {
+        "duration": 24.197400000000016,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/donation-config.test.ts",
+      {
+        "duration": 9.893699999999967,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/components/DonationFlow.test.tsx",
+      {
+        "duration": 1323.0477,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/data/site-search.test.ts",
+      {
+        "duration": 15.905699999999797,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/components/HomeSearch.test.tsx",
+      {
+        "duration": 872.2846999999992,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/lotteries-lotofacil-generator.test.ts",
+      {
+        "duration": 944.2924000000003,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/lotteries-combinatorics.test.ts",
+      {
+        "duration": 11.30789999999979,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/components/LotofacilGenerator.test.tsx",
+      {
+        "duration": 4184.021,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/lotteries-repository.test.ts",
+      {
+        "duration": 100207.2445,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/lotteries-validation.test.ts",
+      {
+        "duration": 23.086699999999837,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/lotteries-stats.test.ts",
+      {
+        "duration": 14.795700000000124,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/lotteries-csv.test.ts",
+      {
+        "duration": 9.13379999999961,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/components/MeusJogos.test.tsx",
+      {
+        "duration": 4779.5707,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/lotteries-wheeling.test.ts",
+      {
+        "duration": 681.2412000000004,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/lotteries-monte-carlo.test.ts",
+      {
+        "duration": 333.09429999999975,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/components/LotofacilWheeling.test.tsx",
+      {
+        "duration": 10055.4762,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/components/LotofacilMonteCarloSimulation.test.tsx",
+      {
+        "duration": 1295.6603,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/lotteries-megasena-generator.test.ts",
+      {
+        "duration": 610.2152000000001,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/lotteries-shared.test.ts",
+      {
+        "duration": 37.50559999999996,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/components/MegaSenaGenerator.test.tsx",
+      {
+        "duration": 5907.172500000001,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/lotteries-quina-generator.test.ts",
+      {
+        "duration": 611.3049000000005,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/components/QuinaGenerator.test.tsx",
+      {
+        "duration": 6103.755200000001,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/lotteries-lotomania-generator.test.ts",
+      {
+        "duration": 1905.7109,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/components/LotomaniaGenerator.test.tsx",
+      {
+        "duration": 15418.970999999998,
+        "failed": true
+      }
+    ],
+    [
+      ":__tests__/lib/lotteries-dia-de-sorte-generator.test.ts",
+      {
+        "duration": 654.2471,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/components/DiaDeSorteGenerator.test.tsx",
+      {
+        "duration": 5801.760499999999,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/videos-split-screen-ffmpeg.test.ts",
+      {
+        "duration": 22.558600000000297,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/videos-validation.test.ts",
+      {
+        "duration": 14.723199999999906,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/videos-ffmpeg-integration.test.ts",
+      {
+        "duration": 15.472400000000107,
+        "failed": true
+      }
+    ],
+    [
+      ":__tests__/components/VideoSplitScreenEditor.test.tsx",
+      {
+        "duration": 5487.304,
+        "failed": false
+      }
+    ],
+    [
+      ":lib/videos/config.test.ts",
+      {
+        "duration": 17.32420000000002,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/components/SubscriptionsManager.test.tsx",
+      {
+        "duration": 749.1925000000001,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/components/AnnualPlanView.test.tsx",
+      {
+        "duration": 1759.4551999999994,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/components/EnvelopesManager.test.tsx",
+      {
+        "duration": 1777.9621000000002,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/financas-category-limits-repository.test.ts",
+      {
+        "duration": 25247.5745,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/financas-debts-repository.test.ts",
+      {
+        "duration": 28292.316300000002,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/components/DebtsManager.test.tsx",
+      {
+        "duration": 1306.5430999999999,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/components/PlanilhasDownloads.test.tsx",
+      {
+        "duration": 692.5117,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/automation-billing.test.ts",
+      {
+        "duration": 85662.53640000001,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/content-automation-billing-gate.test.ts",
+      {
+        "duration": 54266.1464,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/asaas-client.test.ts",
+      {
+        "duration": 59.195299999999975,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/subscription-service.test.ts",
+      {
+        "duration": 85660.9647,
+        "failed": true
+      }
+    ],
+    [
+      ":__tests__/lib/asaas-webhook-service.test.ts",
+      {
+        "duration": 54028.8189,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/asaas-webhook-route.test.ts",
+      {
+        "duration": 34.24059999999986,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/automation-subscription-route.test.ts",
+      {
+        "duration": 29.270300000000134,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/automation-access-route.test.ts",
+      {
+        "duration": 18.55060000000003,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/components/AutomationBillingBanner.test.tsx",
+      {
+        "duration": 1058.6257999999998,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/instagram-render-image-only.test.ts",
+      {
+        "duration": 13.327099999999973,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/content-automation-stories.test.ts",
+      {
+        "duration": 94414.3849,
+        "failed": true
+      }
+    ],
+    [
+      ":__tests__/lib/content-automation-prompt-variables.test.ts",
+      {
+        "duration": 47.672000000000025,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/ai-video-pricing.test.ts",
+      {
+        "duration": 12.29569999999967,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/ai-video-generation.test.ts",
+      {
+        "duration": 0,
+        "failed": true
+      }
+    ],
+    [
+      ":__tests__/lib/ai-video-credit-purchase.test.ts",
+      {
+        "duration": 101016.00409999999,
+        "failed": true
+      }
+    ],
+    [
+      ":__tests__/lib/ai-video-overlays.test.ts",
+      {
+        "duration": 2545.1445000000003,
+        "failed": true
+      }
+    ],
+    [
+      ":__tests__/lib/ai-video-fal-provider.test.ts",
+      {
+        "duration": 42.38799999999992,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/ai-video-tiers-retry-issues.test.ts",
+      {
+        "duration": 0,
+        "failed": true
+      }
+    ],
+    [
+      ":__tests__/lib/instagram-import-url-provider.test.ts",
+      {
+        "duration": 55.68339999999989,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/instagram-import-safe-download.test.ts",
+      {
+        "duration": 313.50009999999975,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/instagram-import-service.test.ts",
+      {
+        "duration": 0,
+        "failed": true
+      }
+    ],
+    [
+      ":__tests__/lib/storage-cleanup.test.ts",
+      {
+        "duration": 34556.2304,
+        "failed": true
+      }
+    ],
+    [
+      ":__tests__/lib/email-resend.test.ts",
+      {
+        "duration": 5730.0435,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/agenda-time.test.ts",
+      {
+        "duration": 48.731199999999944,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/agenda-reminders.test.ts",
+      {
+        "duration": 10232.908800000001,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/content-automation-media-bulk-delete-route.test.ts",
+      {
+        "duration": 23.458000000000084,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/ai-video-prepare-image.test.ts",
+      {
+        "duration": 8.784099999999967,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/instagram-oauth-config.test.ts",
+      {
+        "duration": 8.546500000000037,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/client-events-route.test.ts",
+      {
+        "duration": 19.112700000000018,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/file-readability.test.ts",
+      {
+        "duration": 31546.7572,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/instagram-carousel-repost-service.test.ts",
+      {
+        "duration": 20.259399999999914,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/tmp-story-visual.test.ts",
+      {
+        "duration": 280.2836209999987,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/brand-end-media-ffmpeg-integration.test.ts",
+      {
+        "duration": 0,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/brand-end-media-service.test.ts",
+      {
+        "duration": 40046.5399,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/content-automation-end-media.test.ts",
+      {
+        "duration": 30417.576,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/blob-upload.test.ts",
+      {
+        "duration": 18.85719999999992,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/instagram-import-admin-quota.test.ts",
+      {
+        "duration": 23.060100000000034,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/zz-try-readability.test.ts",
+      {
+        "duration": 14.435687999999573,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/readability.test.ts",
+      {
+        "duration": 82.89999999999986,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/readability-route.test.ts",
+      {
+        "duration": 77.35069999999996,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/components/LegibilidadeTool.test.tsx",
+      {
+        "duration": 3090.2531,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/readability-rewrite.test.ts",
+      {
+        "duration": 77243.9857,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/readability-rewrite-route.test.ts",
+      {
+        "duration": 25.889400000000023,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/anthropic-rewrite-text.test.ts",
+      {
+        "duration": 14.675299999999993,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/components/MobileHome.test.tsx",
+      {
+        "duration": 10621.191599999998,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/components/MobileBottomNavigation.test.tsx",
+      {
+        "duration": 2029.1800999999996,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/components/SuggestionPrompt.test.tsx",
+      {
+        "duration": 3295.8050000000003,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/plans-usage.test.ts",
+      {
+        "duration": 159361.35,
+        "failed": true
+      }
+    ],
+    [
+      ":__tests__/lib/carousel-categories.test.ts",
+      {
+        "duration": 12747.615600000001,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/carousel-briefing.test.ts",
+      {
+        "duration": 12.543999999999869,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/carousel-categories-cron.test.ts",
+      {
+        "duration": 61141.7741,
+        "failed": true
+      }
+    ],
+    [
+      ":__tests__/lib/carousel-automation-phase4.test.ts",
+      {
+        "duration": 75662.3625,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/components/SmartCarouselPanel.test.tsx",
+      {
+        "duration": 1934.3181999999997,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/secret-santa.test.ts",
+      {
+        "duration": 314406.8305,
+        "failed": true
+      }
+    ],
+    [
+      ":__tests__/lib/carousel-billing.test.ts",
+      {
+        "duration": 251701.9138,
+        "failed": true
+      }
+    ],
+    [
+      ":__tests__/lib/carousel-editorial.test.ts",
+      {
+        "duration": 311270.529,
+        "failed": true
+      }
+    ],
+    [
+      ":__tests__/lib/smart-story-cron.test.ts",
+      {
+        "duration": 230937.5022,
+        "failed": true
+      }
+    ],
+    [
+      ":__tests__/lib/allowance.test.ts",
+      {
+        "duration": 191450.1416,
+        "failed": true
+      }
+    ],
+    [
+      ":__tests__/lib/carousel-studio.test.ts",
+      {
+        "duration": 215926.0644,
+        "failed": true
+      }
+    ],
+    [
+      ":__tests__/lib/content-automation-shared-prompt.test.ts",
+      {
+        "duration": 144013.06279999999,
+        "failed": true
+      }
+    ],
+    [
+      ":__tests__/lib/smart-story-engine.test.ts",
+      {
+        "duration": 200.92280000000028,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/smart-story-brand.test.ts",
+      {
+        "duration": 52384.614,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/smart-story-render.test.ts",
+      {
+        "duration": 1218.1836999999996,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/carousel-backend.test.ts",
+      {
+        "duration": 78715.04060000001,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/carousel-publish.test.ts",
+      {
+        "duration": 118107.32459999999,
+        "failed": true
+      }
+    ],
+    [
+      ":__tests__/lib/admin-user-actions.test.ts",
+      {
+        "duration": 111245.0768,
+        "failed": true
+      }
+    ],
+    [
+      ":__tests__/lib/carousel-automation-phase5.test.ts",
+      {
+        "duration": 80078.8771,
+        "failed": true
+      }
+    ],
+    [
+      ":__tests__/lib/plan-changes.test.ts",
+      {
+        "duration": 99182.6154,
+        "failed": true
+      }
+    ],
+    [
+      ":__tests__/lib/carousel-generation.test.ts",
+      {
+        "duration": 89883.4812,
+        "failed": true
+      }
+    ],
+    [
+      ":__tests__/lib/carousel-automation.test.ts",
+      {
+        "duration": 55998.2682,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/smart-story-service.test.ts",
+      {
+        "duration": 77358.8032,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/admin-billing-metrics.test.ts",
+      {
+        "duration": 47400.3318,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/ai-video-admin-credit-bypass.test.ts",
+      {
+        "duration": 0,
+        "failed": true
+      }
+    ],
+    [
+      ":__tests__/lib/carousel-actions.test.ts",
+      {
+        "duration": 68209.905,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/components/PlansPanel.test.tsx",
+      {
+        "duration": 1299.0792999999994,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/components/SecretSanta.test.tsx",
+      {
+        "duration": 1048.8233,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/components/SharedPromptEditor.test.tsx",
+      {
+        "duration": 1596.3512999999998,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/secret-santa-routes.test.ts",
+      {
+        "duration": 29604.0336,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/components/AutomationEditorShared.test.tsx",
+      {
+        "duration": 2365.4714,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/components/AutomationEditorSmartMode.test.tsx",
+      {
+        "duration": 2475.0521000000003,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/components/AutomationWizardShared.test.tsx",
+      {
+        "duration": 2030.9231,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/components/SmartStoryPanel.test.tsx",
+      {
+        "duration": 1964.2884000000004,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/components/Mesada.test.tsx",
+      {
+        "duration": 2371.1423,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/components/PostHogProvider.test.tsx",
+      {
+        "duration": 205.68229999999994,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/components/BillingNoticeBar.test.tsx",
+      {
+        "duration": 917.4630999999999,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/analytics-service.test.ts",
+      {
+        "duration": 36.26929999999993,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/carousel-plans.test.ts",
+      {
+        "duration": 16.31780000000026,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/analytics-client.test.ts",
+      {
+        "duration": 21.183899999999994,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/admin-users.test.ts",
+      {
+        "duration": 33030.411400000005,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/allowance-routes.test.ts",
+      {
+        "duration": 27494.7009,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/smart-story-preview.test.ts",
+      {
+        "duration": 47480.1433,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/carousel-admin-access.test.ts",
+      {
+        "duration": 23417.964399999997,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/agenda-routes.test.ts",
+      {
+        "duration": 20.66680000000008,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/smart-story-compose.test.ts",
+      {
+        "duration": 10.039999999999964,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/components/UiDialogFocus.test.tsx",
+      {
+        "duration": 683.7401999999997,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/components/PlansLink.test.tsx",
+      {
+        "duration": 423.72659999999996,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/admin-links.test.ts",
+      {
+        "duration": 11.513300000000072,
+        "failed": false
+      }
+    ],
+    [
+      ":__tests__/lib/generate-caption-plan-errors.test.ts",
+      {
+        "duration": 11.753700000000208,
+        "failed": false
+      }
+    ]
+  ]
+}

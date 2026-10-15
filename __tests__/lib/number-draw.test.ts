@@ -7,6 +7,12 @@ import {
 } from "@/lib/calculators/number-draw";
 
 describe("number-draw", () => {
+  it("sorteia em intervalo de um milhão sem materializar todos os números", () => {
+    const result = drawNumbers({ min: 0, max: 1_000_000, count: 100, allowRepeat: false });
+    expect(result).toHaveLength(100);
+    expect(new Set(result).size).toBe(100);
+    expect(result.every((n) => n >= 0 && n <= 1_000_000)).toBe(true);
+  });
   it("sorteia a quantidade pedida, sem repetição por padrão", () => {
     const result = drawNumbers({ min: 1, max: 60, count: 6, allowRepeat: false });
     expect(result).toHaveLength(6);

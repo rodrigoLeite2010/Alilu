@@ -11,7 +11,6 @@ export default function robots(): MetadataRoute.Robots {
       // indexar páginas privadas, callbacks de OAuth ou telas com dados
       // pessoais").
       disallow: [
-        "/entrar",
         "/admin",
         "/minha-conta",
         "/api/",

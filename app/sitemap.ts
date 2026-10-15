@@ -49,11 +49,10 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: 0.7,
     }));
 
-  // Ferramentas da categoria Vídeos (data/videos.ts) — mesma regra do
-  // Instagram/Loterias acima: só entram aqui as que já têm página de
-  // verdade ("ativo").
+  // Vídeos: disponibilidade e indexação são independentes. As ferramentas
+  // com login e noindex continuam no catálogo, mas ficam fora do sitemap.
   const videoRoutes: MetadataRoute.Sitemap = videoTools
-    .filter((tool) => tool.status === "ativo")
+    .filter((tool) => tool.status === "ativo" && tool.indexable)
     .map((tool) => ({
       url: `${SITE_URL}${tool.path}`,
       changeFrequency: "monthly",

@@ -1,0 +1,18 @@
+
+> alilu@0.1.0 lint
+> eslint
+
+
+C:\Alilu\Utilitarios\__tests__\lib\carousel-categories-cron.test.ts
+   24:7   warning  'NOW' is assigned a value but never used     @typescript-eslint/no-unused-vars
+   48:7   warning  'photos' is assigned a value but never used  @typescript-eslint/no-unused-vars
+   90:7   warning  'sel' is assigned a value but never used     @typescript-eslint/no-unused-vars
+   92:7   warning  'DAY2' is assigned a value but never used    @typescript-eslint/no-unused-vars
+  106:10  warning  'fixedPhotos' is defined but never used      @typescript-eslint/no-unused-vars
+  113:16  warning  'slidesOf' is defined but never used         @typescript-eslint/no-unused-vars
+
+C:\Alilu\Utilitarios\lib\instagram\backend\instagram-account-repository.ts
+  19:7  warning  'MUSIC_COLUMNS' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+✖ 7 problems (0 errors, 7 warnings)
+

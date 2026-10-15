@@ -1652,7 +1652,7 @@ export const tools: Tool[] = [
     slug: "validador-inscricao-estadual",
     category: "validadores",
     description:
-      "Valide gratuitamente o formato de uma Inscrição Estadual por UF. O dígito verificador varia por estado e ainda não é conferido nesta ferramenta.",
+      "Confira o formato numérico geral de uma Inscrição Estadual, de 8 a 14 dígitos. O comprimento específico e o dígito verificador de cada UF não são conferidos.",
     keywords: [
       "validador de inscrição estadual",
       "inscrição estadual válida",

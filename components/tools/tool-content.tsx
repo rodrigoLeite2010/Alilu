@@ -354,6 +354,10 @@ export const toolContent: Record<
         body: "Informe o preço do veículo, uma entrada (opcional), a taxa de juros contratada e o número de parcelas. A simulação usa o sistema de prestação constante (Tabela Price), o formato mais comum oferecido por bancos e financeiras para veículos.",
       },
       {
+        title: "Exemplo: veículo de R$ 60 mil com R$ 10 mil de entrada",
+        body: "Com R$ 50 mil financiados, juros de 1% ao mês e 24 parcelas, a prestação calculada é de aproximadamente R$ 2.353,67. As parcelas somam cerca de R$ 56.488,17; com a entrada, o desembolso chega a R$ 66.488,17, antes de IOF, seguros e tarifas. A soma usa as parcelas sem arredondamento intermediário. Compare o total e o CET da proposta, além do valor que cabe no mês.",
+      },
+      {
         title: "Por que o valor pode ser diferente do que o banco oferece?",
         body: "Esta calculadora simula apenas a matemática financeira do financiamento (juros compostos sobre o saldo devedor). Tarifas, seguros, impostos (IOF) e o Custo Efetivo Total (CET) — que a instituição financeira é obrigada a informar — podem alterar o valor final contratado.",
       },
@@ -2196,7 +2200,7 @@ export const toolContent: Record<
       },
       {
         title: "Como funciona a validação?",
-        body: "Esta ferramenta confere apenas se a quantidade de dígitos informada é compatível com a UF selecionada — implementar corretamente o algoritmo de dígito verificador de cada uma das 27 UFs está fora do escopo desta primeira versão, e um algoritmo incorreto seria pior do que nenhum algoritmo.",
+        body: "Digite a inscrição e selecione uma UF brasileira. Esta versão confere somente se o número tem de 8 a 14 dígitos, usando o mesmo intervalo geral para todas as UFs. A seleção do estado não modifica o comprimento aceito. O comprimento específico e o dígito verificador de cada estado não são conferidos; para confirmar a inscrição, consulte a Secretaria da Fazenda correspondente.",
       },
       {
         title: "O que essa validação não faz",
@@ -2207,7 +2211,7 @@ export const toolContent: Record<
       {
         question: "Por que o dígito verificador não é conferido?",
         answer:
-          "Porque cada estado tem seu próprio algoritmo, não há uma fórmula única para todos — implementar isso incorretamente seria pior do que não implementar. Por enquanto, a ferramenta confere apenas o formato geral por UF.",
+          "Cada estado tem regras próprias. Esta versão aplica somente a conferência numérica geral de 8 a 14 dígitos, igual para todas as UFs, sem verificar os dígitos ou comprimentos específicos estaduais. Um resultado de formato válido não comprova que a inscrição existe ou está ativa.",
       },
       {
         question: "A Inscrição Estadual digitada fica armazenada?",
@@ -2388,7 +2392,7 @@ export const toolContent: Record<
     faq: [
       {
         question: "O texto que eu colo é salvo ou enviado para algum servidor?",
-        answer: "Não. A análise acontece inteira no seu navegador e o texto não é guardado.",
+        answer: "A análise de legibilidade acontece no navegador. Se você escolher Melhorar com IA, o texto será enviado ao servidor Alilu e ao provedor de IA para gerar a reescrita; esse recurso exige conta. Evite enviar dados sensíveis e confira a Política de Privacidade.",
       },
       {
         question: "Qual o tamanho máximo do texto?",

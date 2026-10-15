@@ -10,9 +10,9 @@
  * fora do escopo desta primeira entrega, e um algoritmo incorreto seria
  * pior do que nenhum algoritmo.
  *
- * Por isso este arquivo valida apenas o FORMATO geral (UF selecionada +
- * valor só com dígitos, dentro de um intervalo de tamanho compatível com a
- * maioria dos estados) — nunca um dígito verificador específico de UF. A
+ * Por isso este arquivo valida apenas o FORMATO geral (UF brasileira +
+ * 8 a 14 dígitos, usando o mesmo intervalo para todas as UFs) — nunca o
+ * comprimento ou dígito verificador específico de uma UF. A
  * estrutura (uma função central, com a UF como parâmetro) já está pronta
  * para receber, no futuro, o algoritmo oficial de uma UF por vez, sem
  * qualquer mudança na interface.

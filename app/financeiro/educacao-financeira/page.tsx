@@ -95,6 +95,27 @@ export default function EducacaoFinanceiraPage() {
       </section>
 
       <section className="mt-10 max-w-3xl">
+        <h2 className="text-xl font-semibold text-zinc-900">Exemplo: monte um orçamento antes de assumir outra parcela</h2>
+        <p className="mt-2 text-sm leading-relaxed text-zinc-600">
+          Considere uma renda líquida de R$ 3.000, despesas essenciais de R$ 1.800,
+          outros gastos de R$ 600 e uma meta de guardar R$ 300. Sobram R$ 300 no mês:
+          R$ 3.000 − R$ 1.800 − R$ 600 − R$ 300. Uma nova parcela de R$ 250 deixaria
+          apenas R$ 50 de margem para imprevistos. A sobra prevista não é dinheiro
+          garantido: inclua gastos anuais, dívidas e despesas que ainda não foram registradas.
+        </p>
+        <ol className="mt-3 list-decimal space-y-2 pl-5 text-sm leading-relaxed text-zinc-600">
+          <li>Liste o que você realmente recebe, depois dos descontos.</li>
+          <li>Separe contas fixas, gastos variáveis e despesas anuais divididas por mês.</li>
+          <li>Reserve uma quantia compatível com sua situação e confira o saldo restante.</li>
+          <li>Compare o planejado com os pagamentos reais e ajuste o orçamento a cada mês.</li>
+        </ol>
+        <p className="mt-3 text-sm text-zinc-600">
+          Para testar uma meta sem criar conta, use a <Link href="/utilitarios/financeiro/quanto-guardar-por-mes" className="font-medium text-teal-800 underline">calculadora de quanto guardar por mês</Link>.
+          O painel pessoal exige login para salvar seus lançamentos.
+        </p>
+      </section>
+
+      <section className="mt-10 max-w-3xl">
         <h2 className="text-xl font-semibold text-zinc-900">Perguntas frequentes</h2>
         <dl className="mt-3 space-y-4">
           {FAQ.map((item) => (

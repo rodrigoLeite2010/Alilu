@@ -1,0 +1,101 @@
+
+ RUN  v5.0.1 C:/Alilu/Utilitarios
+
+······································x························································································································································································································································stdout | __tests__/lib/carousel-publish.test.ts > publicar / agendar / rascunho > imagem final padrão não configurada: publica sem ela e avisa
+{"scope":"end-media","event":"not_applied","userId":"2f66e72e-7ee4-4061-b3d5-b4255825b5ed","postId":"4dcc2400-41b8-4de4-ab84-c0dfba2c3f05","context":"CAROUSEL","mediaType":"IMAGE","assetId":null,"applied":false,"error":"Mídia final padrão não configurada."}
+
+stderr | __tests__/lib/pdf-text.test.ts > extractPdfTextPages > extrai linhas e células aproximadas de texto selecionável
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+stderr | __tests__/lib/ai-video-admin-credit-bypass.test.ts > isenção de créditos do admin — Imagem → Vídeo > 4) falha do admin: sem débito, sem devolução fictícia, erro registrado
+[ai-video] geração (admin, sem créditos) falhou — nada a devolver {
+  generationId: 'b7b9fb82-2a49-46b6-86c7-d90a1f5cada4',
+  userId: '04badf8e-f36e-4071-a14d-70a5f4a83593',
+  provider: 'runway',
+  model: 'gen4_turbo',
+  errorCode: 'INPUT',
+  providerCharged: false,
+  creditBypass: true
+}
+
+························································································································································x············x····································································
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  __tests__/lib/instagram-posts-edit-route.test.ts > /api/cron/instagram-publish > 401 sem o segredo; executa com Bearer CRON_SECRET
+AssertionError: expected { processed: 1, …(2) } to deeply equal { processed: 1, results: [ { …(2) } ] }
+
+- Expected
++ Received
+
+@@ -4,6 +4,7 @@
+      {
+        "postId": "p1",
+        "status": "PUBLISHED",
+      },
+    ],
++   "tokens": null,
+  }
+
+ ❯ __tests__/lib/instagram-posts-edit-route.test.ts:159:29
+    157|     );
+    158|     expect(ok.status).toBe(200);
+    159|     expect(await ok.json()).toEqual({ processed: 1, results: [{ postId…
+       |                             ^
+    160|     delete process.env.CRON_SECRET;
+    161|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯
+
+ FAIL  __tests__/lib/secret-santa.test.ts > privacidade > cenário A tirou C: A vê C; C NÃO vê A; B não vê nada de A/C
+AssertionError: expected '{"drawn":true,"friend":{"name":"Ana"}…' not to contain 'Ana'
+
+Expected: "Ana"
+Received: "{"drawn":true,"friend":{"name":"Ana"},"wishes":[],"preferences":null,"gift":null,"messages":{"enabled":true,"unread":0,"started":false},"budget":{"minCents":5000,"maxCents":10000}}"
+
+ ❯ __tests__/lib/secret-santa.test.ts:317:19
+    315|     expect(await who(id, 0)).toBe("Carla");
+    316|     const c = JSON.stringify(await svc.getMyAssignment(users[2], id));
+    317|     expect(c).not.toContain("Ana");
+       |                   ^
+    318|     const b = JSON.stringify([await svc.getMyAssignment(users[1], id),…
+    319|     expect(b).not.toMatch(/"Carla"[^}]*"friend"/);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/3]⎯
+
+ FAIL  __tests__/lib/videos-ffmpeg-integration.test.ts > Integração real com FFmpeg — split-screen com loop do complementar > complementar preparado como segmento de loop continua mudando depois do primeiro ciclo
+AssertionError: expected [ …(132) ] to have a length of 2 but got 132
+
+- Expected
++ Received
+
+- 2
++ 132
+
+ ❯ __tests__/lib/videos-ffmpeg-integration.test.ts:265:18
+    263|
+    264|     const md5s = readBottomFrameMd5s(preparedOutputPath, 15, 20);
+    265|     expect(md5s).toHaveLength(2);
+       |                  ^
+    266|     expect(md5s[0]).not.toBe(md5s[1]);
+    267|   }, 30_000);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/3]⎯
+
+
+ Test Files  3 failed | 28 passed (31)
+      Tests  3 failed | 518 passed (521)
+   Start at  12:37:42
+   Duration  654.50s (tests 96%, environment 2%, import 1%, setup 1%)
+
+    Isolate  31 workers spawned · ~944ms startup each (spawn + environment, per file)
+             at least ~13.69s faster with isolate: false — reuses workers across files instead of one per file
+
+JSON report written to C:/Alilu/Utilitarios/docs/auditoria-adsense/tests-repeticao.json

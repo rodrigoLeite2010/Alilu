@@ -14,7 +14,7 @@ import { validateStateTaxIdFormat } from "@/lib/validators/state-tax-id";
  * estados + DF define seu próprio formato e algoritmo de dígito
  * verificador, de forma independente — não existe uma Receita Estadual
  * única. Por isso esta ferramenta confere apenas o FORMATO geral (UF
- * selecionada + quantidade de dígitos compatível), nunca um dígito
+ * brasileira + 8 a 14 dígitos, sem comprimento específico por UF), nunca um dígito
  * verificador específico de UF, para não inventar um algoritmo incorreto.
  */
 export function ValidadorInscricaoEstadualTool() {
@@ -47,7 +47,8 @@ export function ValidadorInscricaoEstadualTool() {
       <div className="mb-6 rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
         Não existe um algoritmo de dígito verificador de Inscrição Estadual
         único para todos os estados. Esta ferramenta confere apenas o
-        formato geral do número para a UF selecionada.
+        formato numérico geral, de 8 a 14 dígitos. A UF deve ser uma unidade
+        federativa brasileira, mas não altera o intervalo de comprimento nesta versão.
       </div>
 
       <form onSubmit={handleSubmit} noValidate className="space-y-5">
@@ -97,7 +98,7 @@ export function ValidadorInscricaoEstadualTool() {
             valid={result}
             validLabel="Formato de Inscrição Estadual válido"
             invalidLabel="Formato de Inscrição Estadual inválido"
-            detail="Esta ferramenta confere apenas se a quantidade de dígitos é compatível com a UF selecionada — não o dígito verificador oficial de cada estado, que ainda não está implementado, nem confirma que a inscrição existe ou está ativa na Secretaria da Fazenda."
+            detail="Esta ferramenta aceita o formato numérico geral de 8 a 14 dígitos para qualquer UF brasileira. Não verifica o comprimento específico nem o dígito verificador de cada estado, e não confirma existência ou situação cadastral na Secretaria da Fazenda."
           />
         </div>
       ) : null}

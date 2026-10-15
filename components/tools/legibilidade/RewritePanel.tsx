@@ -121,6 +121,11 @@ export function RewritePanel({ text, onUseVersion }: { text: string; onUseVersio
       <div>
         <h2 className="text-base font-semibold text-zinc-900">Melhorar com IA</h2>
         <p className="mt-1 text-sm text-zinc-600">A IA reescreve mantendo o sentido, nomes, números e links. Depois, o Alilu mede de novo para mostrar se ficou mais simples.</p>
+        <p className="mt-2 text-xs text-zinc-600">
+          Ao pedir uma reescrita, você envia o texto ao servidor Alilu e ao provedor de IA.
+          Evite dados sensíveis e revise a resposta antes de usar. A análise de legibilidade permanece local.{" "}
+          <Link href="/privacidade" className="underline">Política de Privacidade</Link>.
+        </p>
       </div>
 
       {!status.authenticated ? (

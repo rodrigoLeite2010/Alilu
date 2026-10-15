@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { useState } from "react";
 import { Dialog } from "@/components/ui/Dialog";
+import { Dialog as InstagramDialog } from "@/components/instagram/Dialog";
 
 function Form() {
   const [name, setName] = useState("");
@@ -16,6 +17,16 @@ function Form() {
 }
 
 describe("Dialog compartilhado", () => {
+  it.each([Dialog, InstagramDialog])("mantém Tab e Shift+Tab dentro do modal", (Modal) => {
+    render(<><button>Fora</button><Modal open title="Teste" onClose={() => undefined}><button>Primeiro</button><button>Último</button></Modal></>);
+    const first = screen.getByRole("button", { name: "Fechar" });
+    const last = screen.getByRole("button", { name: "Último" });
+    last.focus();
+    fireEvent.keyDown(last, { key: "Tab" });
+    expect(document.activeElement).toBe(first);
+    fireEvent.keyDown(first, { key: "Tab", shiftKey: true });
+    expect(document.activeElement).toBe(last);
+  });
   it("digitar no 2º campo não devolve o foco ao 1º", () => {
     render(<Form />);
     const cpf = screen.getByLabelText("CPF");

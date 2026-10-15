@@ -28,6 +28,19 @@ beforeEach(() => {
 });
 
 describe("analytics no navegador", () => {
+  it("remove credenciais de convite de pageviews e propriedades automáticas", async () => {
+    enable();
+    await client.trackPageView("/amigo-secreto/convite/SECRET?email=PRIVATE");
+    expect(ph.capture).toHaveBeenCalledWith("$pageview", {
+      $current_url: "https://www.alilu.com.br/amigo-secreto/convite/[redacted]",
+      $pathname: "/amigo-secreto/convite/[redacted]",
+    });
+    const options = ph.init.mock.calls[0][1];
+    const sanitize = options.sanitize_properties as (properties: Record<string, unknown>) => Record<string, unknown>;
+    const clean = sanitize({ $referrer: "https://alilu.com.br/amigo-secreto/convite/SECRET", $initial_current_url: "https://alilu.com.br/amigo-secreto/convite/SECRET?x=1", $pathname: "/amigo-secreto/convite/SECRET" });
+    expect(JSON.stringify(clean)).not.toContain("SECRET");
+    expect(JSON.stringify(clean)).not.toContain("?x=");
+  });
   it("shouldEnableAnalytics: só produção, com chave, fora de localhost/IP local", () => {
     const base = { key: "k", host: undefined, nodeEnv: "production", hostname: "alilu.com.br" };
     expect(client.shouldEnableAnalytics(base)).toBe(true);

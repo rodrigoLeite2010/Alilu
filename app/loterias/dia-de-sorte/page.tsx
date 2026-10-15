@@ -105,7 +105,7 @@ export default function DiaDeSorteGeneratorPage() {
         </p>
       </div>
 
-      <div className="mt-6">
+      <div className="mt-6 min-h-[33rem] sm:min-h-[24rem]">
         <Suspense fallback={<p className="text-sm text-zinc-500">Carregando gerador...</p>}>
           <DiaDeSorteGenerator />
         </Suspense>

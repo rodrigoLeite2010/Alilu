@@ -2,6 +2,7 @@
 
 import { useCallback, useState } from "react";
 import Link from "next/link";
+import { categories } from "@/data/categories";
 import { Icon } from "@/components/ui/Icon";
 import { useHeaderAuth } from "@/components/layout/useHeaderAuth";
 import { MobileActionGrid } from "@/components/mobile/MobileActionGrid";
@@ -158,10 +159,27 @@ export function MobileHome() {
     <div className="space-y-6 px-4 pt-6 pb-8 md:hidden">
       <div>
         <p className="text-2xl font-bold tracking-tight text-brand-primary-dark">{firstName ? `Olá, ${firstName}` : "Olá!"}</p>
-        <p className="mt-1 text-base text-zinc-700">O que você quer fazer?</p>
+        <h1 className="mt-2 text-2xl font-bold tracking-tight text-brand-primary-dark">Ferramentas online para o seu dia a dia</h1>
+        <p className="mt-2 text-base text-zinc-700">Organize PDFs, faça cálculos e prepare textos e imagens pelo navegador. As calculadoras e os utilitários públicos são gratuitos; publicação, automação e IA têm condições próprias de acesso.</p>
       </div>
 
       {billingNotice ? <MobileBillingAlert notice={billingNotice} /> : null}
+
+      <section aria-labelledby="mobile-home-utilities">
+        <h2 id="mobile-home-utilities" className="mb-3 text-lg font-semibold text-zinc-900">Resolva uma tarefa agora</h2>
+        <MobileLinkList label="Utilitários sem cadastro" items={[
+          { href: "/utilitarios/pdf/unir-pdf", label: "Juntar PDFs", icon: "file-pdf", description: "Reunir documentos em um arquivo" },
+          { href: "/utilitarios/financeiro/financiamento-veiculo", label: "Simular financiamento de veículo", icon: "coins", description: "Compare parcela e total pago" },
+          { href: "/utilitarios/financeiro/juros-compostos", label: "Calcular juros compostos", icon: "coins", description: "Explore prazo, taxa e aportes" },
+        ]} />
+      </section>
+
+      <section aria-labelledby="mobile-home-categories">
+        <h2 id="mobile-home-categories" className="mb-3 text-lg font-semibold text-zinc-900">Explore por categoria</h2>
+        <MobileLinkList label="Categorias de utilitários" items={categories.map((category) => ({
+          href: `/utilitarios/${category.id}`, label: category.name, icon: category.icon,
+        }))} />
+      </section>
 
       <MobileActionGrid items={homeActionLinks} />
 

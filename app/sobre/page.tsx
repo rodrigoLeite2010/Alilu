@@ -30,10 +30,27 @@ export default function AboutPage() {
           trabalho, financeiro, empresa e utilidades gerais.
         </p>
         <p>
-          O objetivo é simples: entregar ferramentas rápidas, fáceis de usar
-          no celular e sem custo, sem exigir cadastro. Sempre que possível,
-          os cálculos são feitos diretamente no seu navegador — os dados que
-          você digita não precisam ser enviados a nenhum servidor.
+          As calculadoras e os utilitários públicos podem ser usados sem cadastro.
+          Eles ajudam a calcular, converter arquivos, preparar documentos e revisar
+          textos. Cada página explica o que o resultado significa e as limitações
+          do processamento. Nas ferramentas locais, os dados ficam no navegador.
+        </p>
+        <h2>Recursos com conta e serviços pagos</h2>
+        <p>
+          Orçamento pessoal, agenda e recursos de publicação usam uma conta para
+          guardar seus dados e permitir que você volte a eles. Alguns recursos de
+          Instagram e inteligência artificial dependem de plano, cotas ou créditos.
+          Confira as condições mostradas na ferramenta e em <a href="/planos">Planos</a>
+          antes de usar. Serviços de processamento remoto enviam os dados necessários
+          aos servidores e provedores envolvidos, conforme a <a href="/privacidade">Política de Privacidade</a>.
+        </p>
+        <h2>Como avaliar os resultados</h2>
+        <p>
+          Simulações financeiras e trabalhistas são referências para comparação,
+          não propostas de crédito nem orientação profissional individual.
+          Conversões de documentos podem perder formatação. Se encontrar um erro,
+          informe a ferramenta, o comportamento esperado e os passos para reproduzir,
+          sem enviar senhas ou documentos sensíveis.
         </p>
         <p>
           A plataforma está em construção contínua: novas ferramentas são

@@ -49,6 +49,22 @@ export function Dialog({
 
     function onKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") onCloseRef.current();
+      if (event.key !== "Tab" || !panel) return;
+      const fields = Array.from(panel.querySelectorAll<HTMLElement>(
+        'a[href], button:not(:disabled), input:not(:disabled):not([type="hidden"]), textarea:not(:disabled), select:not(:disabled), [tabindex]:not([tabindex="-1"])',
+      )).filter((field) => field.tabIndex >= 0 && !field.closest('[hidden], [inert], [aria-hidden="true"]'));
+      const first = fields[0];
+      const last = fields.at(-1);
+      if (!first || !last) {
+        event.preventDefault();
+        panel.focus();
+      } else if (event.shiftKey && (document.activeElement === first || !panel.contains(document.activeElement))) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && (document.activeElement === last || !panel.contains(document.activeElement))) {
+        event.preventDefault();
+        first.focus();
+      }
     }
     document.addEventListener("keydown", onKeyDown);
     const overflow = document.body.style.overflow;

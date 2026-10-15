@@ -36,6 +36,11 @@ export function stripQuery(url: string): string {
   return cut === -1 ? url : url.slice(0, cut);
 }
 
+/** Convites são credenciais no próprio caminho, inclusive quando viram referrer. */
+export function sanitizeAnalyticsUrl(url: string): string {
+  return stripQuery(url).replace(/(\/amigo-secreto\/convite\/)[^/]+/g, "$1[redacted]");
+}
+
 let instance: Promise<PostHog | null> | null = null;
 
 /** Carrega e inicializa o PostHog UMA vez (import dinâmico: não bloqueia a renderização). */
@@ -59,8 +64,8 @@ export function loadPostHog(): Promise<PostHog | null> {
         persistence: "localStorage+cookie",
         sanitize_properties: (properties) => {
           const clean = { ...properties };
-          for (const field of ["$current_url", "$referrer", "$initial_referrer", "$referring_domain"]) {
-            if (typeof clean[field] === "string") clean[field] = stripQuery(clean[field] as string);
+          for (const field of ["$current_url", "$initial_current_url", "$pathname", "$referrer", "$initial_referrer", "$referring_domain", "$prev_pageview_pathname", "$prev_pageview_url"]) {
+            if (typeof clean[field] === "string") clean[field] = sanitizeAnalyticsUrl(clean[field] as string);
           }
           return clean;
         },
@@ -80,8 +85,8 @@ export async function trackPageView(pathname: string): Promise<void> {
     const posthog = await loadPostHog();
     if (!posthog) return;
     posthog.capture("$pageview", {
-      $current_url: `${window.location.origin}${stripQuery(pathname)}`,
-      $pathname: stripQuery(pathname),
+      $current_url: `${window.location.origin}${sanitizeAnalyticsUrl(pathname)}`,
+      $pathname: sanitizeAnalyticsUrl(pathname),
     });
   } catch {
     // analytics nunca quebra o site

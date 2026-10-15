@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   secureRandomInt,
   secureRandomIntRange,
@@ -6,6 +6,7 @@ import {
   secureRandomChar,
   secureRandomChoice,
   secureRandomSample,
+  secureRandomSampleRange,
 } from "@/lib/random/secure-random";
 
 /**
@@ -14,6 +15,27 @@ import {
  * reutilizado por todos os novos geradores das fases B/C/D.
  */
 describe("secure-random", () => {
+  it("rejeita a borda que introduziria viés no resto da divisão", () => {
+    const random = vi.spyOn(globalThis.crypto, "getRandomValues");
+    let calls = 0;
+    random.mockImplementation((array) => {
+      (array as Uint32Array)[0] = calls++ === 0 ? 4_294_967_295 : 5;
+      return array;
+    });
+    try {
+      expect(secureRandomInt(3)).toBe(2);
+      expect(random).toHaveBeenCalledTimes(2);
+    } finally {
+      random.mockRestore();
+    }
+  });
+
+  it("amostra de intervalo inclui todas as pontas sem repetição", () => {
+    expect(secureRandomSampleRange(-2, 2, 5).sort((a, b) => a - b)).toEqual([-2, -1, 0, 1, 2]);
+    expect(secureRandomSampleRange(7, 7, 1)).toEqual([7]);
+    expect(secureRandomSampleRange(0, 10, 0)).toEqual([]);
+    expect(() => secureRandomSampleRange(0, 2, 4)).toThrow();
+  });
   it("secureRandomInt nunca retorna um valor fora de [0, maxExclusive)", () => {
     for (let i = 0; i < 500; i += 1) {
       const value = secureRandomInt(7);

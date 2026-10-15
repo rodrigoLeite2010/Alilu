@@ -24,7 +24,7 @@ const maxInputMegabytes = Math.round(MAX_VIDEO_INPUT_BYTES / (1024 * 1024));
 
 const faq: ToolFaqItem[] = [
   {
-    question: "Os vídeos enviados ficam salvos?",
+    question: "Os vídeos enviados ao split-screen ficam salvos?",
     answer:
       "Não. Os dois vídeos que você envia são usados só para gerar o resultado e são apagados do servidor logo depois que o processamento termina — em caso de sucesso ou de erro. Só o vídeo final gerado fica disponível para download.",
   },
@@ -42,8 +42,8 @@ const faq: ToolFaqItem[] = [
       "Não. O vídeo gerado sai sem nenhuma marca d'água. (Uma marca d'água opcional pode vir a ser oferecida no futuro, mas nunca é aplicada sem você escolher.)",
   },
   {
-    question: "Preciso fazer login para usar?",
-    answer: "Não. O editor de vídeo é gratuito e não pede cadastro nem login para gerar e baixar o resultado.",
+    question: "Preciso fazer login e pagar para usar?",
+    answer: "O editor split-screen é gratuito e não exige login. Imagem para Vídeo com IA exige conta e usa créditos; o custo é mostrado antes da geração. Importar do Instagram exige conta e pode depender do plano e da cota disponível.",
   },
 ];
 
@@ -94,7 +94,7 @@ export default function VideosCategoryPage() {
       <section className="mt-6 max-md:order-first md:mt-10">
         <SectionHeading
           title="Ferramentas"
-          description="Grátis e sem cadastro para gerar e baixar o resultado."
+          description="Split-screen grátis e sem cadastro. IA usa créditos; importações exigem conta e podem depender de plano."
         />
         <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {activeTools.map((tool) => (
@@ -107,7 +107,7 @@ export default function VideosCategoryPage() {
                   <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-white text-zinc-700 transition-colors group-hover:bg-teal-100 group-hover:text-teal-800">
                     <Icon name={tool.icon} className="h-5 w-5" />
                   </span>
-                  <Badge tone="brand">Grátis</Badge>
+                  <Badge tone="brand">{tool.id === "editor-split-screen" ? "Grátis" : tool.id === "imagem-para-video" ? "Créditos de IA" : "Com conta"}</Badge>
                 </div>
                 <div>
                   <p className="font-semibold text-zinc-900 group-hover:text-teal-800">{tool.shortName}</p>

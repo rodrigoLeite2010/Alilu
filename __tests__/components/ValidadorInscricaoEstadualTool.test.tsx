@@ -3,6 +3,14 @@ import { fireEvent, render, screen, within } from "@testing-library/react";
 import { ValidadorInscricaoEstadualTool } from "@/components/tools/validador-inscricao-estadual/ValidadorInscricaoEstadualTool";
 
 describe("ValidadorInscricaoEstadualTool", () => {
+  it("explica que o comprimento aceito é geral e não depende da UF", () => {
+    render(<ValidadorInscricaoEstadualTool />);
+    expect(screen.getByText(/não altera o intervalo de comprimento nesta versão/i)).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Estado (UF)"), { target: { value: "SP" } });
+    fireEvent.change(screen.getByLabelText("Inscrição Estadual"), { target: { value: "12345678" } });
+    fireEvent.click(screen.getByRole("button", { name: /validar inscrição estadual/i }));
+    expect(within(screen.getByRole("status")).getByText(/não verifica o comprimento específico/i)).toBeInTheDocument();
+  });
   it("mostra formato válido para uma quantidade de dígitos compatível", () => {
     render(<ValidadorInscricaoEstadualTool />);
     fireEvent.change(screen.getByLabelText("Inscrição Estadual"), {

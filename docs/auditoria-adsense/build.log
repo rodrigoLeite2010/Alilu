@@ -1,0 +1,278 @@
+
+> alilu@0.1.0 build
+> next build
+
+▲ Next.js 16.3.5 (Turbopack)
+- Environments: .env.local
+✓ Running next.config.ts took 34ms
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 13.0s
+  Running TypeScript ...
+  Finished TypeScript in 13.8s ...
+  Collecting page data using 7 workers ...
+  Generating static pages using 7 workers (0/236) ...
+  Generating static pages using 7 workers (59/236) 
+  Generating static pages using 7 workers (118/236) 
+  Generating static pages using 7 workers (177/236) 
+✓ Generating static pages using 7 workers (236/236) in 7.0s
+  Finalizing page optimization ...
+
+Route (app)
+┌ ○ /
+├ ○ /_not-found
+├ ƒ /admin
+├ ƒ /admin/acessos
+├ ƒ /admin/armazenamento
+├ ƒ /admin/assinaturas
+├ ƒ /admin/assinaturas/usuarios
+├ ƒ /admin/assinaturas/usuarios/[id]
+├ ƒ /admin/carrossel
+├ ƒ /admin/emails
+├ ƒ /admin/ia/custos
+├ ƒ /admin/ia/precificacao
+├ ƒ /admin/instagram
+├ ƒ /admin/instagram-import
+├ ƒ /admin/stories-inteligentes
+├ ƒ /agenda
+├ ƒ /amigo-secreto
+├ ƒ /amigo-secreto/[id]
+├ ƒ /amigo-secreto/convite/[token]
+├ ƒ /amigo-secreto/novo
+├ ƒ /api/admin/ai-video/pricing
+├ ƒ /api/admin/analytics/pages
+├ ƒ /api/admin/analytics/recent
+├ ƒ /api/admin/analytics/summary
+├ ƒ /api/admin/carrossel
+├ ƒ /api/admin/emails
+├ ƒ /api/admin/instagram-import
+├ ƒ /api/admin/storage-cleanup
+├ ƒ /api/admin/users/[id]
+├ ƒ /api/agenda/events
+├ ƒ /api/agenda/events/[id]
+├ ƒ /api/agenda/events/[id]/cancel
+├ ƒ /api/agenda/events/[id]/complete
+├ ƒ /api/agenda/events/[id]/reopen
+├ ƒ /api/agenda/next
+├ ƒ /api/agenda/preferences
+├ ƒ /api/ai-video/credits/checkout
+├ ƒ /api/ai-video/credits/refund
+├ ƒ /api/ai-video/draft
+├ ƒ /api/ai-video/generations
+├ ƒ /api/ai-video/generations/[id]
+├ ƒ /api/ai-video/generations/[id]/feedback
+├ ƒ /api/ai-video/generations/[id]/issue
+├ ƒ /api/ai-video/upload
+├ ƒ /api/ai-video/upload-diagnostic
+├ ƒ /api/ai-video/wallet
+├ ƒ /api/allowance/categories
+├ ƒ /api/allowance/categories/[id]
+├ ƒ /api/allowance/children
+├ ƒ /api/allowance/children/[id]
+├ ƒ /api/allowance/children/[id]/expenses
+├ ƒ /api/allowance/children/[id]/goals
+├ ƒ /api/allowance/children/[id]/goals/[goalId]
+├ ƒ /api/allowance/children/[id]/income
+├ ƒ /api/allowance/children/[id]/plan
+├ ƒ /api/allowance/children/[id]/savings/deposit
+├ ƒ /api/allowance/children/[id]/savings/withdraw
+├ ƒ /api/allowance/children/[id]/tasks
+├ ƒ /api/allowance/children/[id]/tasks/[taskId]
+├ ƒ /api/allowance/children/[id]/tasks/[taskId]/complete
+├ ƒ /api/allowance/children/[id]/transactions
+├ ƒ /api/allowance/completions/[id]/approve
+├ ƒ /api/allowance/completions/[id]/reject
+├ ƒ /api/auth/[...nextauth]
+├ ƒ /api/billing/asaas-webhook
+├ ƒ /api/billing/automation-access
+├ ƒ /api/billing/automation-subscription
+├ ƒ /api/billing/summary
+├ ƒ /api/brand-end-media
+├ ƒ /api/brand-end-media/apply-reel
+├ ƒ /api/brand-end-media/assets
+├ ƒ /api/brand-end-media/upload
+├ ƒ /api/carousel/billing
+├ ƒ /api/carousel/brand
+├ ƒ /api/carousel/generate
+├ ƒ /api/carousel/me
+├ ƒ /api/carousel/profile-analysis
+├ ƒ /api/carousel/projects
+├ ƒ /api/carousel/projects/[id]
+├ ƒ /api/carousel/projects/[id]/export
+├ ƒ /api/carousel/topics
+├ ƒ /api/client-events
+├ ƒ /api/content-automation/accounts
+├ ƒ /api/content-automation/automations
+├ ƒ /api/content-automation/automations/[id]
+├ ƒ /api/content-automation/automations/[id]/days/[day]
+├ ƒ /api/content-automation/automations/[id]/history
+├ ƒ /api/content-automation/media
+├ ƒ /api/content-automation/media/[id]
+├ ƒ /api/content-automation/media/bulk-delete
+├ ƒ /api/content-automation/media/preview-art
+├ ƒ /api/content-automation/media/preview-carousel-art
+├ ƒ /api/content-automation/media/preview-story
+├ ƒ /api/content-automation/media/resolve
+├ ƒ /api/content-automation/runs/[id]
+├ ƒ /api/content-automation/smart-story/preview
+├ ƒ /api/cron/agenda-reminders
+├ ƒ /api/cron/ai-video
+├ ƒ /api/cron/allowance
+├ ƒ /api/cron/content-automation
+├ ƒ /api/cron/instagram-publish
+├ ƒ /api/cron/storage-cleanup
+├ ƒ /api/financas/dividas
+├ ƒ /api/financas/dividas/[id]
+├ ƒ /api/financas/dividas/[id]/pagamento
+├ ƒ /api/financas/entries
+├ ƒ /api/financas/entries/[id]
+├ ƒ /api/financas/entries/[id]/pay
+├ ƒ /api/financas/goals
+├ ƒ /api/financas/goals/[id]
+├ ƒ /api/financas/goals/[id]/deposit
+├ ƒ /api/financas/limites
+├ ƒ /api/financas/limites/[category]
+├ ƒ /api/financas/month
+├ ƒ /api/financas/settings
+├ ƒ /api/financas/year
+├ ƒ /api/informacoes-conexao
+├ ƒ /api/instagram/account
+├ ƒ /api/instagram/account/music
+├ ƒ /api/instagram/ai-caption
+├ ƒ /api/instagram/auth/request-code
+├ ƒ /api/instagram/media/upload
+├ ƒ /api/instagram/oauth/callback
+├ ƒ /api/instagram/oauth/start
+├ ƒ /api/instagram/posts
+├ ƒ /api/instagram/posts/[id]
+├ ƒ /api/instagram/posts/[id]/publish
+├ ƒ /api/instagram/posts/from-import
+├ ƒ /api/instagram/scheduler/run
+├ ƒ /api/loterias/apostas
+├ ƒ /api/loterias/apostas/[id]
+├ ƒ /api/loterias/apostas/[id]/conferir
+├ ƒ /api/loterias/configuracoes
+├ ƒ /api/loterias/estatisticas
+├ ƒ /api/loterias/exportar
+├ ƒ /api/loterias/jogos/[id]
+├ ƒ /api/readability/analyze
+├ ƒ /api/readability/rewrite
+├ ƒ /api/secret-santa/groups
+├ ƒ /api/secret-santa/groups/[id]
+├ ƒ /api/secret-santa/groups/[id]/announcements
+├ ƒ /api/secret-santa/groups/[id]/complete
+├ ƒ /api/secret-santa/groups/[id]/conversation
+├ ƒ /api/secret-santa/groups/[id]/draw
+├ ƒ /api/secret-santa/groups/[id]/duplicate
+├ ƒ /api/secret-santa/groups/[id]/gift
+├ ƒ /api/secret-santa/groups/[id]/my-assignment
+├ ƒ /api/secret-santa/groups/[id]/participants
+├ ƒ /api/secret-santa/groups/[id]/participants/[pid]
+├ ƒ /api/secret-santa/groups/[id]/restrictions
+├ ƒ /api/secret-santa/groups/[id]/restrictions/[rid]
+├ ƒ /api/secret-santa/groups/[id]/reveal
+├ ƒ /api/secret-santa/groups/[id]/wishlist
+├ ƒ /api/secret-santa/groups/[id]/wishlist/[wid]
+├ ƒ /api/secret-santa/invitations/[token]
+├ ƒ /api/secret-santa/invitations/[token]/accept
+├ ƒ /api/secret-santa/invitations/[token]/decline
+├ ƒ /api/secret-santa/notifications
+├ ƒ /api/smart-story/brand
+├ ƒ /api/smart-story/brand/assets
+├ ƒ /api/smart-story/brand/upload
+├ ƒ /api/suggestions
+├ ƒ /api/videos/instagram-import/[id]
+├ ƒ /api/videos/instagram-import/[id]/import
+├ ƒ /api/videos/instagram-import/[id]/thumbnail
+├ ƒ /api/videos/instagram-import/manual
+├ ƒ /api/videos/instagram-import/resolve
+├ ƒ /api/videos/instagram-import/upload
+├ ƒ /api/videos/split-screen
+├ ƒ /api/videos/upload
+├ ƒ /api/webhooks/resend
+├ ○ /apple-icon.png
+├ ○ /contato
+├ ○ /entrar
+├ ○ /exclusao-de-dados
+├ ƒ /financeiro/assinaturas
+├ ƒ /financeiro/calendario
+├ ƒ /financeiro/despesas
+├ ƒ /financeiro/dividas
+├ ○ /financeiro/educacao-financeira
+├ ƒ /financeiro/metas
+├ ƒ /financeiro/metodo-50-30-20
+├ ƒ /financeiro/metodo-envelopes
+├ ƒ /financeiro/meu-orcamento
+├ ƒ /financeiro/planejamento-anual
+├ ƒ /financeiro/planilhas
+├ ƒ /financeiro/receitas
+├ ƒ /financeiro/reserva-de-emergencia
+├ ○ /icon.png
+├ ○ /instagram
+├ ○ /instagram/carrossel
+├ ƒ /instagram/carrossel-inteligente
+├ ƒ /instagram/carrossel-inteligente/[id]
+├ ƒ /instagram/carrossel-inteligente/planos
+├ ƒ /instagram/carrossel/repostar
+├ ƒ /instagram/conectado
+├ ○ /instagram/criar-post
+├ ○ /instagram/legendas
+├ ƒ /instagram/painel
+├ ƒ /instagram/painel/calendario
+├ ƒ /instagram/painel/calendario/novo
+├ ƒ /instagram/painel/calendario/novo-carrossel
+├ ƒ /instagram/piloto-automatico
+├ ƒ /instagram/piloto-automatico/automacoes/[id]
+├ ƒ /instagram/piloto-automatico/automacoes/[id]/historico
+├ ƒ /instagram/piloto-automatico/nova
+├ ƒ /instagram/posts-virais
+├ ƒ /instagram/reels
+├ ○ /loterias
+├ ○ /loterias/dia-de-sorte
+├ ƒ /loterias/dia-de-sorte/meus-jogos
+├ ○ /loterias/lotofacil
+├ ○ /loterias/lotofacil/fechamento
+├ ƒ /loterias/lotofacil/meus-jogos
+├ ○ /loterias/lotomania
+├ ƒ /loterias/lotomania/meus-jogos
+├ ○ /loterias/mega-sena
+├ ƒ /loterias/mega-sena/meus-jogos
+├ ○ /loterias/quina
+├ ƒ /loterias/quina/meus-jogos
+├ ƒ /mesada
+├ ƒ /mesada/[id]
+├ ƒ /mesada/categorias
+├ ƒ /minha-conta
+├ ƒ /minha-conta/creditos-ia
+├ ƒ /minha-conta/identidade-stories
+├ ƒ /minha-conta/midia-final
+├ ƒ /minha-conta/midias
+├ ○ /planos
+├ ○ /privacidade
+├ ○ /robots.txt
+├ ○ /sitemap.xml
+├ ○ /sobre
+├ ƒ /sugestoes
+├ ○ /termos-de-uso
+├ ○ /utilitarios
+├   /utilitarios/[categoria]
+│ ├ ● /utilitarios/trabalho
+│ ├ ● /utilitarios/financeiro
+│ ├ ● /utilitarios/empresa
+│ └ ● [+7 more paths]
+├   /utilitarios/[categoria]/[ferramenta]
+│ ├ ● /utilitarios/trabalho/calculadora-rescisao
+│ ├ ● /utilitarios/trabalho/salario-liquido
+│ ├ ● /utilitarios/trabalho/calculadora-ferias
+│ └ ● [+122 more paths]
+├ ○ /videos
+├ ƒ /videos/editor-split-screen
+├ ƒ /videos/imagem-para-video
+├ ƒ /videos/importacoes-instagram
+└ ƒ /videos/importar-instagram
+
+
+○  (Static)   prerendered as static content
+●  (SSG)      prerendered as static HTML (uses generateStaticParams)
+ƒ  (Dynamic)  server-rendered on demand
+

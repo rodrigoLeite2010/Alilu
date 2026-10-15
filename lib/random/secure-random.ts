@@ -18,7 +18,7 @@
  * levemente maior que os altos quando maxExclusive não divide 2^32).
  */
 export function secureRandomInt(maxExclusive: number): number {
-  if (!Number.isInteger(maxExclusive) || maxExclusive <= 0) {
+  if (!Number.isInteger(maxExclusive) || maxExclusive <= 0 || maxExclusive > 0x100000000) {
     throw new Error("maxExclusive deve ser um inteiro positivo.");
   }
 
@@ -29,15 +29,15 @@ export function secureRandomInt(maxExclusive: number): number {
     );
   }
 
-  const maxUint32 = 0xffffffff;
-  const limit = maxUint32 - (maxUint32 % maxExclusive);
+  const possibleValues = 0x100000000;
+  const limit = possibleValues - (possibleValues % maxExclusive);
   const array = new Uint32Array(1);
 
   let value: number;
   do {
     cryptoObj.getRandomValues(array);
     value = array[0];
-  } while (value > limit);
+  } while (value >= limit);
 
   return value % maxExclusive;
 }
@@ -86,6 +86,24 @@ export function secureRandomSample<T>(items: readonly T[], count: number): T[] {
     const index = secureRandomInt(pool.length - i);
     result.push(pool[index]);
     pool[index] = pool[pool.length - i - 1];
+  }
+  return result;
+}
+
+/** Fisher-Yates parcial sobre um intervalo virtual: memória proporcional ao lote. */
+export function secureRandomSampleRange(min: number, max: number, count: number): number[] {
+  const size = max - min + 1;
+  if (!Number.isSafeInteger(min) || !Number.isSafeInteger(max) || size < 1 || size > 0x100000000 || !Number.isInteger(count) || count < 0 || count > size) {
+    throw new Error("Intervalo ou quantidade inválidos para sorteio.");
+  }
+  const swaps = new Map<number, number>();
+  const result: number[] = [];
+  for (let index = 0; index < count; index += 1) {
+    const remaining = size - index;
+    const chosen = secureRandomInt(remaining);
+    result.push(min + (swaps.get(chosen) ?? chosen));
+    swaps.set(chosen, swaps.get(remaining - 1) ?? remaining - 1);
+    swaps.delete(remaining - 1);
   }
   return result;
 }

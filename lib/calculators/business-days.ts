@@ -137,9 +137,13 @@ export function getNationalHolidays(
     `${year}-10-12`,
     `${year}-11-02`,
     `${year}-11-15`,
-    `${year}-11-20`,
     `${year}-12-25`,
   ];
+
+  // Lei 14.759/2023 publicada em 22/12/2023: a primeira ocorrência
+  // nacional de 20/11 é em 2024. Antes disso podia existir feriado local.
+  // https://www.planalto.gov.br/ccivil_03/_ato2023-2026/2023/lei/l14759.htm
+  if (year >= 2024) fixed.push(`${year}-11-20`);
 
   const movable = [
     toISODate(addDaysUTC(easter, -2)), // Sexta-feira Santa

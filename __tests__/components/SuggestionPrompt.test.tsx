@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { SuggestionPrompt } from "@/components/layout/SuggestionPrompt";
 
 const LAST_SHOWN_KEY = "alilu.suggestionPrompt.lastShownDay";
@@ -26,7 +26,10 @@ describe("SuggestionPrompt — no máximo 1 vez por dia", () => {
   it("aparece na primeira visita do dia e registra o dia", async () => {
     render(<SuggestionPrompt />);
 
-    expect(await screen.findByText("Achou o que procura?", {}, { timeout: 3000 })).toBeInTheDocument();
+    const invitation = await screen.findByRole("button", { name: "Sugerir melhoria" }, { timeout: 3000 });
+    expect(screen.queryByText("Achou o que procura?")).not.toBeInTheDocument();
+    fireEvent.click(invitation);
+    expect(screen.getByText("Achou o que procura?")).toBeInTheDocument();
     expect(window.localStorage.getItem(LAST_SHOWN_KEY)).toBe(localDayKey());
   });
 
@@ -36,12 +39,13 @@ describe("SuggestionPrompt — no máximo 1 vez por dia", () => {
 
     await new Promise((resolve) => setTimeout(resolve, 1300));
     expect(screen.queryByText("Achou o que procura?")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Sugerir melhoria" })).not.toBeInTheDocument();
   });
 
   it("volta a aparecer no dia seguinte", async () => {
     window.localStorage.setItem(LAST_SHOWN_KEY, localDayKey(-1));
     render(<SuggestionPrompt />);
 
-    expect(await screen.findByText("Achou o que procura?", {}, { timeout: 3000 })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Sugerir melhoria" }, { timeout: 3000 })).toBeInTheDocument();
   });
 });

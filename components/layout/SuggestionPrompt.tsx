@@ -3,7 +3,7 @@
 import { useEffect, useId, useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/Button";
 
-type PromptState = "asking" | "form" | "thanks" | "hidden";
+type PromptState = "invitation" | "asking" | "form" | "thanks" | "hidden";
 
 const STORAGE_KEY = "alilu.suggestionPrompt.dismissed";
 /** Dia (no fuso do aparelho) em que o aviso apareceu pela última vez: no máximo 1 vez por dia. */
@@ -54,7 +54,7 @@ export function SuggestionPrompt() {
     const timer = window.setTimeout(() => {
       // Marca ao aparecer (e não só ao fechar): recarregar ou trocar de página não o traz de volta no mesmo dia.
       markShownToday();
-      setState("asking");
+      setState("invitation");
     }, 900);
     return () => window.clearTimeout(timer);
   }, []);
@@ -89,6 +89,13 @@ export function SuggestionPrompt() {
   }
 
   if (state === "hidden") return null;
+  if (state === "invitation") {
+    return (
+      <Button type="button" variant="secondary" className="min-h-11 shadow-sm" onClick={() => setState("asking")}>
+        Sugerir melhoria
+      </Button>
+    );
+  }
 
   return (
     // Posicionamento (fixed/z-index/print:hidden) fica a cargo do
@@ -101,7 +108,7 @@ export function SuggestionPrompt() {
           <div>
             <p className="text-sm font-semibold text-zinc-900">Achou o que procura?</p>
             <p className="mt-1 text-sm text-zinc-600">
-              Se faltar alguma ferramenta, me fala que desenvolvemos em instantes.
+              Conte o que faltou ou o que podemos melhorar na ferramenta.
             </p>
           </div>
           <div className="flex gap-2">
@@ -121,7 +128,7 @@ export function SuggestionPrompt() {
             <label htmlFor={textareaId} className="text-sm font-semibold text-zinc-900">
               Qual ferramenta você gostaria?
             </label>
-            <p className="mt-1 text-xs text-zinc-500">Me fala que desenvolvemos em instantes.</p>
+            <p className="mt-1 text-xs text-zinc-500">Descreva sua necessidade para avaliarmos a sugestão.</p>
           </div>
           <textarea
             id={textareaId}

@@ -93,9 +93,9 @@ describe("descoberta da publicação automática", () => {
 
   it("home: chamada compacta para criar e publicar no Instagram", () => {
     render(<HomePage />);
-    expect(screen.getByRole("heading", { name: "Crie e publique no Instagram" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Criar post agora" })).toHaveAttribute("href", "/instagram/criar-post");
-    expect(screen.getByRole("link", { name: "Conhecer publicação automática" })).toHaveAttribute("href", "/instagram#publicacao-automatica");
+    expect(screen.getByRole("heading", { name: "Crie e automatize seu Instagram" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Criador de Posts" })).toHaveAttribute("href", "/instagram/criar-post");
+    expect(screen.getAllByRole("link", { name: "Piloto Automático" }).some(link => link.getAttribute("href") === "/instagram/piloto-automatico")).toBe(true);
   });
 
   it("menu: Instagram fechado; abrir mostra Manual e Automatizado, e 'Agendar e publicar' fica em Automatizado", () => {

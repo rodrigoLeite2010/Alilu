@@ -6,7 +6,7 @@
  * lib/random/secure-random.ts) — nunca com `Math.random`.
  */
 
-import { secureRandomIntRange, secureRandomSample } from "@/lib/random/secure-random";
+import { secureRandomIntRange, secureRandomSampleRange } from "@/lib/random/secure-random";
 
 export const RANDOM_NUMBER_GENERATOR_MAX_COUNT = 1000;
 export const RANDOM_NUMBER_GENERATOR_MAX_RANGE = 1_000_000_000;
@@ -30,17 +30,17 @@ export function validateRandomNumberGeneratorInput(
 ): RandomNumberGeneratorFieldErrors {
   const errors: RandomNumberGeneratorFieldErrors = {};
 
-  if (!Number.isFinite(input.min) || !Number.isInteger(input.min)) {
+  if (!Number.isFinite(input.min) || !Number.isSafeInteger(input.min)) {
     errors.min = "Informe um número mínimo inteiro.";
   }
-  if (!Number.isFinite(input.max) || !Number.isInteger(input.max)) {
+  if (!Number.isFinite(input.max) || !Number.isSafeInteger(input.max)) {
     errors.max = "Informe um número máximo inteiro.";
   }
   if (
     Number.isFinite(input.min) &&
     Number.isFinite(input.max) &&
-    Number.isInteger(input.min) &&
-    Number.isInteger(input.max)
+    Number.isSafeInteger(input.min) &&
+    Number.isSafeInteger(input.max)
   ) {
     if (input.max < input.min) {
       errors.max = "O máximo deve ser maior ou igual ao mínimo.";
@@ -77,8 +77,7 @@ export function generateRandomNumbers(input: RandomNumberGeneratorInput): number
 
   if (!input.allowRepeat) {
     const rangeSize = input.max - input.min + 1;
-    const pool = Array.from({ length: rangeSize }, (_, i) => input.min + i);
-    return secureRandomSample(pool, Math.min(safeCount, rangeSize));
+    return secureRandomSampleRange(input.min, input.max, Math.min(safeCount, rangeSize));
   }
 
   return Array.from({ length: safeCount }, () => secureRandomIntRange(input.min, input.max));

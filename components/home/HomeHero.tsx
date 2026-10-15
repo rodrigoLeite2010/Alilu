@@ -14,7 +14,7 @@ export function HomeHero() {
       <Container className="py-16 sm:py-24">
         <div className="max-w-2xl">
           <p className="text-sm font-semibold uppercase tracking-wider text-brand-accent-dark">
-            Grátis e em português
+            Utilitários gratuitos em português
           </p>
           <h1 className="mt-3 text-3xl font-bold tracking-tight text-balance text-brand-primary-dark sm:text-5xl">
             Ferramentas simples para facilitar o seu dia a dia.
@@ -23,7 +23,7 @@ export function HomeHero() {
             Geradores, PDFs, finanças, Instagram, validadores e dezenas de utilitários online em um só lugar.
           </p>
           <p className="mt-2 text-sm text-zinc-500">
-            Use gratuitamente, direto pelo navegador — a maioria das ferramentas não exige cadastro.
+            Calculadoras e utilitários públicos sem cadastro. Publicação, automação e recursos de IA podem exigir conta, plano ou créditos.
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
             <LinkButton href="/utilitarios">Explorar ferramentas</LinkButton>

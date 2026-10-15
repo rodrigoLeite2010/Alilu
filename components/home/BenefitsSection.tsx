@@ -2,10 +2,10 @@ import { Container } from "@/components/ui/Container";
 import { Icon } from "@/components/ui/Icon";
 
 const BENEFITS = [
-  "Gratuito",
+  "Calculadoras e utilitários públicos gratuitos",
   "Funciona pelo navegador",
   "Ferramentas rápidas",
-  "Novas funcionalidades constantemente",
+  "Categorias para encontrar a ferramenta certa",
   "A maioria das ferramentas pode ser usada sem cadastro",
 ];
 

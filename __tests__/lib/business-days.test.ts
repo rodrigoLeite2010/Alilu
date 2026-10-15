@@ -17,6 +17,10 @@ const base = (overrides: Partial<BusinessDaysInput> = {}): BusinessDaysInput => 
 });
 
 describe("getNationalHolidays", () => {
+  it("20 de novembro só é feriado nacional a partir da primeira ocorrência após a Lei 14.759/2023", () => {
+    expect(getNationalHolidays(2023, false)).not.toContain("2023-11-20");
+    expect(getNationalHolidays(2024, false)).toContain("2024-11-20");
+  });
   it("2026: Páscoa em 5 de abril (valor conhecido/independente) => Sexta-feira Santa correta", () => {
     // Domingo de Páscoa de 2026 é 5 de abril de 2026 (fato de calendário
     // verificável de forma independente, não calculado pelo próprio código).
@@ -56,6 +60,14 @@ describe("getNationalHolidays", () => {
 });
 
 describe("calculateBusinessDays", () => {
+  it("preserva o dia útil em 20/11/2023 e desconta 20/11/2024", () => {
+    const historical = calculateBusinessDays(base({ startDate: "2023-11-20", endDate: "2023-11-20", considerHolidays: true }));
+    const national = calculateBusinessDays(base({ startDate: "2024-11-20", endDate: "2024-11-20", considerHolidays: true }));
+    expect(historical.headline).toBe(1);
+    expect(historical.holidaysCount).toBe(0);
+    expect(national.headline).toBe(0);
+    expect(national.holidayDates).toEqual(["2024-11-20"]);
+  });
   it("setembro de 2026 (30 dias corridos), sem feriados: 4 sábados, 4 domingos, 22 dias úteis", () => {
     // 01/09/2026 é uma terça-feira (fato de calendário verificável de forma
     // independente). Setembro/2026 tem 4 sábados (5,12,19,26) e 4 domingos

@@ -1,0 +1,31 @@
+{
+  "checkedAt": "2026-10-15T15:40:11.923Z",
+  "sitemapEntries": 157,
+  "problems": [],
+  "orphansInObservedLinks": [],
+  "publisherMatch": true,
+  "financingIndexable": true,
+  "redirects": [
+    {
+      "url": "http://alilu.com.br",
+      "status": 308,
+      "location": "https://alilu.com.br/"
+    },
+    {
+      "url": "https://www.alilu.com.br",
+      "status": 308,
+      "location": "https://alilu.com.br/"
+    },
+    {
+      "url": "http://localhost:3100/utilitarios/financeiro/sac-x-price",
+      "status": 308,
+      "location": "/utilitarios/financeiro/financiamento-sac-price"
+    },
+    {
+      "url": "http://localhost:3100/utilitarios/financeiro/financiamento-veiculo/",
+      "status": 308,
+      "location": "/utilitarios/financeiro/financiamento-veiculo"
+    }
+  ],
+  "robots": "User-Agent: *\nAllow: /\nDisallow: /admin\nDisallow: /minha-conta\nDisallow: /api/\nDisallow: /instagram/painel\nDisallow: /loterias/lotofacil/meus-jogos\nDisallow: /loterias/mega-sena/meus-jogos\nDisallow: /loterias/quina/meus-jogos\nDisallow: /loterias/lotomania/meus-jogos\nDisallow: /loterias/dia-de-sorte/meus-jogos\nDisallow: /financeiro/meu-orcamento\nDisallow: /financeiro/calendario\nDisallow: /financeiro/receitas\nDisallow: /financeiro/despesas\nDisallow: /financeiro/metas\nDisallow: /financeiro/assinaturas\nDisallow: /financeiro/planejamento-anual\nDisallow: /financeiro/metodo-envelopes\nDisallow: /financeiro/dividas\nDisallow: /financeiro/planilhas\nDisallow: /financeiro/reserva-de-emergencia\nDisallow: /financeiro/metodo-50-30-20\n\nSitemap: https://alilu.com.br/sitemap.xml\n"
+}

@@ -27,8 +27,8 @@ export function VideoHighlight() {
               </h2>
               <p className="mt-3 text-zinc-600">{VIDEOS_CATEGORY.description}</p>
               <p className="mt-2 text-sm text-zinc-500">
-                Grátis e sem cadastro. Diferente das outras ferramentas do site, esta envia os vídeos ao servidor
-                para gerar o resultado — os arquivos enviados são apagados logo depois do processamento.
+                O split-screen é grátis e sem cadastro: os vídeos são enviados ao servidor para processamento.
+                Vídeo com IA exige conta e créditos; a importação do Instagram exige conta e pode depender do plano.
               </p>
               <div className="mt-6 flex flex-wrap gap-3">
                 <LinkButton href={VIDEOS_CATEGORY.path}>Conhecer o editor de vídeo</LinkButton>
