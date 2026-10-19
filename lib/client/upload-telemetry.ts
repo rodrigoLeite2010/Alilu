@@ -7,7 +7,7 @@
  * conteúdo nem o nome do arquivo. Nunca lança erro nem atrasa a tela.
  */
 
-export type UploadTool = "ai-video-image" | "ai-video-logo" | "split-screen" | "reels" | "instagram-import" | "media-picker";
+export type UploadTool = "ai-video-image" | "ai-video-logo" | "split-screen" | "reels" | "instagram-import" | "youtube-import" | "media-picker";
 export type UploadStage =
   | "picker_open"
   | "file_selected"

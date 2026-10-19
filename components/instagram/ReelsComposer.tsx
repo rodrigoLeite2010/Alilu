@@ -20,7 +20,7 @@ import { ConnectInstagramDialog, buildConnectTarget } from "./ConnectInstagramDi
 import { buildMediaPathnamePrefix, MAX_VIDEO_UPLOAD_BYTES, VIDEO_MEDIA_CONTENT_TYPES } from "@/lib/instagram/backend/media-service";
 import type { MusicMode } from "@/lib/instagram/backend/music-support";
 import { MusicSelector, type MusicSelectorAccountDefault } from "./MusicSelector";
-import { importIdFromLocation, loadImportedVideoFile } from "@/components/instagram-import/imported-media-client";
+import { importIdFromLocation, loadImportedVideoFromLocation, youtubeImportIdFromLocation } from "@/components/instagram-import/imported-media-client";
 
 type Stage = "idle" | "validando" | "enviando" | "encerramento" | "salvando" | "publicando" | "sucesso" | "erro";
 type ActionMode = "draft" | "now" | "schedule";
@@ -135,15 +135,18 @@ export function ReelsComposer({
     };
   }, []);
 
-  // Veio de "Importar do Instagram" (?importacao=<id>): já carrega o vídeo importado.
+  // Veio de "Importar do Instagram" (?importacao=<id>) ou "Importar do YouTube" (?youtube=<id>): já carrega o vídeo importado.
   useEffect(() => {
-    const importId = importIdFromLocation();
-    if (!importId) return;
+    if (!importIdFromLocation() && !youtubeImportIdFromLocation()) return;
     let cancelled = false;
-    loadImportedVideoFile(importId)
-      .then((imported) => {
-        if (cancelled || !imported) return;
-        setFile(imported);
+    loadImportedVideoFromLocation()
+      .then((loaded) => {
+        if (cancelled || !loaded) return;
+        if (loaded.file.type === "video/webm") {
+          setMessage("O Reels aceita vídeos MP4 ou MOV. Este arquivo é WEBM: use-o no Split-Screen, que exporta em MP4.");
+          return;
+        }
+        setFile(loaded.file);
         setMessage("Vídeo importado carregado. Escreva a legenda e publique ou agende.");
       })
       .catch(() => undefined);

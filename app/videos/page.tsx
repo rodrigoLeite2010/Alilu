@@ -43,7 +43,7 @@ const faq: ToolFaqItem[] = [
   },
   {
     question: "Preciso fazer login e pagar para usar?",
-    answer: "O editor split-screen é gratuito e não exige login. Imagem para Vídeo com IA exige conta e usa créditos; o custo é mostrado antes da geração. Importar do Instagram exige conta e pode depender do plano e da cota disponível.",
+    answer: "O editor split-screen é gratuito e não exige login. Imagem para Vídeo com IA exige conta e usa créditos; o custo é mostrado antes da geração. Importar do Instagram exige conta e pode depender do plano e da cota disponível. Importar do YouTube exige conta: o link serve para consultar os dados do vídeo, e o arquivo editado é sempre o original que você envia.",
   },
 ];
 

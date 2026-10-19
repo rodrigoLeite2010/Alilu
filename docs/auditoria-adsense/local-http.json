@@ -1,6 +1,6 @@
 {
   "origin": "http://localhost:3100",
-  "checkedAt": "2026-10-15T15:39:45.729Z",
+  "checkedAt": "2026-10-15T17:29:53.916Z",
   "templatesNotRequested": [
     "/admin/assinaturas/usuarios/[id]",
     "/amigo-secreto/convite/[token]",
@@ -131,7 +131,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 201049,
-      "ttfbAndDownloadMs": 584,
+      "ttfbAndDownloadMs": 493,
       "findings": []
     },
     {
@@ -146,7 +146,7 @@
       "textLength": 0,
       "links": [],
       "htmlBytes": 59,
-      "ttfbAndDownloadMs": 449,
+      "ttfbAndDownloadMs": 320,
       "findings": []
     },
     {
@@ -192,7 +192,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 55608,
-      "ttfbAndDownloadMs": 525,
+      "ttfbAndDownloadMs": 387,
       "findings": []
     },
     {
@@ -238,7 +238,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 55387,
-      "ttfbAndDownloadMs": 520,
+      "ttfbAndDownloadMs": 390,
       "findings": []
     },
     {
@@ -285,7 +285,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 55940,
-      "ttfbAndDownloadMs": 104,
+      "ttfbAndDownloadMs": 85,
       "findings": []
     },
     {
@@ -331,7 +331,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 54059,
-      "ttfbAndDownloadMs": 111,
+      "ttfbAndDownloadMs": 60,
       "findings": []
     },
     {
@@ -376,7 +376,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 56409,
-      "ttfbAndDownloadMs": 119,
+      "ttfbAndDownloadMs": 97,
       "findings": []
     },
     {
@@ -422,7 +422,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 54913,
-      "ttfbAndDownloadMs": 32,
+      "ttfbAndDownloadMs": 35,
       "findings": []
     },
     {
@@ -476,7 +476,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 58084,
-      "ttfbAndDownloadMs": 202,
+      "ttfbAndDownloadMs": 174,
       "findings": []
     },
     {
@@ -523,7 +523,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 59372,
-      "ttfbAndDownloadMs": 190,
+      "ttfbAndDownloadMs": 115,
       "findings": []
     },
     {
@@ -570,7 +570,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 59386,
-      "ttfbAndDownloadMs": 182,
+      "ttfbAndDownloadMs": 109,
       "findings": []
     },
     {
@@ -617,7 +617,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 59294,
-      "ttfbAndDownloadMs": 115,
+      "ttfbAndDownloadMs": 93,
       "findings": []
     },
     {
@@ -664,7 +664,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 59362,
-      "ttfbAndDownloadMs": 141,
+      "ttfbAndDownloadMs": 53,
       "findings": []
     },
     {
@@ -782,7 +782,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 73444,
-      "ttfbAndDownloadMs": 261,
+      "ttfbAndDownloadMs": 115,
       "findings": []
     },
     {
@@ -829,7 +829,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 59336,
-      "ttfbAndDownloadMs": 136,
+      "ttfbAndDownloadMs": 29,
       "findings": []
     },
     {
@@ -876,7 +876,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 59370,
-      "ttfbAndDownloadMs": 177,
+      "ttfbAndDownloadMs": 115,
       "findings": []
     },
     {
@@ -923,7 +923,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 59404,
-      "ttfbAndDownloadMs": 127,
+      "ttfbAndDownloadMs": 116,
       "findings": []
     },
     {
@@ -970,7 +970,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 59392,
-      "ttfbAndDownloadMs": 127,
+      "ttfbAndDownloadMs": 115,
       "findings": []
     },
     {
@@ -1017,7 +1017,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 59394,
-      "ttfbAndDownloadMs": 88,
+      "ttfbAndDownloadMs": 54,
       "findings": []
     },
     {
@@ -1064,7 +1064,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 59376,
-      "ttfbAndDownloadMs": 131,
+      "ttfbAndDownloadMs": 95,
       "findings": []
     },
     {
@@ -1111,7 +1111,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 59294,
-      "ttfbAndDownloadMs": 129,
+      "ttfbAndDownloadMs": 98,
       "findings": []
     },
     {
@@ -1158,7 +1158,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 59430,
-      "ttfbAndDownloadMs": 167,
+      "ttfbAndDownloadMs": 98,
       "findings": []
     },
     {
@@ -1257,7 +1257,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 109606,
-      "ttfbAndDownloadMs": 73,
+      "ttfbAndDownloadMs": 154,
       "findings": []
     },
     {
@@ -1351,7 +1351,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 87173,
-      "ttfbAndDownloadMs": 304,
+      "ttfbAndDownloadMs": 180,
       "findings": []
     },
     {
@@ -1402,7 +1402,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 64722,
-      "ttfbAndDownloadMs": 216,
+      "ttfbAndDownloadMs": 54,
       "findings": []
     },
     {
@@ -1453,7 +1453,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 58490,
-      "ttfbAndDownloadMs": 217,
+      "ttfbAndDownloadMs": 55,
       "findings": []
     },
     {
@@ -1505,7 +1505,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 63462,
-      "ttfbAndDownloadMs": 180,
+      "ttfbAndDownloadMs": 98,
       "findings": []
     },
     {
@@ -1553,7 +1553,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 58729,
-      "ttfbAndDownloadMs": 41,
+      "ttfbAndDownloadMs": 116,
       "findings": []
     },
     {
@@ -1635,7 +1635,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 118208,
-      "ttfbAndDownloadMs": 2902,
+      "ttfbAndDownloadMs": 1485,
       "findings": []
     },
     {
@@ -1713,7 +1713,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 81165,
-      "ttfbAndDownloadMs": 2893,
+      "ttfbAndDownloadMs": 1557,
       "findings": []
     },
     {
@@ -1762,7 +1762,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 64358,
-      "ttfbAndDownloadMs": 2813,
+      "ttfbAndDownloadMs": 1373,
       "findings": []
     },
     {
@@ -1813,7 +1813,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 66087,
-      "ttfbAndDownloadMs": 2814,
+      "ttfbAndDownloadMs": 1397,
       "findings": []
     },
     {
@@ -1859,7 +1859,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 58666,
-      "ttfbAndDownloadMs": 269,
+      "ttfbAndDownloadMs": 204,
       "findings": [
         "P2: H1 ausente no HTML"
       ]
@@ -1907,7 +1907,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 59460,
-      "ttfbAndDownloadMs": 268,
+      "ttfbAndDownloadMs": 204,
       "findings": [
         "P2: H1 ausente no HTML"
       ]
@@ -1960,7 +1960,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 65030,
-      "ttfbAndDownloadMs": 488,
+      "ttfbAndDownloadMs": 178,
       "findings": []
     },
     {
@@ -2012,7 +2012,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 66385,
-      "ttfbAndDownloadMs": 515,
+      "ttfbAndDownloadMs": 43,
       "findings": []
     },
     {
@@ -2059,7 +2059,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 56768,
-      "ttfbAndDownloadMs": 317,
+      "ttfbAndDownloadMs": 156,
       "findings": []
     },
     {
@@ -2113,7 +2113,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 65561,
-      "ttfbAndDownloadMs": 318,
+      "ttfbAndDownloadMs": 157,
       "findings": []
     },
     {
@@ -2175,7 +2175,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 74561,
-      "ttfbAndDownloadMs": 184,
+      "ttfbAndDownloadMs": 220,
       "findings": []
     },
     {
@@ -2270,7 +2270,7 @@
         "/termos-de-uso",
         "/minha-conta"
       ],
-      "htmlBytes": 102763,
+      "htmlBytes": 102825,
       "ttfbAndDownloadMs": 222,
       "findings": []
     },
@@ -2319,7 +2319,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 64254,
-      "ttfbAndDownloadMs": 138,
+      "ttfbAndDownloadMs": 65,
       "findings": []
     },
     {
@@ -2413,8 +2413,8 @@
         "/termos-de-uso",
         "/minha-conta"
       ],
-      "htmlBytes": 95272,
-      "ttfbAndDownloadMs": 71,
+      "htmlBytes": 95334,
+      "ttfbAndDownloadMs": 88,
       "findings": []
     },
     {
@@ -2481,7 +2481,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 89065,
-      "ttfbAndDownloadMs": 192,
+      "ttfbAndDownloadMs": 62,
       "findings": []
     },
     {
@@ -2529,7 +2529,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 64198,
-      "ttfbAndDownloadMs": 126,
+      "ttfbAndDownloadMs": 49,
       "findings": []
     },
     {
@@ -2616,8 +2616,8 @@
         "/termos-de-uso",
         "/minha-conta"
       ],
-      "htmlBytes": 94007,
-      "ttfbAndDownloadMs": 184,
+      "htmlBytes": 94069,
+      "ttfbAndDownloadMs": 59,
       "findings": []
     },
     {
@@ -2665,7 +2665,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 64188,
-      "ttfbAndDownloadMs": 61,
+      "ttfbAndDownloadMs": 35,
       "findings": []
     },
     {
@@ -2755,8 +2755,8 @@
         "/termos-de-uso",
         "/minha-conta"
       ],
-      "htmlBytes": 98568,
-      "ttfbAndDownloadMs": 134,
+      "htmlBytes": 98630,
+      "ttfbAndDownloadMs": 58,
       "findings": []
     },
     {
@@ -2804,7 +2804,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 64188,
-      "ttfbAndDownloadMs": 60,
+      "ttfbAndDownloadMs": 45,
       "findings": []
     },
     {
@@ -2895,8 +2895,8 @@
         "/termos-de-uso",
         "/minha-conta"
       ],
-      "htmlBytes": 97263,
-      "ttfbAndDownloadMs": 110,
+      "htmlBytes": 97325,
+      "ttfbAndDownloadMs": 88,
       "findings": []
     },
     {
@@ -2944,7 +2944,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 64100,
-      "ttfbAndDownloadMs": 57,
+      "ttfbAndDownloadMs": 42,
       "findings": []
     },
     {
@@ -2990,7 +2990,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 55346,
-      "ttfbAndDownloadMs": 72,
+      "ttfbAndDownloadMs": 70,
       "findings": []
     },
     {
@@ -3037,7 +3037,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 55971,
-      "ttfbAndDownloadMs": 129,
+      "ttfbAndDownloadMs": 71,
       "findings": []
     },
     {
@@ -3083,7 +3083,7 @@
         "/termos-de-uso"
       ],
       "htmlBytes": 58592,
-      "ttfbAndDownloadMs": 128,
+      "ttfbAndDownloadMs": 70,
       "findings": []
     },
     {
@@ -3130,7 +3130,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 59005,
-      "ttfbAndDownloadMs": 115,
+      "ttfbAndDownloadMs": 35,
       "findings": []
     },
     {
@@ -3181,7 +3181,7 @@
         "/termos-de-uso"
       ],
       "htmlBytes": 60560,
-      "ttfbAndDownloadMs": 189,
+      "ttfbAndDownloadMs": 83,
       "findings": []
     },
     {
@@ -3232,7 +3232,7 @@
         "/termos-de-uso"
       ],
       "htmlBytes": 60608,
-      "ttfbAndDownloadMs": 125,
+      "ttfbAndDownloadMs": 83,
       "findings": []
     },
     {
@@ -3283,7 +3283,7 @@
         "/termos-de-uso"
       ],
       "htmlBytes": 60028,
-      "ttfbAndDownloadMs": 125,
+      "ttfbAndDownloadMs": 85,
       "findings": []
     },
     {
@@ -3334,7 +3334,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 63315,
-      "ttfbAndDownloadMs": 167,
+      "ttfbAndDownloadMs": 106,
       "findings": []
     },
     {
@@ -3420,7 +3420,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 68538,
-      "ttfbAndDownloadMs": 216,
+      "ttfbAndDownloadMs": 104,
       "findings": []
     },
     {
@@ -3435,7 +3435,7 @@
       "textLength": 0,
       "links": [],
       "htmlBytes": 771,
-      "ttfbAndDownloadMs": 47,
+      "ttfbAndDownloadMs": 39,
       "findings": []
     },
     {
@@ -3450,7 +3450,7 @@
       "textLength": 0,
       "links": [],
       "htmlBytes": 21972,
-      "ttfbAndDownloadMs": 46,
+      "ttfbAndDownloadMs": 38,
       "findings": []
     },
     {
@@ -3508,7 +3508,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 59697,
-      "ttfbAndDownloadMs": 199,
+      "ttfbAndDownloadMs": 77,
       "findings": []
     },
     {
@@ -3553,7 +3553,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 56691,
-      "ttfbAndDownloadMs": 623,
+      "ttfbAndDownloadMs": 523,
       "findings": []
     },
     {
@@ -3631,7 +3631,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 61094,
-      "ttfbAndDownloadMs": 204,
+      "ttfbAndDownloadMs": 65,
       "findings": []
     },
     {
@@ -3801,7 +3801,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 297813,
-      "ttfbAndDownloadMs": 79,
+      "ttfbAndDownloadMs": 54,
       "findings": []
     },
     {
@@ -3873,7 +3873,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 100962,
-      "ttfbAndDownloadMs": 26,
+      "ttfbAndDownloadMs": 36,
       "findings": []
     },
     {
@@ -3942,7 +3942,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 80049,
-      "ttfbAndDownloadMs": 26,
+      "ttfbAndDownloadMs": 61,
       "findings": []
     },
     {
@@ -4011,7 +4011,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 79514,
-      "ttfbAndDownloadMs": 30,
+      "ttfbAndDownloadMs": 31,
       "findings": []
     },
     {
@@ -4080,7 +4080,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 79971,
-      "ttfbAndDownloadMs": 39,
+      "ttfbAndDownloadMs": 27,
       "findings": []
     },
     {
@@ -4149,7 +4149,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 78826,
-      "ttfbAndDownloadMs": 61,
+      "ttfbAndDownloadMs": 25,
       "findings": []
     },
     {
@@ -4218,7 +4218,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 79392,
-      "ttfbAndDownloadMs": 64,
+      "ttfbAndDownloadMs": 23,
       "findings": []
     },
     {
@@ -4287,7 +4287,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 77983,
-      "ttfbAndDownloadMs": 89,
+      "ttfbAndDownloadMs": 27,
       "findings": []
     },
     {
@@ -4356,7 +4356,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 79558,
-      "ttfbAndDownloadMs": 103,
+      "ttfbAndDownloadMs": 25,
       "findings": []
     },
     {
@@ -4425,7 +4425,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 79638,
-      "ttfbAndDownloadMs": 102,
+      "ttfbAndDownloadMs": 39,
       "findings": []
     },
     {
@@ -4494,7 +4494,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 78221,
-      "ttfbAndDownloadMs": 66,
+      "ttfbAndDownloadMs": 31,
       "findings": []
     },
     {
@@ -4563,7 +4563,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 78829,
-      "ttfbAndDownloadMs": 72,
+      "ttfbAndDownloadMs": 26,
       "findings": []
     },
     {
@@ -4632,7 +4632,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 79125,
-      "ttfbAndDownloadMs": 68,
+      "ttfbAndDownloadMs": 18,
       "findings": []
     },
     {
@@ -4701,7 +4701,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 78974,
-      "ttfbAndDownloadMs": 133,
+      "ttfbAndDownloadMs": 16,
       "findings": []
     },
     {
@@ -4770,7 +4770,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 78429,
-      "ttfbAndDownloadMs": 110,
+      "ttfbAndDownloadMs": 34,
       "findings": []
     },
     {
@@ -4839,7 +4839,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 78842,
-      "ttfbAndDownloadMs": 103,
+      "ttfbAndDownloadMs": 35,
       "findings": []
     },
     {
@@ -4908,7 +4908,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 80123,
-      "ttfbAndDownloadMs": 28,
+      "ttfbAndDownloadMs": 70,
       "findings": []
     },
     {
@@ -4977,7 +4977,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 79968,
-      "ttfbAndDownloadMs": 110,
+      "ttfbAndDownloadMs": 56,
       "findings": []
     },
     {
@@ -5046,7 +5046,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 78065,
-      "ttfbAndDownloadMs": 130,
+      "ttfbAndDownloadMs": 61,
       "findings": []
     },
     {
@@ -5115,7 +5115,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 79283,
-      "ttfbAndDownloadMs": 140,
+      "ttfbAndDownloadMs": 28,
       "findings": []
     },
     {
@@ -5184,7 +5184,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 79625,
-      "ttfbAndDownloadMs": 172,
+      "ttfbAndDownloadMs": 35,
       "findings": []
     },
     {
@@ -5234,7 +5234,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 76265,
-      "ttfbAndDownloadMs": 77,
+      "ttfbAndDownloadMs": 25,
       "findings": []
     },
     {
@@ -5298,7 +5298,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 78303,
-      "ttfbAndDownloadMs": 99,
+      "ttfbAndDownloadMs": 33,
       "findings": []
     },
     {
@@ -5363,7 +5363,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 82745,
-      "ttfbAndDownloadMs": 96,
+      "ttfbAndDownloadMs": 21,
       "findings": []
     },
     {
@@ -5435,7 +5435,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 85097,
-      "ttfbAndDownloadMs": 59,
+      "ttfbAndDownloadMs": 25,
       "findings": []
     },
     {
@@ -5499,7 +5499,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 73662,
-      "ttfbAndDownloadMs": 52,
+      "ttfbAndDownloadMs": 56,
       "findings": []
     },
     {
@@ -5567,7 +5567,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 76557,
-      "ttfbAndDownloadMs": 47,
+      "ttfbAndDownloadMs": 42,
       "findings": []
     },
     {
@@ -5631,7 +5631,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 115035,
-      "ttfbAndDownloadMs": 28,
+      "ttfbAndDownloadMs": 39,
       "findings": []
     },
     {
@@ -5696,7 +5696,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 81208,
-      "ttfbAndDownloadMs": 59,
+      "ttfbAndDownloadMs": 41,
       "findings": []
     },
     {
@@ -5761,7 +5761,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 81264,
-      "ttfbAndDownloadMs": 66,
+      "ttfbAndDownloadMs": 42,
       "findings": []
     },
     {
@@ -5830,7 +5830,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 84206,
-      "ttfbAndDownloadMs": 63,
+      "ttfbAndDownloadMs": 23,
       "findings": []
     },
     {
@@ -5895,7 +5895,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 84085,
-      "ttfbAndDownloadMs": 128,
+      "ttfbAndDownloadMs": 18,
       "findings": []
     },
     {
@@ -5960,7 +5960,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 82450,
-      "ttfbAndDownloadMs": 106,
+      "ttfbAndDownloadMs": 23,
       "findings": []
     },
     {
@@ -6029,7 +6029,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 83303,
-      "ttfbAndDownloadMs": 104,
+      "ttfbAndDownloadMs": 28,
       "findings": []
     },
     {
@@ -6098,7 +6098,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 84445,
-      "ttfbAndDownloadMs": 106,
+      "ttfbAndDownloadMs": 26,
       "findings": []
     },
     {
@@ -6175,7 +6175,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 89405,
-      "ttfbAndDownloadMs": 57,
+      "ttfbAndDownloadMs": 33,
       "findings": []
     },
     {
@@ -6251,7 +6251,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 101900,
-      "ttfbAndDownloadMs": 22,
+      "ttfbAndDownloadMs": 26,
       "findings": []
     },
     {
@@ -6329,7 +6329,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 121833,
-      "ttfbAndDownloadMs": 61,
+      "ttfbAndDownloadMs": 34,
       "findings": []
     },
     {
@@ -6398,7 +6398,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 86066,
-      "ttfbAndDownloadMs": 41,
+      "ttfbAndDownloadMs": 46,
       "findings": []
     },
     {
@@ -6463,7 +6463,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 82816,
-      "ttfbAndDownloadMs": 55,
+      "ttfbAndDownloadMs": 43,
       "findings": []
     },
     {
@@ -6540,7 +6540,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 86942,
-      "ttfbAndDownloadMs": 31,
+      "ttfbAndDownloadMs": 35,
       "findings": []
     },
     {
@@ -6605,7 +6605,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 80082,
-      "ttfbAndDownloadMs": 39,
+      "ttfbAndDownloadMs": 24,
       "findings": []
     },
     {
@@ -6669,7 +6669,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 75888,
-      "ttfbAndDownloadMs": 61,
+      "ttfbAndDownloadMs": 27,
       "findings": []
     },
     {
@@ -6738,7 +6738,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 85320,
-      "ttfbAndDownloadMs": 52,
+      "ttfbAndDownloadMs": 25,
       "findings": []
     },
     {
@@ -6802,7 +6802,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 77485,
-      "ttfbAndDownloadMs": 63,
+      "ttfbAndDownloadMs": 25,
       "findings": []
     },
     {
@@ -6879,7 +6879,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 89405,
-      "ttfbAndDownloadMs": 48,
+      "ttfbAndDownloadMs": 24,
       "findings": []
     },
     {
@@ -6948,7 +6948,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 83607,
-      "ttfbAndDownloadMs": 64,
+      "ttfbAndDownloadMs": 19,
       "findings": []
     },
     {
@@ -7007,7 +7007,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 101794,
-      "ttfbAndDownloadMs": 30,
+      "ttfbAndDownloadMs": 29,
       "findings": []
     },
     {
@@ -7072,7 +7072,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 78860,
-      "ttfbAndDownloadMs": 25,
+      "ttfbAndDownloadMs": 24,
       "findings": []
     },
     {
@@ -7137,7 +7137,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 78814,
-      "ttfbAndDownloadMs": 50,
+      "ttfbAndDownloadMs": 31,
       "findings": []
     },
     {
@@ -7206,7 +7206,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 80885,
-      "ttfbAndDownloadMs": 41,
+      "ttfbAndDownloadMs": 21,
       "findings": []
     },
     {
@@ -7271,7 +7271,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 77724,
-      "ttfbAndDownloadMs": 41,
+      "ttfbAndDownloadMs": 22,
       "findings": []
     },
     {
@@ -7336,7 +7336,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 77886,
-      "ttfbAndDownloadMs": 29,
+      "ttfbAndDownloadMs": 26,
       "findings": []
     },
     {
@@ -7401,7 +7401,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 76541,
-      "ttfbAndDownloadMs": 34,
+      "ttfbAndDownloadMs": 21,
       "findings": []
     },
     {
@@ -7466,7 +7466,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 77301,
-      "ttfbAndDownloadMs": 32,
+      "ttfbAndDownloadMs": 37,
       "findings": []
     },
     {
@@ -7543,7 +7543,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 88460,
-      "ttfbAndDownloadMs": 52,
+      "ttfbAndDownloadMs": 33,
       "findings": []
     },
     {
@@ -7608,7 +7608,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 76928,
-      "ttfbAndDownloadMs": 45,
+      "ttfbAndDownloadMs": 44,
       "findings": []
     },
     {
@@ -7673,7 +7673,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 78453,
-      "ttfbAndDownloadMs": 42,
+      "ttfbAndDownloadMs": 50,
       "findings": []
     },
     {
@@ -7738,7 +7738,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 78851,
-      "ttfbAndDownloadMs": 67,
+      "ttfbAndDownloadMs": 38,
       "findings": []
     },
     {
@@ -7803,7 +7803,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 75973,
-      "ttfbAndDownloadMs": 59,
+      "ttfbAndDownloadMs": 36,
       "findings": []
     },
     {
@@ -7868,7 +7868,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 78004,
-      "ttfbAndDownloadMs": 62,
+      "ttfbAndDownloadMs": 27,
       "findings": []
     },
     {
@@ -7937,7 +7937,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 79522,
-      "ttfbAndDownloadMs": 102,
+      "ttfbAndDownloadMs": 27,
       "findings": []
     },
     {
@@ -8008,7 +8008,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 137620,
-      "ttfbAndDownloadMs": 99,
+      "ttfbAndDownloadMs": 28,
       "findings": []
     },
     {
@@ -8076,7 +8076,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 83122,
-      "ttfbAndDownloadMs": 87,
+      "ttfbAndDownloadMs": 31,
       "findings": []
     },
     {
@@ -8140,7 +8140,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 74471,
-      "ttfbAndDownloadMs": 111,
+      "ttfbAndDownloadMs": 30,
       "findings": []
     },
     {
@@ -8208,7 +8208,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 76620,
-      "ttfbAndDownloadMs": 77,
+      "ttfbAndDownloadMs": 21,
       "findings": []
     },
     {
@@ -8277,7 +8277,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 79665,
-      "ttfbAndDownloadMs": 79,
+      "ttfbAndDownloadMs": 19,
       "findings": []
     },
     {
@@ -8345,7 +8345,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 81216,
-      "ttfbAndDownloadMs": 80,
+      "ttfbAndDownloadMs": 22,
       "findings": []
     },
     {
@@ -8409,7 +8409,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 76254,
-      "ttfbAndDownloadMs": 57,
+      "ttfbAndDownloadMs": 17,
       "findings": []
     },
     {
@@ -8477,7 +8477,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 80578,
-      "ttfbAndDownloadMs": 51,
+      "ttfbAndDownloadMs": 20,
       "findings": []
     },
     {
@@ -8548,7 +8548,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 75626,
-      "ttfbAndDownloadMs": 39,
+      "ttfbAndDownloadMs": 30,
       "findings": []
     },
     {
@@ -8613,7 +8613,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 77888,
-      "ttfbAndDownloadMs": 45,
+      "ttfbAndDownloadMs": 24,
       "findings": []
     },
     {
@@ -8676,7 +8676,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 72689,
-      "ttfbAndDownloadMs": 39,
+      "ttfbAndDownloadMs": 23,
       "findings": []
     },
     {
@@ -8740,7 +8740,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 78689,
-      "ttfbAndDownloadMs": 41,
+      "ttfbAndDownloadMs": 23,
       "findings": []
     },
     {
@@ -8808,7 +8808,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 74836,
-      "ttfbAndDownloadMs": 30,
+      "ttfbAndDownloadMs": 23,
       "findings": []
     },
     {
@@ -8871,7 +8871,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 71674,
-      "ttfbAndDownloadMs": 25,
+      "ttfbAndDownloadMs": 23,
       "findings": []
     },
     {
@@ -8935,7 +8935,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 74048,
-      "ttfbAndDownloadMs": 27,
+      "ttfbAndDownloadMs": 24,
       "findings": []
     },
     {
@@ -8999,7 +8999,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 75902,
-      "ttfbAndDownloadMs": 31,
+      "ttfbAndDownloadMs": 26,
       "findings": []
     },
     {
@@ -9063,7 +9063,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 75389,
-      "ttfbAndDownloadMs": 19,
+      "ttfbAndDownloadMs": 18,
       "findings": []
     },
     {
@@ -9128,7 +9128,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 78524,
-      "ttfbAndDownloadMs": 25,
+      "ttfbAndDownloadMs": 18,
       "findings": []
     },
     {
@@ -9197,7 +9197,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 80884,
-      "ttfbAndDownloadMs": 25,
+      "ttfbAndDownloadMs": 22,
       "findings": []
     },
     {
@@ -9260,7 +9260,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 73100,
-      "ttfbAndDownloadMs": 22,
+      "ttfbAndDownloadMs": 19,
       "findings": []
     },
     {
@@ -9328,7 +9328,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 76457,
-      "ttfbAndDownloadMs": 35,
+      "ttfbAndDownloadMs": 19,
       "findings": []
     },
     {
@@ -9396,7 +9396,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 76215,
-      "ttfbAndDownloadMs": 34,
+      "ttfbAndDownloadMs": 20,
       "findings": []
     },
     {
@@ -9459,7 +9459,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 73984,
-      "ttfbAndDownloadMs": 32,
+      "ttfbAndDownloadMs": 20,
       "findings": []
     },
     {
@@ -9527,7 +9527,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 80051,
-      "ttfbAndDownloadMs": 29,
+      "ttfbAndDownloadMs": 24,
       "findings": []
     },
     {
@@ -9595,7 +9595,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 75853,
-      "ttfbAndDownloadMs": 22,
+      "ttfbAndDownloadMs": 20,
       "findings": []
     },
     {
@@ -9682,7 +9682,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 93351,
-      "ttfbAndDownloadMs": 32,
+      "ttfbAndDownloadMs": 29,
       "findings": []
     },
     {
@@ -9745,7 +9745,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 72672,
-      "ttfbAndDownloadMs": 25,
+      "ttfbAndDownloadMs": 26,
       "findings": []
     },
     {
@@ -9796,7 +9796,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 79708,
-      "ttfbAndDownloadMs": 17,
+      "ttfbAndDownloadMs": 22,
       "findings": []
     },
     {
@@ -9860,7 +9860,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 74425,
-      "ttfbAndDownloadMs": 26,
+      "ttfbAndDownloadMs": 29,
       "findings": []
     },
     {
@@ -9924,7 +9924,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 75636,
-      "ttfbAndDownloadMs": 26,
+      "ttfbAndDownloadMs": 19,
       "findings": []
     },
     {
@@ -9988,7 +9988,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 74552,
-      "ttfbAndDownloadMs": 21,
+      "ttfbAndDownloadMs": 17,
       "findings": []
     },
     {
@@ -10057,7 +10057,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 92800,
-      "ttfbAndDownloadMs": 34,
+      "ttfbAndDownloadMs": 25,
       "findings": []
     },
     {
@@ -10125,7 +10125,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 75675,
-      "ttfbAndDownloadMs": 27,
+      "ttfbAndDownloadMs": 19,
       "findings": []
     },
     {
@@ -10188,7 +10188,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 71466,
-      "ttfbAndDownloadMs": 26,
+      "ttfbAndDownloadMs": 20,
       "findings": []
     },
     {
@@ -10251,7 +10251,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 109410,
-      "ttfbAndDownloadMs": 14,
+      "ttfbAndDownloadMs": 20,
       "findings": []
     },
     {
@@ -10315,7 +10315,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 75065,
-      "ttfbAndDownloadMs": 25,
+      "ttfbAndDownloadMs": 21,
       "findings": []
     },
     {
@@ -10379,7 +10379,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 75993,
-      "ttfbAndDownloadMs": 28,
+      "ttfbAndDownloadMs": 20,
       "findings": []
     },
     {
@@ -10443,7 +10443,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 75256,
-      "ttfbAndDownloadMs": 29,
+      "ttfbAndDownloadMs": 22,
       "findings": []
     },
     {
@@ -10512,7 +10512,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 81990,
-      "ttfbAndDownloadMs": 39,
+      "ttfbAndDownloadMs": 23,
       "findings": []
     },
     {
@@ -10576,7 +10576,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 74936,
-      "ttfbAndDownloadMs": 30,
+      "ttfbAndDownloadMs": 19,
       "findings": []
     },
     {
@@ -10640,7 +10640,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 74942,
-      "ttfbAndDownloadMs": 38,
+      "ttfbAndDownloadMs": 19,
       "findings": []
     },
     {
@@ -10709,7 +10709,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 81466,
-      "ttfbAndDownloadMs": 27,
+      "ttfbAndDownloadMs": 22,
       "findings": []
     },
     {
@@ -10773,7 +10773,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 76352,
-      "ttfbAndDownloadMs": 29,
+      "ttfbAndDownloadMs": 23,
       "findings": []
     },
     {
@@ -10841,7 +10841,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 78849,
-      "ttfbAndDownloadMs": 27,
+      "ttfbAndDownloadMs": 22,
       "findings": []
     },
     {
@@ -10910,7 +10910,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 81358,
-      "ttfbAndDownloadMs": 30,
+      "ttfbAndDownloadMs": 26,
       "findings": []
     },
     {
@@ -10974,7 +10974,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 75029,
-      "ttfbAndDownloadMs": 31,
+      "ttfbAndDownloadMs": 18,
       "findings": []
     },
     {
@@ -11043,7 +11043,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 81863,
-      "ttfbAndDownloadMs": 28,
+      "ttfbAndDownloadMs": 26,
       "findings": []
     },
     {
@@ -11107,7 +11107,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 74999,
-      "ttfbAndDownloadMs": 29,
+      "ttfbAndDownloadMs": 36,
       "findings": []
     },
     {
@@ -11171,7 +11171,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 75198,
-      "ttfbAndDownloadMs": 23,
+      "ttfbAndDownloadMs": 41,
       "findings": []
     },
     {
@@ -11235,7 +11235,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 75029,
-      "ttfbAndDownloadMs": 25,
+      "ttfbAndDownloadMs": 43,
       "findings": []
     },
     {
@@ -11299,7 +11299,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 75026,
-      "ttfbAndDownloadMs": 27,
+      "ttfbAndDownloadMs": 37,
       "findings": []
     },
     {
@@ -11365,7 +11365,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 76292,
-      "ttfbAndDownloadMs": 11,
+      "ttfbAndDownloadMs": 31,
       "findings": []
     },
     {
@@ -11429,7 +11429,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 74803,
-      "ttfbAndDownloadMs": 37,
+      "ttfbAndDownloadMs": 20,
       "findings": []
     },
     {
@@ -11477,7 +11477,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 69706,
-      "ttfbAndDownloadMs": 31,
+      "ttfbAndDownloadMs": 23,
       "findings": []
     },
     {
@@ -11541,7 +11541,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 73736,
-      "ttfbAndDownloadMs": 37,
+      "ttfbAndDownloadMs": 27,
       "findings": []
     },
     {
@@ -11605,7 +11605,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 73940,
-      "ttfbAndDownloadMs": 29,
+      "ttfbAndDownloadMs": 21,
       "findings": []
     },
     {
@@ -11669,7 +11669,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 73341,
-      "ttfbAndDownloadMs": 19,
+      "ttfbAndDownloadMs": 18,
       "findings": []
     },
     {
@@ -11719,7 +11719,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 75683,
-      "ttfbAndDownloadMs": 14,
+      "ttfbAndDownloadMs": 22,
       "findings": []
     },
     {
@@ -11784,7 +11784,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 79207,
-      "ttfbAndDownloadMs": 24,
+      "ttfbAndDownloadMs": 18,
       "findings": []
     },
     {
@@ -11849,7 +11849,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 84212,
-      "ttfbAndDownloadMs": 26,
+      "ttfbAndDownloadMs": 25,
       "findings": []
     },
     {
@@ -11914,7 +11914,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 77890,
-      "ttfbAndDownloadMs": 21,
+      "ttfbAndDownloadMs": 39,
       "findings": []
     },
     {
@@ -11982,7 +11982,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 75904,
-      "ttfbAndDownloadMs": 33,
+      "ttfbAndDownloadMs": 53,
       "findings": []
     },
     {
@@ -12047,7 +12047,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 78122,
-      "ttfbAndDownloadMs": 21,
+      "ttfbAndDownloadMs": 51,
       "findings": []
     },
     {
@@ -12103,7 +12103,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 95273,
-      "ttfbAndDownloadMs": 26,
+      "ttfbAndDownloadMs": 62,
       "findings": []
     },
     {
@@ -12171,7 +12171,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 79271,
-      "ttfbAndDownloadMs": 32,
+      "ttfbAndDownloadMs": 57,
       "findings": []
     },
     {
@@ -12239,7 +12239,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 78160,
-      "ttfbAndDownloadMs": 23,
+      "ttfbAndDownloadMs": 41,
       "findings": []
     },
     {
@@ -12307,7 +12307,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 76106,
-      "ttfbAndDownloadMs": 27,
+      "ttfbAndDownloadMs": 41,
       "findings": []
     },
     {
@@ -12375,7 +12375,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 78147,
-      "ttfbAndDownloadMs": 39,
+      "ttfbAndDownloadMs": 28,
       "findings": []
     },
     {
@@ -12439,7 +12439,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 77758,
-      "ttfbAndDownloadMs": 45,
+      "ttfbAndDownloadMs": 22,
       "findings": []
     },
     {
@@ -12507,7 +12507,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 79468,
-      "ttfbAndDownloadMs": 49,
+      "ttfbAndDownloadMs": 23,
       "findings": []
     },
     {
@@ -12575,7 +12575,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 79938,
-      "ttfbAndDownloadMs": 58,
+      "ttfbAndDownloadMs": 28,
       "findings": []
     },
     {
@@ -12643,7 +12643,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 76719,
-      "ttfbAndDownloadMs": 45,
+      "ttfbAndDownloadMs": 22,
       "findings": []
     },
     {
@@ -12711,7 +12711,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 76043,
-      "ttfbAndDownloadMs": 42,
+      "ttfbAndDownloadMs": 27,
       "findings": []
     },
     {
@@ -12779,7 +12779,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 78358,
-      "ttfbAndDownloadMs": 42,
+      "ttfbAndDownloadMs": 79,
       "findings": []
     },
     {
@@ -12847,7 +12847,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 76199,
-      "ttfbAndDownloadMs": 142,
+      "ttfbAndDownloadMs": 77,
       "findings": []
     },
     {
@@ -12920,7 +12920,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 90906,
-      "ttfbAndDownloadMs": 214,
+      "ttfbAndDownloadMs": 78,
       "findings": []
     },
     {
@@ -12990,7 +12990,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 82068,
-      "ttfbAndDownloadMs": 121,
+      "ttfbAndDownloadMs": 163,
       "findings": []
     },
     {
@@ -13041,7 +13041,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 61035,
-      "ttfbAndDownloadMs": 114,
+      "ttfbAndDownloadMs": 107,
       "findings": []
     },
     {
@@ -13093,7 +13093,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 60628,
-      "ttfbAndDownloadMs": 85,
+      "ttfbAndDownloadMs": 102,
       "findings": []
     },
     {
@@ -13144,7 +13144,7 @@
         "/minha-conta"
       ],
       "htmlBytes": 62067,
-      "ttfbAndDownloadMs": 96,
+      "ttfbAndDownloadMs": 101,
       "findings": []
     }
   ]

@@ -48,6 +48,10 @@ function readBottomFrameMd5s(videoPath: string, frameA: number, frameB: number):
     "error",
     "-i",
     videoPath,
+    // framemd5 also hashes audio packets by default. Inspect only the
+    // video stream so the two selected frames are the only digest rows.
+    "-map",
+    "0:v:0",
     "-vf",
     `crop=1080:960:0:960,select=eq(n\\,${frameA})+eq(n\\,${frameB})`,
     "-vsync",

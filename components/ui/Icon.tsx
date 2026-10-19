@@ -62,6 +62,7 @@ import {
   Wifi,
   House,
   Camera,
+  MonitorPlay,
   Video,
   Binary,
   Music,
@@ -161,6 +162,7 @@ const iconMap: Record<string, LucideIcon> = {
   // genérico (não o logotipo do Instagram, que é uma marca registrada) —
   // representa bem o tema sem reproduzir a marca.
   instagram: Camera,
+  youtube: MonitorPlay,
   // Categoria "Loterias": bilhete/ticket representa bem o tema sem imitar a identidade visual oficial de nenhuma loteria.
   ticket: Ticket,
   plus: Plus,

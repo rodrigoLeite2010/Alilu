@@ -80,6 +80,17 @@ export const videoTools: VideoTool[] = [
     status: "ativo",
     indexable: false,
   },
+  {
+    id: "importar-youtube",
+    name: "Importar do YouTube",
+    shortName: "Importar YouTube",
+    path: "/videos/importar-youtube",
+    description:
+      "Cole o link de um vídeo ou Short do YouTube para ver título, canal, duração e a prévia oficial. Depois envie o arquivo original (seu ou autorizado) e edite no Split-Screen ou publique no Reels.",
+    icon: "youtube",
+    status: "ativo",
+    indexable: false,
+  },
 ];
 
 export function getVideoToolByPath(path: string): VideoTool | undefined {

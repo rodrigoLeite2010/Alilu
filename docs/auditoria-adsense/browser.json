@@ -1,6 +1,6 @@
 {
   "origin": "http://localhost:3100",
-  "checkedAt": "2026-10-15T15:40:03.803Z",
+  "checkedAt": "2026-10-15T17:30:36.653Z",
   "note": "Amostra de laboratório sem throttling. landingMetrics antes de interações; metrics inclui ações de teste. Duração de interação amostrada não substitui INP/CWV de campo.",
   "results": [
     {
@@ -14,12 +14,12 @@
       ],
       "overflow": false,
       "landingMetrics": {
-        "lcp": 1236,
+        "lcp": 748,
         "cls": 0.008393276055552006,
         "longestInteractionMs": 0
       },
       "metrics": {
-        "lcp": 1236,
+        "lcp": 748,
         "cls": 0.008393276055552006,
         "longestInteractionMs": 0,
         "scripts": [
@@ -34,11 +34,6 @@
             "decodedBytes": 228084
           },
           {
-            "url": "/_next/static/chunks/3ajnhh-2s2fvq.js",
-            "transferBytes": 45522,
-            "decodedBytes": 166064
-          },
-          {
             "url": "/_next/static/chunks/turbopack-1-i7j81amu6-l.js",
             "transferBytes": 4151,
             "decodedBytes": 9722
@@ -47,6 +42,11 @@
             "url": "/_next/static/chunks/3279l710q8skp.js",
             "transferBytes": 4061,
             "decodedBytes": 14537
+          },
+          {
+            "url": "/_next/static/chunks/3ajnhh-2s2fvq.js",
+            "transferBytes": 45522,
+            "decodedBytes": 166064
           },
           {
             "url": "/_next/static/chunks/0ixx15dnt6d-z.js",
@@ -79,14 +79,9 @@
             "decodedBytes": 90887
           },
           {
-            "url": "https://pagead2.googlesyndication.com/pagead/managed/js/adsense/m202610130101/show_ads_impl.js?bust=122881614",
-            "transferBytes": 192097,
-            "decodedBytes": 613212
-          },
-          {
-            "url": "/_next/static/chunks/3n91h65qtcn6l.js",
-            "transferBytes": 1941,
-            "decodedBytes": 4311
+            "url": "https://pagead2.googlesyndication.com/pagead/managed/js/adsense/m202610120101/show_ads_impl.js",
+            "transferBytes": 192007,
+            "decodedBytes": 613081
           },
           {
             "url": "/_next/static/chunks/23f_nud89rqa1.js",
@@ -109,6 +104,11 @@
             "decodedBytes": 1499
           },
           {
+            "url": "/_next/static/chunks/3n91h65qtcn6l.js",
+            "transferBytes": 1941,
+            "decodedBytes": 4311
+          },
+          {
             "url": "https://ep2.adtrafficquality.google/sodar/sodar2.js",
             "transferBytes": 0,
             "decodedBytes": 0
@@ -128,12 +128,12 @@
       ],
       "overflow": false,
       "landingMetrics": {
-        "lcp": 180,
+        "lcp": 108,
         "cls": 0.000522746504242596,
         "longestInteractionMs": 0
       },
       "metrics": {
-        "lcp": 180,
+        "lcp": 108,
         "cls": 0.000522746504242596,
         "longestInteractionMs": 40,
         "scripts": [
@@ -193,19 +193,9 @@
             "decodedBytes": 589015
           },
           {
-            "url": "https://pagead2.googlesyndication.com/pagead/managed/js/adsense/m202610130101/show_ads_impl.js?bust=122881614",
+            "url": "https://pagead2.googlesyndication.com/pagead/managed/js/adsense/m202610120101/show_ads_impl.js",
             "transferBytes": 0,
-            "decodedBytes": 613212
-          },
-          {
-            "url": "https://ep2.adtrafficquality.google/sodar/sodar2.js",
-            "transferBytes": 0,
-            "decodedBytes": 0
-          },
-          {
-            "url": "/_next/static/chunks/3n91h65qtcn6l.js",
-            "transferBytes": 0,
-            "decodedBytes": 4311
+            "decodedBytes": 613081
           },
           {
             "url": "/_next/static/chunks/1zce05deltsh7.js",
@@ -218,6 +208,16 @@
             "decodedBytes": 90887
           },
           {
+            "url": "/_next/static/chunks/3n91h65qtcn6l.js",
+            "transferBytes": 0,
+            "decodedBytes": 4311
+          },
+          {
+            "url": "/_next/static/chunks/37tnnj6gh4zsq.js",
+            "transferBytes": 1858,
+            "decodedBytes": 3864
+          },
+          {
             "url": "/_next/static/chunks/28ccx5xl06mlk.js",
             "transferBytes": 0,
             "decodedBytes": 3532
@@ -228,9 +228,9 @@
             "decodedBytes": 1499
           },
           {
-            "url": "/_next/static/chunks/37tnnj6gh4zsq.js",
-            "transferBytes": 1858,
-            "decodedBytes": 3864
+            "url": "https://ep2.adtrafficquality.google/sodar/sodar2.js",
+            "transferBytes": 0,
+            "decodedBytes": 0
           }
         ]
       },
@@ -247,12 +247,12 @@
       ],
       "overflow": false,
       "landingMetrics": {
-        "lcp": 172,
+        "lcp": 128,
         "cls": 0.000522746504242596,
         "longestInteractionMs": 0
       },
       "metrics": {
-        "lcp": 172,
+        "lcp": 128,
         "cls": 0.049587765662588504,
         "longestInteractionMs": 40,
         "scripts": [
@@ -312,9 +312,9 @@
             "decodedBytes": 589015
           },
           {
-            "url": "https://pagead2.googlesyndication.com/pagead/managed/js/adsense/m202610130101/show_ads_impl.js?bust=122881614",
+            "url": "https://pagead2.googlesyndication.com/pagead/managed/js/adsense/m202610120101/show_ads_impl.js",
             "transferBytes": 0,
-            "decodedBytes": 613212
+            "decodedBytes": 613081
           },
           {
             "url": "/_next/static/chunks/1zce05deltsh7.js",
@@ -325,11 +325,6 @@
             "url": "/_next/static/chunks/1ucy2h0l02mus.js",
             "transferBytes": 0,
             "decodedBytes": 90887
-          },
-          {
-            "url": "/_next/static/chunks/3n91h65qtcn6l.js",
-            "transferBytes": 0,
-            "decodedBytes": 4311
           },
           {
             "url": "/_next/static/chunks/28ccx5xl06mlk.js",
@@ -345,6 +340,11 @@
             "url": "/_next/static/chunks/1aa9e7ktlo-rg.js",
             "transferBytes": 0,
             "decodedBytes": 1499
+          },
+          {
+            "url": "/_next/static/chunks/3n91h65qtcn6l.js",
+            "transferBytes": 0,
+            "decodedBytes": 4311
           },
           {
             "url": "https://ep2.adtrafficquality.google/sodar/sodar2.js",
@@ -381,12 +381,12 @@
       ],
       "overflow": false,
       "landingMetrics": {
-        "lcp": 356,
+        "lcp": 288,
         "cls": 0.000522746504242596,
         "longestInteractionMs": 0
       },
       "metrics": {
-        "lcp": 356,
+        "lcp": 288,
         "cls": 0.000522746504242596,
         "longestInteractionMs": 0,
         "scripts": [
@@ -446,9 +446,9 @@
             "decodedBytes": 589015
           },
           {
-            "url": "https://pagead2.googlesyndication.com/pagead/managed/js/adsense/m202610130101/show_ads_impl.js?bust=122881614",
+            "url": "https://pagead2.googlesyndication.com/pagead/managed/js/adsense/m202610120101/show_ads_impl.js",
             "transferBytes": 0,
-            "decodedBytes": 613212
+            "decodedBytes": 613081
           },
           {
             "url": "/_next/static/chunks/1zce05deltsh7.js",
@@ -466,6 +466,11 @@
             "decodedBytes": 3864
           },
           {
+            "url": "/_next/static/chunks/28ccx5xl06mlk.js",
+            "transferBytes": 0,
+            "decodedBytes": 3532
+          },
+          {
             "url": "/_next/static/chunks/1aa9e7ktlo-rg.js",
             "transferBytes": 0,
             "decodedBytes": 1499
@@ -474,11 +479,6 @@
             "url": "/_next/static/chunks/3n91h65qtcn6l.js",
             "transferBytes": 0,
             "decodedBytes": 4311
-          },
-          {
-            "url": "/_next/static/chunks/28ccx5xl06mlk.js",
-            "transferBytes": 0,
-            "decodedBytes": 3532
           },
           {
             "url": "https://ep2.adtrafficquality.google/sodar/sodar2.js",
@@ -500,13 +500,13 @@
       ],
       "overflow": false,
       "landingMetrics": {
-        "lcp": 2944,
-        "cls": 0.20673571773821514,
+        "lcp": 104,
+        "cls": 0.000522746504242596,
         "longestInteractionMs": 0
       },
       "metrics": {
-        "lcp": 2944,
-        "cls": 0.20673571773821514,
+        "lcp": 104,
+        "cls": 0.000522746504242596,
         "longestInteractionMs": 0,
         "scripts": [
           {
@@ -560,9 +560,9 @@
             "decodedBytes": 25402
           },
           {
-            "url": "https://pagead2.googlesyndication.com/pagead/managed/js/adsense/m202610130101/show_ads_impl.js?bust=122881614",
+            "url": "https://pagead2.googlesyndication.com/pagead/managed/js/adsense/m202610120101/show_ads_impl.js",
             "transferBytes": 0,
-            "decodedBytes": 613212
+            "decodedBytes": 613081
           },
           {
             "url": "/_next/static/chunks/1zce05deltsh7.js",
@@ -604,12 +604,12 @@
       ],
       "overflow": false,
       "landingMetrics": {
-        "lcp": 184,
+        "lcp": 112,
         "cls": 0.000522746504242596,
         "longestInteractionMs": 0
       },
       "metrics": {
-        "lcp": 184,
+        "lcp": 112,
         "cls": 0.000522746504242596,
         "longestInteractionMs": 0,
         "scripts": [
@@ -659,14 +659,9 @@
             "decodedBytes": 23817
           },
           {
-            "url": "https://pagead2.googlesyndication.com/pagead/managed/js/adsense/m202610130101/show_ads_impl.js?bust=122881614",
+            "url": "https://pagead2.googlesyndication.com/pagead/managed/js/adsense/m202610120101/show_ads_impl.js",
             "transferBytes": 0,
-            "decodedBytes": 613212
-          },
-          {
-            "url": "/_next/static/chunks/3n91h65qtcn6l.js",
-            "transferBytes": 0,
-            "decodedBytes": 4311
+            "decodedBytes": 613081
           },
           {
             "url": "/_next/static/chunks/1zce05deltsh7.js",
@@ -677,6 +672,11 @@
             "url": "/_next/static/chunks/1ucy2h0l02mus.js",
             "transferBytes": 0,
             "decodedBytes": 90887
+          },
+          {
+            "url": "/_next/static/chunks/3n91h65qtcn6l.js",
+            "transferBytes": 0,
+            "decodedBytes": 4311
           },
           {
             "url": "/_next/static/chunks/1aa9e7ktlo-rg.js",
@@ -703,12 +703,12 @@
       ],
       "overflow": false,
       "landingMetrics": {
-        "lcp": 104,
+        "lcp": 96,
         "cls": 0.000522746504242596,
         "longestInteractionMs": 0
       },
       "metrics": {
-        "lcp": 104,
+        "lcp": 96,
         "cls": 0.000522746504242596,
         "longestInteractionMs": 0,
         "scripts": [
@@ -758,9 +758,14 @@
             "decodedBytes": 23817
           },
           {
-            "url": "https://pagead2.googlesyndication.com/pagead/managed/js/adsense/m202610130101/show_ads_impl.js?bust=122881614",
+            "url": "https://pagead2.googlesyndication.com/pagead/managed/js/adsense/m202610120101/show_ads_impl.js",
             "transferBytes": 0,
-            "decodedBytes": 613212
+            "decodedBytes": 613081
+          },
+          {
+            "url": "/_next/static/chunks/1aa9e7ktlo-rg.js",
+            "transferBytes": 0,
+            "decodedBytes": 1499
           },
           {
             "url": "/_next/static/chunks/1zce05deltsh7.js",
@@ -771,11 +776,6 @@
             "url": "/_next/static/chunks/1ucy2h0l02mus.js",
             "transferBytes": 0,
             "decodedBytes": 90887
-          },
-          {
-            "url": "/_next/static/chunks/1aa9e7ktlo-rg.js",
-            "transferBytes": 0,
-            "decodedBytes": 1499
           },
           {
             "url": "/_next/static/chunks/3n91h65qtcn6l.js",
@@ -802,12 +802,12 @@
       ],
       "overflow": false,
       "landingMetrics": {
-        "lcp": 684,
+        "lcp": 564,
         "cls": 0.0008389892578124999,
         "longestInteractionMs": 0
       },
       "metrics": {
-        "lcp": 684,
+        "lcp": 564,
         "cls": 0.0008389892578124999,
         "longestInteractionMs": 0,
         "scripts": [
@@ -822,11 +822,6 @@
             "decodedBytes": 228084
           },
           {
-            "url": "/_next/static/chunks/3279l710q8skp.js",
-            "transferBytes": 4061,
-            "decodedBytes": 14537
-          },
-          {
             "url": "/_next/static/chunks/turbopack-1-i7j81amu6-l.js",
             "transferBytes": 4151,
             "decodedBytes": 9722
@@ -835,6 +830,11 @@
             "url": "/_next/static/chunks/3ajnhh-2s2fvq.js",
             "transferBytes": 45522,
             "decodedBytes": 166064
+          },
+          {
+            "url": "/_next/static/chunks/3279l710q8skp.js",
+            "transferBytes": 4061,
+            "decodedBytes": 14537
           },
           {
             "url": "/_next/static/chunks/0ixx15dnt6d-z.js",
@@ -872,9 +872,9 @@
             "decodedBytes": 613081
           },
           {
-            "url": "/_next/static/chunks/37tnnj6gh4zsq.js",
-            "transferBytes": 1858,
-            "decodedBytes": 3864
+            "url": "/_next/static/chunks/3n91h65qtcn6l.js",
+            "transferBytes": 1941,
+            "decodedBytes": 4311
           },
           {
             "url": "/_next/static/chunks/1aa9e7ktlo-rg.js",
@@ -882,14 +882,14 @@
             "decodedBytes": 1499
           },
           {
+            "url": "/_next/static/chunks/37tnnj6gh4zsq.js",
+            "transferBytes": 1858,
+            "decodedBytes": 3864
+          },
+          {
             "url": "/_next/static/chunks/28ccx5xl06mlk.js",
             "transferBytes": 1748,
             "decodedBytes": 3532
-          },
-          {
-            "url": "/_next/static/chunks/3n91h65qtcn6l.js",
-            "transferBytes": 1941,
-            "decodedBytes": 4311
           },
           {
             "url": "https://ep2.adtrafficquality.google/sodar/sodar2.js",
@@ -911,12 +911,12 @@
       ],
       "overflow": false,
       "landingMetrics": {
-        "lcp": 120,
+        "lcp": 116,
         "cls": 0.00016491518373842594,
         "longestInteractionMs": 0
       },
       "metrics": {
-        "lcp": 120,
+        "lcp": 116,
         "cls": 0.00016491518373842594,
         "longestInteractionMs": 40,
         "scripts": [
@@ -981,11 +981,6 @@
             "decodedBytes": 613081
           },
           {
-            "url": "https://ep2.adtrafficquality.google/sodar/sodar2.js",
-            "transferBytes": 0,
-            "decodedBytes": 0
-          },
-          {
             "url": "/_next/static/chunks/3n91h65qtcn6l.js",
             "transferBytes": 0,
             "decodedBytes": 4311
@@ -1011,6 +1006,11 @@
             "decodedBytes": 3864
           },
           {
+            "url": "https://ep2.adtrafficquality.google/sodar/sodar2.js",
+            "transferBytes": 0,
+            "decodedBytes": 0
+          },
+          {
             "url": "/_next/static/chunks/28ccx5xl06mlk.js",
             "transferBytes": 0,
             "decodedBytes": 3532
@@ -1030,12 +1030,12 @@
       ],
       "overflow": false,
       "landingMetrics": {
-        "lcp": 116,
+        "lcp": 108,
         "cls": 0.00016491518373842594,
         "longestInteractionMs": 0
       },
       "metrics": {
-        "lcp": 116,
+        "lcp": 108,
         "cls": 0.048919236171392745,
         "longestInteractionMs": 40,
         "scripts": [
@@ -1100,6 +1100,11 @@
             "decodedBytes": 613081
           },
           {
+            "url": "/_next/static/chunks/3n91h65qtcn6l.js",
+            "transferBytes": 0,
+            "decodedBytes": 4311
+          },
+          {
             "url": "/_next/static/chunks/1zce05deltsh7.js",
             "transferBytes": 0,
             "decodedBytes": 4554
@@ -1110,9 +1115,9 @@
             "decodedBytes": 90887
           },
           {
-            "url": "/_next/static/chunks/3n91h65qtcn6l.js",
+            "url": "https://ep2.adtrafficquality.google/sodar/sodar2.js",
             "transferBytes": 0,
-            "decodedBytes": 4311
+            "decodedBytes": 0
           },
           {
             "url": "/_next/static/chunks/37tnnj6gh4zsq.js",
@@ -1128,11 +1133,6 @@
             "url": "/_next/static/chunks/28ccx5xl06mlk.js",
             "transferBytes": 0,
             "decodedBytes": 3532
-          },
-          {
-            "url": "https://ep2.adtrafficquality.google/sodar/sodar2.js",
-            "transferBytes": 0,
-            "decodedBytes": 0
           },
           {
             "url": "/_next/static/chunks/14oyx3pqy7y0k.js",
@@ -1164,12 +1164,12 @@
       ],
       "overflow": false,
       "landingMetrics": {
-        "lcp": 108,
+        "lcp": 116,
         "cls": 0.00016491518373842594,
         "longestInteractionMs": 0
       },
       "metrics": {
-        "lcp": 108,
+        "lcp": 116,
         "cls": 0.00016491518373842594,
         "longestInteractionMs": 0,
         "scripts": [
@@ -1283,13 +1283,13 @@
       ],
       "overflow": false,
       "landingMetrics": {
-        "lcp": 132,
-        "cls": 0.1068182224754051,
+        "lcp": 108,
+        "cls": 0.00016491518373842594,
         "longestInteractionMs": 0
       },
       "metrics": {
-        "lcp": 132,
-        "cls": 0.1068182224754051,
+        "lcp": 108,
+        "cls": 0.00016491518373842594,
         "longestInteractionMs": 0,
         "scripts": [
           {
@@ -1363,14 +1363,14 @@
             "decodedBytes": 90887
           },
           {
-            "url": "/_next/static/chunks/1aa9e7ktlo-rg.js",
-            "transferBytes": 0,
-            "decodedBytes": 1499
-          },
-          {
             "url": "/_next/static/chunks/37tnnj6gh4zsq.js",
             "transferBytes": 0,
             "decodedBytes": 3864
+          },
+          {
+            "url": "/_next/static/chunks/1aa9e7ktlo-rg.js",
+            "transferBytes": 0,
+            "decodedBytes": 1499
           },
           {
             "url": "/_next/static/chunks/28ccx5xl06mlk.js",
@@ -1397,12 +1397,12 @@
       ],
       "overflow": false,
       "landingMetrics": {
-        "lcp": 92,
+        "lcp": 88,
         "cls": 0.00016491518373842594,
         "longestInteractionMs": 0
       },
       "metrics": {
-        "lcp": 92,
+        "lcp": 88,
         "cls": 0.00016491518373842594,
         "longestInteractionMs": 0,
         "scripts": [
@@ -1506,12 +1506,12 @@
       ],
       "overflow": false,
       "landingMetrics": {
-        "lcp": 100,
+        "lcp": 108,
         "cls": 0.00016491518373842594,
         "longestInteractionMs": 0
       },
       "metrics": {
-        "lcp": 100,
+        "lcp": 108,
         "cls": 0.00016491518373842594,
         "longestInteractionMs": 0,
         "scripts": [
@@ -1566,6 +1566,11 @@
             "decodedBytes": 613081
           },
           {
+            "url": "/_next/static/chunks/3n91h65qtcn6l.js",
+            "transferBytes": 0,
+            "decodedBytes": 4311
+          },
+          {
             "url": "/_next/static/chunks/1zce05deltsh7.js",
             "transferBytes": 0,
             "decodedBytes": 4554
@@ -1574,11 +1579,6 @@
             "url": "/_next/static/chunks/1ucy2h0l02mus.js",
             "transferBytes": 0,
             "decodedBytes": 90887
-          },
-          {
-            "url": "/_next/static/chunks/3n91h65qtcn6l.js",
-            "transferBytes": 0,
-            "decodedBytes": 4311
           },
           {
             "url": "/_next/static/chunks/37tnnj6gh4zsq.js",

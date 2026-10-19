@@ -59,7 +59,7 @@ import {
   type VideoOutputFormat,
   type VideoSplitLayoutRatio,
 } from "@/lib/videos/split-screen-ffmpeg";
-import { importIdFromLocation, loadImportedVideoFile } from "@/components/instagram-import/imported-media-client";
+import { importIdFromLocation, loadImportedVideoFromLocation, youtubeImportIdFromLocation } from "@/components/instagram-import/imported-media-client";
 
 /**
  * Editor de vídeo split-screen (Fase A). Envia os dois vídeos direto para
@@ -770,14 +770,14 @@ export function VideoSplitScreenEditor({
     resetFraming();
   }
 
-  // Veio de "Importar do Instagram" (?importacao=<id>): já carrega o vídeo importado como vídeo principal.
+  // Veio de "Importar do Instagram" (?importacao=<id>) ou "Importar do YouTube" (?youtube=<id>, arquivo
+  // original enviado pelo usuário): já carrega o vídeo importado como vídeo principal.
   useEffect(() => {
-    const importId = importIdFromLocation();
-    if (!importId) return;
+    if (!importIdFromLocation() && !youtubeImportIdFromLocation()) return;
     let cancelled = false;
-    loadImportedVideoFile(importId)
-      .then((file) => {
-        if (!cancelled && file) replaceSlotFile(setPrimary, file, () => setPrimaryFraming(DEFAULT_VIDEO_FRAMING));
+    loadImportedVideoFromLocation()
+      .then((loaded) => {
+        if (!cancelled && loaded) replaceSlotFile(setPrimary, loaded.file, () => setPrimaryFraming(DEFAULT_VIDEO_FRAMING));
       })
       .catch(() => undefined);
     return () => {

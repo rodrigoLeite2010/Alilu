@@ -20,6 +20,10 @@ vi.mock("@/lib/instagram/backend/instagram-account-repository", () => ({
   getInstagramAccountForUser: (...args: unknown[]) => getAccountMock(...args),
 }));
 const runSchedulerMock = vi.fn();
+const refreshTokensMock = vi.fn();
+vi.mock("@/lib/instagram/backend/instagram-oauth-service", () => ({
+  refreshExpiringInstagramTokens: (...args: unknown[]) => refreshTokensMock(...args),
+}));
 vi.mock("@/lib/instagram/backend/instagram-scheduler", async () => {
   const actual = await vi.importActual<typeof import("@/lib/instagram/backend/instagram-scheduler")>(
     "@/lib/instagram/backend/instagram-scheduler",
@@ -148,15 +152,20 @@ describe("/api/cron/instagram-publish", () => {
   it("401 sem o segredo; executa com Bearer CRON_SECRET", async () => {
     process.env.CRON_SECRET = "cron-secret-com-mais-de-16-chars";
     runSchedulerMock.mockResolvedValue([{ postId: "p1", status: "PUBLISHED" }]);
+    // A renovação é best-effort: a rota já inclui tokens:null quando falha.
+    // Simula essa falha sem consultar banco de dados nem a Meta.
+    refreshTokensMock.mockRejectedValue(new Error("Renovação indisponível"));
 
     expect((await cron.GET(new Request("https://x/api/cron/instagram-publish"))).status).toBe(401);
     expect(runSchedulerMock).not.toHaveBeenCalled();
+    expect(refreshTokensMock).not.toHaveBeenCalled();
 
     const ok = await cron.GET(
       new Request("https://x/api/cron/instagram-publish", { headers: { authorization: "Bearer cron-secret-com-mais-de-16-chars" } }),
     );
     expect(ok.status).toBe(200);
-    expect(await ok.json()).toEqual({ processed: 1, results: [{ postId: "p1", status: "PUBLISHED" }] });
+    expect(await ok.json()).toEqual({ processed: 1, results: [{ postId: "p1", status: "PUBLISHED" }], tokens: null });
+    expect(refreshTokensMock).toHaveBeenCalledWith({ limit: 10 });
     delete process.env.CRON_SECRET;
   });
 });

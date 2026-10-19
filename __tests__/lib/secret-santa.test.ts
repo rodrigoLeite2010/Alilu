@@ -307,14 +307,26 @@ describe("privacidade", () => {
     await expect(svc.getResults(users[1], id)).rejects.toMatchObject({ code: "NOT_REVEALED" });
   });
 
-  it("cenário A tirou C: A vê C; C NÃO vê A; B não vê nada de A/C", async () => {
+  it.each([0, 3])("cenário A tirou C: C vê apenas seu próprio amigo (índice %i), sem revelar o doador", async (cFriendIndex) => {
     const { id, pid } = await setupGroup(4);
     // força: A→C via restrições (A não pode tirar B nem D)
     await svc.addRestrictions(users[0], id, { fromIds: [pid(0)], toIds: [pid(1), pid(3)], bothWays: false });
+    // C pode legitimamente tirar A: pares recíprocos não são proibidos.
+    // Exercita os dois cenários de modo determinístico, sem mudar as regras do produto.
+    await svc.addRestrictions(users[0], id, { fromIds: [pid(2)], toIds: [0, 1, 3].filter((i) => i !== cFriendIndex).map(pid), bothWays: false });
     await svc.performDraw(users[0], id);
     expect(await who(id, 0)).toBe("Carla");
-    const c = JSON.stringify(await svc.getMyAssignment(users[2], id));
-    expect(c).not.toContain("Ana");
+    const cResponse = await svc.getMyAssignment(users[2], id);
+    expect(cResponse.drawn).toBe(true);
+    if (!cResponse.drawn) throw new Error("C deve ter um amigo sorteado");
+    expect(cResponse.friend).toEqual({ name: NAMES[cFriendIndex] });
+    const { friend, ...privateDetails } = cResponse;
+    // A identidade de A só pode aparecer como o amigo que C tirou legitimamente,
+    // nunca como um campo adicional informando quem tirou C.
+    expect(JSON.stringify(privateDetails)).not.toContain("Ana");
+    const c = JSON.stringify(cResponse);
+    for (const other of NAMES.slice(0, 4).filter((name) => name !== friend.name)) expect(c).not.toContain(other);
+    expect(c).not.toMatch(/giver|receiver|assignment|amigoSorteado/i);
     const b = JSON.stringify([await svc.getMyAssignment(users[1], id), await svc.getGroupView(users[1], id), await svc.getWishlist(users[1], id)]);
     expect(b).not.toMatch(/"Carla"[^}]*"friend"/);
     expect(await who(id, 1)).not.toBe(await who(id, 0)); // cada um tira alguém diferente

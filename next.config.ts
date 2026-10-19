@@ -90,6 +90,8 @@ const nextConfig: NextConfig = {
     ],
     // Importar do Instagram: validação do arquivo baixado com ffprobe.
     "**/api/videos/instagram-import": ["./node_modules/ffprobe-static/bin/linux/x64/ffprobe"],
+    // Importar do YouTube: validação (ffprobe) do arquivo ORIGINAL enviado pelo usuário.
+    "**/api/videos/youtube-import": ["./node_modules/ffprobe-static/bin/linux/x64/ffprobe"],
     "**/api/ai-video/generations": [
       "./node_modules/ffmpeg-static/ffmpeg",
       "./node_modules/ffprobe-static/bin/linux/x64/ffprobe",

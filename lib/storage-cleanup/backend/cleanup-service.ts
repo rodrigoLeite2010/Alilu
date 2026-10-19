@@ -11,6 +11,10 @@ import { getDb } from "@/lib/db/client";
  *   videos/outputs/            resultado do Split-Screen (sem registro)     > N dias
  *   videos/imports/            importações do Instagram: vencidas (banco) e
  *                              órfãs (upload manual nunca registrado)      > carência
+ *   videos/imports/{u}/youtube/ arquivos ENVIADOS no "Importar do YouTube":
+ *                              vencidos (mesmo prazo do Instagram) e órfãos > carência
+ *   (banco) metadados do YouTube com mais de 30 dias são apagados (Developer
+ *                              Policies III.E.4) — só no banco, sempre
  *   instagram-media/           biblioteca do Instagram: só ÓRFÃS (arquivo sem
  *                              linha em instagram_media nem uso como áudio) > carência
  *   ai-video/{u}/input/         imagens/logos do vídeo com IA sem uso em
@@ -37,6 +41,7 @@ export type CleanupRuleId =
   | "split_uploads"
   | "split_outputs"
   | "instagram_imports_expired"
+  | "youtube_imports_expired"
   | "instagram_imports_orphans"
   | "instagram_media_orphans"
   | "ai_video_inputs"
@@ -46,6 +51,7 @@ export const CLEANUP_RULE_LABEL: Record<CleanupRuleId, string> = {
   split_uploads: "Split-Screen: entradas abandonadas",
   split_outputs: "Split-Screen: vídeos gerados vencidos",
   instagram_imports_expired: "Importações do Instagram vencidas",
+  youtube_imports_expired: "Importações do YouTube vencidas (arquivo enviado)",
   instagram_imports_orphans: "Importações: uploads não registrados",
   instagram_media_orphans: "Biblioteca do Instagram: arquivos órfãos",
   ai_video_inputs: "Vídeo com IA: imagens de entrada antigas",
@@ -110,6 +116,7 @@ async function referencedSet(rule: CleanupRuleId, urls: string[], aiInputCutoff:
       select imported_file_url as url from instagram_media_imports where imported_file_url = any(string_to_array(${list_}, ' '))
       union select item->>'fileUrl' from instagram_media_imports, jsonb_array_elements(imported_items) as item
         where item->>'fileUrl' = any(string_to_array(${list_}, ' '))
+      union select file_url from youtube_video_imports where file_url = any(string_to_array(${list_}, ' '))
     `;
   } else if (rule === "instagram_media_orphans") {
     rows = await db`
@@ -147,6 +154,18 @@ interface PrefixPlan {
   classify: (blob: ListBlobResultBlob) => { rule: CleanupRuleId; olderThan: Date; checkReferences: boolean } | null;
 }
 
+/** Apaga metadados do YouTube consultados há mais de 30 dias (o vídeo pode ser analisado de novo para atualizar). */
+export async function purgeStaleYoutubeMetadata(now: Date = new Date()): Promise<void> {
+  const db = getDb();
+  const cutoff = new Date(now.getTime() - 30 * 24 * 3600_000);
+  await db`
+    update youtube_video_imports set title = null, channel_title = null, channel_id = null, thumbnail_url = null,
+      youtube_duration_seconds = null, availability = 'UNKNOWN', embeddable = false, made_for_kids = null,
+      region_restricted = false, metadata_source = 'none', metadata_fetched_at = null
+    where metadata_fetched_at is not null and metadata_fetched_at < ${cutoff.toISOString()}
+  `;
+}
+
 export async function runStorageCleanup(options: {
   trigger: "CRON" | "ADMIN";
   dryRunOverride?: boolean;
@@ -166,6 +185,7 @@ export async function runStorageCleanup(options: {
       split_uploads: emptyRule(),
       split_outputs: emptyRule(),
       instagram_imports_expired: emptyRule(),
+      youtube_imports_expired: emptyRule(),
       instagram_imports_orphans: emptyRule(),
       instagram_media_orphans: emptyRule(),
       ai_video_inputs: emptyRule(),
@@ -174,6 +194,11 @@ export async function runStorageCleanup(options: {
     usage: {},
     stoppedEarly: false,
   };
+
+  // Metadados do YouTube: as Developer Policies (III.E.4) permitem guardar dados
+  // da API por no máximo 30 dias. Só mexe no banco (nenhum arquivo), por isso
+  // roda SEMPRE — mesmo com a limpeza desligada ou em modo simulação.
+  await purgeStaleYoutubeMetadata(now);
 
   if (!settings.enabled && options.trigger === "CRON") {
     return { runId: "", report, skipped: true };
@@ -224,6 +249,24 @@ export async function runStorageCleanup(options: {
         const ids = expired.slice(0, report.rules.instagram_imports_expired.deleted).map((row) => String(row.id));
         await db`
           update instagram_media_imports set status = 'EXPIRED', imported_file_url = null, storage_path = null, imported_items = '[]'::jsonb
+          where id = any(string_to_array(${ids.join(" ")}, ' ')::uuid[])
+        `;
+      }
+    }
+
+    // 1b) Importações do YouTube vencidas: apaga o arquivo ENVIADO pelo usuário (mesmo prazo do Instagram).
+    const youtubeExpired = await db`
+      select id, file_url, coalesce(file_size_bytes, 0) as size from youtube_video_imports
+      where status = 'COMPLETED' and file_url is not null and completed_at < ${importCutoff.toISOString()}
+      order by completed_at limit ${Math.max(0, remaining)}
+    `;
+    report.rules.youtube_imports_expired.scanned = youtubeExpired.length;
+    if (youtubeExpired.length > 0) {
+      await removeBlobs("youtube_imports_expired", youtubeExpired.map((row) => ({ url: String(row.file_url), size: Number(row.size) })));
+      if (!dryRun) {
+        const ids = youtubeExpired.slice(0, report.rules.youtube_imports_expired.deleted).map((row) => String(row.id));
+        await db`
+          update youtube_video_imports set status = 'EXPIRED', file_url = null, storage_path = null
           where id = any(string_to_array(${ids.join(" ")}, ' ')::uuid[])
         `;
       }

@@ -10,6 +10,7 @@ const RULE_LABEL: Record<CleanupRuleId, string> = {
   split_uploads: "Split-Screen: entradas abandonadas",
   split_outputs: "Split-Screen: vídeos gerados vencidos",
   instagram_imports_expired: "Importações do Instagram vencidas",
+  youtube_imports_expired: "Importações do YouTube vencidas (arquivo enviado)",
   instagram_imports_orphans: "Importações: uploads não registrados",
   instagram_media_orphans: "Biblioteca do Instagram: arquivos órfãos",
   ai_video_inputs: "Vídeo com IA: imagens de entrada antigas",
