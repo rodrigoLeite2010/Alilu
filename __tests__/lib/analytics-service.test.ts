@@ -33,14 +33,36 @@ afterEach(() => {
 
 describe("analytics (PostHog) — serviço do admin", () => {
   it("resumo: visitantes, sessões, visualizações e online; chave privada só no header do servidor", async () => {
-    fetchMock.mockResolvedValueOnce(ok([[184, 236, 1042, 12]]));
+    fetchMock.mockResolvedValueOnce(ok([[184, 236, 1042, 12, 900, 1500, 7200, 4000, 12000, 60000]]));
     const summary = await service.getAnalyticsSummary();
     expect(summary).toMatchObject({ visitorsToday: 184, sessionsToday: 236, pageViewsToday: 1042, onlineNow: 12, onlineWindowMinutes: 5 });
+    expect(summary).toMatchObject({
+      visitorsThisMonth: 900, sessionsThisMonth: 1500, pageViewsThisMonth: 7200,
+      visitorsThisYear: 4000, sessionsThisYear: 12000, pageViewsThisYear: 60000,
+    });
     const [url, init] = fetchMock.mock.calls[0];
     expect(url).toBe("https://us.posthog.com/api/projects/123/query/");
     expect((init as RequestInit).headers).toMatchObject({ Authorization: "Bearer phx_secret" });
     expect(String((init as RequestInit).body)).toContain("interval 5 minute");
     expect(String((init as RequestInit).body)).toContain("environment = 'production'");
+    const query = JSON.parse(String((init as RequestInit).body)).query.query;
+    // Cada período calcula seus próprios únicos, sem somar visitantes/sessões dos dias.
+    for (const start of ["toStartOfDay(now())", "toStartOfMonth(now())", "toStartOfYear(now())"]) {
+      expect(query).toContain(`uniqIf(person_id, event = '$pageview' and timestamp >= ${start})`);
+      expect(query).toContain(`uniqIf(properties.$session_id, event = '$pageview' and timestamp >= ${start})`);
+      expect(query).toContain(`countIf(event = '$pageview' and timestamp >= ${start})`);
+    }
+    // Inclui todo o ano e preserva a janela online mesmo na virada do ano.
+    expect(query).toContain("timestamp >= least(toStartOfYear(now()), now() - interval 5 minute)");
+  });
+
+  it("sem eventos: todos os períodos retornam zero", async () => {
+    fetchMock.mockResolvedValueOnce(ok([]));
+    expect(await service.getAnalyticsSummary()).toMatchObject({
+      visitorsToday: 0, sessionsToday: 0, pageViewsToday: 0, onlineNow: 0,
+      visitorsThisMonth: 0, sessionsThisMonth: 0, pageViewsThisMonth: 0,
+      visitorsThisYear: 0, sessionsThisYear: 0, pageViewsThisYear: 0,
+    });
   });
 
   it("cache: duas leituras seguidas (inclusive simultâneas) fazem uma única consulta ao PostHog", async () => {

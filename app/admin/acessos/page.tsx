@@ -20,7 +20,7 @@ export default async function AdminAccessPage() {
         › Acessos
       </p>
       <h1 className="mt-1 text-2xl font-semibold text-zinc-900">Acessos</h1>
-      <p className="mt-1 mb-6 text-sm text-zinc-500">Quem está no site agora, visitantes e páginas mais vistas de hoje.</p>
+      <p className="mt-1 mb-6 text-sm text-zinc-500">Quem está no site agora e os totais de visitantes, sessões e visualizações de hoje, deste mês e deste ano.</p>
       <AnalyticsDashboard />
     </Container>
   );

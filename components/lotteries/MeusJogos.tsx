@@ -2,6 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { Download } from "lucide-react";
+import { BulkActionBar } from "@/components/bulk/BulkActionBar";
+import { useBulkDelete } from "@/components/bulk/BulkDeleteDialog";
+import { useBulkSelection } from "@/components/bulk/useBulkSelection";
 import { Button } from "@/components/ui/Button";
 import { money } from "@/components/financas/format";
 import { reaisTextToCents } from "@/lib/financas/validation";
@@ -175,6 +178,21 @@ export function MeusJogos({
     setInvestment(stats.investment);
   }
 
+  const selection = useBulkSelection((bets ?? []).map((bet) => bet.id));
+  const bulk = useBulkDelete({
+    url: "/api/loterias/apostas/bulk-delete",
+    noun: { singular: "aposta", plural: "apostas", deletedSingular: "excluída", deletedPlural: "excluídas" },
+    note: "Cada aposta é excluída junto com todos os jogos dela.",
+    labelFor: (id) => {
+      const bet = bets?.find((item) => item.id === id);
+      return bet?.contestNumber ? `Aposta do concurso ${bet.contestNumber}` : "Aposta";
+    },
+    onDeleted: () => {
+      selection.clear();
+      void refreshBetsAndStats().catch(() => undefined);
+    },
+  });
+
   async function handleToggleFavorite(gameId: string, isFavorite: boolean) {
     setBets((prev) =>
       prev
@@ -269,11 +287,21 @@ export function MeusJogos({
             Você ainda não salvou nenhum jogo. Gere um jogo no gerador acima e clique em &quot;Salvar&quot;.
           </p>
         ) : (
+          <>
+          {bulk.message ? <p role="status" className="rounded-md bg-teal-50 px-3 py-2 text-sm text-teal-900">{bulk.message}</p> : null}
+          <BulkActionBar
+            selection={selection}
+            visibleCount={bets.length}
+            noun={{ singular: "aposta", plural: "apostas", selectedSingular: "selecionada", selectedPlural: "selecionadas" }}
+            busy={bulk.running}
+            onDelete={() => bulk.request(selection.selectedIds)}
+          />
           <ul className="space-y-4">
             {bets.map((bet) => (
               <BetCard
                 key={bet.id}
                 bet={bet}
+                selection={{ checked: selection.isSelected(bet.id), onToggle: () => selection.toggle(bet.id) }}
                 reusePath={reusePath}
                 minNumber={minNumber}
                 maxNumber={maxNumber}
@@ -285,8 +313,10 @@ export function MeusJogos({
               />
             ))}
           </ul>
+          </>
         )}
       </section>
+      {bulk.dialog}
 
       {error ? (
         <p role="alert" className="text-sm text-red-600">

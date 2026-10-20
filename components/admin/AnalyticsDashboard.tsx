@@ -7,6 +7,12 @@ interface Summary {
   visitorsToday: number;
   sessionsToday: number;
   pageViewsToday: number;
+  visitorsThisMonth: number;
+  sessionsThisMonth: number;
+  pageViewsThisMonth: number;
+  visitorsThisYear: number;
+  sessionsThisYear: number;
+  pageViewsThisYear: number;
   onlineWindowMinutes: number;
   generatedAt: string;
 }
@@ -49,7 +55,7 @@ function Card({ label, value, hint, highlight }: { label: string; value: number 
   );
 }
 
-/** Painel de acessos (PostHog). Mobile first: cards em grade 2×2 e listas em linhas, sem tabela larga. */
+/** Painel de acessos (PostHog), com totais por dia, mês e ano atuais. */
 export function AnalyticsDashboard() {
   const [summary, setSummary] = useState<ApiResult<Summary> | null>(null);
   const [pages, setPages] = useState<ApiResult<TopPage[]> | null>(null);
@@ -100,12 +106,28 @@ export function AnalyticsDashboard() {
         </p>
       ) : null}
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="max-w-sm">
         <Card label="Online agora" value={s?.onlineNow ?? null} hint={`últimos ${s?.onlineWindowMinutes ?? 5} min`} highlight />
-        <Card label="Visitantes hoje" value={s?.visitorsToday ?? null} />
-        <Card label="Sessões hoje" value={s?.sessionsToday ?? null} />
-        <Card label="Visualizações hoje" value={s?.pageViewsToday ?? null} />
       </div>
+      {[
+        { title: "Hoje", hint: "Desde o início do dia", visitors: s?.visitorsToday, sessions: s?.sessionsToday, views: s?.pageViewsToday },
+        { title: "Este mês", hint: "Desde o primeiro dia do mês atual", visitors: s?.visitorsThisMonth, sessions: s?.sessionsThisMonth, views: s?.pageViewsThisMonth },
+        { title: "Este ano", hint: "Desde 1º de janeiro do ano atual", visitors: s?.visitorsThisYear, sessions: s?.sessionsThisYear, views: s?.pageViewsThisYear },
+      ].map((period) => (
+        <section key={period.title} aria-label={`Acessos — ${period.title}`}>
+          <h2 className="text-base font-semibold text-zinc-900">{period.title}</h2>
+          <p className="mt-1 text-xs text-zinc-500">{period.hint}</p>
+          <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <Card label="Visitantes" value={period.visitors ?? null} />
+            <Card label="Sessões" value={period.sessions ?? null} />
+            <Card label="Visualizações" value={period.views ?? null} />
+          </div>
+        </section>
+      ))}
+      <p className="text-xs text-zinc-500">
+        Visitantes são contados uma vez em cada período; visualizações contam as páginas acessadas.
+        Os períodos seguem o fuso do projeto no PostHog e consideram o histórico disponível.
+      </p>
       <p className="text-xs text-zinc-500">Atualiza sozinho a cada 60 segundos. Dados do PostHog (cache de até 1 minuto).</p>
 
       <section className="rounded-lg border border-zinc-200 p-4">

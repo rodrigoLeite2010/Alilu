@@ -1,5 +1,6 @@
 "use client";
 
+import { BulkCheckbox } from "@/components/bulk/BulkCheckbox";
 import { useState } from "react";
 import Link from "next/link";
 import { Copy, Heart, Pencil, RefreshCw, Trash2 } from "lucide-react";
@@ -115,8 +116,11 @@ export function BetCard({
   onDeleteBet,
   onUpdateHeader,
   onOpenConferir,
+  selection,
 }: {
   bet: LotteryBet;
+  /** Seleção em massa (lista "Meus jogos"); ausente = sem checkbox. */
+  selection?: { checked: boolean; onToggle: () => void };
   /** Caminho do gerador desta modalidade (ex.: "/loterias/lotofacil") — usado no link "Reutilizar este jogo". */
   reusePath: string;
   /** Faixa de números desta modalidade — usado para exibir os números sorteados (conferência manual). */
@@ -162,7 +166,15 @@ export function BetCard({
   return (
     <li className="rounded-lg border border-zinc-200 p-4 sm:p-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
+        {selection ? (
+          <BulkCheckbox
+            checked={selection.checked}
+            onChange={selection.onToggle}
+            label={`Selecionar aposta${bet.contestNumber ? ` do concurso ${bet.contestNumber}` : ""}`}
+            className="-ml-3 -mt-2"
+          />
+        ) : null}
+        <div className="min-w-0 flex-1">
           {editing ? (
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
               <input

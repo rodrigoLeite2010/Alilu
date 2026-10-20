@@ -3,6 +3,9 @@
 import { useMemo, useState } from "react";
 import type { InstagramPostStatus } from "@/lib/instagram/backend/instagram-post-repository";
 import { getBrowserTimeZone, utcToZonedInputs } from "@/lib/instagram/schedule-time";
+import { BulkActionBar } from "@/components/bulk/BulkActionBar";
+import { useBulkDelete } from "@/components/bulk/BulkDeleteDialog";
+import { useBulkSelection } from "@/components/bulk/useBulkSelection";
 import { CalendarPostCard, type CalendarPostCardData } from "./CalendarPostCard";
 
 type FilterId = "ALL" | "DRAFT" | "SCHEDULED" | "PUBLISHED" | "FAILED" | "CANCELLED";
@@ -68,6 +71,27 @@ export function PublicationsManager({
   }, [filtered]);
 
   const visible = view === "calendar" && selectedDay ? byDay.get(selectedDay) ?? [] : filtered;
+
+  // Posts em processamento na Meta não podem ser excluídos agora (mesma regra da exclusão individual).
+  const isSelectable = (post: CalendarPostCardData) => post.status !== "PROCESSING";
+  const selection = useBulkSelection(
+    filtered.filter(isSelectable).map((post) => post.id),
+    visible.filter(isSelectable).map((post) => post.id),
+  );
+  const bulk = useBulkDelete({
+    url: "/api/instagram/posts/bulk-delete",
+    noun: { singular: "item", plural: "itens" },
+    note: "A exclusão remove só do Alilu. Publicações já feitas continuam no Instagram, e agendamentos selecionados são cancelados e não serão publicados.",
+    labelFor: (id) => {
+      const post = posts.find((item) => item.id === id);
+      return post?.caption?.slice(0, 40) || "Publicação";
+    },
+    onDeleted: (ids) => {
+      const removed = new Set(ids);
+      setPosts((list) => list.filter((post) => !removed.has(post.id)));
+      selection.clear();
+    },
+  });
 
   function openCalendar() {
     setView("calendar");
@@ -207,6 +231,22 @@ export function PublicationsManager({
         </section>
       ) : null}
 
+      {bulk.message ? (
+        <p role="status" className="flex items-start justify-between gap-3 rounded-md bg-teal-50 px-3 py-2 text-sm text-teal-900">
+          <span>{bulk.message}</span>
+          <button type="button" onClick={bulk.dismissMessage} aria-label="Fechar aviso" className="text-teal-800">
+            ✕
+          </button>
+        </p>
+      ) : null}
+
+      <BulkActionBar
+        selection={selection}
+        visibleCount={visible.filter(isSelectable).length}
+        busy={bulk.running}
+        onDelete={() => bulk.request(selection.selectedIds)}
+      />
+
       {visible.length === 0 ? (
         <div className="rounded-lg border border-dashed border-zinc-300 px-4 py-10 text-center">
           <p className="text-sm text-zinc-600">
@@ -216,10 +256,18 @@ export function PublicationsManager({
       ) : (
         <div className="space-y-3">
           {visible.map((post) => (
-            <CalendarPostCard key={post.id} post={post} userId={userId} onChange={updatePost} onRemove={removePost} />
+            <CalendarPostCard
+              key={post.id}
+              post={post}
+              userId={userId}
+              onChange={updatePost}
+              onRemove={removePost}
+              selection={{ checked: selection.isSelected(post.id), onToggle: () => selection.toggle(post.id), disabled: !isSelectable(post) }}
+            />
           ))}
         </div>
       )}
+      {bulk.dialog}
     </div>
   );
 }

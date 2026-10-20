@@ -1,5 +1,9 @@
 "use client";
 
+import { BulkActionBar } from "@/components/bulk/BulkActionBar";
+import { BulkCheckbox } from "@/components/bulk/BulkCheckbox";
+import { useBulkDelete } from "@/components/bulk/BulkDeleteDialog";
+import { useBulkSelection } from "@/components/bulk/useBulkSelection";
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/Badge";
@@ -94,6 +98,19 @@ export function AutomationsOverview({
   const [error, setError] = useState<string | null>(null);
   const [pauseTarget, setPauseTarget] = useState<AutomationListItemDto | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<AutomationListItemDto | null>(null);
+
+  const selection = useBulkSelection(automations.map((item) => item.id));
+  const bulk = useBulkDelete({
+    url: "/api/content-automation/automations/bulk-delete",
+    noun: { singular: "automação", plural: "automações", deletedSingular: "excluída", deletedPlural: "excluídas" },
+    note: "As execuções pendentes são canceladas e o histórico é apagado. Publicações já feitas no Instagram não são afetadas.",
+    labelFor: (id) => automations.find((item) => item.id === id)?.name ?? "Automação",
+    onDeleted: (ids) => {
+      const removed = new Set(ids);
+      setAutomations((list) => list.filter((a) => !removed.has(a.id)));
+      selection.clear();
+    },
+  });
 
   const stats = useMemo(() => {
     const active = automations.filter((item) => item.status === "ACTIVE").length;
@@ -222,9 +239,29 @@ export function AutomationsOverview({
           Você ainda não criou nenhuma automação.
         </p>
       ) : (
+        <>
+        {bulk.message ? (
+          <p role="status" className="rounded-md bg-teal-50 px-3 py-2 text-sm text-teal-900">
+            {bulk.message}
+          </p>
+        ) : null}
+        <BulkActionBar
+          selection={selection}
+          visibleCount={automations.length}
+          noun={{ singular: "automação", plural: "automações", selectedSingular: "selecionada", selectedPlural: "selecionadas" }}
+          busy={bulk.running}
+          onDelete={() => bulk.request(selection.selectedIds)}
+        />
         <ul className="space-y-3">
           {automations.map((item) => (
-            <li key={item.id} className="rounded-lg border border-zinc-200 p-4">
+            <li key={item.id} className="flex gap-1 rounded-lg border border-zinc-200 p-4 pl-2">
+              <BulkCheckbox
+                checked={selection.isSelected(item.id)}
+                onChange={() => selection.toggle(item.id)}
+                label={`Selecionar automação ${item.name}`}
+                className="-mt-1"
+              />
+              <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <div>
                   <Link href={`/instagram/piloto-automatico/automacoes/${item.id}`} className="font-semibold text-zinc-900 hover:underline">
@@ -284,10 +321,13 @@ export function AutomationsOverview({
               {item.nextRunAt ? (
                 <p className="mt-2 text-xs text-zinc-500">Próxima execução: {formatInTimeZone(item.nextRunAt, item.timezone)}</p>
               ) : null}
+              </div>
             </li>
           ))}
         </ul>
+        </>
       )}
+      {bulk.dialog}
 
       {pauseTarget ? (
         <div role="dialog" aria-modal="true" className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4 sm:items-center">

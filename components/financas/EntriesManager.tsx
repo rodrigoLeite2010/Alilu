@@ -1,6 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { BulkActionBar } from "@/components/bulk/BulkActionBar";
+import { BulkCheckbox } from "@/components/bulk/BulkCheckbox";
+import { useBulkDelete } from "@/components/bulk/BulkDeleteDialog";
+import { useBulkSelection } from "@/components/bulk/useBulkSelection";
 import { Button } from "@/components/ui/Button";
 import { RECURRENCE_LABELS } from "@/lib/financas/categories";
 import type { EntryKind, FinEntry } from "@/lib/financas/types";
@@ -40,6 +44,18 @@ export function EntriesManager({ kind }: { kind: EntryKind }) {
     return () => window.removeEventListener(FINANCE_CHANGED_EVENT, handler);
   }, []);
 
+  const selection = useBulkSelection((entries ?? []).map((entry) => entry.id));
+  const bulk = useBulkDelete({
+    url: "/api/financas/entries/bulk-delete",
+    noun: { singular: isIncome ? "receita" : "despesa", plural: isIncome ? "receitas" : "despesas", deletedSingular: "excluída", deletedPlural: "excluídas" },
+    note: "Lançamentos recorrentes são removidos com todas as repetições.",
+    labelFor: (id) => entries?.find((entry) => entry.id === id)?.description ?? "Lançamento",
+    onDeleted: () => {
+      selection.clear();
+      notifyFinanceChanged();
+    },
+  });
+
   async function remove(entry: FinEntry) {
     const extra = entry.recurrence !== "none" ? " Isso remove todas as repetições." : "";
     if (!window.confirm(`Excluir "${entry.description}"?${extra}`)) return;
@@ -74,10 +90,24 @@ export function EntriesManager({ kind }: { kind: EntryKind }) {
         </p>
       ) : null}
 
+      {bulk.message ? <p role="status" className="rounded-md bg-teal-50 px-3 py-2 text-sm text-teal-900">{bulk.message}</p> : null}
+      <BulkActionBar
+        selection={selection}
+        visibleCount={entries?.length ?? 0}
+        noun={{ singular: isIncome ? "receita" : "despesa", plural: isIncome ? "receitas" : "despesas", selectedSingular: "selecionada", selectedPlural: "selecionadas" }}
+        busy={bulk.running}
+        onDelete={() => bulk.request(selection.selectedIds)}
+      />
       <ul className="divide-y divide-zinc-100 rounded-lg border border-zinc-200 bg-white px-4">
         {entries?.map((entry) => (
           <li key={entry.id} className="flex flex-wrap items-center justify-between gap-2 py-3">
-            <div className="min-w-0">
+            <BulkCheckbox
+              checked={selection.isSelected(entry.id)}
+              onChange={() => selection.toggle(entry.id)}
+              label={`Selecionar ${entry.description}`}
+              className="-ml-3"
+            />
+            <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-medium text-zinc-900">{entry.description}</p>
               <p className="text-xs text-zinc-500">
                 {shortDate(entry.date)} · {entry.category}
@@ -98,6 +128,7 @@ export function EntriesManager({ kind }: { kind: EntryKind }) {
         ))}
       </ul>
 
+      {bulk.dialog}
       {dialog ? (
         <EntryDialog key={dialog.entry?.id ?? "new"} open mode="full" kind={kind} entry={dialog.entry} onClose={() => setDialog(null)} />
       ) : null}

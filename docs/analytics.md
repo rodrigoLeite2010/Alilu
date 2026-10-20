@@ -8,6 +8,8 @@ Fonte única dos números de acesso é o PostHog. O PostgreSQL **não** guarda p
 - Usuário logado: `identify(<id interno>)` (nunca e-mail/CPF). Logout: `user_logout` + `reset()`.
 - Admin: `/admin/acessos` ← `/api/admin/analytics/{summary,pages,recent}` (só `ADMIN_EMAILS`), consulta HogQL no servidor, cache de 30–60 s.
 - "Online agora" = pessoas com evento nos últimos 5 minutos.
+- O resumo mostra visitantes únicos, sessões e visualizações de hoje, do mês atual e do ano atual, em uma única consulta ao PostHog. Visitantes e sessões são deduplicados dentro de cada período (não são somas dos totais diários).
+- Os períodos começam à meia-noite do dia, no primeiro dia do mês e em 1º de janeiro, no fuso do projeto. Os totais dependem do histórico disponível no PostHog; não recuperam acessos anteriores à instalação da coleta ou fora da retenção. O ranking de páginas continua sendo de hoje.
 
 ## Variáveis
 `NEXT_PUBLIC_POSTHOG_KEY`, `NEXT_PUBLIC_POSTHOG_HOST`, `POSTHOG_PERSONAL_API_KEY` (servidor), `POSTHOG_PROJECT_ID` (servidor), `POSTHOG_API_HOST` (opcional).

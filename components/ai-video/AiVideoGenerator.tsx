@@ -1,5 +1,9 @@
 "use client";
 
+import { BulkActionBar } from "@/components/bulk/BulkActionBar";
+import { BulkCheckbox } from "@/components/bulk/BulkCheckbox";
+import { useBulkDelete } from "@/components/bulk/BulkDeleteDialog";
+import { useBulkSelection } from "@/components/bulk/useBulkSelection";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { prepareImageForUpload } from "@/lib/ai-video/prepare-image";
 import { FileNotReadableError, ensureReadableFile, readFailureReason } from "@/lib/client/file-readability";
@@ -193,6 +197,24 @@ export function AiVideoGenerator({
   const [deleteFor, setDeleteFor] = useState<AiVideoGenerationClientDto | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [nowMs, setNowMs] = useState(() => Date.now());
+
+  // Vídeos em andamento não podem ser excluídos (mesma regra do botão individual).
+  const deletableIds = generations.filter((generation) => !isInProgress(generation.status)).map((generation) => generation.id);
+  const selection = useBulkSelection(deletableIds);
+  const bulk = useBulkDelete({
+    url: "/api/ai-video/generations/bulk-delete",
+    noun: { singular: "vídeo", plural: "vídeos" },
+    note: "Os arquivos são apagados do Alilu e saem do histórico. Se ainda não baixou, baixe antes. Isso não devolve créditos.",
+    labelFor: (id) => {
+      const generation = generations.find((item) => item.id === id);
+      return generation ? `Vídeo de ${formatDateTime(generation.createdAt)}` : "Vídeo";
+    },
+    onDeleted: (ids) => {
+      const removed = new Set(ids);
+      setGenerations((list) => list.filter((item) => !removed.has(item.id)));
+      selection.clear();
+    },
+  });
 
   async function confirmDeleteVideo() {
     if (!deleteFor) return;
@@ -672,6 +694,16 @@ export function AiVideoGenerator({
 
       <section ref={historyRef} className="scroll-mt-6">
         <h2 className="text-lg font-semibold text-zinc-900">Seus vídeos</h2>
+        {bulk.message ? <p role="status" className="mt-2 rounded-md bg-teal-50 px-3 py-2 text-sm text-teal-900">{bulk.message}</p> : null}
+        <div className="mt-2">
+          <BulkActionBar
+            selection={selection}
+            visibleCount={deletableIds.length}
+            noun={{ singular: "vídeo", plural: "vídeos" }}
+            busy={bulk.running}
+            onDelete={() => bulk.request(selection.selectedIds)}
+          />
+        </div>
         {generations.length === 0 ? (
           <p className="mt-3 rounded-md border border-dashed border-zinc-300 p-6 text-center text-sm text-zinc-600">Nenhum vídeo gerado ainda.</p>
         ) : (
@@ -679,6 +711,14 @@ export function AiVideoGenerator({
             {generations.map((generation) => (
               <li key={generation.id} className="rounded-lg border border-zinc-200 p-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">
+                  {!isInProgress(generation.status) ? (
+                    <BulkCheckbox
+                      checked={selection.isSelected(generation.id)}
+                      onChange={() => selection.toggle(generation.id)}
+                      label={`Selecionar vídeo de ${formatDateTime(generation.createdAt)}`}
+                      className="-ml-3 -my-2"
+                    />
+                  ) : null}
                   <span className="text-sm text-zinc-600">
                     {formatDateTime(generation.createdAt)} · {generation.durationSeconds}s · {generation.aspectRatio} ·{" "}
                     {AI_VIDEO_TIER_LABEL[generation.tier]} · {formatCredits(generation.creditCost)}
@@ -743,6 +783,7 @@ export function AiVideoGenerator({
         )}
       </section>
 
+      {bulk.dialog}
       <ConfirmDialog
         open={deleteFor !== null}
         title="Excluir este vídeo?"

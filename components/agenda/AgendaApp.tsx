@@ -1,5 +1,9 @@
 "use client";
 
+import { BulkActionBar } from "@/components/bulk/BulkActionBar";
+import { BulkCheckbox } from "@/components/bulk/BulkCheckbox";
+import { useBulkDelete } from "@/components/bulk/BulkDeleteDialog";
+import { useBulkSelection } from "@/components/bulk/useBulkSelection";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight, MapPin, Plus, Repeat, Search, Settings, X } from "lucide-react";
 import {
@@ -161,6 +165,19 @@ export function AgendaApp({
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [category, setCategory] = useState<AgendaCategory | "">("");
   const [items, setItems] = useState<Item[]>([]);
+  // Exclusão em massa (lista): por compromisso — um recorrente aparece várias vezes, mas é um só item.
+  const eventIds = useMemo(() => [...new Set(items.map((item) => item.event.id))], [items]);
+  const selection = useBulkSelection(eventIds);
+  const bulk = useBulkDelete({
+    url: "/api/agenda/events/bulk-delete",
+    noun: { singular: "compromisso", plural: "compromissos" },
+    note: "Compromissos recorrentes são excluídos com todas as repetições, e os lembretes pendentes são cancelados.",
+    labelFor: (id) => items.find((item) => item.event.id === id)?.event.title ?? "Compromisso",
+    onDeleted: () => {
+      selection.clear();
+      setReloadKey((value) => value + 1);
+    },
+  });
   const [loadedKey, setLoadedKey] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
@@ -356,17 +373,25 @@ export function AgendaApp({
 
   const timeText = (item: Item) => (item.event.isAllDay ? "Dia inteiro" : localTimeKey(new Date(item.startAt), tz));
 
-  const renderRow = (item: Item, showDate = false) => {
+  const renderRow = (item: Item, showDate = false, selectable = false) => {
     const done = item.event.status !== "SCHEDULED";
     return (
-      <li key={`${item.event.id}-${item.startAt}`}>
+      <li key={`${item.event.id}-${item.startAt}`} className={selectable ? "flex items-start gap-1" : undefined}>
+        {selectable ? (
+          <BulkCheckbox
+            checked={selection.isSelected(item.event.id)}
+            onChange={() => selection.toggle(item.event.id)}
+            label={`Selecionar compromisso ${item.event.title}${item.event.recurrence !== "NONE" ? " (todas as repetições)" : ""}`}
+            className="mt-0.5"
+          />
+        ) : null}
         <button
           type="button"
           onClick={() => {
             setConfirmDelete(false);
             setDetail(item);
           }}
-          className="flex w-full items-start gap-3 rounded-lg border border-zinc-200 bg-white px-3 py-2.5 text-left hover:border-zinc-300 hover:bg-zinc-50"
+          className={`flex items-start gap-3 rounded-lg border border-zinc-200 bg-white px-3 py-2.5 text-left hover:border-zinc-300 hover:bg-zinc-50 ${selectable ? "min-w-0 flex-1" : "w-full"}`}
         >
           <span className="mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: AGENDA_CATEGORY_COLOR[item.event.category] }} aria-hidden />
           <span className="min-w-0 flex-1">
@@ -497,8 +522,18 @@ export function AgendaApp({
           </button>
         ))}
       </div>
+      {bulk.message ? <p role="status" className="mb-3 rounded-md bg-teal-50 px-3 py-2 text-sm text-teal-900">{bulk.message}</p> : null}
       {items.length ? (
-        <ul className="space-y-2">{items.map((item) => renderRow(item, tab !== "today" && tab !== "tomorrow"))}</ul>
+        <div className="space-y-2">
+          <BulkActionBar
+            selection={selection}
+            visibleCount={eventIds.length}
+            noun={{ singular: "compromisso", plural: "compromissos" }}
+            busy={bulk.running}
+            onDelete={() => bulk.request(selection.selectedIds)}
+          />
+          <ul className="space-y-2">{items.map((item) => renderRow(item, tab !== "today" && tab !== "tomorrow", true))}</ul>
+        </div>
       ) : loading ? null : (
         <p className="rounded-lg border border-dashed border-zinc-300 p-6 text-center text-sm text-zinc-500">Nenhum compromisso por aqui.</p>
       )}
@@ -648,6 +683,7 @@ export function AgendaApp({
 
       <div className={`mt-5 ${loading ? "opacity-60" : ""}`} aria-busy={loading}>
         {view === "month" ? monthGrid() : view === "week" ? weekColumns() : listView()}
+        {bulk.dialog}
       </div>
 
       {detail ? (

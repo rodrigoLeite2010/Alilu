@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { BulkCheckbox } from "@/components/bulk/BulkCheckbox";
 import { Button, LinkButton } from "@/components/ui/Button";
 import type {
   InstagramPostSource,
@@ -126,11 +127,14 @@ export function CalendarPostCard({
   userId,
   onChange,
   onRemove,
+  selection,
 }: {
   post: CalendarPostCardData;
   userId?: string;
   onChange?: (post: CalendarPostCardData) => void;
   onRemove?: (postId: string) => void;
+  /** Seleção em massa (lista "Minhas publicações"); ausente = card sem checkbox. */
+  selection?: { checked: boolean; onToggle: () => void; disabled?: boolean };
 }) {
   const [current, setCurrent] = useState(post);
   const [removed, setRemoved] = useState(false);
@@ -276,6 +280,15 @@ export function CalendarPostCard({
 
   return (
     <article className="flex gap-3 rounded-lg border border-zinc-200 bg-white p-3" aria-label={`${typeLabel} — ${STATUS_LABEL[status]}`}>
+      {selection ? (
+        <BulkCheckbox
+          checked={selection.checked}
+          onChange={selection.onToggle}
+          disabled={selection.disabled}
+          label={`Selecionar publicação: ${current.caption?.slice(0, 40) || typeLabel}`}
+          className="-ml-2 -mt-1.5"
+        />
+      ) : null}
       {current.mediaStorageUrl ? (
         current.postType === "reels" ? (
           <video

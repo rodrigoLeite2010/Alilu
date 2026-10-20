@@ -1,5 +1,9 @@
 "use client";
 
+import { BulkActionBar } from "@/components/bulk/BulkActionBar";
+import { BulkCheckbox } from "@/components/bulk/BulkCheckbox";
+import { useBulkDelete } from "@/components/bulk/BulkDeleteDialog";
+import { useBulkSelection } from "@/components/bulk/useBulkSelection";
 import Link from "next/link";
 import { useState } from "react";
 import { uploadPresigned } from "@vercel/blob/client";
@@ -288,6 +292,21 @@ export function YoutubeImporter({
     }
   }
 
+  // Só importações concluídas têm o botão "Excluir" individual; a seleção segue a mesma regra.
+  const deletableIds = history.filter((item) => item.status === "COMPLETED" && item.fileUrl).map((item) => item.id);
+  const selection = useBulkSelection(deletableIds);
+  const bulk = useBulkDelete({
+    url: "/api/videos/youtube-import/bulk-delete",
+    note: "Os arquivos enviados são apagados do Alilu.",
+    labelFor: (id) => history.find((entry) => entry.id === id)?.title ?? "Vídeo",
+    onDeleted: (ids) => {
+      const removed = new Set(ids);
+      setHistory((previous) => previous.filter((entry) => !removed.has(entry.id)));
+      if (result && removed.has(result.id)) reset();
+      selection.clear();
+    },
+  });
+
   async function remove(item: YoutubeImportDto) {
     if (!window.confirm("Excluir esta importação e o arquivo enviado? Essa ação não pode ser desfeita.")) return;
     const response = await fetch(`/api/videos/youtube-import/${item.id}`, { method: "DELETE" });
@@ -303,10 +322,24 @@ export function YoutubeImporter({
     history.length > 0 ? (
       <section className="space-y-3 rounded-lg border border-zinc-200 p-4 sm:p-6" data-testid="youtube-history">
         <h2 className="text-base font-semibold text-zinc-900">Seus vídeos enviados</h2>
+        {bulk.message ? <p role="status" className="rounded-md bg-teal-50 px-3 py-2 text-sm text-teal-900">{bulk.message}</p> : null}
+        <BulkActionBar
+          selection={selection}
+          visibleCount={deletableIds.length}
+          busy={bulk.running}
+          onDelete={() => bulk.request(selection.selectedIds)}
+        />
         <ul className="divide-y divide-zinc-100">
           {history.map((item) => (
             <li key={item.id} className="flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:justify-between">
-              <div className="min-w-0">
+              {deletableIds.includes(item.id) ? (
+                <BulkCheckbox
+                  checked={selection.isSelected(item.id)}
+                  onChange={() => selection.toggle(item.id)}
+                  label={`Selecionar ${item.title ?? `vídeo ${item.videoId}`}`}
+                />
+              ) : null}
+              <div className="min-w-0 sm:flex-1">
                 <p className="truncate text-sm font-medium text-zinc-900">{item.title ?? `Vídeo ${item.videoId}`}</p>
                 <p className="text-xs text-zinc-500">
                   {item.status === "EXPIRED"

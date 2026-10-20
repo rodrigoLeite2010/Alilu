@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { del as deleteBlob } from "@vercel/blob";
 import { refreshGenerationForUser } from "@/lib/ai-video/backend/generation-service";
-import { markGenerationDeletedByUser } from "@/lib/ai-video/backend/generation-repository";
+import { deleteGenerationForUser } from "@/lib/ai-video/backend/generation-delete-service";
 import { getWallet } from "@/lib/ai-video/backend/wallet-repository";
 import { serializeGenerationForUser, serializeWallet } from "@/lib/ai-video/backend/ai-video-dto";
 
@@ -37,12 +36,6 @@ export async function DELETE(_request: Request, { params }: RouteParams): Promis
   const userId = session?.user?.id;
   if (!userId) return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
   const { id } = await params;
-  const removed = await markGenerationDeletedByUser(id, userId);
-  if (!removed) return NextResponse.json({ error: "Vídeo não encontrado ou ainda em andamento." }, { status: 404 });
-  if (removed.storageVideoUrl) {
-    await deleteBlob(removed.storageVideoUrl).catch((error) =>
-      console.error(JSON.stringify({ scope: "ai-video", event: "user_delete.blob_failed", generationId: id, message: (error as Error)?.message })),
-    );
-  }
+  if (!(await deleteGenerationForUser(id, userId))) return NextResponse.json({ error: "Vídeo não encontrado ou ainda em andamento." }, { status: 404 });
   return NextResponse.json({ deleted: true });
 }

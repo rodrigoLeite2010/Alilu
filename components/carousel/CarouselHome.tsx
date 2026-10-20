@@ -2,6 +2,10 @@
 
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
+import { BulkActionBar } from "@/components/bulk/BulkActionBar";
+import { BulkCheckbox } from "@/components/bulk/BulkCheckbox";
+import { useBulkDelete } from "@/components/bulk/BulkDeleteDialog";
+import { useBulkSelection } from "@/components/bulk/useBulkSelection";
 import { Button, LinkButton } from "@/components/ui/Button";
 import { ConfirmDialog } from "@/components/instagram/ConfirmDialog";
 import { PlansLink } from "./PlansLink";
@@ -113,6 +117,21 @@ export function CarouselHome() {
   const [target, setTarget] = useState("");
   const [analysis, setAnalysis] = useState<{ id: string; target: string; summary: string } | null>(null);
   const [toDelete, setToDelete] = useState<CarouselSummaryDto | null>(null);
+  const selection = useBulkSelection(carousels.map((item) => item.id));
+  const bulk = useBulkDelete({
+    url: "/api/carousel/projects/bulk-delete",
+    noun: { singular: "carrossel", plural: "carrosséis" },
+    note: "Carrosséis já publicados ou em publicação são mantidos. Os que já foram publicados continuam no Instagram.",
+    labelFor: (id) => {
+      const item = carousels.find((entry) => entry.id === id);
+      return item?.title || item?.topic || "Carrossel";
+    },
+    onDeleted: (ids) => {
+      const removed = new Set(ids);
+      setCarousels((list) => list.filter((item) => !removed.has(item.id)));
+      selection.clear();
+    },
+  });
   const [brandDraft, setBrandDraft] = useState<BrandDraft>(EMPTY_BRAND);
   const [brandNotice, setBrandNotice] = useState<string | null>(null);
 
@@ -405,11 +424,26 @@ export function CarouselHome() {
           <h2 id="meus" className="text-base font-semibold text-zinc-900">Meus carrosséis</h2>
         </div>
         {carousels.length === 0 ? <p className="mt-3 text-sm text-zinc-500">Quando você criar o primeiro, ele aparece aqui.</p> : null}
+        {bulk.message ? <p role="status" className="mt-3 rounded-md bg-teal-50 px-3 py-2 text-sm text-teal-900">{bulk.message}</p> : null}
+        <div className="mt-3">
+          <BulkActionBar
+            selection={selection}
+            visibleCount={carousels.length}
+            noun={{ singular: "carrossel", plural: "carrosséis", selectedSingular: "selecionado", selectedPlural: "selecionados" }}
+            busy={bulk.running || busy !== null}
+            onDelete={() => bulk.request(selection.selectedIds)}
+          />
+        </div>
         <ul className="mt-3 grid gap-3 sm:grid-cols-2">
           {carousels.map((item) => {
             const status = STATUS_LABEL[item.status] ?? STATUS_LABEL.DRAFT;
             return (
-              <li key={item.id} className="flex gap-3 rounded-lg border border-zinc-200 p-3">
+              <li key={item.id} className="flex gap-1 rounded-lg border border-zinc-200 p-3 pl-1">
+                <BulkCheckbox
+                  checked={selection.isSelected(item.id)}
+                  onChange={() => selection.toggle(item.id)}
+                  label={`Selecionar carrossel ${item.title || item.topic}`}
+                />
                 {/* eslint-disable-next-line @next/next/no-img-element -- miniatura de mídia do próprio usuário */}
                 {item.coverUrl ? <img src={item.coverUrl} alt="" className="h-24 w-[76px] shrink-0 rounded-md object-cover" /> : <div className="h-24 w-[76px] shrink-0 rounded-md bg-zinc-100" aria-hidden />}
                 <div className="min-w-0 flex-1">
@@ -431,6 +465,7 @@ export function CarouselHome() {
         </ul>
       </section>
 
+      {bulk.dialog}
       <ConfirmDialog
         open={toDelete !== null}
         title="Excluir carrossel?"

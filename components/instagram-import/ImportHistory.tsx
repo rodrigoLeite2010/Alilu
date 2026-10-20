@@ -1,6 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import { BulkActionBar } from "@/components/bulk/BulkActionBar";
+import { BulkCheckbox } from "@/components/bulk/BulkCheckbox";
+import { useBulkDelete } from "@/components/bulk/BulkDeleteDialog";
+import { useBulkSelection } from "@/components/bulk/useBulkSelection";
 import { Badge } from "@/components/ui/Badge";
 import { Button, LinkButton } from "@/components/ui/Button";
 import { ConfirmDialog } from "@/components/instagram/ConfirmDialog";
@@ -16,6 +20,21 @@ export function ImportHistory({ initialImports }: { initialImports: InstagramImp
   const [imports, setImports] = useState(initialImports);
   const [toDelete, setToDelete] = useState<InstagramImportDto | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  const selection = useBulkSelection(imports.map((item) => item.id));
+  const bulk = useBulkDelete({
+    url: "/api/videos/instagram-import/bulk-delete",
+    note: "Os arquivos importados são apagados do Alilu. Vídeos que você já gerou com eles não são afetados.",
+    labelFor: (id) => {
+      const item = imports.find((entry) => entry.id === id);
+      return item ? `Importação de ${formatDate(item.createdAt)}` : "Importação";
+    },
+    onDeleted: (ids) => {
+      const removed = new Set(ids);
+      setImports((list) => list.filter((item) => !removed.has(item.id)));
+      selection.clear();
+    },
+  });
 
   async function confirmDelete() {
     if (!toDelete) return;
@@ -40,9 +59,21 @@ export function ImportHistory({ initialImports }: { initialImports: InstagramImp
   return (
     <div className="space-y-3">
       {error ? <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p> : null}
+      {bulk.message ? <p role="status" className="rounded-md bg-teal-50 px-3 py-2 text-sm text-teal-900">{bulk.message}</p> : null}
+      <BulkActionBar
+        selection={selection}
+        visibleCount={imports.length}
+        busy={bulk.running}
+        onDelete={() => bulk.request(selection.selectedIds)}
+      />
       <ul className="space-y-3">
         {imports.map((item) => (
-          <li key={item.id} className="flex flex-wrap gap-4 rounded-lg border border-zinc-200 p-4">
+          <li key={item.id} className="flex flex-wrap gap-4 rounded-lg border border-zinc-200 p-4 pl-2">
+            <BulkCheckbox
+              checked={selection.isSelected(item.id)}
+              onChange={() => selection.toggle(item.id)}
+              label={`Selecionar importação de ${formatDate(item.createdAt)}`}
+            />
             <div className="h-28 w-20 shrink-0 overflow-hidden rounded bg-zinc-100">
               {item.status === "COMPLETED" && item.fileUrl ? (
                 item.mediaType === "VIDEO" ? (
@@ -81,6 +112,7 @@ export function ImportHistory({ initialImports }: { initialImports: InstagramImp
           </li>
         ))}
       </ul>
+      {bulk.dialog}
       <ConfirmDialog
         open={toDelete !== null}
         title="Excluir importação?"

@@ -6,7 +6,7 @@ import { runHogQL } from "./posthog-query";
  * Números do admin vindos do PostHog (nada é gravado no PostgreSQL).
  * Cache curto em memória (com deduplicação de chamadas simultâneas): o admin e a
  * atualização automática não martelam a API do PostHog.
- * "Hoje" = dia atual no fuso do PROJETO no PostHog (configure America/Sao_Paulo).
+ * Dia, mês e ano atuais no fuso do PROJETO no PostHog (configure America/Sao_Paulo).
  */
 
 export const ONLINE_WINDOW_MINUTES = 5;
@@ -43,6 +43,12 @@ export interface AnalyticsSummary {
   visitorsToday: number;
   sessionsToday: number;
   pageViewsToday: number;
+  visitorsThisMonth: number;
+  sessionsThisMonth: number;
+  pageViewsThisMonth: number;
+  visitorsThisYear: number;
+  sessionsThisYear: number;
+  pageViewsThisYear: number;
   onlineWindowMinutes: number;
   generatedAt: string;
 }
@@ -50,15 +56,23 @@ export interface AnalyticsSummary {
 export async function getAnalyticsSummary(): Promise<AnalyticsSummary> {
   return cached("summary", SUMMARY_TTL_MS, async () => {
     const today = `timestamp >= toStartOfDay(now())`;
+    const thisMonth = `timestamp >= toStartOfMonth(now())`;
+    const thisYear = `timestamp >= toStartOfYear(now())`;
     const { results } = await runHogQL(
       `select
          uniqIf(person_id, ${PAGEVIEW} and ${today}) as visitors,
          uniqIf(properties.$session_id, ${PAGEVIEW} and ${today}) as sessions,
          countIf(${PAGEVIEW} and ${today}) as views,
-         uniqIf(person_id, timestamp >= now() - interval ${ONLINE_WINDOW_MINUTES} minute) as online
+         uniqIf(person_id, timestamp >= now() - interval ${ONLINE_WINDOW_MINUTES} minute) as online,
+         uniqIf(person_id, ${PAGEVIEW} and ${thisMonth}) as visitors_month,
+         uniqIf(properties.$session_id, ${PAGEVIEW} and ${thisMonth}) as sessions_month,
+         countIf(${PAGEVIEW} and ${thisMonth}) as views_month,
+         uniqIf(person_id, ${PAGEVIEW} and ${thisYear}) as visitors_year,
+         uniqIf(properties.$session_id, ${PAGEVIEW} and ${thisYear}) as sessions_year,
+         countIf(${PAGEVIEW} and ${thisYear}) as views_year
        from events
        where event in ('$pageview', '$pageleave', 'user_login', 'user_logout')
-         and timestamp >= least(toStartOfDay(now()), now() - interval ${ONLINE_WINDOW_MINUTES} minute)
+         and timestamp >= least(toStartOfYear(now()), now() - interval ${ONLINE_WINDOW_MINUTES} minute)
          and ${ENV_FILTER}`,
       "alilu_admin_summary",
     );
@@ -68,6 +82,12 @@ export async function getAnalyticsSummary(): Promise<AnalyticsSummary> {
       sessionsToday: Number(row[1] ?? 0),
       pageViewsToday: Number(row[2] ?? 0),
       onlineNow: Number(row[3] ?? 0),
+      visitorsThisMonth: Number(row[4] ?? 0),
+      sessionsThisMonth: Number(row[5] ?? 0),
+      pageViewsThisMonth: Number(row[6] ?? 0),
+      visitorsThisYear: Number(row[7] ?? 0),
+      sessionsThisYear: Number(row[8] ?? 0),
+      pageViewsThisYear: Number(row[9] ?? 0),
       onlineWindowMinutes: ONLINE_WINDOW_MINUTES,
       generatedAt: new Date().toISOString(),
     };
