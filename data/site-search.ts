@@ -2,6 +2,7 @@ import { tools } from "./tools";
 import { instagramTools } from "./instagram";
 import { lotteryModalities } from "./lotteries";
 import { videoTools } from "./videos";
+import { travelTools } from "./viagens";
 import { getCategoryById } from "./categories";
 
 /**
@@ -87,6 +88,7 @@ export function getSiteSearchIndex(): SiteSearchItem[] {
       categoryLabel: "Vídeos",
     }));
 
-  cachedIndex = [...fromTools, ...fromInstagram, ...fromLotteries, ...fromVideos];
+  const fromTravel: SiteSearchItem[] = travelTools.map(t => ({ id: `travel:${t.id}`, name: t.name, shortName: t.shortName, description: t.description, keywords: [...t.keywords], icon: t.icon, href: t.path, categoryLabel: "Viagens" }));
+  cachedIndex = [...fromTools, ...fromInstagram, ...fromLotteries, ...fromVideos, ...fromTravel];
   return cachedIndex;
 }

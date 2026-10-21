@@ -6,6 +6,7 @@ import { getPublishedTools } from "@/lib/seo/publish";
 import { INSTAGRAM_CATEGORY, instagramTools } from "@/data/instagram";
 import { LOTTERIES_CATEGORY, lotteryModalities } from "@/data/lotteries";
 import { VIDEOS_CATEGORY, videoTools } from "@/data/videos";
+import { VIAGENS_CATEGORY, travelTools, travelGuides } from "@/data/viagens";
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const staticRoutes: MetadataRoute.Sitemap = [
@@ -76,5 +77,6 @@ export default function sitemap(): MetadataRoute.Sitemap {
     })
   );
 
-  return [...staticRoutes, ...instagramRoutes, ...lotteryRoutes, ...videoRoutes, ...categoryRoutes, ...toolRoutes];
+  const travelRoutes: MetadataRoute.Sitemap = [VIAGENS_CATEGORY.path, ...travelTools.map(t => t.path), ...travelGuides.map(g => `/viagens/${g.slug}`)].map(path => ({ url: `${SITE_URL}${path}`, changeFrequency: "monthly", priority: 0.7 }));
+  return [...staticRoutes, ...instagramRoutes, ...lotteryRoutes, ...videoRoutes, ...travelRoutes, ...categoryRoutes, ...toolRoutes];
 }

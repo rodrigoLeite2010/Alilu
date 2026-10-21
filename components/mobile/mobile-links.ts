@@ -2,6 +2,7 @@ import { categories } from "@/data/categories";
 import { INSTAGRAM_CATEGORY } from "@/data/instagram";
 import { LOTTERIES_CATEGORY } from "@/data/lotteries";
 import { VIDEOS_CATEGORY, videoTools } from "@/data/videos";
+import { VIAGENS_CATEGORY } from "@/data/viagens";
 
 export interface MobileLink {
   href: string;
@@ -47,6 +48,7 @@ export const homeActionLinks: MobileLink[] = [
 
 /** "Mais ferramentas": as mesmas áreas do menu lateral, na mesma ordem. */
 export const moreToolsLinks: MobileLink[] = [
+  { href: VIAGENS_CATEGORY.path, label: VIAGENS_CATEGORY.name, icon: VIAGENS_CATEGORY.icon },
   { href: "/utilitarios", label: "Todas as ferramentas", icon: "wrench" },
   { href: "/planos", label: "Planos e assinatura", icon: "credit-card" },
   { href: "/minha-conta/creditos-ia", label: "Créditos de IA", icon: "coins" },

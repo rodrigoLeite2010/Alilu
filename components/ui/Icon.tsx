@@ -1,4 +1,5 @@
 import {
+  Plane,
   Briefcase,
   Building2,
   Sparkles,
@@ -87,6 +88,7 @@ import {
  * único lugar que sabe traduzir a chave para o componente de ícone real.
  */
 const iconMap: Record<string, LucideIcon> = {
+  plane: Plane,
   briefcase: Briefcase,
   building: Building2,
   sparkles: Sparkles,

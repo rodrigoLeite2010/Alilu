@@ -4,6 +4,7 @@ import { CategoryCard } from "@/components/tools/CategoryCard";
 import { categories } from "@/data/categories";
 import { INSTAGRAM_CATEGORY, instagramTools } from "@/data/instagram";
 import { VIDEOS_CATEGORY, videoTools } from "@/data/videos";
+import { VIAGENS_CATEGORY, travelTools } from "@/data/viagens";
 
 /**
  * Grade de categorias da Home. Extraído de app/page.tsx sem alterar a
@@ -57,6 +58,11 @@ export function CategoryGrid() {
         <p className="mt-auto text-xs font-medium text-zinc-500">
           {videoTools.length} {videoTools.length === 1 ? "ferramenta" : "ferramentas"}
         </p>
+      </Link>
+      <Link href={VIAGENS_CATEGORY.path} className="group flex flex-col gap-4 rounded-lg border border-brand-primary/15 bg-white p-5 transition hover:border-brand-primary/30 hover:shadow-sm">
+        <span className="flex h-11 w-11 items-center justify-center rounded-md bg-brand-primary-soft text-brand-primary"><Icon name={VIAGENS_CATEGORY.icon} className="h-5 w-5" /></span>
+        <div><p className="text-lg font-semibold text-zinc-900 group-hover:text-brand-primary">{VIAGENS_CATEGORY.name}</p><p className="mt-1 text-sm text-zinc-600">{VIAGENS_CATEGORY.description}</p></div>
+        <p className="mt-auto text-xs font-medium text-zinc-500">{travelTools.length} ferramenta</p>
       </Link>
       {categories.map((category) => (
         <CategoryCard key={category.id} category={category} />

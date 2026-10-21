@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import Link from "next/link";
+import { travelTools } from "@/data/viagens";
 import { Container } from "@/components/ui/Container";
 import { Breadcrumbs } from "@/components/navigation/Breadcrumbs";
 import { ToolCatalogSearch } from "@/components/tools/ToolCatalogSearch";
@@ -30,6 +32,7 @@ export default function ToolsCatalogPage() {
       </p>
 
       <div className="mt-6">
+        <Link href={travelTools[0].path} className="mb-6 block rounded-lg border border-brand-primary/20 bg-brand-primary-soft p-4 text-brand-primary"><strong>Viagens · {travelTools[0].shortName}</strong><span className="mt-1 block text-sm">{travelTools[0].description}</span></Link>
         <ToolCatalogSearch tools={tools} />
       </div>
     </Container>
