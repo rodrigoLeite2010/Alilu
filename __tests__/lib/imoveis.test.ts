@@ -124,6 +124,25 @@ function request(
 }
 
 describe("Imóveis — persistência e publicação real em Postgres isolado", () => {
+  it("persiste preço e taxas com centavos e recusa precisão monetária inválida", async () => {
+    const values = {
+      price: 2659574.47,
+      condo: 930.5,
+      iptu: 3000.75,
+      fees: 25.99,
+    };
+    const id = await create(values);
+    expect((await repo.ownProperty(user, id)).data).toMatchObject(values);
+    await repo.transition(other, id, "published", true);
+    expect(
+      (await repo.publicProperty(String((await stored(id)).slug)))?.data,
+    ).toMatchObject(values);
+    for (const field of ["price", "condo", "iptu", "fees"]) {
+      expect(() =>
+        parseProperty(input([randomUUID()], { [field]: 2.65957447 })),
+      ).toThrow("duas casas decimais");
+    }
+  });
   it("persiste anúncio e fotos na ordem, permite capa e reordenação, e oculta até aprovação", async () => {
     const a = await photo(),
       b = await photo();
@@ -478,7 +497,7 @@ describe("Imóveis — APIs e imagens", () => {
     expect((await api.POST(request(`/${id}/contact`))).status).toBe(404);
   });
   it("rejeita origem externa, admin não autorizado e body excessivo", async () => {
-    expect((await api.POST(request("",null))).status).toBe(400);
+    expect((await api.POST(request("", null))).status).toBe(400);
     expect(() =>
       checkOrigin(
         new Request("http://internal:3000/api/imoveis", {

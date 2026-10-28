@@ -216,6 +216,12 @@ export function parseProperty(
   };
   if (submitting && (!data.price || !data.area))
     throw new PropertyError("Informe preço e área maiores que zero.");
+  for (const key of ["price", "condo", "iptu", "fees"] as const) {
+    if (data[key] !== Math.round(data[key] * 100) / 100)
+      throw new PropertyError(
+        `Informe ${labels[key]} com no máximo duas casas decimais.`,
+      );
+  }
   for (const key of ["bedrooms", "suites", "bathrooms", "parking"] as const)
     if (!Number.isInteger(data[key]))
       throw new PropertyError(

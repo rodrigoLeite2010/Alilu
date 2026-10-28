@@ -54,6 +54,81 @@ beforeEach(() => {
   );
 });
 describe("Portal Imóveis — interação", () => {
+  it("preserva milhões e centavos no preço, condomínio, IPTU e taxas ao editar e salvar", async () => {
+    render(
+      <PropertyForm
+        config={DEFAULT_SETTINGS}
+        initial={{
+          ...property,
+          data: {
+            ...data,
+            price: 2659574.47,
+            condo: 930.5,
+            iptu: 3000.75,
+            fees: 25.99,
+          },
+          phone: "11999999999",
+          address: "",
+          zip: "",
+          consent: true,
+        }}
+      />,
+    );
+    for (let i = 0; i < 3; i++)
+      fireEvent.submit(
+        screen.getByRole("button", { name: /Continuar/ }).closest("form")!,
+      );
+    const price = screen.getByLabelText("Preço de venda (R$)");
+    expect(price).toHaveAttribute("type", "text");
+    expect(price).toHaveAttribute("inputmode", "decimal");
+    expect(price).toHaveValue("2.659.574,47");
+    expect(screen.getByLabelText("Condomínio mensal (R$)")).toHaveValue(
+      "930,50",
+    );
+    expect(screen.getByLabelText("IPTU anual (R$)")).toHaveValue("3.000,75");
+    expect(screen.getByLabelText("Outras taxas mensais (R$)")).toHaveValue(
+      "25,99",
+    );
+    fireEvent.change(price, { target: { value: "2659574,47" } });
+    fireEvent.blur(price);
+    expect(price).toHaveValue("2.659.574,47");
+    fireEvent.click(screen.getByRole("button", { name: "Salvar rascunho" }));
+    await waitFor(() => expect(router.push).toHaveBeenCalled());
+    expect(
+      JSON.parse(String(vi.mocked(fetch).mock.calls[0][1]!.body)),
+    ).toMatchObject({
+      price: 2659574.47,
+      condo: 930.5,
+      iptu: 3000.75,
+      fees: 25.99,
+    });
+  });
+  it("não salva como R$ 2,66 uma entrada com separador ambíguo e oito casas decimais", async () => {
+    render(
+      <PropertyForm
+        config={DEFAULT_SETTINGS}
+        initial={{
+          ...property,
+          phone: "11999999999",
+          address: "",
+          zip: "",
+          consent: true,
+        }}
+      />,
+    );
+    for (let i = 0; i < 3; i++)
+      fireEvent.submit(
+        screen.getByRole("button", { name: /Continuar/ }).closest("form")!,
+      );
+    fireEvent.change(screen.getByLabelText("Preço de venda (R$)"), {
+      target: { value: "2,65957447" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Salvar rascunho" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "duas casas decimais",
+    );
+    expect(fetch).not.toHaveBeenCalled();
+  });
   it("abre e recolhe os filtros no celular", () => {
     render(
       <FilterPanel>

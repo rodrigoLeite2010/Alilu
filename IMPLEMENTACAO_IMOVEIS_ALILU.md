@@ -1,5 +1,13 @@
 # Implementação de Imóveis — Alilu
 
+## Correção dos valores monetários
+
+Preço do imóvel, condomínio, IPTU e outras taxas usam campos de texto com teclado decimal, leitura de valores em reais e formatação brasileira ao sair do campo. Por exemplo, `2.659.574,47` é enviado à API como `2659574.47`; `930` é formatado como `930,00`. Digitar/colar valores com separadores de milhar não depende mais da interpretação do `input type="number"` pelo navegador.
+
+Entradas ambíguas como `2,65957447` são recusadas em vez de virarem um preço como R$ 2,66. A API também exige no máximo duas casas decimais para os quatro campos monetários. A correção não altera automaticamente anúncios existentes: valores salvos anteriormente com escala incorreta precisam ser informados novamente no editor, pois não é possível deduzir com segurança o preço pretendido.
+
+Validação desta correção: 45 testes aprovados em três arquivos (parser/formatação, interação do formulário e banco/API), com uma fixture visual opcional ignorada. Inclui releitura do anúncio publicado, valores com milhões/centavos e precisão monetária inválida. Nenhuma migração é necessária.
+
 Data: 28/10/2026. Implementação local; **não houve deploy, migração no Neon nem anúncio fictício em produção**.
 
 ## Auditoria e arquitetura

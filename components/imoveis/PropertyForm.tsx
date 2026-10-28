@@ -13,6 +13,17 @@ import {
   type Settings,
 } from "@/lib/imoveis/model";
 import { estateRequest } from "./client";
+import {
+  formatPropertyAmount,
+  parsePropertyAmount,
+} from "@/lib/imoveis/currency";
+type AmountKey = "price" | "condo" | "iptu" | "fees";
+const amountLabels: Record<AmountKey, string> = {
+  price: "preço do imóvel",
+  condo: "condomínio",
+  iptu: "IPTU",
+  fees: "outras taxas",
+};
 type Initial = Property & {
   phone: string;
   address: string;
@@ -66,6 +77,12 @@ export function PropertyForm({
   const [data, setData] = useState<PropertyData>(
     initial?.data ?? { ...EMPTY_PROPERTY },
   );
+  const [amounts, setAmounts] = useState<Record<AmountKey, string>>(() => ({
+    price: initial?.data.price ? formatPropertyAmount(initial.data.price) : "",
+    condo: initial?.data.condo ? formatPropertyAmount(initial.data.condo) : "",
+    iptu: initial?.data.iptu ? formatPropertyAmount(initial.data.iptu) : "",
+    fees: initial?.data.fees ? formatPropertyAmount(initial.data.fees) : "",
+  }));
   const [phone, setPhone] = useState(initial?.phone ?? ""),
     [address, setAddress] = useState(initial?.address ?? ""),
     [zip, setZip] = useState(initial?.zip ?? "");
@@ -108,6 +125,36 @@ export function PropertyForm({
         value={Number(data[key]) || ""}
         required={required}
         onChange={(e) => update(key, Number(e.target.value) as never)}
+      />
+    </label>
+  );
+  const currency = (key: AmountKey, label: string, required = false) => (
+    <label>
+      {label}
+      <input
+        type="text"
+        inputMode="decimal"
+        placeholder="0,00"
+        maxLength={24}
+        required={required}
+        value={amounts[key]}
+        onChange={(e) => {
+          const value = e.target.value;
+          e.target.setCustomValidity(
+            parsePropertyAmount(value) === null
+              ? "Informe um valor como 2.659.574,47, com no máximo duas casas decimais."
+              : "",
+          );
+          setAmounts((current) => ({ ...current, [key]: value }));
+        }}
+        onBlur={(e) => {
+          const parsed = parsePropertyAmount(e.target.value);
+          if (parsed !== null && e.target.value.trim())
+            setAmounts((current) => ({
+              ...current,
+              [key]: formatPropertyAmount(parsed),
+            }));
+        }}
       />
     </label>
   );
@@ -175,6 +222,18 @@ export function PropertyForm({
     });
   }
   async function save(submit: boolean) {
+    const parsedAmounts = {} as Record<AmountKey, number>;
+    for (const key of Object.keys(amountLabels) as AmountKey[]) {
+      const parsed = parsePropertyAmount(amounts[key]);
+      if (parsed === null) {
+        setMessage(
+          `Confira ${amountLabels[key]}: use o formato 2.659.574,47, com no máximo duas casas decimais.`,
+        );
+        setStep(3);
+        return;
+      }
+      parsedAmounts[key] = parsed;
+    }
     setBusy(true);
     setMessage("");
     try {
@@ -183,6 +242,7 @@ export function PropertyForm({
         initial ? "PATCH" : "POST",
         {
           ...data,
+          ...parsedAmounts,
           phone,
           address,
           zip,
@@ -337,7 +397,7 @@ export function PropertyForm({
         {step === 3 && (
           <>
             <div className="grid gap-5 sm:grid-cols-2">
-              {number(
+              {currency(
                 "price",
                 data.purpose === "Venda"
                   ? "Preço de venda (R$)"
@@ -346,9 +406,9 @@ export function PropertyForm({
                     : "Aluguel mensal (R$)",
                 true,
               )}
-              {number("condo", "Condomínio mensal (R$)")}
-              {number("iptu", "IPTU anual (R$)")}
-              {number("fees", "Outras taxas mensais (R$)")}
+              {currency("condo", "Condomínio mensal (R$)")}
+              {currency("iptu", "IPTU anual (R$)")}
+              {currency("fees", "Outras taxas mensais (R$)")}
               {text("advertiser", "Nome público do anunciante")}
               {select("advertiserType", "Quem anuncia?", [
                 "Proprietário",
