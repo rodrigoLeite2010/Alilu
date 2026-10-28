@@ -464,7 +464,7 @@ describe("Imóveis — APIs e imagens", () => {
       .jpeg()
       .toBuffer();
     const req = new Request(
-      "http://localhost:3000/api/imoveis/photos?name=foto.jpg&watermark=Alameda%20Im%C3%B3veis",
+      "http://localhost:3000/api/imoveis/photos?name=foto.jpg&watermark=Alameda%20Im%C3%B3veis&creci=SP%20123456-J",
       {
         method: "POST",
         headers: {
@@ -594,6 +594,7 @@ describe("Imóveis — APIs e imagens", () => {
       800,
       600,
       "Nara & Filhos <Imóveis>",
+      "SP 123456-J",
     );
     const overlayMetadata = await sharp(overlay).metadata();
     expect(overlayMetadata).toMatchObject({

@@ -190,8 +190,9 @@ export function PropertyForm({
       for (const file of Array.from(files)) {
         const prepared = await compress(file);
         const watermark = encodeURIComponent(data.watermarkName.trim());
+        const creci = encodeURIComponent(data.creci.trim());
         const response = await fetch(
-          `/api/imoveis/photos?name=foto.webp&watermark=${watermark}`,
+          `/api/imoveis/photos?name=foto.webp&watermark=${watermark}&creci=${creci}`,
           {
             method: "POST",
             headers: { "Content-Type": prepared.type },
@@ -233,11 +234,13 @@ export function PropertyForm({
     );
     if (
       initial &&
-      (initial.data.watermarkName ?? "").trim() !== data.watermarkName.trim() &&
+      ((initial.data.watermarkName ?? "").trim() !==
+        data.watermarkName.trim() ||
+        (initial.data.creci ?? "").trim() !== data.creci.trim()) &&
       originalPhotoStillAttached
     ) {
       setMessage(
-        "A marca d'água mudou. Remova as fotos antigas e envie-as novamente para aplicar o novo nome.",
+        "A marca d'água mudou. Remova as fotos antigas e envie-as novamente para aplicar o novo nome e CRECI.",
       );
       setStep(4);
       return;
@@ -544,7 +547,9 @@ export function PropertyForm({
                 {images.length} / {config.maxPhotos} fotos · JPEG, PNG ou WebP ·
                 Até 15 MB por original. A primeira é a capa.
                 {data.watermarkName.trim() &&
-                  ` Marca d'água: ${data.watermarkName.trim()}.`}
+                  ` Marca d'água: ${data.watermarkName.trim()}${
+                    data.creci.trim() ? ` · CRECI ${data.creci.trim()}` : ""
+                  }.`}
               </p>
             </div>
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">

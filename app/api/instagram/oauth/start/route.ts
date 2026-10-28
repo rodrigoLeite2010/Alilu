@@ -36,11 +36,15 @@ export async function GET(request: Request): Promise<NextResponse> {
     requestUrl.searchParams.get("returnTo"),
   );
   const device = getOAuthDeviceHint(request.headers.get("user-agent"));
-  // "Adicionar outra conta" / "Reconectar @x": força o Instagram a pedir login,
-  // senão ele reaproveita a conta já logada no navegador e nunca troca.
+  // "Adicionar outra conta": força o Instagram a pedir login, senão ele
+  // reaproveita a conta já logada no navegador e nunca troca.
   const accountId = requestUrl.searchParams.get("accountId");
+  // Ao reconectar um alvo conhecido, deixar a sessão do Instagram continuar
+  // evita uma nova verificação de senha/2FA que pode encerrar o OAuth na home.
+  // A identidade ainda é conferida pelo ID assinado no state. Só forçamos login
+  // quando a pessoa quer adicionar uma conta diferente.
   const forceReauth =
-    requestUrl.searchParams.get("addAccount") === "1" || Boolean(accountId);
+    requestUrl.searchParams.get("addAccount") === "1" && !accountId;
 
   let redirectUri: string;
   try {

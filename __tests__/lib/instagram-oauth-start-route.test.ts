@@ -131,7 +131,7 @@ describe("GET /api/instagram/oauth/start", () => {
       "user-1",
     );
     const [, state, options] = buildAuthorizeUrlForConnectMock.mock.calls[0];
-    expect(options).toMatchObject({ forceReauth: true });
+    expect(options).toMatchObject({ forceReauth: false });
     expect(verifySignedOAuthState(state, "user-1")).toBe("ok");
     const { getExpectedInstagramUserId } = await import(
       "@/lib/instagram/backend/oauth-state"
@@ -153,5 +153,20 @@ describe("GET /api/instagram/oauth/start", () => {
       "resultado=conta-nao-encontrada",
     );
     expect(buildAuthorizeUrlForConnectMock).not.toHaveBeenCalled();
+  });
+
+  it("força novo login só ao adicionar outra conta, sem alvo de reconexão", async () => {
+    authMock.mockResolvedValue({ user: { id: "user-1" } });
+    buildAuthorizeUrlForConnectMock.mockImplementation(
+      (uri: string, state: string) =>
+        `https://www.instagram.com/oauth/authorize?state=${state}`,
+    );
+    const response = await GET(
+      request("https://alilu.com.br/api/instagram/oauth/start?addAccount=1"),
+    );
+    expect(response.status).toBe(200);
+    expect(buildAuthorizeUrlForConnectMock.mock.calls[0][2]).toMatchObject({
+      forceReauth: true,
+    });
   });
 });

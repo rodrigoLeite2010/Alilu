@@ -75,6 +75,7 @@ export async function processImage(
   extension: string,
   contentType: string,
   watermarkName = "",
+  watermarkCreci = "",
 ) {
   const formats: Record<string, string> = {
     jpg: "jpeg",
@@ -122,13 +123,21 @@ export async function processImage(
         .toBuffer(),
     ]);
     const watermark = watermarkName.trim().slice(0, 80);
+    const creci = watermarkCreci.trim().slice(0, 40);
     const applyWatermark = async (source: Buffer) => {
-      if (!watermark) return source;
+      if (!watermark && !creci) return source;
       const { width, height } = await sharp(source).metadata();
       if (!width || !height) throw new Error("invalid output");
       return sharp(source)
         .composite([
-          { input: await renderWatermarkOverlay(width, height, watermark) },
+          {
+            input: await renderWatermarkOverlay(
+              width,
+              height,
+              watermark,
+              creci,
+            ),
+          },
         ])
         .webp({ quality: 80 })
         .toBuffer();
@@ -151,42 +160,65 @@ export async function renderWatermarkOverlay(
   width: number,
   height: number,
   name: string,
+  creci = "",
 ) {
   ensureWatermarkFont();
   const canvas = createCanvas(width, height);
   const context = canvas.getContext("2d");
-  const text = Array.from(name.trim().replace(/\s+/g, " "))
-    .slice(0, 80)
-    .join("");
+  const clean = (value: string, max: number) =>
+    Array.from(value.trim().replace(/\s+/g, " "))
+      .slice(0, max)
+      .join("");
+  const nameText = clean(name, 80);
+  const creciValue = clean(creci, 40);
+  const creciText = creciValue
+    ? /^creci\b/i.test(creciValue)
+      ? creciValue
+      : `CRECI ${creciValue}`
+    : "";
   const maxTextWidth = width * 0.56;
-  let fontSize = Math.max(12, Math.round(Math.min(width, height) * 0.034));
-  context.font = `${fontSize}px "${WATERMARK_FONT_FAMILY}"`;
-  const measured = context.measureText(text).width;
-  if (measured > maxTextWidth) {
-    fontSize = Math.max(12, Math.floor((fontSize * maxTextWidth) / measured));
-    context.font = `${fontSize}px "${WATERMARK_FONT_FAMILY}"`;
-  }
+  const baseSize = Math.max(12, Math.round(Math.min(width, height) * 0.034));
 
-  let visibleText = text;
-  while (
-    context.measureText(visibleText).width > maxTextWidth &&
-    visibleText.length > 4
-  ) {
-    visibleText = `${Array.from(visibleText).slice(0, -4).join("")}…`;
-  }
+  const fit = (text: string, size: number) => {
+    context.font = `${size}px "${WATERMARK_FONT_FAMILY}"`;
+    const measured = context.measureText(text).width;
+    if (measured > maxTextWidth) {
+      size = Math.max(10, Math.floor((size * maxTextWidth) / measured));
+      context.font = `${size}px "${WATERMARK_FONT_FAMILY}"`;
+    }
+    let visible = text;
+    while (
+      context.measureText(visible).width > maxTextWidth &&
+      visible.length > 4
+    ) {
+      visible = `${Array.from(visible).slice(0, -4).join("")}…`;
+    }
+    return { text: visible, size };
+  };
+
+  // Bottom line first (CRECI), name stacked above it.
+  const lines = [
+    creciText && fit(creciText, Math.max(10, Math.round(baseSize * 0.8))),
+    nameText && fit(nameText, baseSize),
+  ].filter(Boolean) as { text: string; size: number }[];
 
   const margin = Math.max(10, Math.round(width * 0.025));
   context.textAlign = "right";
   context.textBaseline = "bottom";
   context.lineJoin = "round";
-  context.lineWidth = Math.max(2, fontSize * 0.14);
-  context.strokeStyle = "rgba(0, 0, 0, 0.72)";
-  context.shadowColor = "rgba(0, 0, 0, 0.45)";
-  context.shadowBlur = Math.max(2, fontSize * 0.16);
-  context.shadowOffsetY = Math.max(1, fontSize * 0.04);
-  context.strokeText(visibleText, width - margin, height - margin);
-  context.fillStyle = "rgba(255, 255, 255, 0.94)";
-  context.fillText(visibleText, width - margin, height - margin);
+  let y = height - margin;
+  for (const line of lines) {
+    context.font = `${line.size}px "${WATERMARK_FONT_FAMILY}"`;
+    context.lineWidth = Math.max(2, line.size * 0.14);
+    context.strokeStyle = "rgba(0, 0, 0, 0.72)";
+    context.shadowColor = "rgba(0, 0, 0, 0.45)";
+    context.shadowBlur = Math.max(2, line.size * 0.16);
+    context.shadowOffsetY = Math.max(1, line.size * 0.04);
+    context.strokeText(line.text, width - margin, y);
+    context.fillStyle = "rgba(255, 255, 255, 0.94)";
+    context.fillText(line.text, width - margin, y);
+    y -= Math.round(line.size * 1.25);
+  }
   return canvas.toBuffer("image/png");
 }
 export async function uploadImage(request: Request, user: string) {
@@ -197,12 +229,16 @@ export async function uploadImage(request: Request, user: string) {
     throw new PropertyError(
       "O nome da marca d'água deve ter até 80 caracteres.",
     );
+  const watermarkCreci = params.get("creci")?.trim() ?? "";
+  if (watermarkCreci.length > 40)
+    throw new PropertyError("O CRECI da marca d'água deve ter até 40 caracteres.");
   const buffer = await boundedBody(request, 3 * 1024 * 1024);
   const { full, thumb } = await processImage(
     buffer,
     extension,
     request.headers.get("content-type") ?? "",
     watermarkName,
+    watermarkCreci,
   );
   const db = getDb(),
     id = randomUUID();
