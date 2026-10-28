@@ -1,10 +1,26 @@
 import "server-only";
 import sharp from "sharp";
+import path from "node:path";
 import { randomUUID } from "node:crypto";
+import { createCanvas, GlobalFonts } from "@napi-rs/canvas";
 import { put, del, list } from "@vercel/blob";
 import { getDb } from "@/lib/db/client";
 import { PropertyError } from "./model";
 import { boundedBody } from "./http";
+
+const WATERMARK_FONT_FAMILY = "Alilu Property Watermark";
+const WATERMARK_FONT_PATH = path.join(
+  process.cwd(),
+  "lib/ai-video/backend/fonts/DejaVuSans-Bold.ttf",
+);
+let watermarkFontRegistered = false;
+
+function ensureWatermarkFont() {
+  if (watermarkFontRegistered) return;
+  if (!GlobalFonts.registerFromPath(WATERMARK_FONT_PATH, WATERMARK_FONT_FAMILY))
+    throw new Error("Fonte da marca d'água indisponível.");
+  watermarkFontRegistered = true;
+}
 
 /** Satori in the installed Next build cannot embed WebP. Only fetch our Blob prefix. */
 export async function sharePhoto(source: string): Promise<string | null> {
@@ -111,7 +127,9 @@ export async function processImage(
       const { width, height } = await sharp(source).metadata();
       if (!width || !height) throw new Error("invalid output");
       return sharp(source)
-        .composite([{ input: watermarkSvg(width, height, watermark) }])
+        .composite([
+          { input: await renderWatermarkOverlay(width, height, watermark) },
+        ])
         .webp({ quality: 80 })
         .toBuffer();
     };
@@ -129,37 +147,47 @@ export async function processImage(
   }
 }
 
-function escapeXml(value: string) {
-  return value.replace(/[&<>"']/g, (character) => {
-    const entities: Record<string, string> = {
-      "&": "&amp;",
-      "<": "&lt;",
-      ">": "&gt;",
-      '"': "&quot;",
-      "'": "&apos;",
-    };
-    return entities[character];
-  });
-}
+export async function renderWatermarkOverlay(
+  width: number,
+  height: number,
+  name: string,
+) {
+  ensureWatermarkFont();
+  const canvas = createCanvas(width, height);
+  const context = canvas.getContext("2d");
+  const text = Array.from(name.trim().replace(/\s+/g, " "))
+    .slice(0, 80)
+    .join("");
+  const maxTextWidth = width * 0.56;
+  let fontSize = Math.max(12, Math.round(Math.min(width, height) * 0.034));
+  context.font = `${fontSize}px "${WATERMARK_FONT_FAMILY}"`;
+  const measured = context.measureText(text).width;
+  if (measured > maxTextWidth) {
+    fontSize = Math.max(12, Math.floor((fontSize * maxTextWidth) / measured));
+    context.font = `${fontSize}px "${WATERMARK_FONT_FAMILY}"`;
+  }
 
-export function watermarkSvg(width: number, height: number, name: string) {
-  const safeName = escapeXml(name.trim().slice(0, 80));
-  const fontSize = Math.max(12, Math.round(Math.min(width, height) * 0.035));
-  const padding = Math.max(8, Math.round(fontSize * 0.65));
-  const boxHeight = fontSize + padding * 2;
-  const boxWidth = Math.min(
-    Math.round(width * 0.82),
-    Math.max(
-      Math.round(fontSize * 4),
-      Math.round(fontSize * safeName.length * 0.68) + padding * 2,
-    ),
-  );
-  const left = Math.max(0, width - boxWidth - padding);
-  const top = Math.max(0, height - boxHeight - padding);
-  const textWidth = Math.max(1, boxWidth - padding * 2);
-  return Buffer.from(
-    `<svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg"><rect x="${left}" y="${top}" width="${boxWidth}" height="${boxHeight}" rx="${Math.round(fontSize * 0.35)}" fill="#062b32" fill-opacity="0.72"/><text x="${left + padding}" y="${top + padding + fontSize * 0.82}" textLength="${textWidth}" lengthAdjust="spacingAndGlyphs" fill="#fff" font-family="Arial,sans-serif" font-size="${fontSize}" font-weight="700">${safeName}</text></svg>`,
-  );
+  let visibleText = text;
+  while (
+    context.measureText(visibleText).width > maxTextWidth &&
+    visibleText.length > 4
+  ) {
+    visibleText = `${Array.from(visibleText).slice(0, -4).join("")}…`;
+  }
+
+  const margin = Math.max(10, Math.round(width * 0.025));
+  context.textAlign = "right";
+  context.textBaseline = "bottom";
+  context.lineJoin = "round";
+  context.lineWidth = Math.max(2, fontSize * 0.14);
+  context.strokeStyle = "rgba(0, 0, 0, 0.72)";
+  context.shadowColor = "rgba(0, 0, 0, 0.45)";
+  context.shadowBlur = Math.max(2, fontSize * 0.16);
+  context.shadowOffsetY = Math.max(1, fontSize * 0.04);
+  context.strokeText(visibleText, width - margin, height - margin);
+  context.fillStyle = "rgba(255, 255, 255, 0.94)";
+  context.fillText(visibleText, width - margin, height - margin);
+  return canvas.toBuffer("image/png");
 }
 export async function uploadImage(request: Request, user: string) {
   const params = new URL(request.url).searchParams;

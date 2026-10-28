@@ -590,9 +590,29 @@ describe("Imóveis — APIs e imagens", () => {
     expect((await sharp(marked.full).metadata()).width).toBe(1600);
     expect(marked.full.equals(result.full)).toBe(false);
     expect(marked.thumb.equals(result.thumb)).toBe(false);
-    expect(images.watermarkSvg(800, 600, "Nara & Filhos").toString()).toContain(
-      "Nara &amp; Filhos",
+    const overlay = await images.renderWatermarkOverlay(
+      800,
+      600,
+      "Nara & Filhos <Imóveis>",
     );
+    const overlayMetadata = await sharp(overlay).metadata();
+    expect(overlayMetadata).toMatchObject({
+      width: 800,
+      height: 600,
+      format: "png",
+    });
+    const { data: overlayPixels, info: overlayInfo } = await sharp(overlay)
+      .ensureAlpha()
+      .raw()
+      .toBuffer({ resolveWithObject: true });
+    let paintedPixels = 0;
+    for (
+      let index = 3;
+      index < overlayPixels.length;
+      index += overlayInfo.channels
+    )
+      if (overlayPixels[index] > 0) paintedPixels++;
+    expect(paintedPixels).toBeGreaterThan(100);
     await expect(
       images.processImage(Buffer.from("not a photo"), "jpg", "image/jpeg"),
     ).rejects.toThrow("Imagem inválida");

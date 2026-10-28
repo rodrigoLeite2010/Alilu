@@ -54,6 +54,8 @@ const nextConfig: NextConfig = {
   // funciona nesta versão E continuaria funcionando se esse detalhe de
   // normalização mudar numa versão futura do Next.js.
   outputFileTracingIncludes: {
+    // Fonte da marca d'água nas fotos do portal de Imóveis (Sharp + canvas).
+    "**/api/imoveis/**": ["./lib/ai-video/backend/fonts/DejaVuSans-Bold.ttf"],
     "**/api/videos/split-screen": [
       "./node_modules/ffmpeg-static/ffmpeg",
       "./node_modules/ffprobe-static/bin/linux/x64/ffprobe",

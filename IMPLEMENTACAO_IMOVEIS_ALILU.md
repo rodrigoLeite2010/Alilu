@@ -14,9 +14,9 @@ Data: 28/10/2026. Implementação local; **não houve deploy, migração no Neon
 
 O cadastro agora aceita um link opcional de um vídeo, Short ou live específica do YouTube. O servidor valida e normaliza o link para um ID oficial antes de guardar; a página pública só monta o iframe com esse ID, sem carregar uma URL arbitrária do anunciante. O player aparece em uma seção responsiva na página do imóvel.
 
-O anunciante pode informar o nome da corretora que deve aparecer nas fotos. Para corretores e imobiliárias, esse nome é obrigatório ao enviar o anúncio para análise. O processamento no servidor grava uma marca visual discreta nas fotos otimizadas e nas miniaturas, preservando a remoção de metadados EXIF. Se o nome mudar numa edição, as fotos antigas precisam ser removidas e reenviadas para atualizar a marca.
+O anunciante pode informar o nome da corretora que deve aparecer nas fotos. Para corretores e imobiliárias, esse nome é obrigatório ao enviar o anúncio para análise. O processamento no servidor grava uma marca visual discreta nas fotos otimizadas e nas miniaturas usando a fonte DejaVu Sans Bold embutida no projeto, preservando a remoção de metadados EXIF. Se o nome mudar numa edição, as fotos antigas precisam ser removidas e reenviadas para atualizar a marca.
 
-Vídeo e nome da marca são salvos junto dos outros dados JSON do anúncio, então não precisam de uma nova migration. Testes deste recurso cobrem links aceitos e recusados, persistência, upload marcado e escape seguro do texto da marca. A página usa o formato de iframe documentado pelo YouTube: [documentação oficial do player incorporado](https://developers.google.com/youtube/player_parameters).
+Vídeo e nome da marca são salvos junto dos outros dados JSON do anúncio, então não precisam de uma nova migration. Testes deste recurso cobrem links aceitos e recusados, persistência, upload marcado e renderização segura do texto da marca. A página usa o formato de iframe documentado pelo YouTube: [documentação oficial do player incorporado](https://developers.google.com/youtube/player_parameters).
 
 ## Auditoria e arquitetura
 
