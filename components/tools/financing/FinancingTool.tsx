@@ -11,12 +11,12 @@ import type { FinancingResult } from "@/lib/calculators/financing";
  * formulário e resultado ficam visíveis juntos, permitindo recalcular ao
  * ajustar os campos e simular novamente.
  */
-export function FinancingTool() {
+export function FinancingTool({ initialAssetValue = 0 }: { initialAssetValue?: number }) {
   const [result, setResult] = useState<FinancingResult | null>(null);
 
   return (
     <div>
-      <FinancingForm onCalculate={setResult} />
+      <FinancingForm onCalculate={setResult} initialAssetValue={initialAssetValue} />
       {result ? <FinancingResultView result={result} /> : null}
     </div>
   );

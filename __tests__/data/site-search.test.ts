@@ -4,6 +4,7 @@ import { tools } from "@/data/tools";
 import { instagramTools } from "@/data/instagram";
 import { lotteryModalities } from "@/data/lotteries";
 import { videoTools } from "@/data/videos";
+import { travelTools } from "@/data/viagens";
 
 /**
  * Testes de integridade do índice de busca da Home (components/home/HomeSearch.tsx):
@@ -11,7 +12,7 @@ import { videoTools } from "@/data/videos";
  * crescer.
  */
 describe("índice de busca da Home", () => {
-  it("combina o catálogo de ferramentas com o catálogo de Instagram e de Loterias", () => {
+  it("combina os catálogos de ferramentas, Instagram, Loterias, Vídeos, Viagens e o portal Imóveis", () => {
     const index = getSiteSearchIndex();
     const activeTools = tools.filter((tool) => tool.status === "ativo");
     const activeInstagramTools = instagramTools.filter((tool) => tool.status === "ativo");
@@ -19,8 +20,11 @@ describe("índice de busca da Home", () => {
     const activeVideoTools = videoTools.filter((tool) => tool.status === "ativo");
 
     expect(index).toHaveLength(
-      activeTools.length + activeInstagramTools.length + activeLotteryModalities.length + activeVideoTools.length,
+      activeTools.length + activeInstagramTools.length + activeLotteryModalities.length + activeVideoTools.length + travelTools.length + 1,
     );
+  });
+  it("encontra o portal de imóveis na busca da Home",()=>{
+    expect(getSiteSearchIndex().find(i=>i.id==="category:imoveis")).toMatchObject({href:"/imoveis",categoryLabel:"Imóveis",keywords:expect.arrayContaining(["aluguel","venda"])});
   });
 
   it("cada item tem um id único no índice", () => {

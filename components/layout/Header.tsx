@@ -37,6 +37,7 @@ export function Header() {
           />
         </Link>
         <div className="flex items-center gap-2">
+          <Link href="/imoveis" className="hidden rounded-md px-3 py-2 text-sm font-medium text-brand-primary hover:bg-brand-primary-soft md:inline-flex">Imóveis</Link>
           <Link
             href="/utilitarios"
             className="hidden rounded-md px-3 py-2 text-sm font-medium text-brand-primary transition-colors hover:bg-brand-primary-soft focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-accent xl:block"

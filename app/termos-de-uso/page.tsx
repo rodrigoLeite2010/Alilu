@@ -24,6 +24,10 @@ export default function TermsOfUsePage() {
       </h1>
 
       <div className="legal-content mt-6">
+        <h2>Anúncios de imóveis</h2>
+        <p>O cadastro inicial de imóveis é gratuito, sujeito aos limites apresentados no portal e à análise antes da publicação. A Alilu atua como plataforma de divulgação: não é imobiliária, não intermedeia transações, não recebe valores de imóveis e não garante titularidade, disponibilidade ou documentação. A aprovação editorial não constitui verificação do anúncio.</p>
+        <p>Quem anuncia deve ter autorização para divulgar o imóvel e as fotos, fornecer informações verdadeiras e manter preço e disponibilidade atualizados. Corretores e imobiliárias devem informar sua identificação profissional e CRECI, sujeitos à conferência manual. Não inclua telefones, dados pessoais ou endereço residencial exato no título, descrição ou fotos. Imagens devem respeitar os direitos de terceiros.</p>
+        <p>O anunciante autoriza o uso do WhatsApp para contato direto dos interessados. Anúncios têm validade de 90 dias após aprovação e podem ser reativados para nova análise. Anúncios fraudulentos, duplicados, abusivos ou impróprios podem ser rejeitados ou removidos e o anunciante pode ser suspenso. Use o botão de denúncia para solicitar análise. O anunciante pode editar, pausar e excluir seus anúncios no painel. Confira documentos e identidade das partes antes de negociar ou transferir valores.</p>
         <h2>Ferramentas públicas e recursos com conta</h2>
         <p>
           As calculadoras e os utilitários públicos do {SITE_NAME} são gratuitos

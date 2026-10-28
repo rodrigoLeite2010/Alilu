@@ -131,6 +131,10 @@ describe("E) robots.txt continua correto", () => {
       allow: "/",
       disallow: [
         "/admin",
+        "/imoveis/anunciar",
+        "/imoveis/editar/",
+        "/imoveis/meus-anuncios",
+        "/imoveis/favoritos",
         "/minha-conta",
         "/api/",
         "/instagram/painel",
@@ -153,7 +157,7 @@ describe("E) robots.txt continua correto", () => {
         "/financeiro/metodo-50-30-20",
       ],
     });
-    expect(result.sitemap).toBe(`${SITE_URL}/sitemap.xml`);
+    expect(result.sitemap).toEqual([`${SITE_URL}/sitemap.xml`, `${SITE_URL}/imoveis/sitemap.xml`]);
     expect(loginMetadata.robots).toEqual({ index: false, follow: true });
   });
 });

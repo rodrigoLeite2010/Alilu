@@ -1,0 +1,85 @@
+.property-portal {
+  color: #162023;
+}
+.property-portal input:not([type="checkbox"]),
+.property-portal select,
+.property-portal textarea {
+  width: 100%;
+  min-height: 44px;
+  border: 1px solid #d4d4d8;
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: white;
+  font-size: 16px;
+}
+.property-portal input:focus,
+.property-portal select:focus,
+.property-portal textarea:focus {
+  outline: 2px solid #004b5a;
+  outline-offset: 2px;
+}
+.property-portal label {
+  display: block;
+  font-size: 14px;
+  font-weight: 500;
+}
+.property-portal label > input,
+.property-portal label > select,
+.property-portal label > textarea {
+  margin-top: 6px;
+}
+.property-portal input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: #004b5a;
+  vertical-align: middle;
+  margin-right: 8px;
+}
+.property-portal .estate-button {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 44px;
+  border: 1px solid #004b5a;
+  border-radius: 10px;
+  padding: 10px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  background: #004b5a;
+  color: white;
+  cursor: pointer;
+  gap: 8px;
+}
+.property-portal .estate-button.secondary {
+  background: white;
+  color: #004b5a;
+  border-color: #cbd5d7;
+}
+.property-portal .estate-button:hover {
+  filter: brightness(0.94);
+}
+.property-portal .estate-button:disabled {
+  opacity: 0.5;
+  cursor: wait;
+}
+.property-portal button:focus-visible,
+.property-portal a:focus-visible {
+  outline: 3px solid #ff9f2a;
+  outline-offset: 3px;
+}
+.property-portal .estate-panel {
+  border: 1px solid #e4e4e7;
+  border-radius: 18px;
+  padding: 24px;
+  background: white;
+}
+@media (max-width: 640px) {
+  .property-portal .estate-panel {
+    padding: 16px;
+  }
+}
+@media (min-width: 1024px) {
+  .property-portal .estate-filter-toggle {
+    display: none;
+  }
+}

@@ -12,6 +12,10 @@ export default function robots(): MetadataRoute.Robots {
       // pessoais").
       disallow: [
         "/admin",
+        "/imoveis/anunciar",
+        "/imoveis/editar/",
+        "/imoveis/meus-anuncios",
+        "/imoveis/favoritos",
         "/minha-conta",
         "/api/",
         "/instagram/painel",
@@ -36,6 +40,6 @@ export default function robots(): MetadataRoute.Robots {
         "/financeiro/metodo-50-30-20",
       ],
     },
-    sitemap: `${SITE_URL}/sitemap.xml`,
+    sitemap: [`${SITE_URL}/sitemap.xml`, `${SITE_URL}/imoveis/sitemap.xml`],
   };
 }

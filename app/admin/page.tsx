@@ -15,6 +15,7 @@ interface AdminLink {
 
 /** Todas as telas de administração do site. Ao criar uma nova página em /admin, inclua-a aqui. */
 export const ADMIN_SECTIONS: { title: string; links: AdminLink[] }[] = [
+  { title: "Imóveis", links: [{ href: "/admin/imoveis", title: "Anúncios e moderação", description: "Aprovar anúncios, analisar denúncias, suspender anunciantes e configurar limites e características." }] },
   {
     title: "Clientes e assinaturas",
     links: [

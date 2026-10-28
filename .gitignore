@@ -12,6 +12,7 @@
 
 # testing
 /coverage
+/.codex-temp/imoveis-qa/
 
 # next.js
 /.next/

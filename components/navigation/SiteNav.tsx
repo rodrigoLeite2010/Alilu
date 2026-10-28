@@ -12,6 +12,7 @@ import { INSTAGRAM_CATEGORY, instagramMenuExtraLinks, instagramMenuGroups } from
 import { LOTTERIES_CATEGORY } from "@/data/lotteries";
 import { VIDEOS_CATEGORY } from "@/data/videos";
 import { VIAGENS_CATEGORY } from "@/data/viagens";
+import { IMOVEIS_CATEGORY } from "@/data/imoveis";
 import type { HeaderAuthState } from "@/components/layout/auth-state";
 
 type NavigationLink = {
@@ -322,6 +323,7 @@ function NavigationList({
         <InstagramMenu pathname={pathname} onNavigate={onNavigate} />
         <NavigationItem link={lotteriesCategoryLink} pathname={pathname} onNavigate={onNavigate} />
         <NavigationItem link={videosCategoryLink} pathname={pathname} onNavigate={onNavigate} />
+        <NavigationItem link={{ href: IMOVEIS_CATEGORY.path, label: IMOVEIS_CATEGORY.name, icon: IMOVEIS_CATEGORY.icon }} pathname={pathname} onNavigate={onNavigate} />
         <NavigationItem link={{ href: VIAGENS_CATEGORY.path, label: VIAGENS_CATEGORY.name, icon: VIAGENS_CATEGORY.icon }} pathname={pathname} onNavigate={onNavigate} />
         <NavigationItem link={agendaLink} pathname={pathname} onNavigate={onNavigate} />
         <NavigationItem link={mesadaLink} pathname={pathname} onNavigate={onNavigate} />

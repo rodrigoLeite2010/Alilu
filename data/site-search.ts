@@ -3,6 +3,7 @@ import { instagramTools } from "./instagram";
 import { lotteryModalities } from "./lotteries";
 import { videoTools } from "./videos";
 import { travelTools } from "./viagens";
+import { IMOVEIS_CATEGORY } from "./imoveis";
 import { getCategoryById } from "./categories";
 
 /**
@@ -89,6 +90,7 @@ export function getSiteSearchIndex(): SiteSearchItem[] {
     }));
 
   const fromTravel: SiteSearchItem[] = travelTools.map(t => ({ id: `travel:${t.id}`, name: t.name, shortName: t.shortName, description: t.description, keywords: [...t.keywords], icon: t.icon, href: t.path, categoryLabel: "Viagens" }));
-  cachedIndex = [...fromTools, ...fromInstagram, ...fromLotteries, ...fromVideos, ...fromTravel];
+  const propertyPortal:SiteSearchItem={id:"category:imoveis",name:IMOVEIS_CATEGORY.name,shortName:IMOVEIS_CATEGORY.name,description:IMOVEIS_CATEGORY.description,keywords:["imóveis","imoveis","casa","apartamento","terreno","aluguel","venda","anunciar imóvel"],icon:IMOVEIS_CATEGORY.icon,href:IMOVEIS_CATEGORY.path,categoryLabel:IMOVEIS_CATEGORY.name};
+  cachedIndex = [...fromTools, ...fromInstagram, ...fromLotteries, ...fromVideos, ...fromTravel,propertyPortal];
   return cachedIndex;
 }

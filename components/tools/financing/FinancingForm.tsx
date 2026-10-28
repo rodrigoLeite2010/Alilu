@@ -28,10 +28,12 @@ import {
  */
 export function FinancingForm({
   onCalculate,
+  initialAssetValue = 0,
 }: {
   onCalculate: (result: FinancingResult) => void;
+  initialAssetValue?: number;
 }) {
-  const [assetValueDigits, setAssetValueDigits] = useState("");
+  const [assetValueDigits, setAssetValueDigits] = useState(initialAssetValue > 0 ? String(Math.round(initialAssetValue * 100)) : "");
   const [downPaymentDigits, setDownPaymentDigits] = useState("");
   const [rateText, setRateText] = useState("");
   const [rateType, setRateType] = useState<FinancingRateType>("mensal");
