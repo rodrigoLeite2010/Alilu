@@ -143,6 +143,38 @@ describe("Imóveis — persistência e publicação real em Postgres isolado", (
       ).toThrow("duas casas decimais");
     }
   });
+  it("salva link válido do YouTube e nome da corretora, recusando links externos", async () => {
+    const id = await create({
+      advertiserType: "Imobiliária",
+      creci: "SP 123456-F",
+      watermarkName: "Imobiliária Alameda",
+      videoUrl: "https://youtu.be/M7lc1UVf-VE?t=30",
+    });
+    const saved = (await repo.ownProperty(user, id)).data;
+    expect(saved.watermarkName).toBe("Imobiliária Alameda");
+    expect(saved.videoUrl).toBe("https://www.youtube.com/watch?v=M7lc1UVf-VE");
+    expect(() =>
+      parseProperty(
+        input([randomUUID()], {
+          videoUrl: "https://example.com/watch?v=M7lc1UVf-VE",
+        }),
+      ),
+    ).toThrow("link de um vídeo");
+    expect(() =>
+      parseProperty(
+        input([randomUUID()], { videoUrl: "https://youtu.be/abc" }),
+      ),
+    ).toThrow("link de um vídeo");
+    expect(() =>
+      parseProperty(
+        input([randomUUID()], {
+          advertiserType: "Corretor",
+          creci: "SP 123456-F",
+          watermarkName: "",
+        }),
+      ),
+    ).toThrow("nome da corretora");
+  });
   it("persiste anúncio e fotos na ordem, permite capa e reordenação, e oculta até aprovação", async () => {
     const a = await photo(),
       b = await photo();
@@ -234,7 +266,11 @@ describe("Imóveis — persistência e publicação real em Postgres isolado", (
     ).toThrow("Autorize");
     expect(() =>
       parseProperty(
-        input([randomUUID()], { advertiserType: "Corretor", creci: "" }),
+        input([randomUUID()], {
+          advertiserType: "Corretor",
+          creci: "",
+          watermarkName: "Imobiliária Alameda",
+        }),
       ),
     ).toThrow("CRECI");
     expect(() =>
@@ -428,7 +464,7 @@ describe("Imóveis — APIs e imagens", () => {
       .jpeg()
       .toBuffer();
     const req = new Request(
-      "http://localhost:3000/api/imoveis/photos?name=foto.jpg",
+      "http://localhost:3000/api/imoveis/photos?name=foto.jpg&watermark=Alameda%20Im%C3%B3veis",
       {
         method: "POST",
         headers: {
@@ -540,11 +576,23 @@ describe("Imóveis — APIs e imagens", () => {
       .withMetadata({ exif: { IFD0: { Artist: "PRIVATE PERSON" } } })
       .toBuffer();
     const result = await images.processImage(original, "jpg", "image/jpeg");
+    const marked = await images.processImage(
+      original,
+      "jpg",
+      "image/jpeg",
+      "Nara & Filhos <Imóveis>",
+    );
     const meta = await sharp(result.full).metadata();
     expect(meta.width).toBe(1600);
     expect(meta.exif).toBeUndefined();
     expect(meta.format).toBe("webp");
     expect((await sharp(result.thumb).metadata()).width).toBe(480);
+    expect((await sharp(marked.full).metadata()).width).toBe(1600);
+    expect(marked.full.equals(result.full)).toBe(false);
+    expect(marked.thumb.equals(result.thumb)).toBe(false);
+    expect(images.watermarkSvg(800, 600, "Nara & Filhos").toString()).toContain(
+      "Nara &amp; Filhos",
+    );
     await expect(
       images.processImage(Buffer.from("not a photo"), "jpg", "image/jpeg"),
     ).rejects.toThrow("Imagem inválida");

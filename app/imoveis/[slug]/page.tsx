@@ -12,6 +12,7 @@ import {
 import { PropertyCard } from "@/components/imoveis/PropertyCard";
 import { auth } from "@/auth";
 import { getDb } from "@/lib/db/client";
+import { parseYoutubeUrl } from "@/lib/youtube-import/url";
 export const dynamic = "force-dynamic";
 type Props = { params: Promise<{ slug: string }> };
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -51,6 +52,7 @@ export default async function Page({ params }: Props) {
   if (!p) notFound();
   const d = p.data,
     url = `${SITE_URL}/imoveis/${p.slug}`;
+  const video = d.videoUrl ? parseYoutubeUrl(d.videoUrl) : null;
   const related = (
     await searchProperties(
       new URLSearchParams({ city: d.city, state: d.state, type: d.type }),
@@ -153,6 +155,27 @@ export default async function Page({ params }: Props) {
             <p className="mt-4 whitespace-pre-wrap break-words leading-relaxed text-zinc-600">
               {d.description}
             </p>
+            {video?.ok && (
+              <section className="mt-8" aria-labelledby="property-video-title">
+                <h2
+                  id="property-video-title"
+                  className="mb-4 text-xl font-semibold"
+                >
+                  Vídeo do imóvel
+                </h2>
+                <div className="aspect-video overflow-hidden rounded-2xl bg-zinc-100">
+                  <iframe
+                    className="h-full w-full"
+                    src={`https://www.youtube-nocookie.com/embed/${video.videoId}`}
+                    title={`Vídeo do imóvel: ${d.title}`}
+                    loading="lazy"
+                    referrerPolicy="strict-origin-when-cross-origin"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                    allowFullScreen
+                  />
+                </div>
+              </section>
+            )}
             <h2 className="mb-4 mt-8 text-xl font-semibold">Características</h2>
             <div className="flex flex-wrap gap-2">
               {[
@@ -218,6 +241,9 @@ export default async function Page({ params }: Props) {
           </dl>
           <div className="border-t border-zinc-100 pt-4">
             <p className="font-semibold">{d.advertiser}</p>
+            {d.watermarkName && d.watermarkName !== d.advertiser && (
+              <p className="mt-1 text-sm text-zinc-500">{d.watermarkName}</p>
+            )}
             <p className="mt-1 text-sm text-zinc-500">
               {d.advertiserType}
               {d.advertiserType !== "Proprietário" &&

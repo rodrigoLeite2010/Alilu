@@ -227,6 +227,7 @@ describe("Portal Imóveis — interação", () => {
         config={{ ...DEFAULT_SETTINGS, maxPhotos: 3 }}
         initial={{
           ...property,
+          data: { ...data, watermarkName: "Imobiliária Alameda" },
           images: [],
           phone: "11999999999",
           address: "",
@@ -250,6 +251,9 @@ describe("Portal Imóveis — interação", () => {
       expect(screen.getByText(/2 \/ 3 fotos/)).toBeInTheDocument(),
     );
     expect(fetch).toHaveBeenCalledTimes(2);
+    expect(String(vi.mocked(fetch).mock.calls[0][0])).toContain(
+      "watermark=Imobili%C3%A1ria%20Alameda",
+    );
     fireEvent.change(screen.getByLabelText("Selecionar fotos do imóvel"), {
       target: { files },
     });

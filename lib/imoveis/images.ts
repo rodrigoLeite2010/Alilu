@@ -58,6 +58,7 @@ export async function processImage(
   buffer: Buffer,
   extension: string,
   contentType: string,
+  watermarkName = "",
 ) {
   const formats: Record<string, string> = {
     jpg: "jpeg",
@@ -85,7 +86,7 @@ export async function processImage(
     )
       throw new Error("invalid");
     // Sharp strips metadata by default. Never call withMetadata/keepMetadata.
-    const [full, thumb] = await Promise.all([
+    const [fullBase, thumbBase] = await Promise.all([
       image
         .clone()
         .rotate()
@@ -104,6 +105,20 @@ export async function processImage(
         .webp({ quality: 75 })
         .toBuffer(),
     ]);
+    const watermark = watermarkName.trim().slice(0, 80);
+    const applyWatermark = async (source: Buffer) => {
+      if (!watermark) return source;
+      const { width, height } = await sharp(source).metadata();
+      if (!width || !height) throw new Error("invalid output");
+      return sharp(source)
+        .composite([{ input: watermarkSvg(width, height, watermark) }])
+        .webp({ quality: 80 })
+        .toBuffer();
+    };
+    const [full, thumb] = await Promise.all([
+      applyWatermark(fullBase),
+      applyWatermark(thumbBase),
+    ]);
     if (full.length + thumb.length > 2 * 1024 * 1024)
       throw new Error("too large");
     return { full, thumb };
@@ -113,15 +128,53 @@ export async function processImage(
     );
   }
 }
+
+function escapeXml(value: string) {
+  return value.replace(/[&<>"']/g, (character) => {
+    const entities: Record<string, string> = {
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&apos;",
+    };
+    return entities[character];
+  });
+}
+
+export function watermarkSvg(width: number, height: number, name: string) {
+  const safeName = escapeXml(name.trim().slice(0, 80));
+  const fontSize = Math.max(12, Math.round(Math.min(width, height) * 0.035));
+  const padding = Math.max(8, Math.round(fontSize * 0.65));
+  const boxHeight = fontSize + padding * 2;
+  const boxWidth = Math.min(
+    Math.round(width * 0.82),
+    Math.max(
+      Math.round(fontSize * 4),
+      Math.round(fontSize * safeName.length * 0.68) + padding * 2,
+    ),
+  );
+  const left = Math.max(0, width - boxWidth - padding);
+  const top = Math.max(0, height - boxHeight - padding);
+  const textWidth = Math.max(1, boxWidth - padding * 2);
+  return Buffer.from(
+    `<svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg"><rect x="${left}" y="${top}" width="${boxWidth}" height="${boxHeight}" rx="${Math.round(fontSize * 0.35)}" fill="#062b32" fill-opacity="0.72"/><text x="${left + padding}" y="${top + padding + fontSize * 0.82}" textLength="${textWidth}" lengthAdjust="spacingAndGlyphs" fill="#fff" font-family="Arial,sans-serif" font-size="${fontSize}" font-weight="700">${safeName}</text></svg>`,
+  );
+}
 export async function uploadImage(request: Request, user: string) {
-  const extension =
-    (new URL(request.url).searchParams.get("name") ?? "").split(".").pop() ??
-    "";
+  const params = new URL(request.url).searchParams;
+  const extension = (params.get("name") ?? "").split(".").pop() ?? "";
+  const watermarkName = params.get("watermark")?.trim() ?? "";
+  if (watermarkName.length > 80)
+    throw new PropertyError(
+      "O nome da marca d'água deve ter até 80 caracteres.",
+    );
   const buffer = await boundedBody(request, 3 * 1024 * 1024);
   const { full, thumb } = await processImage(
     buffer,
     extension,
     request.headers.get("content-type") ?? "",
+    watermarkName,
   );
   const db = getDb(),
     id = randomUUID();

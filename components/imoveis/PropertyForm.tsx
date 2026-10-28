@@ -75,7 +75,9 @@ export function PropertyForm({
   initial?: Initial;
 }) {
   const [data, setData] = useState<PropertyData>(
-    initial?.data ?? { ...EMPTY_PROPERTY },
+    initial?.data
+      ? { ...EMPTY_PROPERTY, ...initial.data }
+      : { ...EMPTY_PROPERTY },
   );
   const [amounts, setAmounts] = useState<Record<AmountKey, string>>(() => ({
     price: initial?.data.price ? formatPropertyAmount(initial.data.price) : "",
@@ -105,7 +107,7 @@ export function PropertyForm({
       <input
         value={String(data[key])}
         required={required}
-        maxLength={key === "title" ? 120 : 100}
+        maxLength={key === "title" ? 120 : key === "watermarkName" ? 80 : 100}
         onChange={(e) => update(key, e.target.value as never)}
       />
     </label>
@@ -187,11 +189,15 @@ export function PropertyForm({
     try {
       for (const file of Array.from(files)) {
         const prepared = await compress(file);
-        const response = await fetch("/api/imoveis/photos?name=foto.webp", {
-          method: "POST",
-          headers: { "Content-Type": prepared.type },
-          body: prepared,
-        });
+        const watermark = encodeURIComponent(data.watermarkName.trim());
+        const response = await fetch(
+          `/api/imoveis/photos?name=foto.webp&watermark=${watermark}`,
+          {
+            method: "POST",
+            headers: { "Content-Type": prepared.type },
+            body: prepared,
+          },
+        );
         const result = await response.json();
         if (!response.ok) throw new Error(result.error);
         setImages((current) => [...current, result]);
@@ -222,6 +228,20 @@ export function PropertyForm({
     });
   }
   async function save(submit: boolean) {
+    const originalPhotoStillAttached = initial?.images.some((original) =>
+      images.some((image) => image.id === original.id),
+    );
+    if (
+      initial &&
+      (initial.data.watermarkName ?? "").trim() !== data.watermarkName.trim() &&
+      originalPhotoStillAttached
+    ) {
+      setMessage(
+        "A marca d'água mudou. Remova as fotos antigas e envie-as novamente para aplicar o novo nome.",
+      );
+      setStep(4);
+      return;
+    }
     const parsedAmounts = {} as Record<AmountKey, number>;
     for (const key of Object.keys(amountLabels) as AmountKey[]) {
       const parsed = parsePropertyAmount(amounts[key]);
@@ -417,6 +437,29 @@ export function PropertyForm({
               ])}
               {data.advertiserType !== "Proprietário" &&
                 text("creci", "CRECI (ex.: SP 123456-F)")}
+              {text(
+                "watermarkName",
+                "Nome da corretora na marca d'água",
+                data.advertiserType !== "Proprietário",
+              )}
+              <p className="text-sm text-zinc-500 sm:col-span-2">
+                Esse nome será gravado nas fotos do anúncio. Se mudar o nome
+                depois, será necessário enviar as fotos novamente.
+              </p>
+              <label className="sm:col-span-2">
+                Link do vídeo no YouTube (opcional)
+                <input
+                  type="url"
+                  inputMode="url"
+                  maxLength={2048}
+                  placeholder="https://youtu.be/…"
+                  value={data.videoUrl}
+                  onChange={(e) => update("videoUrl", e.target.value)}
+                />
+                <span className="mt-1 block text-xs text-zinc-500">
+                  Aceitamos links de vídeos, Shorts e lives públicas do YouTube.
+                </span>
+              </label>
               <label>
                 WhatsApp com DDD
                 <input
@@ -500,6 +543,8 @@ export function PropertyForm({
               <p className="mt-3 text-xs text-zinc-500">
                 {images.length} / {config.maxPhotos} fotos · JPEG, PNG ou WebP ·
                 Até 15 MB por original. A primeira é a capa.
+                {data.watermarkName.trim() &&
+                  ` Marca d'água: ${data.watermarkName.trim()}.`}
               </p>
             </div>
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">

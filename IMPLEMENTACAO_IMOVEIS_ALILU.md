@@ -10,6 +10,14 @@ Validação desta correção: 45 testes aprovados em três arquivos (parser/form
 
 Data: 28/10/2026. Implementação local; **não houve deploy, migração no Neon nem anúncio fictício em produção**.
 
+## Vídeo e marca d'água
+
+O cadastro agora aceita um link opcional de um vídeo, Short ou live específica do YouTube. O servidor valida e normaliza o link para um ID oficial antes de guardar; a página pública só monta o iframe com esse ID, sem carregar uma URL arbitrária do anunciante. O player aparece em uma seção responsiva na página do imóvel.
+
+O anunciante pode informar o nome da corretora que deve aparecer nas fotos. Para corretores e imobiliárias, esse nome é obrigatório ao enviar o anúncio para análise. O processamento no servidor grava uma marca visual discreta nas fotos otimizadas e nas miniaturas, preservando a remoção de metadados EXIF. Se o nome mudar numa edição, as fotos antigas precisam ser removidas e reenviadas para atualizar a marca.
+
+Vídeo e nome da marca são salvos junto dos outros dados JSON do anúncio, então não precisam de uma nova migration. Testes deste recurso cobrem links aceitos e recusados, persistência, upload marcado e escape seguro do texto da marca. A página usa o formato de iframe documentado pelo YouTube: [documentação oficial do player incorporado](https://developers.google.com/youtube/player_parameters).
+
 ## Auditoria e arquitetura
 
 O projeto usa Next.js 16.3.5 / App Router, React 19, TypeScript e Tailwind 4. As instruções instaladas em `node_modules/next/dist/docs` sobre páginas, parâmetros assíncronos, Route Handlers, metadados, sitemap e ImageResponse foram consultadas antes da implementação.
@@ -33,8 +41,8 @@ Imóveis é um módulo com rota própria, seguindo o padrão de áreas como Viag
 | Navegação | Menu principal, cabeçalho, home, busca global da home, catálogo, rodapé e atalhos mobile |
 | Busca | Venda, aluguel, temporada, UF, cidade, bairro, tipo, preço mínimo/máximo, quartos, vagas, área e características; filtros na URL |
 | Resultados | Paginação de 12, ordenação por recência/preço/área, miniatura, preço e resumo; filtros recolhíveis no celular |
-| Cadastro | Cinco etapas, campos condicionais por tipo, rascunho incompleto, consentimento e envio à moderação |
-| Fotos | Seleção múltipla, arrastar/soltar, preparação local, upload persistente, miniaturas, capa, reordenação por botões, remoção e galeria ampliada |
+| Cadastro | Cinco etapas, campos condicionais por tipo, link opcional do YouTube, nome da imobiliária para marca d'água, rascunho incompleto, consentimento e envio à moderação |
+| Fotos | Seleção múltipla, arrastar/soltar, preparação local, marca d'água gravada na foto e miniatura, upload persistente, capa, reordenação por botões, remoção e galeria ampliada |
 | Detalhes | Descrição, características, taxas com periodicidade, anunciante, CRECI informado, região aproximada via mapa externo |
 | Contato | WhatsApp solicitado ao servidor, mensagem com URL, compartilhar, compartilhar pelo WhatsApp e copiar link |
 | Favoritos | Persistidos por usuário autenticado, com listagem privada e remoção |

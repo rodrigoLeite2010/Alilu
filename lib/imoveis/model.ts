@@ -1,3 +1,5 @@
+import { parseYoutubeUrl } from "@/lib/youtube-import/url";
+
 export const PROPERTY_TYPES = [
   "Casa",
   "Apartamento",
@@ -58,6 +60,8 @@ export type PropertyData = {
   advertiser: string;
   advertiserType: string;
   creci: string;
+  watermarkName: string;
+  videoUrl: string;
 };
 export type PropertyImage = { id: string; url: string; thumbnail: string };
 export type Property = {
@@ -112,6 +116,8 @@ export const EMPTY_PROPERTY: PropertyData = {
   advertiser: "",
   advertiserType: "Proprietário",
   creci: "",
+  watermarkName: "",
+  videoUrl: "",
 };
 export class PropertyError extends Error {
   constructor(
@@ -213,7 +219,24 @@ export function parseProperty(
       "Imobiliária",
     ]),
     creci: text("creci", 0, 40),
+    watermarkName: text("watermarkName", 0, 80),
+    videoUrl: "",
   };
+  const videoUrl = text("videoUrl", 0, 2048);
+  if (videoUrl) {
+    const parsedVideo = parseYoutubeUrl(videoUrl);
+    if (!parsedVideo.ok)
+      throw new PropertyError(
+        "Informe o link de um vídeo, Short ou live específica do YouTube.",
+      );
+    data.videoUrl = parsedVideo.normalizedUrl;
+  }
+  if (
+    submitting &&
+    data.advertiserType !== "Proprietário" &&
+    !data.watermarkName
+  )
+    throw new PropertyError("Informe o nome da corretora para a marca d'água.");
   if (submitting && (!data.price || !data.area))
     throw new PropertyError("Informe preço e área maiores que zero.");
   for (const key of ["price", "condo", "iptu", "fees"] as const) {
