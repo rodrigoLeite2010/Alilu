@@ -283,6 +283,12 @@ describe("createImageMediaContainer", () => {
     expect(body.get("access_token")).toBe("token-1");
   });
 
+  it("usa graph.facebook.com somente para a conexão autorizada via Facebook Login", async () => {
+    fetchMock.mockResolvedValue(jsonResponse(200, { id: "fb-container" }));
+    await createImageMediaContainer({ igUserId: "ig-fb", accessToken: "page-token", imageUrl: "https://blob.example/fb.jpg", caption: "", apiMode: "facebook_login" });
+    expect(fetchMock.mock.calls[0][0]).toBe(`https://graph.facebook.com/${GRAPH_API_VERSION}/ig-fb/media`);
+  });
+
   it("omite caption quando vazia", async () => {
     fetchMock.mockResolvedValue(jsonResponse(200, { id: "container-123" }));
 

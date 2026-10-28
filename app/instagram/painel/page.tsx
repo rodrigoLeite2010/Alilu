@@ -16,6 +16,15 @@ interface PainelPageProps {
   searchParams: Promise<{ status?: string; mensagem?: string }>;
 }
 
+const ERROR_MESSAGES: Record<string, string> = {
+  "facebook-login-indisponivel": "O login pela Meta ainda não está configurado neste ambiente.",
+  "conta-nao-encontrada": "A conta selecionada não foi encontrada. Atualize a página e tente novamente.",
+  "sessao-meta-expirada": "Sua sessão Alilu expirou. Entre novamente para conectar sua conta.",
+  "tentativa-oauth-expirada": "A tentativa de conexão expirou. Comece novamente pelo painel.",
+  "autorizacao-meta-cancelada": "A autorização foi cancelada. Nenhuma conexão foi alterada.",
+  "oauth-meta-falhou": "A Meta não concluiu a autorização ou não concedeu todas as permissões necessárias.",
+};
+
 /**
  * Painel do módulo Instagram (Fase 3): mostra se há uma conta conectada,
  * ou o link para conectar uma, e — quando já há conta — o acesso ao
@@ -40,9 +49,11 @@ export default async function InstagramPainelPage({
   }
 
   const { status, mensagem } = await searchParams;
+  const errorMessage = mensagem ? ERROR_MESSAGES[mensagem] ?? mensagem : "Não foi possível concluir a conexão com o Instagram.";
   // Multi-conta: todas as contas do usuário. A "principal" é a primeira conectada
   // (mesma regra de getInstagramAccountForUser) — usada por calendário/Posts Virais/Reels.
   const accounts = await listInstagramAccountsForUser(session.user.id);
+  const facebookLoginEnabled = Boolean(process.env.INSTAGRAM_FACEBOOK_APP_ID && process.env.INSTAGRAM_FACEBOOK_APP_SECRET);
   const connected = accounts.filter((item) => item.status === "connected");
   const primary = connected[0] ?? null;
 
@@ -69,7 +80,7 @@ export default async function InstagramPainelPage({
           role="alert"
           className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700"
         >
-          {mensagem ?? "Não foi possível concluir a conexão com o Instagram."}
+          {errorMessage}
         </p>
       ) : null}
 
@@ -118,13 +129,16 @@ export default async function InstagramPainelPage({
                         />
                       </>
                     ) : (
-                      <ConnectInstagramLink
-                        returnTo="/instagram/painel"
-                        accountId={item.id}
-                        forceReauth
-                        label={`Reconectar ${label}`}
-                        className="text-sm font-medium text-teal-800 underline"
-                      />
+                      <>
+                        <ConnectInstagramLink
+                          returnTo="/instagram/painel"
+                          accountId={item.id}
+                          forceReauth
+                          label={`Reconectar ${label}`}
+                          className="text-sm font-medium text-teal-800 underline"
+                        />
+                        {facebookLoginEnabled ? <a className="text-sm font-medium text-blue-800 underline" href={`/api/instagram/facebook-oauth/start?accountId=${encodeURIComponent(item.id)}&returnTo=%2Finstagram%2Fpainel`}>Reconectar pela Meta</a> : null}
+                      </>
                     )}
                   </div>
                 </li>
@@ -137,6 +151,7 @@ export default async function InstagramPainelPage({
             addAccount
             label="+ Adicionar outra conta do Instagram"
           />
+          {facebookLoginEnabled ? <a className="flex w-full justify-center rounded-md bg-zinc-900 px-4 py-3 text-sm font-semibold text-white" href="/api/instagram/facebook-oauth/start?returnTo=%2Finstagram%2Fpainel">Conectar contas gerenciadas pela Meta</a> : null}
           <p className="-mt-3 text-xs text-zinc-500">
             O Instagram vai pedir login: entre com a conta que quer adicionar
             (ex.: saia da outra conta na tela do Instagram, se ela aparecer já

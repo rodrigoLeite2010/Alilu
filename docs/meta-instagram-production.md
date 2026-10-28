@@ -26,6 +26,14 @@ Reconectar uma conta pelo painel inclui o ID interno da conexão na solicitaçã
 
 O fluxo escolhido é **Instagram API with Instagram Login**: token de usuário Instagram, `graph.instagram.com`, permissões `instagram_business_*` e app credentials obtidas na configuração Instagram Business Login. Ele não usa Facebook Login, Page tokens, `instagram_basic` nem `graph.facebook.com` para OAuth/publicação. Cada autorização retorna a identidade Instagram que foi autorizada; o painel permite adicionar contas profissionais uma por vez. Este fluxo não expõe uma lista de todas as contas profissionais ligadas à Central de Contas, nem dá acesso automático a elas.
 
+### Fluxo alternativo de contas gerenciadas (Facebook Login)
+
+Para selecionar contas profissionais ligadas às Páginas administradas pela identidade principal Meta, o painel oferece **Conectar contas gerenciadas pela Meta** quando as credenciais opcionais `INSTAGRAM_FACEBOOK_APP_ID` e `INSTAGRAM_FACEBOOK_APP_SECRET` estão configuradas. Esse é um fluxo separado, sem reutilizar as credenciais de Instagram Login. O callback é `https://alilu.com.br/api/instagram/facebook-oauth/callback`, cadastrado no produto Facebook Login do app; `INSTAGRAM_FACEBOOK_OAUTH_REDIRECT_URI` deve corresponder exatamente.
+
+O fluxo solicita `pages_show_list`, `pages_read_engagement`, `instagram_basic` e `instagram_content_publish`, lista Páginas com `instagram_business_account` vinculado, e deixa a pessoa escolher. Tokens Facebook e Page são cifrados no servidor. Publicações vinculadas àquela conexão usam `graph.facebook.com`; contas antigas mantêm `instagram_login` e `graph.instagram.com`. A reconexão de outra conta nunca substitui o alvo: uma seleção diferente só é salva depois da ação explícita **Adicionar como nova conta**. A identidade Instagram é o IG User ID; Facebook User ID e Page ID ficam registrados separadamente.
+
+Esse recurso depende de produto, permissões, revisão e modo do app habilitados no Meta. Os endpoints e permissões deste fluxo seguem a [coleção oficial da API do Instagram mantida pela Meta](https://www.postman.com/meta/instagram/documentation/6yqw8pt/instagram-api) e o endpoint oficial [Get access tokens of Pages you manage](https://www.postman.com/meta/instagram/request/0vuw3vk/get-access-tokens-of-pages-you-manage). Sem as credenciais novas e o callback cadastrado, o fluxo original de Instagram Login continua disponível.
+
 O início agora passa por uma pequena página HTML no domínio Alilu antes de navegar ao Instagram. Isso mantém a navegação no browser e reduz a chance de um redirect HTTP direto abrir o app Instagram por deep link em alguns celulares. A página tem navegação automática via browser e um link manual de contingência.
 
 ## Permissões pedidas (só o necessário)

@@ -97,16 +97,21 @@ interface ExecuteContext {
   pollIntervalMs: number;
 }
 
+function apiMode(post: PostForPublish): "instagram_login" | "facebook_login" {
+  return post.authProvider;
+}
+
 /** Consulta o container até FINISHED e publica; PUBLISHED na Meta = já publicado (sem publicar de novo). */
 async function pollAndPublishContainer(ctx: ExecuteContext, containerId: string): Promise<ExecuteResult> {
   for (let attempt = 0; attempt < MAX_POLL_ATTEMPTS; attempt++) {
-    const status = await getMediaContainerStatus({ containerId, accessToken: ctx.accessToken });
+    const status = await getMediaContainerStatus({ containerId, accessToken: ctx.accessToken, apiMode: apiMode(ctx.post) });
 
     if (status === "FINISHED") {
       const mediaId = await publishMediaContainer({
         igUserId: ctx.post.igUserId,
         accessToken: ctx.accessToken,
         containerId,
+        apiMode: apiMode(ctx.post),
       });
       return { status: "PUBLISHED", mediaId };
     }
@@ -131,7 +136,7 @@ async function createContainerForPost(ctx: ExecuteContext): Promise<string> {
     if (!item || item.mediaType !== "image") {
       throw new PublishValidationError("A mídia associada a este post não é uma imagem.");
     }
-    return createImageMediaContainer({ igUserId: post.igUserId, accessToken, imageUrl: item.storageUrl, caption: post.caption });
+    return createImageMediaContainer({ igUserId: post.igUserId, accessToken, imageUrl: item.storageUrl, caption: post.caption, apiMode: apiMode(post) });
   }
 
   if (post.postType === "carousel") {
@@ -149,9 +154,9 @@ async function createContainerForPost(ctx: ExecuteContext): Promise<string> {
     // containers não publicados expiram sozinhos na Meta, sem post duplicado.
     const children: string[] = [];
     for (const item of post.items) {
-      children.push(await createCarouselItemContainer({ igUserId: post.igUserId, accessToken, imageUrl: item.storageUrl }));
+      children.push(await createCarouselItemContainer({ igUserId: post.igUserId, accessToken, imageUrl: item.storageUrl, apiMode: apiMode(post) }));
     }
-    return createCarouselContainer({ igUserId: post.igUserId, accessToken, childrenContainerIds: children, caption: post.caption });
+    return createCarouselContainer({ igUserId: post.igUserId, accessToken, childrenContainerIds: children, caption: post.caption, apiMode: apiMode(post) });
   }
 
   if (post.postType === "reels") {
@@ -165,6 +170,7 @@ async function createContainerForPost(ctx: ExecuteContext): Promise<string> {
       videoUrl: item.storageUrl,
       caption: post.caption,
       shareToFeed: true,
+      apiMode: apiMode(post),
     });
   }
 
@@ -173,7 +179,7 @@ async function createContainerForPost(ctx: ExecuteContext): Promise<string> {
     if (!item || item.mediaType !== "image") {
       throw new PublishValidationError("A mídia associada a este Story não é uma imagem.");
     }
-    return createStoryMediaContainer({ igUserId: post.igUserId, accessToken, imageUrl: item.storageUrl });
+    return createStoryMediaContainer({ igUserId: post.igUserId, accessToken, imageUrl: item.storageUrl, apiMode: apiMode(post) });
   }
 
   throw new PublishValidationError("Tipo de publicação não suportado.");
@@ -199,8 +205,8 @@ async function createCarouselWithVideoContainer(ctx: ExecuteContext): Promise<st
       children.push(
         await createCarouselItemContainer(
           item.mediaType === "video"
-            ? { igUserId: post.igUserId, accessToken, videoUrl: item.storageUrl }
-            : { igUserId: post.igUserId, accessToken, imageUrl: item.storageUrl },
+            ? { igUserId: post.igUserId, accessToken, videoUrl: item.storageUrl, apiMode: apiMode(post) }
+            : { igUserId: post.igUserId, accessToken, imageUrl: item.storageUrl, apiMode: apiMode(post) },
         ),
       );
     }
@@ -211,12 +217,12 @@ async function createCarouselWithVideoContainer(ctx: ExecuteContext): Promise<st
   for (let attempt = 0; attempt < MAX_POLL_ATTEMPTS; attempt++) {
     let pending = false;
     for (const childId of videoChildren) {
-      const status = await getMediaContainerStatus({ containerId: childId, accessToken });
+      const status = await getMediaContainerStatus({ containerId: childId, accessToken, apiMode: apiMode(post) });
       if (status === "ERROR" || status === "EXPIRED") throw new ContainerProcessingError(status);
       if (status !== "FINISHED") pending = true;
     }
     if (!pending) {
-      return createCarouselContainer({ igUserId: post.igUserId, accessToken, childrenContainerIds: children, caption: post.caption });
+      return createCarouselContainer({ igUserId: post.igUserId, accessToken, childrenContainerIds: children, caption: post.caption, apiMode: apiMode(post) });
     }
     if (attempt < MAX_POLL_ATTEMPTS - 1) await sleep(ctx.pollIntervalMs);
   }

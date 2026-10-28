@@ -25,6 +25,12 @@ export const REFRESH_URL = "https://graph.instagram.com/refresh_access_token";
 /** Escopos: definidos e documentados em instagram-oauth-config.ts (mantido o export por compatibilidade). */
 export const INSTAGRAM_OAUTH_SCOPES: string[] = [...CONFIG_SCOPES];
 
+export type InstagramApiMode = "instagram_login" | "facebook_login";
+function graphUrl(path: string, apiMode: InstagramApiMode = "instagram_login"): URL {
+  const host = apiMode === "facebook_login" ? "graph.facebook.com" : "graph.instagram.com";
+  return new URL(`https://${host}/${GRAPH_API_VERSION}/${path.replace(/^\//, "")}`);
+}
+
 export class InstagramGraphApiError extends Error {
   readonly details: unknown;
 
@@ -240,7 +246,7 @@ export function describeMetaError(details: unknown): { code: number | null; subc
  * formato, tratamos os dois defensivamente.
  */
 export async function fetchInstagramProfile(accessToken: string): Promise<InstagramProfile> {
-  const url = new URL(`https://graph.instagram.com/${GRAPH_API_VERSION}/me`);
+  const url = graphUrl("me");
   url.searchParams.set("fields", "user_id,username,account_type");
   url.searchParams.set("access_token", accessToken);
 
@@ -281,6 +287,7 @@ const MEDIA_CONTAINER_STATUSES: readonly MediaContainerStatus[] = [
 export interface CreateImageMediaContainerInput {
   igUserId: string;
   accessToken: string;
+  apiMode?: InstagramApiMode;
   imageUrl: string;
   caption: string;
 }
@@ -300,7 +307,7 @@ export interface CreateImageMediaContainerInput {
 export async function createImageMediaContainer(
   input: CreateImageMediaContainerInput,
 ): Promise<string> {
-  const url = new URL(`https://graph.instagram.com/${GRAPH_API_VERSION}/${input.igUserId}/media`);
+  const url = graphUrl(`${input.igUserId}/media`, input.apiMode);
   const body = new URLSearchParams();
   body.set("image_url", input.imageUrl);
   if (input.caption) body.set("caption", input.caption);
@@ -328,6 +335,7 @@ export async function createImageMediaContainer(
 export interface GetMediaContainerStatusInput {
   containerId: string;
   accessToken: string;
+  apiMode?: InstagramApiMode;
 }
 
 /**
@@ -342,7 +350,7 @@ export interface GetMediaContainerStatusInput {
 export async function getMediaContainerStatus(
   input: GetMediaContainerStatusInput,
 ): Promise<MediaContainerStatus> {
-  const url = new URL(`https://graph.instagram.com/${GRAPH_API_VERSION}/${input.containerId}`);
+  const url = graphUrl(input.containerId, input.apiMode);
   url.searchParams.set("fields", "status_code");
   url.searchParams.set("access_token", input.accessToken);
 
@@ -369,6 +377,7 @@ export async function getMediaContainerStatus(
 export interface PublishMediaContainerInput {
   igUserId: string;
   accessToken: string;
+  apiMode?: InstagramApiMode;
   containerId: string;
 }
 
@@ -381,7 +390,7 @@ export interface PublishMediaContainerInput {
 export async function publishMediaContainer(
   input: PublishMediaContainerInput,
 ): Promise<string> {
-  const url = new URL(`https://graph.instagram.com/${GRAPH_API_VERSION}/${input.igUserId}/media_publish`);
+  const url = graphUrl(`${input.igUserId}/media_publish`, input.apiMode);
   const body = new URLSearchParams();
   body.set("creation_id", input.containerId);
   body.set("access_token", input.accessToken);
@@ -408,6 +417,7 @@ export async function publishMediaContainer(
 export interface CreateCarouselItemContainerInput {
   igUserId: string;
   accessToken: string;
+  apiMode?: InstagramApiMode;
   /** Item de foto (JPEG). */
   imageUrl?: string;
   /**
@@ -435,7 +445,7 @@ export interface CreateCarouselItemContainerInput {
 export async function createCarouselItemContainer(
   input: CreateCarouselItemContainerInput,
 ): Promise<string> {
-  const url = new URL(`https://graph.instagram.com/${GRAPH_API_VERSION}/${input.igUserId}/media`);
+  const url = graphUrl(`${input.igUserId}/media`, input.apiMode);
   const body = new URLSearchParams();
   if (input.videoUrl) {
     body.set("media_type", "VIDEO");
@@ -470,6 +480,7 @@ export async function createCarouselItemContainer(
 export interface CreateCarouselContainerInput {
   igUserId: string;
   accessToken: string;
+  apiMode?: InstagramApiMode;
   /** IDs dos containers de item já criados (createCarouselItemContainer), na ordem de exibição — de 2 a 10 (limite da própria Meta para carrossel). */
   childrenContainerIds: string[];
   caption: string;
@@ -487,7 +498,7 @@ export interface CreateCarouselContainerInput {
 export async function createCarouselContainer(
   input: CreateCarouselContainerInput,
 ): Promise<string> {
-  const url = new URL(`https://graph.instagram.com/${GRAPH_API_VERSION}/${input.igUserId}/media`);
+  const url = graphUrl(`${input.igUserId}/media`, input.apiMode);
   const body = new URLSearchParams();
   body.set("media_type", "CAROUSEL");
   body.set("children", input.childrenContainerIds.join(","));
@@ -516,6 +527,7 @@ export async function createCarouselContainer(
 export interface CreateStoryMediaContainerInput {
   igUserId: string;
   accessToken: string;
+  apiMode?: InstagramApiMode;
   imageUrl: string;
 }
 
@@ -530,7 +542,7 @@ export interface CreateStoryMediaContainerInput {
  * consulta de status_code até FINISHED e media_publish.
  */
 export async function createStoryMediaContainer(input: CreateStoryMediaContainerInput): Promise<string> {
-  const url = new URL(`https://graph.instagram.com/${GRAPH_API_VERSION}/${input.igUserId}/media`);
+  const url = graphUrl(`${input.igUserId}/media`, input.apiMode);
   const body = new URLSearchParams();
   body.set("media_type", "STORIES");
   body.set("image_url", input.imageUrl);
@@ -552,6 +564,7 @@ export async function createStoryMediaContainer(input: CreateStoryMediaContainer
 export interface CreateReelMediaContainerInput {
   igUserId: string;
   accessToken: string;
+  apiMode?: InstagramApiMode;
   videoUrl: string;
   caption: string;
   shareToFeed?: boolean;
@@ -566,7 +579,7 @@ export interface CreateReelMediaContainerInput {
 export async function createReelMediaContainer(
   input: CreateReelMediaContainerInput,
 ): Promise<string> {
-  const url = new URL(`https://graph.instagram.com/${GRAPH_API_VERSION}/${input.igUserId}/media`);
+  const url = graphUrl(`${input.igUserId}/media`, input.apiMode);
   const body = new URLSearchParams();
   body.set("media_type", "REELS");
   body.set("video_url", input.videoUrl);

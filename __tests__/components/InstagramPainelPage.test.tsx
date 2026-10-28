@@ -109,7 +109,7 @@ describe("InstagramPainelPage", () => {
     expect(screen.getByText("principal")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Reconectar @alilu.tec" })).toHaveAttribute(
       "href",
-      "/api/instagram/oauth/start?addAccount=1&returnTo=%2Finstagram%2Fpainel",
+      "/api/instagram/oauth/start?accountId=account-1&forceReauth=1&returnTo=%2Finstagram%2Fpainel",
     );
     expect(screen.getByRole("link", { name: "+ Adicionar outra conta do Instagram" })).toBeInTheDocument();
   });

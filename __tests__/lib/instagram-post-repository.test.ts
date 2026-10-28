@@ -150,6 +150,7 @@ describe("getPostForPublish", () => {
       metaContainerId: null,
       metaChildrenIds: null,
       igUserId: "ig-1",
+      authProvider: "instagram_login",
       accessTokenEncrypted: "enc-token",
       items: [
         { mediaId: "media-1", storageUrl: "https://blob.example.com/img.jpg", mediaType: "image", position: 0 },

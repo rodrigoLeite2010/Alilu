@@ -104,6 +104,16 @@ describe("publishPost (Publicar agora)", () => {
     expect(repo.markPostPublished).toHaveBeenCalledWith("post-1", "media-1", lockToken);
   });
 
+  it("preserva o provedor da conta ao direcionar uma publicação agendada", async () => {
+    repo.getPostForPublish.mockResolvedValue(post({ authProvider: "facebook_login" }));
+    meta.createImageMediaContainer.mockResolvedValue("fb-container");
+    meta.getMediaContainerStatus.mockResolvedValue("FINISHED");
+    meta.publishMediaContainer.mockResolvedValue("fb-media");
+    await expect(publishPost("post-1", "user-1")).resolves.toBe("PUBLISHED");
+    expect(meta.createImageMediaContainer).toHaveBeenCalledWith(expect.objectContaining({ igUserId: "ig-1", apiMode: "facebook_login" }));
+    expect(meta.publishMediaContainer).toHaveBeenCalledWith(expect.objectContaining({ igUserId: "ig-1", apiMode: "facebook_login" }));
+  });
+
   it("sem claim e já PUBLISHED: devolve PUBLISHED sem tocar na Meta (idempotente)", async () => {
     repo.claimPostForManualPublish.mockResolvedValue(null);
     repo.getPostStatusForUser.mockResolvedValue("PUBLISHED");

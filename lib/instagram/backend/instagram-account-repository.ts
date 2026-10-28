@@ -8,18 +8,11 @@ import type { AccountDefaultMusic, MusicType } from "@/lib/instagram/backend/mus
  * em instagram-oauth-service.ts.
  *
  * `upsertInstagramAccount` depende da constraint única em `ig_user_id`
- * (migração 0002): uma mesma conta profissional do Instagram só pode estar
- * conectada a um usuário do ALILU por vez — se outro usuário já a tinha
- * conectado, a linha existente é atualizada para o novo dono, em vez de
- * criar uma segunda linha para o mesmo ig_user_id.
+ * (migração 0002): uma mesma conta profissional só pode ter uma conexão.
+ * Uma tentativa por outro usuário é rejeitada e não transfere a linha.
  */
 
 export type InstagramAccountStatus = "connected" | "expired" | "revoked" | "error";
-
-const MUSIC_COLUMNS =
-  "default_music_enabled, default_music_type, default_music_name, default_music_artist, " +
-  "default_music_external_id, default_music_url, default_audio_file_url, default_audio_file_name";
-
 
 export interface UpsertInstagramAccountInput {
   userId: string;
@@ -28,6 +21,11 @@ export interface UpsertInstagramAccountInput {
   accessTokenEncrypted: string;
   tokenExpiresAt: Date;
   scopes: string[];
+  authProvider?: "instagram_login" | "facebook_login";
+  facebookPageId?: string | null;
+  facebookUserId?: string | null;
+  facebookUserTokenEncrypted?: string | null;
+  facebookUserTokenExpiresAt?: Date | null;
 }
 
 export interface InstagramAccountRecord {
@@ -38,6 +36,7 @@ export interface InstagramAccountRecord {
   tokenExpiresAt: Date | null;
   scopes: string | null;
   status: InstagramAccountStatus;
+  authProvider: "instagram_login" | "facebook_login";
   connectedAt: Date;
   updatedAt: Date;
   /** Música padrão da conta ("Música padrão para publicações") — ver lib/instagram/backend/music-support.ts. */
@@ -53,6 +52,7 @@ function mapRow(row: Record<string, unknown>): InstagramAccountRecord {
     tokenExpiresAt: row.token_expires_at ? new Date(row.token_expires_at as string) : null,
     scopes: (row.scopes as string | null) ?? null,
     status: row.status as InstagramAccountStatus,
+    authProvider: (row.auth_provider as "instagram_login" | "facebook_login" | undefined) ?? "instagram_login",
     connectedAt: new Date(row.connected_at as string),
     updatedAt: new Date(row.updated_at as string),
     defaultMusic: {
@@ -69,10 +69,9 @@ function mapRow(row: Record<string, unknown>): InstagramAccountRecord {
 }
 
 /**
- * Insere a conta conectada ou, se `ig_user_id` já existir (de uma conexão
- * anterior, possivelmente de outro usuário), atualiza a linha existente
- * com o novo dono e o novo token — e `connected_at` volta a ser agora, para
- * a conta recém-conectada virar a "atual" do usuário. Nunca guarda o access token em texto
+ * Insere a conta conectada ou atualiza a conexão do mesmo usuário. Uma
+ * identidade Instagram já vinculada a outro usuário nunca é transferida.
+ * Nunca guarda o access token em texto
  * puro — `accessTokenEncrypted` já deve vir cifrado (ver encryption.ts).
  */
 export async function upsertInstagramAccount(
@@ -82,27 +81,37 @@ export async function upsertInstagramAccount(
   const scopesValue = input.scopes.join(",");
   const rows = await db`
     insert into instagram_accounts (
-      user_id, ig_user_id, ig_username, access_token_encrypted, token_expires_at, scopes, status
+      user_id, ig_user_id, ig_username, access_token_encrypted, token_expires_at, scopes, status,
+      auth_provider, facebook_page_id, facebook_user_id, facebook_user_token_encrypted, facebook_user_token_expires_at
     ) values (
       ${input.userId}, ${input.igUserId}, ${input.igUsername}, ${input.accessTokenEncrypted},
-      ${input.tokenExpiresAt.toISOString()}, ${scopesValue}, 'connected'
+      ${input.tokenExpiresAt.toISOString()}, ${scopesValue}, 'connected', ${input.authProvider ?? "instagram_login"},
+      ${input.facebookPageId ?? null}, ${input.facebookUserId ?? null}, ${input.facebookUserTokenEncrypted ?? null},
+      ${input.facebookUserTokenExpiresAt?.toISOString() ?? null}
     )
     on conflict (ig_user_id) do update set
-      user_id = excluded.user_id,
       ig_username = excluded.ig_username,
       access_token_encrypted = excluded.access_token_encrypted,
       token_expires_at = excluded.token_expires_at,
       scopes = excluded.scopes,
+      auth_provider = excluded.auth_provider,
+      facebook_page_id = excluded.facebook_page_id,
+      facebook_user_id = excluded.facebook_user_id,
+      facebook_user_token_encrypted = excluded.facebook_user_token_encrypted,
+      facebook_user_token_expires_at = excluded.facebook_user_token_expires_at,
       status = 'connected',
       -- Reconectar uma conta a torna a conta "atual": as telas e as publicações usam
       -- a de connected_at mais recente (getInstagramAccountForUser). Sem isto, reconectar
       -- @alilu.tec com a @pessoal conectada depois continuava mostrando a pessoal.
       connected_at = now(),
       updated_at = now()
+    where instagram_accounts.user_id = excluded.user_id
     returning id, user_id, ig_user_id, ig_username, token_expires_at, scopes, status, connected_at, updated_at,
+      auth_provider,
       default_music_enabled, default_music_type, default_music_name, default_music_artist,
       default_music_external_id, default_music_url, default_audio_file_url, default_audio_file_name
   `;
+  if (!rows[0]) throw new Error("Esta conta do Instagram já está vinculada a outro usuário Alilu.");
   return mapRow(rows[0]);
 }
 
@@ -118,7 +127,7 @@ export async function upsertInstagramAccount(
 export async function listInstagramAccountsForUser(userId: string): Promise<InstagramAccountRecord[]> {
   const db = getDb();
   const rows = await db`
-    select id, user_id, ig_user_id, ig_username, token_expires_at, scopes, status, connected_at, updated_at,
+    select id, user_id, ig_user_id, ig_username, token_expires_at, scopes, status, auth_provider, connected_at, updated_at,
       default_music_enabled, default_music_type, default_music_name, default_music_artist,
       default_music_external_id, default_music_url, default_audio_file_url, default_audio_file_name
     from instagram_accounts
@@ -132,7 +141,7 @@ export async function listInstagramAccountsForUser(userId: string): Promise<Inst
 export async function getInstagramAccountByIdForUser(id: string, userId: string): Promise<InstagramAccountRecord | null> {
   const db = getDb();
   const rows = await db`
-    select id, user_id, ig_user_id, ig_username, token_expires_at, scopes, status, connected_at, updated_at,
+    select id, user_id, ig_user_id, ig_username, token_expires_at, scopes, status, auth_provider, connected_at, updated_at,
       default_music_enabled, default_music_type, default_music_name, default_music_artist,
       default_music_external_id, default_music_url, default_audio_file_url, default_audio_file_name
     from instagram_accounts
@@ -150,7 +159,7 @@ export async function getInstagramAccountByIdForUser(id: string, userId: string)
 export async function getInstagramAccountForUser(userId: string): Promise<InstagramAccountRecord | null> {
   const db = getDb();
   const rows = await db`
-    select id, user_id, ig_user_id, ig_username, token_expires_at, scopes, status, connected_at, updated_at,
+    select id, user_id, ig_user_id, ig_username, token_expires_at, scopes, status, auth_provider, connected_at, updated_at,
       default_music_enabled, default_music_type, default_music_name, default_music_artist,
       default_music_external_id, default_music_url, default_audio_file_url, default_audio_file_name
     from instagram_accounts
@@ -213,7 +222,7 @@ export async function updateInstagramAccountDefaultMusic(
         default_audio_file_name = ${input.audioFileName},
         updated_at = now()
     where id = ${accountId} and user_id = ${userId}
-    returning id, user_id, ig_user_id, ig_username, token_expires_at, scopes, status, connected_at, updated_at,
+    returning id, user_id, ig_user_id, ig_username, token_expires_at, scopes, status, auth_provider, connected_at, updated_at,
       default_music_enabled, default_music_type, default_music_name, default_music_artist,
       default_music_external_id, default_music_url, default_audio_file_url, default_audio_file_name
   `;
@@ -242,10 +251,10 @@ export async function removeInstagramAccountDefaultMusic(
 export async function listAccountsNeedingTokenRefresh(
   now: Date,
   limit: number,
-): Promise<Array<{ id: string; userId: string; accessTokenEncrypted: string }>> {
+): Promise<Array<{ id: string; userId: string; accessTokenEncrypted: string; authProvider: "instagram_login" | "facebook_login"; facebookPageId: string | null; facebookUserTokenEncrypted: string | null }>> {
   const db = getDb();
   const rows = await db`
-    select id, user_id, access_token_encrypted from instagram_accounts
+    select id, user_id, access_token_encrypted, auth_provider, facebook_page_id, facebook_user_token_encrypted from instagram_accounts
     where status = 'connected' and access_token_encrypted <> ''
       and token_expires_at is not null
       and token_expires_at > ${now.toISOString()}
@@ -254,13 +263,17 @@ export async function listAccountsNeedingTokenRefresh(
     order by token_expires_at
     limit ${limit}
   `;
-  return rows.map((row) => ({ id: row.id as string, userId: row.user_id as string, accessTokenEncrypted: row.access_token_encrypted as string }));
+  return rows.map((row) => ({ id: row.id as string, userId: row.user_id as string, accessTokenEncrypted: row.access_token_encrypted as string,
+    authProvider: (row.auth_provider as "instagram_login" | "facebook_login") ?? "instagram_login", facebookPageId: row.facebook_page_id as string | null,
+    facebookUserTokenEncrypted: row.facebook_user_token_encrypted as string | null }));
 }
 
-export async function updateInstagramAccountToken(id: string, accessTokenEncrypted: string, tokenExpiresAt: Date): Promise<void> {
+export async function updateInstagramAccountToken(id: string, accessTokenEncrypted: string, tokenExpiresAt: Date, facebookUserTokenEncrypted?: string | null, facebookUserTokenExpiresAt?: Date | null): Promise<void> {
   const db = getDb();
   await db`
     update instagram_accounts set access_token_encrypted = ${accessTokenEncrypted}, token_expires_at = ${tokenExpiresAt.toISOString()},
+      facebook_user_token_encrypted = coalesce(${facebookUserTokenEncrypted ?? null}, facebook_user_token_encrypted),
+      facebook_user_token_expires_at = coalesce(${facebookUserTokenExpiresAt?.toISOString() ?? null}, facebook_user_token_expires_at),
       status = 'connected', updated_at = now()
     where id = ${id}
   `;
@@ -292,11 +305,11 @@ export async function disconnectInstagramAccountsForUser(userId: string, account
   const db = getDb();
   const rows = accountId
     ? await db`
-        update instagram_accounts set status = 'revoked', access_token_encrypted = '', token_expires_at = null, updated_at = now()
+        update instagram_accounts set status = 'revoked', access_token_encrypted = '', facebook_user_token_encrypted = null, token_expires_at = null, facebook_user_token_expires_at = null, updated_at = now()
         where user_id = ${userId} and id = ${accountId} returning id
       `
     : await db`
-        update instagram_accounts set status = 'revoked', access_token_encrypted = '', token_expires_at = null, updated_at = now()
+        update instagram_accounts set status = 'revoked', access_token_encrypted = '', facebook_user_token_encrypted = null, token_expires_at = null, facebook_user_token_expires_at = null, updated_at = now()
         where user_id = ${userId} and status <> 'revoked' returning id
       `;
   return rows.length;

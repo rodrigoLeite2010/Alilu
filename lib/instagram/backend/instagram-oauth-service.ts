@@ -25,6 +25,7 @@ import { INSTAGRAM_PUBLISH_SCOPE } from "@/lib/instagram/backend/instagram-oauth
 import { logInstagramOAuth } from "@/lib/instagram/backend/oauth-log";
 import type { OAuthDeviceHint } from "@/lib/instagram/backend/oauth-device";
 import { isLikelyMetaReviewError } from "@/lib/instagram/backend/meta-review";
+import { listManagedInstagramAccounts, refreshFacebookUserToken } from "@/lib/instagram/backend/facebook-login";
 
 /**
  * Orquestra a conexão de uma conta do Instagram: credenciais do app →
@@ -402,6 +403,16 @@ export async function refreshExpiringInstagramTokens(
     options.limit ?? 20,
   )) {
     try {
+      if (account.authProvider === "facebook_login") {
+        if (!account.facebookPageId || !account.facebookUserTokenEncrypted) throw new Error("A reconexão Facebook é necessária para renovar esta conta.");
+        const refreshedUser = await refreshFacebookUserToken(decryptSecret(account.facebookUserTokenEncrypted));
+        const pages = await listManagedInstagramAccounts(refreshedUser.accessToken);
+        const page = pages.find((item) => item.pageId === account.facebookPageId);
+        if (!page) throw new Error("A Página vinculada não está mais disponível para este usuário Meta.");
+        await updateInstagramAccountToken(account.id, encryptSecret(page.pageAccessToken), refreshedUser.expiresAt, encryptSecret(refreshedUser.accessToken), refreshedUser.expiresAt);
+        result.refreshed += 1;
+        continue;
+      }
       const refreshed = await refreshLongLivedToken(
         decryptSecret(account.accessTokenEncrypted),
       );
