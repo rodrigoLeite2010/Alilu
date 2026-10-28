@@ -24,12 +24,17 @@ interface PainelPageProps {
  * provisório (PublishTestForm) foi aposentado nesta etapa — o calendário
  * o substitui por completo.
  */
-export default async function InstagramPainelPage({ searchParams }: PainelPageProps) {
+export default async function InstagramPainelPage({
+  searchParams,
+}: PainelPageProps) {
   const session = await auth();
   if (!session?.user?.id) {
     return (
       <div className="mx-auto max-w-2xl px-4 py-10">
-        <SchedulingIntro mode="login" returnPath="/instagram/painel/calendario" />
+        <SchedulingIntro
+          mode="login"
+          returnPath="/instagram/painel/calendario"
+        />
       </div>
     );
   }
@@ -51,13 +56,19 @@ export default async function InstagramPainelPage({ searchParams }: PainelPagePr
       </div>
 
       {status === "conectado" ? (
-        <p role="status" className="rounded-md bg-teal-50 px-3 py-2 text-sm text-teal-800">
+        <p
+          role="status"
+          className="rounded-md bg-teal-50 px-3 py-2 text-sm text-teal-800"
+        >
           Conta conectada com sucesso.
         </p>
       ) : null}
 
       {status === "erro" ? (
-        <p role="alert" className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
+        <p
+          role="alert"
+          className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700"
+        >
           {mensagem ?? "Não foi possível concluir a conexão com o Instagram."}
         </p>
       ) : null}
@@ -68,7 +79,9 @@ export default async function InstagramPainelPage({ searchParams }: PainelPagePr
             {accounts.map((item) => {
               const isConnected = item.status === "connected";
               const isPrimary = primary?.id === item.id;
-              const label = item.igUsername ? `@${item.igUsername}` : item.igUserId;
+              const label = item.igUsername
+                ? `@${item.igUsername}`
+                : item.igUserId;
               return (
                 <li
                   key={item.id}
@@ -78,23 +91,37 @@ export default async function InstagramPainelPage({ searchParams }: PainelPagePr
                     <p className="text-sm text-zinc-800">
                       <strong>{label}</strong>
                       {isPrimary ? (
-                        <span className="ml-2 rounded bg-teal-100 px-2 py-0.5 text-xs text-teal-900">principal</span>
+                        <span className="ml-2 rounded bg-teal-100 px-2 py-0.5 text-xs text-teal-900">
+                          principal
+                        </span>
                       ) : null}
                     </p>
-                    <span className={`text-xs ${isConnected ? "text-teal-700" : "text-amber-900"}`}>
-                      {isConnected ? "Conectado ✓" : item.status === "revoked" ? "Desconectado" : "Precisa reconectar"}
+                    <span
+                      className={`text-xs ${isConnected ? "text-teal-700" : "text-amber-900"}`}
+                    >
+                      {isConnected
+                        ? "Conectado ✓"
+                        : item.status === "revoked"
+                          ? "Desconectado"
+                          : "Precisa reconectar"}
                     </span>
                   </div>
                   <div className="mt-2 flex flex-wrap items-center gap-4">
                     {isConnected ? (
                       <>
-                        {!isPrimary ? <MakePrimaryAccountButton accountId={item.id} /> : null}
-                        <DisconnectInstagramButton accountId={item.id} username={item.igUsername} />
+                        {!isPrimary ? (
+                          <MakePrimaryAccountButton accountId={item.id} />
+                        ) : null}
+                        <DisconnectInstagramButton
+                          accountId={item.id}
+                          username={item.igUsername}
+                        />
                       </>
                     ) : (
                       <ConnectInstagramLink
                         returnTo="/instagram/painel"
                         addAccount
+                        accountId={item.id}
                         label={`Reconectar ${label}`}
                         className="text-sm font-medium text-teal-800 underline"
                       />
@@ -105,24 +132,44 @@ export default async function InstagramPainelPage({ searchParams }: PainelPagePr
             })}
           </ul>
 
-          <ConnectInstagramLink returnTo="/instagram/painel" addAccount label="+ Adicionar outra conta do Instagram" />
+          <ConnectInstagramLink
+            returnTo="/instagram/painel"
+            addAccount
+            label="+ Adicionar outra conta do Instagram"
+          />
           <p className="-mt-3 text-xs text-zinc-500">
-            O Instagram vai pedir login: entre com a conta que quer adicionar (ex.: saia da outra conta na tela do Instagram, se ela
-            aparecer já logada). Cada automação do Piloto Automático publica na conta escolhida nela.
+            O Instagram vai pedir login: entre com a conta que quer adicionar
+            (ex.: saia da outra conta na tela do Instagram, se ela aparecer já
+            logada). Cada automação do Piloto Automático publica na conta
+            escolhida nela.
           </p>
 
           {primary ? (
             <>
-              <LinkButton href="/instagram/painel/calendario" className="w-full justify-center">
+              <LinkButton
+                href="/instagram/painel/calendario"
+                className="w-full justify-center"
+              >
                 Minhas publicações
               </LinkButton>
-              <LinkButton href="/instagram/piloto-automatico" variant="secondary" className="w-full justify-center">
+              <LinkButton
+                href="/instagram/piloto-automatico"
+                variant="secondary"
+                className="w-full justify-center"
+              >
                 Piloto Automático
               </LinkButton>
-              <LinkButton href="/instagram/posts-virais" variant="secondary" className="w-full justify-center">
+              <LinkButton
+                href="/instagram/posts-virais"
+                variant="secondary"
+                className="w-full justify-center"
+              >
                 Criar Post Viral
               </LinkButton>
-              <DefaultMusicSettings key={primary.id} initialDefaultMusic={primary.defaultMusic} />
+              <DefaultMusicSettings
+                key={primary.id}
+                initialDefaultMusic={primary.defaultMusic}
+              />
             </>
           ) : null}
         </>
@@ -130,7 +177,8 @@ export default async function InstagramPainelPage({ searchParams }: PainelPagePr
         <>
           <ConnectInstagramLink returnTo="/instagram/painel" />
           <p className="text-xs text-zinc-500">
-            Você vai para a tela oficial do Instagram, autoriza o Alilu e volta para cá automaticamente. É preciso ter uma conta profissional
+            Você vai para a tela oficial do Instagram, autoriza o Alilu e volta
+            para cá automaticamente. É preciso ter uma conta profissional
             (Criador ou Empresa).
           </p>
         </>

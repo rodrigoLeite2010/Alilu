@@ -13,19 +13,26 @@ No computador funciona porque você entra com a conta que tem função no app. N
 
 ## Fluxo
 
-| Etapa | Endereço |
-|---|---|
-| Botão "Conectar Instagram" | `GET /api/instagram/oauth/start?returnTo=/instagram/...` |
-| Tela oficial | `https://www.instagram.com/oauth/authorize` (redirect normal, sem popup) |
-| Volta da Meta (redirect_uri) | `https://alilu.com.br/api/instagram/oauth/callback` |
-| Tela de resultado | `/instagram/conectado?resultado=sucesso\|cancelado\|conta-nao-profissional\|sem-permissao\|sessao\|expirado\|erro` |
-| Diagnóstico (admin) | `/admin/instagram` |
+| Etapa                        | Endereço                                                                                                                            |
+| ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| Botão "Conectar Instagram"   | `GET /api/instagram/oauth/start?returnTo=/instagram/...`                                                                            |
+| Ponte de navegação           | `GET /api/instagram/oauth/start` grava state/cookies e entrega uma página sem cache que navega pelo browser                         |
+| Tela oficial                 | `https://www.instagram.com/oauth/authorize` (Instagram Login, sem popup)                                                            |
+| Volta da Meta (redirect_uri) | `https://alilu.com.br/api/instagram/oauth/callback`                                                                                 |
+| Tela de resultado            | `/instagram/conectado?resultado=sucesso\|cancelado\|conta-nao-profissional\|sem-permissao\|sessao\|expirado\|conta-diferente\|erro` |
+| Diagnóstico (admin)          | `/admin/instagram`                                                                                                                  |
+
+Reconectar uma conta pelo painel inclui o ID interno da conexão na solicitação. O servidor resolve essa conexão para o **Instagram User ID**, assina o alvo dentro do `state` e compara o ID retornado pela Meta antes de trocar o token longo ou gravar. Se a pessoa autorizar outro perfil, nenhuma credencial é salva e a tela explica que ela precisa entrar no Instagram pretendido.
+
+O fluxo escolhido é **Instagram API with Instagram Login**: token de usuário Instagram, `graph.instagram.com`, permissões `instagram_business_*` e app credentials obtidas na configuração Instagram Business Login. Ele não usa Facebook Login, Page tokens, `instagram_basic` nem `graph.facebook.com` para OAuth/publicação. Cada autorização retorna a identidade Instagram que foi autorizada; o painel permite adicionar contas profissionais uma por vez. Este fluxo não expõe uma lista de todas as contas profissionais ligadas à Central de Contas, nem dá acesso automático a elas.
+
+O início agora passa por uma pequena página HTML no domínio Alilu antes de navegar ao Instagram. Isso mantém a navegação no browser e reduz a chance de um redirect HTTP direto abrir o app Instagram por deep link em alguns celulares. A página tem navegação automática via browser e um link manual de contingência.
 
 ## Permissões pedidas (só o necessário)
 
-| Permissão | Para quê |
-|---|---|
-| `instagram_business_basic` | Identificar a conta (id, @usuário, tipo de conta). Obrigatória. |
+| Permissão                            | Para quê                                                                   |
+| ------------------------------------ | -------------------------------------------------------------------------- |
+| `instagram_business_basic`           | Identificar a conta (id, @usuário, tipo de conta). Obrigatória.            |
 | `instagram_business_content_publish` | Publicar post, carrossel, Reels e Stories (Agendador e Piloto Automático). |
 
 **Não** pedimos `instagram_business_manage_messages` nem `instagram_business_manage_comments`, porque o Alilu não usa.
@@ -96,15 +103,15 @@ A pessoa precisa **aceitar** o convite no Instagram, em **Configurações › Ap
 
 ## Variáveis de ambiente (Vercel)
 
-| Variável | Obrigatória | Valor |
-|---|---|---|
-| `INSTAGRAM_APP_ID` | sim | Instagram App ID (passo 2.3) |
-| `INSTAGRAM_APP_SECRET` | sim | Instagram App Secret |
-| `INSTAGRAM_TOKEN_ENCRYPTION_KEY` | sim (já existe) | chave AES dos tokens |
-| `AUTH_SECRET` | sim (já existe) | também assina o `state` do OAuth |
-| `NEXT_PUBLIC_SITE_URL` | recomendado | `https://alilu.com.br`. Define o redirect_uri de produção. |
-| `INSTAGRAM_OAUTH_REDIRECT_URI` | não | só para forçar outro redirect_uri (ex.: domínio de homologação) |
-| `INSTAGRAM_OAUTH_STATE_SECRET` | não | segredo próprio para o `state`; se vazio, usa `AUTH_SECRET` |
+| Variável                         | Obrigatória     | Valor                                                           |
+| -------------------------------- | --------------- | --------------------------------------------------------------- |
+| `INSTAGRAM_APP_ID`               | sim             | Instagram App ID (passo 2.3)                                    |
+| `INSTAGRAM_APP_SECRET`           | sim             | Instagram App Secret                                            |
+| `INSTAGRAM_TOKEN_ENCRYPTION_KEY` | sim (já existe) | chave AES dos tokens                                            |
+| `AUTH_SECRET`                    | sim (já existe) | também assina o `state` do OAuth                                |
+| `NEXT_PUBLIC_SITE_URL`           | recomendado     | `https://alilu.com.br`. Define o redirect_uri de produção.      |
+| `INSTAGRAM_OAUTH_REDIRECT_URI`   | não             | só para forçar outro redirect_uri (ex.: domínio de homologação) |
+| `INSTAGRAM_OAUTH_STATE_SECRET`   | não             | segredo próprio para o `state`; se vazio, usa `AUTH_SECRET`     |
 
 Rode também `npm run db:migrate` para aplicar a `0025_instagram_oauth_events.sql`, que guarda o diagnóstico do login.
 
@@ -132,6 +139,15 @@ Os logs aparecem na Vercel com o prefixo `[InstagramOAuth]`:
 - Token obtido
 - Conta Instagram encontrada
 - Integração concluída
+
+O início registra o `redirect_uri`, host de autorização, sufixo do App ID e dispositivo, mas não grava a URL completa de autorização, `state`, `code` ou tokens. A página de diagnóstico distingue tentativas sem nenhum callback de callbacks que chegaram e falharam. Depois de uma tentativa, consulte `/admin/instagram`: se `OAUTH_START`/`OAUTH_REDIRECT` aparecerem sem `OAUTH_CALLBACK_RECEIVED`, confira o redirect URI e teste num navegador que permaneça no browser, usando o link de contingência da ponte. Se o callback aparecer, use o erro daquela correlação para localizar troca de code, identidade ou persistência.
+
+O código permite determinar o fluxo e o callback configurado, mas não confirma o valor atualmente salvo no painel da Meta nem variáveis de produção da Vercel. Confira manualmente:
+
+- A tela **Instagram › API setup with Instagram login › Business login settings** mostra exatamente `https://alilu.com.br/api/instagram/oauth/callback` em OAuth Redirect URIs.
+- `INSTAGRAM_APP_ID` e `INSTAGRAM_APP_SECRET` na produção pertencem à seção de Instagram Business Login (não são as credenciais de Facebook Login); o App ID mascarado aparece em `/admin/instagram`.
+- `INSTAGRAM_OAUTH_REDIRECT_URI`, se definida na Vercel Production, também é exatamente a URI acima. Se não estiver definida, `NEXT_PUBLIC_SITE_URL` resolve para `https://alilu.com.br`.
+- App Live/roles, acesso avançado e permissões correspondem à conta usada no teste.
 
 Em caso de erro, o log traz `error`, `errorCode`, `errorSubcode`, `errorType` e `errorMessage`. A mesma informação aparece em `/admin/instagram`, em "Últimos erros".
 

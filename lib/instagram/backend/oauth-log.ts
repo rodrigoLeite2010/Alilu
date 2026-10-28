@@ -24,15 +24,30 @@ export interface OAuthLogDetails {
 /** Chaves que nunca vão para log (mesmo se alguém passar por engano). */
 const FORBIDDEN_KEYS = /^(code|state)$|token|secret/i;
 
-export async function logInstagramOAuth(stage: string, message: string, details: OAuthLogDetails = {}): Promise<void> {
+function sanitizeLogValue(value: string) {
+  return value
+    .replace(
+      /(["']?)(access_token|refresh_token|client_secret|authorization_code|code|state)\1\s*[:=]\s*["']?([^"'&,\s}]+)/gi,
+      "$2=[redacted]",
+    )
+    .replace(/\b(?:IG|EA)[A-Za-z0-9_-]{24,}\b/g, "[redacted-token]");
+}
+
+export async function logInstagramOAuth(
+  stage: string,
+  message: string,
+  details: OAuthLogDetails = {},
+): Promise<void> {
   const safe: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(details)) {
     if (FORBIDDEN_KEYS.test(key)) continue;
-    safe[key] = typeof value === "string" ? value.slice(0, 300) : value;
+    safe[key] =
+      typeof value === "string" ? sanitizeLogValue(value).slice(0, 300) : value;
   }
   const outcome = details.outcome ?? "info";
   const line = `[InstagramOAuth] ${message}`;
-  if (outcome === "error") console.error(line, JSON.stringify({ stage, ...safe }));
+  if (outcome === "error")
+    console.error(line, JSON.stringify({ stage, ...safe }));
   else console.info(line, JSON.stringify({ stage, ...safe }));
 
   try {
@@ -43,7 +58,7 @@ export async function logInstagramOAuth(stage: string, message: string, details:
         ${details.errorCode != null ? String(details.errorCode).slice(0, 80) : details.error ? String(details.error).slice(0, 80) : null},
         ${details.errorSubcode != null ? String(details.errorSubcode).slice(0, 80) : null},
         ${details.errorType ? String(details.errorType).slice(0, 80) : null},
-        ${(details.errorMessage ?? message).slice(0, 300)})
+        ${sanitizeLogValue(details.errorMessage ?? message).slice(0, 300)})
       returning id
     `;
     await db`

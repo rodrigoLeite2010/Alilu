@@ -12,19 +12,25 @@ export function ConnectInstagramLink({
   label = "Conectar Instagram",
   className = "flex h-11 items-center justify-center rounded-md bg-zinc-900 px-4 text-sm font-medium text-white transition-colors hover:bg-zinc-800",
   addAccount = false,
+  accountId,
 }: {
   returnTo?: string | null;
   label?: string;
   className?: string;
   /** Multi-conta: força o Instagram a pedir login para poder escolher outra conta. */
   addAccount?: boolean;
+  /** Reconectar uma conta existente: valida o Instagram User ID ao retornar da Meta. */
+  accountId?: string;
 }) {
   const [opening, setOpening] = useState(false);
   const params = new URLSearchParams();
   if (addAccount) params.set("addAccount", "1");
+  if (accountId) params.set("accountId", accountId);
   if (returnTo) params.set("returnTo", returnTo);
   const query = params.toString();
-  const href = query ? `/api/instagram/oauth/start?${query}` : "/api/instagram/oauth/start";
+  const href = query
+    ? `/api/instagram/oauth/start?${query}`
+    : "/api/instagram/oauth/start";
   return (
     <a
       href={href}

@@ -4,6 +4,7 @@ import {
   INSTAGRAM_OAUTH_STATE_COOKIE,
   OAUTH_STATE_MAX_AGE_SECONDS,
   generateOAuthState,
+  getExpectedInstagramUserId,
   isValidOAuthState,
   verifySignedOAuthState,
 } from "@/lib/instagram/backend/oauth-state";
@@ -15,27 +16,55 @@ beforeEach(() => {
 describe("generateOAuthState / verifySignedOAuthState", () => {
   it("gera state aleatório, assinado e preso ao usuário", () => {
     const state = generateOAuthState("user-1");
-    expect(state.split(".")).toHaveLength(3);
+    expect(state.split(".")).toHaveLength(4);
     expect(generateOAuthState("user-1")).not.toBe(state);
     expect(verifySignedOAuthState(state, "user-1")).toBe("ok");
   });
 
+  it("assina o Instagram User ID alvo e impede adulterar a conta a reconectar", () => {
+    const state = generateOAuthState("user-1", new Date(), "17841400000000001");
+    expect(getExpectedInstagramUserId(state, "user-1")).toBe(
+      "17841400000000001",
+    );
+    const parts = state.split(".");
+    parts[2] = Buffer.from("17841400000000002").toString("base64url");
+    const tampered = parts.join(".");
+    expect(verifySignedOAuthState(tampered, "user-1")).toBe("bad_signature");
+    expect(getExpectedInstagramUserId(tampered, "user-1")).toBeNull();
+  });
+
   it("recusa state de outro usuário (CSRF / ligar conta à pessoa errada)", () => {
-    expect(verifySignedOAuthState(generateOAuthState("atacante"), "vitima")).toBe("bad_signature");
+    expect(
+      verifySignedOAuthState(generateOAuthState("atacante"), "vitima"),
+    ).toBe("bad_signature");
   });
 
   it("expira em 10 minutos", () => {
     const t0 = new Date("2026-10-04T12:00:00Z");
     const state = generateOAuthState("user-1", t0);
-    expect(verifySignedOAuthState(state, "user-1", new Date(t0.getTime() + 9 * 60_000))).toBe("ok");
-    expect(verifySignedOAuthState(state, "user-1", new Date(t0.getTime() + 11 * 60_000))).toBe("expired");
+    expect(
+      verifySignedOAuthState(
+        state,
+        "user-1",
+        new Date(t0.getTime() + 9 * 60_000),
+      ),
+    ).toBe("ok");
+    expect(
+      verifySignedOAuthState(
+        state,
+        "user-1",
+        new Date(t0.getTime() + 11 * 60_000),
+      ),
+    ).toBe("expired");
   });
 
   it("recusa ausente, malformado e adulterado", () => {
     expect(verifySignedOAuthState(null, "user-1")).toBe("missing");
     expect(verifySignedOAuthState("abc", "user-1")).toBe("malformed");
     const [nonce, issuedAt] = generateOAuthState("user-1").split(".");
-    expect(verifySignedOAuthState(`${nonce}.${issuedAt}.assinaturafalsa`, "user-1")).toBe("bad_signature");
+    expect(
+      verifySignedOAuthState(`${nonce}.${issuedAt}.assinaturafalsa`, "user-1"),
+    ).toBe("bad_signature");
   });
 });
 
