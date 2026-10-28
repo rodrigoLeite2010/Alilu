@@ -17,12 +17,12 @@ export async function GET(request: Request) {
   const target = targetId ? await getInstagramAccountByIdForUser(targetId, userId) : null;
   if (targetId && !target) return NextResponse.redirect(new URL("/instagram/painel?status=erro&mensagem=conta-nao-encontrada", request.url));
   try {
-    const { appId } = facebookAppCredentials();
+    const { appId, configId } = facebookAppCredentials();
     const redirectUri = facebookRedirectUri(request.url);
     const state = generateOAuthState(userId, new Date(), target?.igUserId ?? null);
     const correlationId = generateOAuthCorrelationId();
     await createFacebookOAuthAttempt({ userId, correlationId, state, targetAccountId: target?.id, expectedIgUserId: target?.igUserId, returnTo: sanitizeOAuthReturnPath(url.searchParams.get("returnTo")) });
-    const authorizeUrl = buildFacebookAuthorizeUrl({ appId, redirectUri, state });
+    const authorizeUrl = buildFacebookAuthorizeUrl({ appId, configId, redirectUri, state });
     await logInstagramOAuth("facebook_start", "FACEBOOK_OAUTH_START", { userId, correlationId, provider: "facebook_login", targetAccountId: target?.id ?? null, expectedInstagramUserId: target?.igUserId ?? null, redirectUri, authorizationHost: new URL(authorizeUrl).host });
     return NextResponse.redirect(authorizeUrl);
   } catch {

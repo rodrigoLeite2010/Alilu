@@ -53,7 +53,7 @@ export default async function InstagramPainelPage({
   // Multi-conta: todas as contas do usuário. A "principal" é a primeira conectada
   // (mesma regra de getInstagramAccountForUser) — usada por calendário/Posts Virais/Reels.
   const accounts = await listInstagramAccountsForUser(session.user.id);
-  const facebookLoginEnabled = Boolean(process.env.INSTAGRAM_FACEBOOK_APP_ID && process.env.INSTAGRAM_FACEBOOK_APP_SECRET);
+  const facebookLoginEnabled = Boolean(process.env.INSTAGRAM_FACEBOOK_APP_ID && process.env.INSTAGRAM_FACEBOOK_APP_SECRET && process.env.INSTAGRAM_FACEBOOK_LOGIN_CONFIG_ID);
   const connected = accounts.filter((item) => item.status === "connected");
   const primary = connected[0] ?? null;
 

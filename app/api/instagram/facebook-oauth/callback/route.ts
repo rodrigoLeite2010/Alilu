@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { encryptSecret } from "@/lib/instagram/backend/encryption";
-import { exchangeFacebookCode, facebookRedirectUri, getGrantedFacebookPermissions, FACEBOOK_LOGIN_SCOPES } from "@/lib/instagram/backend/facebook-login";
+import { exchangeFacebookCode, facebookRedirectUri, getGrantedFacebookPermissions, FACEBOOK_LOGIN_PERMISSIONS } from "@/lib/instagram/backend/facebook-login";
 import { getFacebookOAuthAttemptByState, saveFacebookOAuthUserToken } from "@/lib/instagram/backend/facebook-oauth-pending";
 import { verifySignedOAuthState } from "@/lib/instagram/backend/oauth-state";
 import { logInstagramOAuth } from "@/lib/instagram/backend/oauth-log";
@@ -23,7 +23,7 @@ export async function GET(request: Request) {
   try {
     const token = await exchangeFacebookCode(code.replace(/#_$/, ""), facebookRedirectUri(request.url));
     const granted = await getGrantedFacebookPermissions(token.accessToken);
-    if (!FACEBOOK_LOGIN_SCOPES.every((permission) => granted.includes(permission))) throw new Error("required Facebook permissions missing");
+    if (!FACEBOOK_LOGIN_PERMISSIONS.every((permission) => granted.includes(permission))) throw new Error("required Facebook permissions missing");
     const saved = await saveFacebookOAuthUserToken(attempt.id, userId, token.facebookUserId, encryptSecret(token.accessToken), token.expiresAt);
     if (!saved) throw new Error("oauth attempt expired");
     await logInstagramOAuth("facebook_callback", "FACEBOOK_OAUTH_TOKEN_EXCHANGED", { userId, correlationId: attempt.correlationId, provider: "facebook_login", facebookUserId: token.facebookUserId });

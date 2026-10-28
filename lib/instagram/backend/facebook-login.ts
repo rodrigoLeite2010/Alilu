@@ -2,13 +2,14 @@ import "server-only";
 import { GRAPH_API_VERSION } from "./meta-graph-client";
 import { SITE_URL } from "@/lib/seo/site";
 
-export const FACEBOOK_LOGIN_SCOPES = ["pages_show_list", "pages_read_engagement", "instagram_basic", "instagram_content_publish"] as const;
+export const FACEBOOK_LOGIN_PERMISSIONS = ["pages_show_list", "pages_read_engagement", "instagram_basic", "instagram_content_publish"] as const;
 
 export function facebookAppCredentials() {
   const appId = process.env.INSTAGRAM_FACEBOOK_APP_ID;
   const appSecret = process.env.INSTAGRAM_FACEBOOK_APP_SECRET;
-  if (!appId || !appSecret) throw new Error("Facebook Login ainda não está configurado no servidor.");
-  return { appId, appSecret };
+  const configId = process.env.INSTAGRAM_FACEBOOK_LOGIN_CONFIG_ID;
+  if (!appId || !appSecret || !configId) throw new Error("Facebook Login ainda não está configurado no servidor.");
+  return { appId, appSecret, configId };
 }
 
 export function facebookRedirectUri(requestUrl: string) {
@@ -24,12 +25,14 @@ export function facebookRedirectUri(requestUrl: string) {
   return parsed.toString();
 }
 
-export function buildFacebookAuthorizeUrl(input: { appId: string; redirectUri: string; state: string }) {
+export function buildFacebookAuthorizeUrl(input: { appId: string; configId: string; redirectUri: string; state: string }) {
   const url = new URL(`https://www.facebook.com/${GRAPH_API_VERSION}/dialog/oauth`);
   url.searchParams.set("client_id", input.appId);
+  // Facebook Login for Business accepts a saved configuration ID; Meta
+  // rejects classic `scope` parameters for this login product.
+  url.searchParams.set("config_id", input.configId);
   url.searchParams.set("redirect_uri", input.redirectUri);
   url.searchParams.set("response_type", "code");
-  url.searchParams.set("scope", FACEBOOK_LOGIN_SCOPES.join(","));
   url.searchParams.set("state", input.state);
   return url.toString();
 }

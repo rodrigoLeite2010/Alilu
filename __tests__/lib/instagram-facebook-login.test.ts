@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { FACEBOOK_LOGIN_SCOPES, buildFacebookAuthorizeUrl, listManagedInstagramAccounts } from "@/lib/instagram/backend/facebook-login";
+import { FACEBOOK_LOGIN_PERMISSIONS, buildFacebookAuthorizeUrl, listManagedInstagramAccounts } from "@/lib/instagram/backend/facebook-login";
 
 describe("Instagram API with Facebook Login", () => {
   const originalFetch = global.fetch;
@@ -8,12 +8,14 @@ describe("Instagram API with Facebook Login", () => {
   beforeEach(() => { global.fetch = fetchMock as unknown as typeof fetch; fetchMock.mockReset(); });
   afterEach(() => { global.fetch = originalFetch; });
 
-  it("monta um OAuth separado com callback e permissões Facebook", () => {
-    const url = new URL(buildFacebookAuthorizeUrl({ appId: "fb-app", redirectUri: "https://alilu.com.br/api/instagram/facebook-oauth/callback", state: "signed" }));
+  it("usa a configuração salva do Facebook Login for Business sem enviar scopes clássicos", () => {
+    const url = new URL(buildFacebookAuthorizeUrl({ appId: "fb-app", configId: "fb-config", redirectUri: "https://alilu.com.br/api/instagram/facebook-oauth/callback", state: "signed" }));
     expect(url.origin + url.pathname).toBe("https://www.facebook.com/v25.0/dialog/oauth");
     expect(url.searchParams.get("client_id")).toBe("fb-app");
     expect(url.searchParams.get("redirect_uri")).toBe("https://alilu.com.br/api/instagram/facebook-oauth/callback");
-    expect(url.searchParams.get("scope")?.split(",")).toEqual([...FACEBOOK_LOGIN_SCOPES]);
+    expect(url.searchParams.get("config_id")).toBe("fb-config");
+    expect(url.searchParams.has("scope")).toBe(false);
+    expect(FACEBOOK_LOGIN_PERMISSIONS).toEqual(["pages_show_list", "pages_read_engagement", "instagram_basic", "instagram_content_publish"]);
     expect(url.searchParams.get("state")).toBe("signed");
   });
 

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { decryptSecret, encryptSecret } from "@/lib/instagram/backend/encryption";
-import { FACEBOOK_LOGIN_SCOPES, listManagedInstagramAccounts } from "@/lib/instagram/backend/facebook-login";
+import { FACEBOOK_LOGIN_PERMISSIONS, listManagedInstagramAccounts } from "@/lib/instagram/backend/facebook-login";
 import { deleteFacebookOAuthAttempt, getFacebookOAuthAttempt } from "@/lib/instagram/backend/facebook-oauth-pending";
 import { upsertInstagramAccount } from "@/lib/instagram/backend/instagram-account-repository";
 import { logInstagramOAuth } from "@/lib/instagram/backend/oauth-log";
@@ -30,7 +30,7 @@ export async function POST(request: Request) {
       userId, igUserId: selected.igUserId, igUsername: selected.username,
       accessTokenEncrypted: encryptSecret(selected.pageAccessToken),
       tokenExpiresAt: attempt.facebookUserTokenExpiresAt ?? new Date(Date.now() + 60 * 24 * 60 * 60 * 1000),
-      scopes: [...FACEBOOK_LOGIN_SCOPES], authProvider: "facebook_login", facebookPageId: selected.pageId,
+      scopes: [...FACEBOOK_LOGIN_PERMISSIONS], authProvider: "facebook_login", facebookPageId: selected.pageId,
       facebookUserId: attempt.facebookUserId, facebookUserTokenEncrypted: attempt.facebookUserTokenEncrypted,
       facebookUserTokenExpiresAt: attempt.facebookUserTokenExpiresAt,
     });
