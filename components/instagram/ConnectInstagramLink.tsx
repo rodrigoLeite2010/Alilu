@@ -13,6 +13,7 @@ export function ConnectInstagramLink({
   className = "flex h-11 items-center justify-center rounded-md bg-zinc-900 px-4 text-sm font-medium text-white transition-colors hover:bg-zinc-800",
   addAccount = false,
   accountId,
+  forceReauth = false,
 }: {
   returnTo?: string | null;
   label?: string;
@@ -21,11 +22,14 @@ export function ConnectInstagramLink({
   addAccount?: boolean;
   /** Reconectar uma conta existente: valida o Instagram User ID ao retornar da Meta. */
   accountId?: string;
+  /** Solicita login no Instagram em vez de reutilizar a sessão atual do navegador. */
+  forceReauth?: boolean;
 }) {
   const [opening, setOpening] = useState(false);
   const params = new URLSearchParams();
   if (addAccount) params.set("addAccount", "1");
   if (accountId) params.set("accountId", accountId);
+  if (forceReauth) params.set("forceReauth", "1");
   if (returnTo) params.set("returnTo", returnTo);
   const query = params.toString();
   const href = query

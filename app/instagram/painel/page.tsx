@@ -121,6 +121,7 @@ export default async function InstagramPainelPage({
                       <ConnectInstagramLink
                         returnTo="/instagram/painel"
                         accountId={item.id}
+                        forceReauth
                         label={`Reconectar ${label}`}
                         className="text-sm font-medium text-teal-800 underline"
                       />

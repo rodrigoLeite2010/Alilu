@@ -122,7 +122,7 @@ describe("GET /api/instagram/oauth/start", () => {
     );
     const response = await GET(
       request(
-        "https://alilu.com.br/api/instagram/oauth/start?accountId=account-1&returnTo=%2Finstagram%2Fpainel",
+        "https://alilu.com.br/api/instagram/oauth/start?accountId=account-1&forceReauth=1&returnTo=%2Finstagram%2Fpainel",
       ),
     );
     expect(response.status).toBe(200);
@@ -131,7 +131,7 @@ describe("GET /api/instagram/oauth/start", () => {
       "user-1",
     );
     const [, state, options] = buildAuthorizeUrlForConnectMock.mock.calls[0];
-    expect(options).toMatchObject({ forceReauth: false });
+    expect(options).toMatchObject({ forceReauth: true });
     expect(verifySignedOAuthState(state, "user-1")).toBe("ok");
     const { getExpectedInstagramUserId } = await import(
       "@/lib/instagram/backend/oauth-state"
