@@ -166,89 +166,11 @@ export async function completeInstagramConnection(
     ...input.device,
   });
 
-  let previousIgUserIdToRebind: string | null = null;
-  if (
-    input.expectedInstagramUserId &&
-    shortLived.igUserId !== input.expectedInstagramUserId
-  ) {
-    const target = await getInstagramAccountByIgUserIdForUser(
-      input.expectedInstagramUserId,
-      input.userId,
-    );
-    let authorizedProfile: Awaited<ReturnType<typeof fetchInstagramProfile>> | null = null;
-    try {
-      authorizedProfile = await fetchInstagramProfile(shortLived.accessToken);
-    } catch (error) {
-      await logInstagramOAuth("identity", "AUTHORIZED_ACCOUNT_ID_MISMATCH", {
-        userId: input.userId,
-        correlationId: input.correlationId,
-        outcome: "error",
-        error: "account_mismatch",
-        ...metaErrorFields(error),
-        errorMessage: `Não foi possível confirmar o @ da conta; ID salvo=${input.expectedInstagramUserId}, ID autorizado=${shortLived.igUserId}`,
-        ...input.device,
-      });
-    }
-    const normalizeUsername = (value: string | null | undefined) =>
-      value?.trim().replace(/^@/, "").toLowerCase() ?? "";
-    const usernameMatches = Boolean(
-      target?.igUsername &&
-      authorizedProfile?.username &&
-      normalizeUsername(target.igUsername) === normalizeUsername(authorizedProfile.username),
-    );
-    if (usernameMatches) {
-      previousIgUserIdToRebind = input.expectedInstagramUserId;
-      await logInstagramOAuth("identity", "AUTHORIZED_ACCOUNT_ID_REBOUND", {
-        userId: input.userId,
-        correlationId: input.correlationId,
-        instagramUserId: shortLived.igUserId,
-        errorMessage: `ID atualizado para o mesmo perfil @${authorizedProfile?.username}; ID anterior=${input.expectedInstagramUserId}, ID atual=${shortLived.igUserId}`,
-        ...input.device,
-      });
-    } else {
-      await logInstagramOAuth("identity", "AUTHORIZED_ACCOUNT_MISMATCH", {
-        userId: input.userId,
-        correlationId: input.correlationId,
-        outcome: "error",
-        error: "account_mismatch",
-        instagramUserId: shortLived.igUserId,
-        errorMessage: `Perfil esperado=@${target?.igUsername ?? "?"} (ID ${input.expectedInstagramUserId}); perfil autorizado=@${authorizedProfile?.username ?? "?"} (ID ${shortLived.igUserId})`,
-        ...input.device,
-      });
-      throw new InstagramOAuthExchangeError(
-        "A conta autorizada é diferente da conta escolhida.",
-        "account_mismatch",
-      );
-    }
-  }
-
-  // ── DIAGNÓSTICO TEMPORÁRIO (conta errada no celular) — REMOVER depois de achar a causa. ──
-  // Só identificadores públicos da conta; nunca token, code ou state.
-  await logInstagramOAuth("diagnostic", "OAUTH_TOKEN_RECEIVED", {
-    userId: input.userId,
-    correlationId: input.correlationId,
-    currentAliluUserId: input.userId,
-    // user_id devolvido pela troca do código (ainda sem username: o perfil é consultado logo abaixo).
-    instagramUserId: shortLived.igUserId,
-    errorMessage: `OAUTH_TOKEN_RECEIVED ig_user_id=${shortLived.igUserId} alilu_user=${input.userId} tentativa=${input.correlationId ?? "-"}`,
-    ...input.device,
-  });
-  let shortProfile: Awaited<ReturnType<typeof fetchInstagramProfile>> | null =
-    null;
+  // `user_id` da troca do código pode ter um identificador diferente do ID
+  // retornado por /me. Para validar a conta e gravar no banco, usamos /me.
+  let shortProfile: Awaited<ReturnType<typeof fetchInstagramProfile>> | null = null;
   try {
-    // Pergunta à Meta "quem é o dono deste token?" assim que ele chega, antes de qualquer gravação no banco.
-    const identity = await fetchInstagramProfile(shortLived.accessToken);
-    shortProfile = identity;
-    await logInstagramOAuth("diagnostic", "OAUTH_IDENTITY_FETCHED", {
-      userId: input.userId,
-      correlationId: input.correlationId,
-      currentAliluUserId: input.userId,
-      instagramUserId: identity.igUserId,
-      instagramUsername: identity.username,
-      accountType: identity.accountType ?? null,
-      errorMessage: `OAUTH_IDENTITY_FETCHED ig_user_id=${identity.igUserId} username=@${identity.username ?? "?"} tipo=${identity.accountType ?? "?"} alilu_user=${input.userId} tentativa=${input.correlationId ?? "-"}`,
-      ...input.device,
-    });
+    shortProfile = await fetchInstagramProfile(shortLived.accessToken);
   } catch (error) {
     await logInstagramOAuth("diagnostic", "OAUTH_IDENTITY_FETCHED", {
       userId: input.userId,
@@ -258,20 +180,77 @@ export async function completeInstagramConnection(
       ...metaErrorFields(error),
       ...input.device,
     });
+    if (input.expectedInstagramUserId) {
+      throw new InstagramOAuthExchangeError(
+        "Não foi possível confirmar a conta do Instagram autorizada.",
+        "exchange_failed",
+      );
+    }
   }
-  if (shortProfile && shortProfile.igUserId !== shortLived.igUserId) {
-    await logInstagramOAuth("identity", "TOKEN_PROFILE_ID_MISMATCH", {
+
+  const authorizedIgUserId = shortProfile?.igUserId ?? shortLived.igUserId;
+  let previousIgUserIdToRebind: string | null = null;
+  if (
+    input.expectedInstagramUserId &&
+    authorizedIgUserId !== input.expectedInstagramUserId
+  ) {
+    const target = await getInstagramAccountByIgUserIdForUser(
+      input.expectedInstagramUserId,
+      input.userId,
+    );
+    const normalizeUsername = (value: string | null | undefined) =>
+      value?.trim().replace(/^@/, "").toLowerCase() ?? "";
+    const usernameMatches = Boolean(
+      target?.igUsername &&
+      shortProfile?.username &&
+      normalizeUsername(target.igUsername) === normalizeUsername(shortProfile.username),
+    );
+    if (usernameMatches && shortProfile) {
+      previousIgUserIdToRebind = input.expectedInstagramUserId;
+      await logInstagramOAuth("identity", "AUTHORIZED_ACCOUNT_ID_REBOUND", {
+        userId: input.userId,
+        correlationId: input.correlationId,
+        instagramUserId: shortProfile.igUserId,
+        errorMessage: `ID atualizado para o mesmo perfil @${shortProfile.username}; ID anterior=${input.expectedInstagramUserId}, ID atual=${shortProfile.igUserId}`,
+        ...input.device,
+      });
+    } else {
+      await logInstagramOAuth("identity", "AUTHORIZED_ACCOUNT_MISMATCH", {
+        userId: input.userId,
+        correlationId: input.correlationId,
+        outcome: "error",
+        error: "account_mismatch",
+        instagramUserId: authorizedIgUserId,
+        errorMessage: `Perfil esperado=@${target?.igUsername ?? "?"} (ID ${input.expectedInstagramUserId}); perfil autorizado=@${shortProfile?.username ?? "?"} (ID ${authorizedIgUserId})`,
+        ...input.device,
+      });
+      throw new InstagramOAuthExchangeError(
+        "A conta autorizada é diferente da conta escolhida.",
+        "account_mismatch",
+      );
+    }
+  }
+
+  // Identificadores públicos da conta; nunca registra token, code ou state.
+  await logInstagramOAuth("diagnostic", "OAUTH_TOKEN_RECEIVED", {
+    userId: input.userId,
+    correlationId: input.correlationId,
+    currentAliluUserId: input.userId,
+    instagramUserId: authorizedIgUserId,
+    errorMessage: `OAUTH_TOKEN_RECEIVED oauth_user_id=${shortLived.igUserId} perfil_ig_user_id=${authorizedIgUserId} username=@${shortProfile?.username ?? "?"} alilu_user=${input.userId} tentativa=${input.correlationId ?? "-"}`,
+    ...input.device,
+  });
+  if (shortProfile) {
+    await logInstagramOAuth("diagnostic", "OAUTH_IDENTITY_FETCHED", {
       userId: input.userId,
       correlationId: input.correlationId,
-      outcome: "error",
-      error: "account_mismatch",
+      currentAliluUserId: input.userId,
       instagramUserId: shortProfile.igUserId,
+      instagramUsername: shortProfile.username,
+      accountType: shortProfile.accountType ?? null,
+      errorMessage: `OAUTH_IDENTITY_FETCHED ig_user_id=${shortProfile.igUserId} username=@${shortProfile.username ?? "?"} tipo=${shortProfile.accountType ?? "?"} alilu_user=${input.userId} tentativa=${input.correlationId ?? "-"}`,
       ...input.device,
     });
-    throw new InstagramOAuthExchangeError(
-      "A identidade do token não corresponde ao perfil autorizado.",
-      "account_mismatch",
-    );
   }
 
   // Permissão de publicar desmarcada na tela da Meta: sem ela o Alilu não serve para nada.
@@ -317,7 +296,11 @@ export async function completeInstagramConnection(
     igUserId: string;
     username: string | null;
     accountType?: string | null;
-  } = { igUserId: shortLived.igUserId, username: null };
+  } = {
+    igUserId: shortProfile?.igUserId ?? shortLived.igUserId,
+    username: shortProfile?.username ?? null,
+    accountType: shortProfile?.accountType ?? null,
+  };
   try {
     profile = await fetchInstagramProfile(longLived.accessToken);
   } catch (error) {
@@ -333,13 +316,14 @@ export async function completeInstagramConnection(
   }
 
   const accountType = profile.accountType?.toUpperCase() ?? null;
-  if (profile.igUserId !== shortLived.igUserId) {
+  if (shortProfile && profile.igUserId !== shortProfile.igUserId) {
     await logInstagramOAuth("identity", "LONG_TOKEN_PROFILE_ID_MISMATCH", {
       userId: input.userId,
       correlationId: input.correlationId,
       outcome: "error",
       error: "account_mismatch",
       instagramUserId: profile.igUserId,
+      errorMessage: `Perfil curto ID=${shortProfile.igUserId}; perfil longo ID=${profile.igUserId}`,
       ...input.device,
     });
     throw new InstagramOAuthExchangeError(
