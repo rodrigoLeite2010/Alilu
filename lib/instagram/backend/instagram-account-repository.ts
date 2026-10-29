@@ -151,6 +151,55 @@ export async function getInstagramAccountByIdForUser(id: string, userId: string)
   return row ? mapRow(row) : null;
 }
 
+/** Localiza a conta de destino pelo ID OAuth, restrita ao dono no Alilu. */
+export async function getInstagramAccountByIgUserIdForUser(igUserId: string, userId: string): Promise<InstagramAccountRecord | null> {
+  const db = getDb();
+  const rows = await db`
+    select id, user_id, ig_user_id, ig_username, token_expires_at, scopes, status, auth_provider, connected_at, updated_at,
+      default_music_enabled, default_music_type, default_music_name, default_music_artist,
+      default_music_external_id, default_music_url, default_audio_file_url, default_audio_file_name
+    from instagram_accounts
+    where ig_user_id = ${igUserId} and user_id = ${userId}
+  `;
+  return rows[0] ? mapRow(rows[0]) : null;
+}
+
+/**
+ * Atualiza a identidade técnica de uma conta já escolhida quando a Meta
+ * passa a devolver um Instagram User ID diferente para o mesmo @perfil.
+ * A troca só acontece para a mesma pessoa do Alilu e com username confirmado.
+ */
+export async function rebindInstagramAccountIdentity(input: UpsertInstagramAccountInput & {
+  previousIgUserId: string;
+}): Promise<InstagramAccountRecord | null> {
+  if (!input.igUsername || input.previousIgUserId === input.igUserId) return null;
+  const db = getDb();
+  const rows = await db`
+    update instagram_accounts set
+      ig_user_id = ${input.igUserId},
+      ig_username = ${input.igUsername},
+      access_token_encrypted = ${input.accessTokenEncrypted},
+      token_expires_at = ${input.tokenExpiresAt.toISOString()},
+      scopes = ${input.scopes.join(",")},
+      status = 'connected',
+      auth_provider = ${input.authProvider ?? "instagram_login"},
+      facebook_page_id = ${input.facebookPageId ?? null},
+      facebook_user_id = ${input.facebookUserId ?? null},
+      facebook_user_token_encrypted = ${input.facebookUserTokenEncrypted ?? null},
+      facebook_user_token_expires_at = ${input.facebookUserTokenExpiresAt?.toISOString() ?? null},
+      connected_at = now(),
+      updated_at = now()
+    where user_id = ${input.userId}
+      and ig_user_id = ${input.previousIgUserId}
+      and lower(ig_username) = lower(${input.igUsername})
+    returning id, user_id, ig_user_id, ig_username, token_expires_at, scopes, status, connected_at, updated_at,
+      auth_provider,
+      default_music_enabled, default_music_type, default_music_name, default_music_artist,
+      default_music_external_id, default_music_url, default_audio_file_url, default_audio_file_name
+  `;
+  return rows[0] ? mapRow(rows[0]) : null;
+}
+
 /**
  * Conta "principal" do usuário (multi-conta): a conectada mais recente/escolhida
  * como principal. Contas desconectadas só voltam se não houver nenhuma conectada —

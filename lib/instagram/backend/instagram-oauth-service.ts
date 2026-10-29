@@ -14,8 +14,10 @@ import {
 } from "@/lib/instagram/backend/meta-graph-client";
 import {
   getInstagramAccountForUser,
+  getInstagramAccountByIgUserIdForUser,
   listAccountsNeedingTokenRefresh,
   markExpiredInstagramAccounts,
+  rebindInstagramAccountIdentity,
   setInstagramAccountStatus,
   updateInstagramAccountToken,
   upsertInstagramAccount,
@@ -164,22 +166,60 @@ export async function completeInstagramConnection(
     ...input.device,
   });
 
+  let previousIgUserIdToRebind: string | null = null;
   if (
     input.expectedInstagramUserId &&
     shortLived.igUserId !== input.expectedInstagramUserId
   ) {
-    await logInstagramOAuth("identity", "AUTHORIZED_ACCOUNT_MISMATCH", {
-      userId: input.userId,
-      correlationId: input.correlationId,
-      outcome: "error",
-      error: "account_mismatch",
-      instagramUserId: shortLived.igUserId,
-      ...input.device,
-    });
-    throw new InstagramOAuthExchangeError(
-      "A conta autorizada é diferente da conta escolhida.",
-      "account_mismatch",
+    const target = await getInstagramAccountByIgUserIdForUser(
+      input.expectedInstagramUserId,
+      input.userId,
     );
+    let authorizedProfile: Awaited<ReturnType<typeof fetchInstagramProfile>> | null = null;
+    try {
+      authorizedProfile = await fetchInstagramProfile(shortLived.accessToken);
+    } catch (error) {
+      await logInstagramOAuth("identity", "AUTHORIZED_ACCOUNT_ID_MISMATCH", {
+        userId: input.userId,
+        correlationId: input.correlationId,
+        outcome: "error",
+        error: "account_mismatch",
+        ...metaErrorFields(error),
+        errorMessage: `Não foi possível confirmar o @ da conta; ID salvo=${input.expectedInstagramUserId}, ID autorizado=${shortLived.igUserId}`,
+        ...input.device,
+      });
+    }
+    const normalizeUsername = (value: string | null | undefined) =>
+      value?.trim().replace(/^@/, "").toLowerCase() ?? "";
+    const usernameMatches = Boolean(
+      target?.igUsername &&
+      authorizedProfile?.username &&
+      normalizeUsername(target.igUsername) === normalizeUsername(authorizedProfile.username),
+    );
+    if (usernameMatches) {
+      previousIgUserIdToRebind = input.expectedInstagramUserId;
+      await logInstagramOAuth("identity", "AUTHORIZED_ACCOUNT_ID_REBOUND", {
+        userId: input.userId,
+        correlationId: input.correlationId,
+        instagramUserId: shortLived.igUserId,
+        errorMessage: `ID atualizado para o mesmo perfil @${authorizedProfile?.username}; ID anterior=${input.expectedInstagramUserId}, ID atual=${shortLived.igUserId}`,
+        ...input.device,
+      });
+    } else {
+      await logInstagramOAuth("identity", "AUTHORIZED_ACCOUNT_MISMATCH", {
+        userId: input.userId,
+        correlationId: input.correlationId,
+        outcome: "error",
+        error: "account_mismatch",
+        instagramUserId: shortLived.igUserId,
+        errorMessage: `Perfil esperado=@${target?.igUsername ?? "?"} (ID ${input.expectedInstagramUserId}); perfil autorizado=@${authorizedProfile?.username ?? "?"} (ID ${shortLived.igUserId})`,
+        ...input.device,
+      });
+      throw new InstagramOAuthExchangeError(
+        "A conta autorizada é diferente da conta escolhida.",
+        "account_mismatch",
+      );
+    }
   }
 
   // ── DIAGNÓSTICO TEMPORÁRIO (conta errada no celular) — REMOVER depois de achar a causa. ──
@@ -340,14 +380,26 @@ export async function completeInstagramConnection(
   );
   const accessTokenEncrypted = encryptSecret(longLived.accessToken);
 
-  const account = await upsertInstagramAccount({
+  const accountInput = {
     userId: input.userId,
     igUserId: profile.igUserId,
     igUsername: profile.username,
     accessTokenEncrypted,
     tokenExpiresAt,
     scopes: shortLived.permissions,
-  });
+  };
+  const account = previousIgUserIdToRebind
+    ? await rebindInstagramAccountIdentity({
+        ...accountInput,
+        previousIgUserId: previousIgUserIdToRebind,
+      })
+    : await upsertInstagramAccount(accountInput);
+  if (!account) {
+    throw new InstagramOAuthExchangeError(
+      "Não foi possível atualizar a identidade da conta escolhida.",
+      "account_mismatch",
+    );
+  }
   await logInstagramOAuth("save", "CONNECTION_SAVED", {
     userId: input.userId,
     correlationId: input.correlationId,
