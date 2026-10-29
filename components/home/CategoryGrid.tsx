@@ -6,6 +6,7 @@ import { INSTAGRAM_CATEGORY, instagramTools } from "@/data/instagram";
 import { VIDEOS_CATEGORY, videoTools } from "@/data/videos";
 import { VIAGENS_CATEGORY, travelTools } from "@/data/viagens";
 import { IMOVEIS_CATEGORY } from "@/data/imoveis";
+import { DESAPEGO_CATEGORY } from "@/data/desapego";
 
 /**
  * Grade de categorias da Home. Extraído de app/page.tsx sem alterar a
@@ -71,6 +72,10 @@ export function CategoryGrid() {
       <Link href={IMOVEIS_CATEGORY.path} className="group flex flex-col gap-4 rounded-lg border border-brand-primary/15 bg-white p-5 transition hover:border-brand-primary/30 hover:shadow-sm">
         <span className="flex h-11 w-11 items-center justify-center rounded-md bg-brand-primary-soft text-brand-primary"><Icon name={IMOVEIS_CATEGORY.icon} className="h-5 w-5" /></span>
         <div><p className="text-lg font-semibold text-zinc-900 group-hover:text-brand-primary">{IMOVEIS_CATEGORY.name}</p><p className="mt-1 text-sm text-zinc-600">{IMOVEIS_CATEGORY.description}</p></div><p className="mt-auto text-xs font-medium text-zinc-500">Anuncie gratuitamente</p>
+      </Link>
+      <Link href={DESAPEGO_CATEGORY.path} className="group flex flex-col gap-4 rounded-lg border border-brand-primary/15 bg-white p-5 transition hover:border-brand-primary/30 hover:shadow-sm">
+        <span className="flex h-11 w-11 items-center justify-center rounded-md bg-brand-primary-soft text-brand-primary"><Icon name={DESAPEGO_CATEGORY.icon} className="h-5 w-5" /></span>
+        <div><p className="text-lg font-semibold text-zinc-900 group-hover:text-brand-primary">{DESAPEGO_CATEGORY.name}</p><p className="mt-1 text-sm text-zinc-600">{DESAPEGO_CATEGORY.description}</p></div><p className="mt-auto text-xs font-medium text-zinc-500">Anuncie gratuitamente</p>
       </Link>
     </div>
   );

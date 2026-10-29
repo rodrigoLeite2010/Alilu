@@ -5,6 +5,7 @@ import { categories } from "@/data/categories";
 import { INSTAGRAM_CATEGORY } from "@/data/instagram";
 import { VIAGENS_CATEGORY } from "@/data/viagens";
 import { IMOVEIS_CATEGORY } from "@/data/imoveis";
+import { DESAPEGO_CATEGORY } from "@/data/desapego";
 import { SITE_NAME } from "@/lib/seo/site";
 
 const legalLinks = [
@@ -41,6 +42,7 @@ export function Footer() {
               </Link>
             </li>
             <li><Link href={IMOVEIS_CATEGORY.path} className="text-sm text-zinc-600 hover:text-brand-primary hover:underline">{IMOVEIS_CATEGORY.name}</Link></li>
+            <li><Link href={DESAPEGO_CATEGORY.path} className="text-sm text-zinc-600 hover:text-brand-primary hover:underline">{DESAPEGO_CATEGORY.name}</Link></li>
             <li><Link href={VIAGENS_CATEGORY.path} className="text-sm text-zinc-600 hover:text-brand-primary hover:underline">{VIAGENS_CATEGORY.name}</Link></li>
             {categories.map((category) => (
               <li key={category.id}>

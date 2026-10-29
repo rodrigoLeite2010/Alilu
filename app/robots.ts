@@ -16,6 +16,10 @@ export default function robots(): MetadataRoute.Robots {
         "/imoveis/editar/",
         "/imoveis/meus-anuncios",
         "/imoveis/favoritos",
+        "/desapego/anunciar",
+        "/desapego/editar/",
+        "/desapego/meus-anuncios",
+        "/desapego/favoritos",
         "/minha-conta",
         "/api/",
         "/instagram/painel",
@@ -40,6 +44,6 @@ export default function robots(): MetadataRoute.Robots {
         "/financeiro/metodo-50-30-20",
       ],
     },
-    sitemap: [`${SITE_URL}/sitemap.xml`, `${SITE_URL}/imoveis/sitemap.xml`],
+    sitemap: [`${SITE_URL}/sitemap.xml`, `${SITE_URL}/imoveis/sitemap.xml`, `${SITE_URL}/desapego/sitemap.xml`],
   };
 }

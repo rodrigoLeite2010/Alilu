@@ -1,0 +1,1 @@
+export const DESAPEGO_CATEGORY={id:"desapego",name:"Desapego",shortName:"Desapego",path:"/desapego",icon:"shopping-bag",description:"Compre e venda produtos usados com anúncios grátis e contato direto entre as pessoas."} as const;

@@ -137,6 +137,10 @@ describe("E) robots.txt continua correto", () => {
         "/imoveis/editar/",
         "/imoveis/meus-anuncios",
         "/imoveis/favoritos",
+        "/desapego/anunciar",
+        "/desapego/editar/",
+        "/desapego/meus-anuncios",
+        "/desapego/favoritos",
         "/minha-conta",
         "/api/",
         "/instagram/painel",
@@ -159,7 +163,7 @@ describe("E) robots.txt continua correto", () => {
         "/financeiro/metodo-50-30-20",
       ],
     });
-    expect(result.sitemap).toEqual([`${SITE_URL}/sitemap.xml`, `${SITE_URL}/imoveis/sitemap.xml`]);
+    expect(result.sitemap).toEqual([`${SITE_URL}/sitemap.xml`, `${SITE_URL}/imoveis/sitemap.xml`, `${SITE_URL}/desapego/sitemap.xml`]);
     expect(loginMetadata.robots).toEqual({ index: false, follow: true });
   });
 });

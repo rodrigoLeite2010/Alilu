@@ -23,7 +23,7 @@ export default function PrivacyPolicyPage() {
         Política de Privacidade
       </h1>
       <p className="mt-2 text-sm text-zinc-500">
-        Última atualização: 15 de outubro de 2026.
+        Última atualização: 29 de outubro de 2026.
       </p>
 
       <div className="legal-content mt-6">
@@ -31,6 +31,9 @@ export default function PrivacyPolicyPage() {
         <p>Para manter seus anúncios, tratamos os dados da conta, informações do imóvel, fotos, favoritos e histórico de alterações. Nome público, identificação profissional informada, características, cidade, bairro e fotos aparecem no portal. Endereço completo, CEP e WhatsApp ficam separados e criptografados no banco. O WhatsApp é utilizado quando um interessado solicita contato; essa solicitação fornece o número ao serviço WhatsApp.</p>
         <p>As fotos são processadas para reduzir o tamanho e remover metadados EXIF e ficam no Vercel Blob. Não envie fotos com documentos, placas, rostos ou outros dados pessoais. Fotografias publicadas podem ser copiadas por terceiros e mantidas temporariamente em caches. Ao excluir o anúncio, os dados privados e o histórico de conteúdo são apagados e as fotos entram na fila de exclusão do armazenamento.</p>
         <p>Contabilizamos acessos e cliques de forma aproximada usando uma chave derivada do endereço de rede, com validade diária e remoção automática após dois dias; não armazenamos o IP no módulo de imóveis. Denúncias ficam disponíveis à administração para análise. Para solicitar acesso, correção, exclusão de dados ou exercer seus direitos, utilize a página de contato da Alilu. Os dados são usados para prestar o serviço solicitado e prevenir abuso; o contato público depende da autorização dada no formulário.</p>
+        <h2>Dados dos anúncios do Desapego</h2>
+        <p>Para anunciar um produto, tratamos dados da conta, informações fornecidas sobre o produto, fotos, favoritos, denúncias, contagens aproximadas de visualizações e cliques e histórico de moderação. Título, descrição, categoria, marca e modelo informados, conservação, preço, cidade, bairro, nome público e fotos podem ser exibidos publicamente. WhatsApp, CEP e registro de consentimento ficam separados do conteúdo público e criptografados no banco. O número é fornecido ao WhatsApp apenas quando o interessado clica para conversar com o vendedor.</p>
+        <p>As fotos são redimensionadas e convertidas para WebP, com metadados de localização e câmera removidos, e armazenadas no Vercel Blob. Não envie imagens com documentos, rostos de terceiros ou outros dados pessoais. Denúncias ficam disponíveis à administração para análise. Ao excluir um anúncio, os dados de contato são eliminados e as fotos entram na fila de remoção; cópias em caches de terceiros podem permanecer temporariamente. As contagens de acesso usam uma chave criptográfica derivada da rede e do dia, sem armazenar o endereço IP no módulo.</p>
         <h2>Dados informados nas calculadoras</h2>
         <p>
           As calculadoras e conversores identificados como locais processam os

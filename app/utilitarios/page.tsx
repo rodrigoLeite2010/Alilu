@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { travelTools } from "@/data/viagens";
 import { IMOVEIS_CATEGORY } from "@/data/imoveis";
+import { DESAPEGO_CATEGORY } from "@/data/desapego";
 import { Container } from "@/components/ui/Container";
 import { Breadcrumbs } from "@/components/navigation/Breadcrumbs";
 import { ToolCatalogSearch } from "@/components/tools/ToolCatalogSearch";
@@ -34,6 +35,7 @@ export default function ToolsCatalogPage() {
 
       <div className="mt-6">
         <Link href={IMOVEIS_CATEGORY.path} className="mb-6 block rounded-lg border border-brand-primary/20 bg-brand-primary-soft p-4 text-brand-primary"><strong>{IMOVEIS_CATEGORY.name}</strong><span className="mt-1 block text-sm">{IMOVEIS_CATEGORY.description}</span></Link>
+        <Link href={DESAPEGO_CATEGORY.path} className="mb-6 block rounded-lg border border-brand-primary/20 bg-brand-primary-soft p-4 text-brand-primary"><strong>{DESAPEGO_CATEGORY.name}</strong><span className="mt-1 block text-sm">{DESAPEGO_CATEGORY.description}</span></Link>
         <Link href={travelTools[0].path} className="mb-6 block rounded-lg border border-brand-primary/20 bg-brand-primary-soft p-4 text-brand-primary"><strong>Viagens · {travelTools[0].shortName}</strong><span className="mt-1 block text-sm">{travelTools[0].description}</span></Link>
         <ToolCatalogSearch tools={tools} />
       </div>
