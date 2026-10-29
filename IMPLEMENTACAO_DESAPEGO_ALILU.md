@@ -9,6 +9,8 @@ Foi criada uma área de classificados gratuitos para produtos usados. Usuários 
 - Listagem pública responsiva com pesquisa textual, filtros por categoria, subcategoria, estado, cidade, conservação, marca, preço e troca, ordenação e paginação.
 - Formulário para rascunho ou submissão, com preço atual e anterior, localização aproximada, WhatsApp privado, declaração de titularidade e consentimento.
 - Até 15 imagens por anúncio por padrão, foto principal/reordenação, prévia, compressão e conversão para WebP, remoção de metadados e limpeza de arquivos órfãos.
+- Link opcional de vídeo/Short/live do YouTube, validado e normalizado com o mesmo utilitário de Imóveis, prévia no formulário e player sem cookies na página do produto.
+- Categoria configurável `Veículos`, com Carros, Motos, utilitários, vans, caminhões e peças; formulário oferece ano, quilometragem, combustível e câmbio, e exige marca/modelo/ano para anunciar veículo.
 - Página pública individual, galeria ampliada, produtos semelhantes, favoritos, compartilhamento, denúncia e contato pelo WhatsApp com mensagem preparada pelo comprador.
 - Painel de anúncios próprios: editar, pausar, reativar com análise, marcar vendido, remover e ver métricas.
 - Moderação administrativa com aprovação/rejeição, remoção, denúncia, suspensão de vendedor, limites/categorias configuráveis, indicação de possíveis duplicados e histórico.
@@ -32,7 +34,7 @@ Foi criada uma área de classificados gratuitos para produtos usados. Usuários 
 ## Arquitetura e persistência
 
 - O módulo segue os padrões de autenticação, Postgres/Neon, Vercel Blob, administração e UI do portal de imóveis.
-- A migration aditiva `db/migrations/0048_desapego.sql` cria `desapego_settings`, `desapego_advertisers`, `desapego_ads`, `desapego_images`, `desapego_favorites`, `desapego_reports`, `desapego_history` e `desapego_rate_limits`, além de índices e funções transacionais para salvar, reservar fotos e mudar estado.
+- A migration aditiva `db/migrations/0048_desapego.sql` cria `desapego_settings`, `desapego_advertisers`, `desapego_ads`, `desapego_images`, `desapego_favorites`, `desapego_reports`, `desapego_history` e `desapego_rate_limits`, além de índices e funções transacionais para salvar, reservar fotos e mudar estado. `db/migrations/0049_desapego_veiculos.sql` adiciona a categoria Veículos preservando outras categorias que a administração tenha configurado.
 - Informações públicas ficam em JSONB validado no servidor. Telefone e CEP são criptografados e não aparecem na projeção pública; o telefone é revelado apenas à ação de contato via WhatsApp. O endereço completo não é mostrado.
 - Imagens são mantidas no Blob e não no banco. É reutilizado `processImage` do módulo Imóveis para redimensionamento, WebP e remoção de metadados. A migration armazena posição, URL, miniatura, bytes e marcação para limpeza.
 - Limites iniciais: 10 anúncios por usuário, até 15 fotos por anúncio e 500 MB totais, configuráveis no painel administrativo. Não foi adicionado provedor nem API paga.
@@ -59,7 +61,7 @@ Nenhuma migration foi executada, nenhum dado foi criado no banco remoto e nada f
 
 Antes de habilitar a funcionalidade:
 
-1. Revise e aplique `db/migrations/0048_desapego.sql` no banco correto, usando o procedimento operacional já adotado pelo projeto.
+1. Revise e aplique, em ordem, `db/migrations/0048_desapego.sql` e `db/migrations/0049_desapego_veiculos.sql` no banco correto, usando o procedimento operacional já adotado pelo projeto.
 2. Confirme no ambiente de preview que Vercel Blob e `INSTAGRAM_TOKEN_ENCRYPTION_KEY` já estão configurados (o módulo reutiliza ambos); não crie segredos novos no repositório.
 3. Publique o código em preview e valide cadastro, upload, análise, publicação, contato, remoção e execução do cron.
 4. Só depois da validação, decida separadamente se autoriza publicação em produção.
@@ -69,9 +71,9 @@ A rota cron já existente de limpeza chama agora também a limpeza do Desapego e
 ## Testes, custos e pendências
 
 - Testes automatizados adicionados ao modelo e integração Postgres: validação de submissão/consentimento/fotos, categorias, casas decimais, filtros, slugs, persistência, moderação, privacidade, autorização, duplicidade, concorrência e estados de anúncio.
-- Verificações concluídas: `npx tsc --noEmit`, `npm run build` e testes focados (`423 passed` nos testes de Desapego, SEO/robots e índice administrativo). O build incluiu as rotas do módulo e `/desapego/sitemap.xml`.
-- A suíte completa foi executada: `366 passed`, `46 failed`, `1 skipped` em 389 arquivos de teste, com duração aproximada de 16 minutos. Houve timeouts sob concorrência elevada e falhas em testes de áreas preexistentes (incluindo fluxos Instagram e testes de interface). As verificações relevantes ao Desapego/SEO/admin foram ajustadas e passaram isoladamente; a suíte completa deve ser reexecutada em ambiente com capacidade e concorrência controladas antes da integração.
-- O lint global foi iniciado, mas interrompido após longa execução sem saída; não foi considerado aprovado.
+- Verificações desta implementação e da extensão de vídeo/veículos: `npx tsc --noEmit`, `npm run build`, ESLint focado e testes focados (`426 passed` nos testes de Desapego, SEO/robots e índice administrativo). O build incluiu as rotas do módulo e `/desapego/sitemap.xml`.
+- A suíte completa foi executada na implementação inicial: `366 passed`, `46 failed`, `1 skipped` em 389 arquivos de teste, com duração aproximada de 16 minutos. Houve timeouts sob concorrência elevada e falhas em testes de áreas preexistentes (incluindo fluxos Instagram e testes de interface). As verificações relevantes ao Desapego/SEO/admin foram ajustadas e passaram isoladamente; a suíte completa deve ser reexecutada em ambiente com capacidade e concorrência controladas antes da integração.
+- O lint global foi iniciado na implementação inicial, mas interrompido após longa execução sem saída; o ESLint focado nesta extensão terminou sem erros.
 - Custo adicional de infraestrutura previsto: nenhum serviço pago novo. O uso de Blob e banco compartilha os limites/plano atuais da Vercel/Neon; o teto de 500 MB configurado não garante que o contrato do provedor não cobre armazenamento/transferência excedentes. Monitorar consumo real.
 - A assistência opcional de IA para descrição não foi adicionada: exigiria integração/custo e revisão contra invenção de atributos. O fluxo principal não depende dela.
 - O bloqueio de categorias proibidas depende de termos, declaração e moderação humana; recomenda-se adicionar instruções internas de moderação e um processo de resposta às denúncias antes de abrir ao público.

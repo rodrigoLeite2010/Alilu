@@ -15,7 +15,7 @@ export function ProductCard({ ad }: { ad: ProductAd }) {
       <h2 className="mt-1 line-clamp-2 min-h-12 font-semibold text-zinc-900">{d.title}</h2>
       <p className="mt-2 text-xl font-bold text-brand-primary">{productMoney(d.price)} {d.negotiable?<span className="text-xs font-normal text-zinc-500">negociável</span>:null}</p>
       <p className="mt-2 flex items-center gap-1 text-sm text-zinc-500"><MapPin size={15}/>{d.neighborhood?`${d.neighborhood}, `:""}{d.city} / {d.state}</p>
-      <p className="mt-1 text-xs text-zinc-500">{d.condition}</p>
+      <p className="mt-1 text-xs text-zinc-500">{d.condition}</p>{d.year||d.mileage?<p className="mt-1 text-xs text-zinc-500">{d.year?`${d.year}`:""}{d.year&&d.mileage?" · ":""}{d.mileage?`${d.mileage.toLocaleString("pt-BR")} km`:""}</p>:null}
       <p className="mt-2 text-xs text-zinc-400">Publicado em {new Date(ad.published_at??ad.updated_at).toLocaleDateString("pt-BR")}</p>
     </div>
   </Link>;

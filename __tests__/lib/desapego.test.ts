@@ -71,6 +71,13 @@ function listing(imageIds: string[], extra: Record<string, unknown> = {}) {
 }
 
 describe("Desapego — persistência e controle de anúncios", () => {
+  it("migration acrescenta a categoria de veículos sem substituir as categorias existentes", async () => {
+    const [row] = await db.sql`select config->'categories' as categories from desapego_settings where id=1`;
+    const categories = row.categories as { name: string; subcategories: string[] }[];
+    expect(categories.some((category) => category.name === "Celulares e smartphones")).toBe(true);
+    expect(categories.find((category) => category.name === "Veículos")?.subcategories).toContain("Carros");
+    expect(categories.find((category) => category.name === "Veículos")?.subcategories).toContain("Motos");
+  });
   it("salva em análise, publica com moderação e não expõe telefone nem CEP", async () => {
     const id = await repo.saveProduct(user, listing([await image()]));
     const ownerCopy = await repo.ownProduct(user, id);

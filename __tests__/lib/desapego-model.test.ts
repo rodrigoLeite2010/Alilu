@@ -62,6 +62,37 @@ describe("modelo do Alilu Desapego", () => {
     expect(() => parseProduct({ ...readyListing, previousPrice: 100 }, settings)).toThrow("maior que o preço atual");
   });
 
+  it("aceita dados específicos de carros e normaliza o link de vídeo do YouTube", () => {
+    const parsed = parseProduct({
+      ...readyListing,
+      category: "Veículos",
+      subcategory: "Carros",
+      brand: "Honda",
+      model: "Civic EXL",
+      year: 2022,
+      mileage: 32500,
+      fuel: "Flex",
+      transmission: "Automático",
+      videoUrl: "https://youtu.be/M7lc1UVf-VE?t=30",
+    }, settings);
+    expect(parsed.data).toMatchObject({
+      year: 2022,
+      mileage: 32500,
+      fuel: "Flex",
+      transmission: "Automático",
+      videoUrl: "https://www.youtube.com/watch?v=M7lc1UVf-VE",
+    });
+  });
+
+  it("exige marca, modelo e ano para veículos e rejeita links que não são vídeos do YouTube", () => {
+    expect(() => parseProduct({ ...readyListing, category: "Veículos", subcategory: "Motos", year: 0 }, settings))
+      .toThrow("informe marca, modelo e ano");
+    expect(() => parseProduct({ ...readyListing, videoUrl: "https://example.com/video" }, settings))
+      .toThrow("link de um vídeo");
+    expect(() => parseProduct({ ...readyListing, mileage: 32500.5 }, settings))
+      .toThrow("quilometragem válida");
+  });
+
   it("limita fotos e impede IDs duplicados", () => {
     const many = Array.from({ length: 16 }, (_, i) => `123e4567-e89b-42d3-a456-${String(i).padStart(12, "0")}`);
     expect(() => parseProduct({ ...readyListing, imageIds: many }, settings)).toThrow("Fotos inválidas");
