@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
 import { ViralPostStudio } from "@/components/instagram/ViralPostStudio";
+import { buildPageMetadata } from "@/lib/seo/metadata";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = buildPageMetadata({
   title: "Posts Virais para Instagram",
   description: "Escolha um template, coloque a sua foto, edite os textos e publique ou agende no Instagram.",
-  // Área de criação/publicação (depende de conta) — fora do índice por enquanto.
-  robots: { index: false, follow: false },
-};
+  path: "/instagram/posts-virais",
+});
 
 interface PostsViraisPageProps {
   searchParams: Promise<{ editar?: string; status?: string; mensagem?: string }>;

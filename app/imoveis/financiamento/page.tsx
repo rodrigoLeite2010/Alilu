@@ -1,8 +1,13 @@
+import type { Metadata } from "next";
 import { FinancingTool } from "@/components/tools/financing/FinancingTool";
-export const metadata = {
+import { buildPageMetadata } from "@/lib/seo/metadata";
+
+export const metadata: Metadata = buildPageMetadata({
   title: "Simular financiamento imobiliário",
-  robots: { index: false, follow: true },
-};
+  description:
+    "Compare os sistemas SAC e Price e estime as parcelas do financiamento do seu imóvel. Ajuste a entrada, o prazo e a taxa para simular sem compromisso.",
+  path: "/imoveis/financiamento",
+});
 export default async function Page({
   searchParams,
 }: {

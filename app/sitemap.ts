@@ -11,9 +11,11 @@ import { VIAGENS_CATEGORY, travelTools, travelGuides } from "@/data/viagens";
 export default function sitemap(): MetadataRoute.Sitemap {
   const staticRoutes: MetadataRoute.Sitemap = [
     { url: `${SITE_URL}/imoveis`, changeFrequency: "daily", priority: 0.8 },
+    { url: `${SITE_URL}/imoveis/financiamento`, changeFrequency: "monthly", priority: 0.7 },
     { url: SITE_URL, changeFrequency: "weekly", priority: 1 },
     { url: `${SITE_URL}/utilitarios`, changeFrequency: "weekly", priority: 0.9 },
     { url: `${SITE_URL}${INSTAGRAM_CATEGORY.path}`, changeFrequency: "weekly", priority: 0.9 },
+    { url: `${SITE_URL}/instagram/posts-virais`, changeFrequency: "monthly", priority: 0.7 },
     { url: `${SITE_URL}${LOTTERIES_CATEGORY.path}`, changeFrequency: "weekly", priority: 0.8 },
     { url: `${SITE_URL}${VIDEOS_CATEGORY.path}`, changeFrequency: "weekly", priority: 0.8 },
     // Desdobramento/fechamento é uma sub-ferramenta da Lotofácil, não uma

@@ -12,6 +12,8 @@ import nextConfig from "@/next.config";
 import { buildFaqJsonLd } from "@/lib/seo/faq";
 import { videoTools } from "@/data/videos";
 import { metadata as loginMetadata } from "@/app/entrar/layout";
+import { metadata as estateFinancingMetadata } from "@/app/imoveis/financiamento/page";
+import { metadata as viralPostsMetadata } from "@/app/instagram/posts-virais/page";
 
 /**
  * Testes de comportamento da regra central de SEO "em-breve" x "ativo"
@@ -169,6 +171,20 @@ describe("vídeos disponíveis e indexação", () => {
     expect(urls).not.toContain(`${SITE_URL}/videos/imagem-para-video`);
     expect(urls).not.toContain(`${SITE_URL}/videos/importar-instagram`);
     expect(videoTools.every((tool) => tool.status === "ativo")).toBe(true);
+  });
+});
+
+describe("ferramentas públicas indexáveis fora dos catálogos principais", () => {
+  it("publica o simulador imobiliário e os Posts Virais com canonical e sem noindex", () => {
+    const urls = sitemap().map((entry) => entry.url);
+
+    expect(urls).toContain(`${SITE_URL}/imoveis/financiamento`);
+    expect(estateFinancingMetadata.alternates?.canonical).toBe(`${SITE_URL}/imoveis/financiamento`);
+    expect(estateFinancingMetadata.robots).toBeUndefined();
+
+    expect(urls).toContain(`${SITE_URL}/instagram/posts-virais`);
+    expect(viralPostsMetadata.alternates?.canonical).toBe(`${SITE_URL}/instagram/posts-virais`);
+    expect(viralPostsMetadata.robots).toBeUndefined();
   });
 });
 
