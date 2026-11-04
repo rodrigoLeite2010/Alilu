@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ListingDataFeed xmlns="http://www.vivareal.com/schemas/1.0/VRSync" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <Header>
+    <Provider>Imobiliária Exemplo (dados fictícios)</Provider>
+    <Email>contato@parceiro.example</Email>
+    <ContactName>Responsável Exemplo</ContactName>
+  </Header>
+  <Listings>
+    <Listing>
+      <ListingID>ABC123</ListingID>
+      <Title><![CDATA[Casa com 3 dormitórios no Urbanova]]></Title>
+      <TransactionType>For Sale</TransactionType>
+      <PublicationType>STANDARD</PublicationType>
+      <DetailViewUrl>https://parceiro.example/imovel/ABC123</DetailViewUrl>
+      <Media>
+        <Item medium="image" caption="Fachada" primary="true">https://parceiro.example/imagens/ABC123-1.jpg</Item>
+        <Item medium="image" caption="Sala">https://parceiro.example/imagens/ABC123-2.jpg</Item>
+        <Item medium="video">https://www.youtube.com/watch?v=dQw4w9WgXcQ</Item>
+      </Media>
+      <Details>
+        <PropertyType>Residential / Home</PropertyType>
+        <Description><![CDATA[Casa térrea com 3 dormitórios, sendo 1 suíte.<br>Quintal com churrasqueira. Dados fictícios para teste.]]></Description>
+        <ListPrice currency="BRL">850000</ListPrice>
+        <PropertyAdministrationFee currency="BRL">0</PropertyAdministrationFee>
+        <YearlyTax currency="BRL">2400</YearlyTax>
+        <LivingArea unit="square metres">180</LivingArea>
+        <LotArea unit="square metres">250</LotArea>
+        <Bedrooms>3</Bedrooms>
+        <Bathrooms>2</Bathrooms>
+        <Suites>1</Suites>
+        <Garage type="Parking Space">2</Garage>
+        <Features>
+          <Feature>BBQ</Feature>
+          <Feature>Gourmet Area</Feature>
+        </Features>
+      </Details>
+      <Location displayAddress="Neighborhood">
+        <Country abbreviation="BR">Brasil</Country>
+        <State abbreviation="SP">São Paulo</State>
+        <City>São José dos Campos</City>
+        <Neighborhood>Urbanova</Neighborhood>
+        <Address>Rua Exemplo</Address>
+        <StreetNumber>100</StreetNumber>
+        <PostalCode>12244000</PostalCode>
+      </Location>
+      <ContactInfo>
+        <Name>Imobiliária Exemplo</Name>
+        <Email>contato@parceiro.example</Email>
+        <Telephone>(12) 3333-0000</Telephone>
+      </ContactInfo>
+    </Listing>
+    <Listing>
+      <ListingID>APT-204</ListingID>
+      <Title>Apartamento 2 dormitórios no Jardim Aquarius</Title>
+      <TransactionType>For Rent</TransactionType>
+      <DetailViewUrl>https://parceiro.example/imovel/APT-204</DetailViewUrl>
+      <Media>
+        <Item medium="image" primary="true">https://parceiro.example/imagens/APT-204-1.jpg</Item>
+      </Media>
+      <Details>
+        <PropertyType>Residential / Apartment</PropertyType>
+        <Description>Apartamento com varanda gourmet, 1 vaga e lazer completo no condomínio. Dados fictícios para teste.</Description>
+        <RentalPrice currency="BRL" period="Monthly">3200</RentalPrice>
+        <PropertyAdministrationFee currency="BRL">780</PropertyAdministrationFee>
+        <LivingArea unit="square metres">68</LivingArea>
+        <Bedrooms>2</Bedrooms>
+        <Bathrooms>2</Bathrooms>
+        <Suites>1</Suites>
+        <Garage type="Parking Space">1</Garage>
+        <Features>
+          <Feature>Pool</Feature>
+          <Feature>Pets Allowed</Feature>
+        </Features>
+      </Details>
+      <Location displayAddress="Neighborhood">
+        <Country abbreviation="BR">Brasil</Country>
+        <State abbreviation="SP">São Paulo</State>
+        <City>São José dos Campos</City>
+        <Neighborhood>Jardim Aquarius</Neighborhood>
+      </Location>
+    </Listing>
+  </Listings>
+</ListingDataFeed>

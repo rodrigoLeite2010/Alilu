@@ -13,6 +13,8 @@ import { PropertyCard } from "@/components/imoveis/PropertyCard";
 import { auth } from "@/auth";
 import { getDb } from "@/lib/db/client";
 import { parseYoutubeUrl } from "@/lib/youtube-import/url";
+import { partnerListing } from "@/lib/imoveis/integracoes/repository";
+import { PartnerSource } from "@/components/imoveis/integracoes/PartnerSource";
 export const dynamic = "force-dynamic";
 type Props = { params: Promise<{ slug: string }> };
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -22,12 +24,16 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       title: "Imóvel não encontrado",
       robots: { index: false, follow: false },
     };
+  // Anúncios de parceiros: indexação conforme a política do parceiro (padrão noindex, pois o conteúdo existe no site original).
+  const partner = await partnerListing(p.id);
   const meta = buildPageMetadata({
     title: `${p.data.title} — ${money(p.data.price)}`,
     description: `${p.data.type} em ${p.data.neighborhood}, ${p.data.city}/${p.data.state}. ${p.data.area} m². ${p.data.description.slice(0, 120)}`,
     path: `/imoveis/${p.slug}`,
     robots:
-      p.status !== "published" ? { index: false, follow: true } : undefined,
+      p.status !== "published" || (partner && partner.seo_policy !== "index")
+        ? { index: false, follow: true }
+        : undefined,
   });
   return {
     ...meta,
@@ -60,6 +66,7 @@ export default async function Page({ params }: Props) {
   ).items
     .filter((i) => i.id !== p.id)
     .slice(0, 3);
+  const partner = await partnerListing(p.id);
   const user = (await auth())?.user?.id;
   const saved = user
     ? (
@@ -250,6 +257,13 @@ export default async function Page({ params }: Props) {
                 ` · CRECI ${d.creci} (informado)`}
             </p>
           </div>
+          {partner && (
+            <PartnerSource
+              propertyId={p.id}
+              partner={partner}
+              available={p.status === "published"}
+            />
+          )}
           <PropertyActions
             id={p.id}
             url={url}
@@ -265,6 +279,8 @@ export default async function Page({ params }: Props) {
             </Link>
           )}
           <p className="text-xs leading-relaxed text-zinc-500">
+            {partner &&
+              "Anúncio divulgado a partir de dados fornecidos pelo parceiro, que é o responsável pela negociação. "}
             Informações fornecidas pelo anunciante. A Alilu não verifica a
             titularidade e não intermedeia pagamentos ou transações.
           </p>

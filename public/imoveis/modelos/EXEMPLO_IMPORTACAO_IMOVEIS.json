@@ -1,0 +1,55 @@
+{
+  "imoveis": [
+    {
+      "codigo": "ABC123",
+      "titulo": "Casa com 3 dormitórios",
+      "descricao": "Casa térrea com 3 dormitórios, sendo 1 suíte, quintal e churrasqueira. Dados fictícios para teste.",
+      "cidade": "São José dos Campos",
+      "estado": "SP",
+      "bairro": "Urbanova",
+      "tipo": "Casa",
+      "finalidade": "Venda",
+      "preco": 850000,
+      "quartos": 3,
+      "suites": 1,
+      "banheiros": 2,
+      "vagas": 2,
+      "area": 180,
+      "caracteristicas": [
+        "Churrasqueira",
+        "Área de lazer"
+      ],
+      "urlOriginal": "https://parceiro.example/imovel/ABC123",
+      "imagens": [
+        "https://parceiro.example/imagens/ABC123-1.jpg",
+        "https://parceiro.example/imagens/ABC123-2.jpg"
+      ]
+    },
+    {
+      "codigo": "APT-204",
+      "titulo": "Apartamento 2 dormitórios no Jardim Aquarius",
+      "descricao": "Apartamento com varanda gourmet e lazer completo. Dados fictícios para teste.",
+      "cidade": "São José dos Campos",
+      "estado": "SP",
+      "bairro": "Jardim Aquarius",
+      "tipo": "Apartamento",
+      "finalidade": "Aluguel",
+      "preco": 3200,
+      "condominio": 780,
+      "quartos": 2,
+      "banheiros": 2,
+      "vagas": 1,
+      "area": 68,
+      "caracteristicas": [
+        "Piscina"
+      ],
+      "urlOriginal": "https://parceiro.example/imovel/APT-204",
+      "imagens": [
+        {
+          "url": "https://parceiro.example/imagens/APT-204-1.jpg",
+          "ordem": 1
+        }
+      ]
+    }
+  ]
+}

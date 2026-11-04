@@ -137,6 +137,7 @@ describe("E) robots.txt continua correto", () => {
         "/imoveis/editar/",
         "/imoveis/meus-anuncios",
         "/imoveis/favoritos",
+        "/imoveis/saida/",
         "/desapego/anunciar",
         "/desapego/editar/",
         "/desapego/meus-anuncios",

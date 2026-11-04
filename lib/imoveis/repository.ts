@@ -175,7 +175,10 @@ export async function cities() {
 }
 export async function sitemapEntries() {
   return (await getDb().query(
-    `select p.slug,p.updated_at::text from properties p where p.status='published' and ${visible} order by p.id limit 45000`,
+    // Anúncios de parceiros com política noindex ficam fora do sitemap (anúncios diretos não são afetados).
+    `select p.slug,p.updated_at::text from properties p where p.status='published' and ${visible}
+      and not exists(select 1 from property_external_listings e join property_partners pp on pp.id=e.partner_id where e.property_id=p.id and pp.seo_policy<>'index')
+      order by p.id limit 45000`,
   )) as { slug: string; updated_at: string }[];
 }
 export async function adminOverview(page: number) {

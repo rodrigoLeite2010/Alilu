@@ -16,6 +16,7 @@ export default function robots(): MetadataRoute.Robots {
         "/imoveis/editar/",
         "/imoveis/meus-anuncios",
         "/imoveis/favoritos",
+        "/imoveis/saida/",
         "/desapego/anunciar",
         "/desapego/editar/",
         "/desapego/meus-anuncios",
