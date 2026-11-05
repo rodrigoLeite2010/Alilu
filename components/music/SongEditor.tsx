@@ -6,8 +6,9 @@ import { downloadChart, musicApi } from "@/lib/music/client";
 import { emptySong, type Song, type SongData } from "@/lib/music/types";
 import { Chart } from "./Chart";
 
-export const button = "inline-flex min-h-11 items-center justify-center rounded-lg border border-current/20 px-3 py-2 text-sm font-semibold hover:bg-current/5 disabled:opacity-40";
-export const primary = button + " bg-brand-primary text-white hover:bg-brand-primary-dark";
+const buttonBase = "inline-flex min-h-11 items-center justify-center rounded-lg border border-current/20 px-3 py-2 text-sm font-semibold disabled:opacity-40";
+export const button = buttonBase + " hover:bg-current/5";
+export const primary = buttonBase + " bg-brand-primary text-white hover:bg-brand-primary-dark";
 export const field = "min-h-11 min-w-0 w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-zinc-950";
 export const panel = "rounded-xl border border-zinc-200 bg-white p-4 shadow-sm sm:p-6";
 
