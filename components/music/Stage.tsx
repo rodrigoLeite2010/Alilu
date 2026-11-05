@@ -6,6 +6,7 @@ import { MusicApiError, musicApi } from "@/lib/music/client";
 import { POLL_MS, clip, positionAt } from "@/lib/music/playback";
 import { trackSpeed, type Live, type Playback, type Program } from "@/lib/music/types";
 import { Chart } from "./Chart";
+import { KeySelect } from "./KeySelect";
 import { button, field, primary } from "./SongEditor";
 
 function getDevice() {
@@ -180,6 +181,9 @@ function StagePlayer({ program, live, network, busy, error, control, leave }: {
   const playback = synchronized && shared ? shared : independent;
   const { playing, position: anchor, speed: playbackSpeed, extent: playbackExtent } = playback;
   const track = program.tracks[index];
+  const trackKey = track.item.key || track.song.key || track.song.originalKey;
+  const localKey = pitch?.index === index ? pitch.key : "";
+  const displayedKey = localKey || trackKey;
   const next = program.tracks[index + 1];
 
   const localControl = useCallback((state: Playback) => {
@@ -350,7 +354,7 @@ function StagePlayer({ program, live, network, busy, error, control, leave }: {
             {program.name} · {live ? live.leader ? "Líder" : "Seguidor" : "Ensaio"} · {index + 1}/{program.tracks.length}
           </p>
           <h1 className="truncate text-xl font-bold sm:text-2xl">{track.song.title}</h1>
-          <p className="truncate text-sm opacity-75">{[track.song.artist, pitch?.index === index && pitch.key || track.item.key || track.song.key || track.song.originalKey, track.song.capo && "Capo " + track.song.capo, track.song.bpm && track.song.bpm + " BPM"].filter(Boolean).join(" · ")}</p>
+          <p className="truncate text-sm opacity-75">{[track.song.artist, displayedKey, track.song.capo && "Capo " + track.song.capo, track.song.bpm && track.song.bpm + " BPM"].filter(Boolean).join(" · ")}</p>
         </div>
         <div className="flex flex-wrap gap-1">
           <button className={button} onClick={() => setDark(!dark)}>{dark ? "Tema claro" : "Tema escuro"}</button>
@@ -369,7 +373,7 @@ function StagePlayer({ program, live, network, busy, error, control, leave }: {
       className={"min-h-0 flex-1 overscroll-contain px-4 py-4 sm:px-8 " + (canScroll ? "overflow-y-auto" : "overflow-y-hidden")}
       onScroll={(event) => manualScroll(event.currentTarget)}>
       <div className="mx-auto max-w-5xl">
-        <Chart song={track.song} target={pitch?.index === index && pitch.key || track.item.key} font={font} chords={showChords} />
+        <Chart song={track.song} target={displayedKey} font={font} chords={showChords} />
         {(track.item.notes || track.song.notes) && <p className="mt-5 whitespace-pre-wrap text-sm opacity-70">{[track.song.notes, track.item.notes].filter(Boolean).join("\n")}</p>}
       </div>
     </div>
@@ -403,8 +407,11 @@ function StagePlayer({ program, live, network, busy, error, control, leave }: {
         <div className="flex flex-wrap items-center gap-2 py-1">
           <label className="flex items-center gap-1">Fonte<input type="range" min={14} max={48} value={font} onChange={(event) => setFont(+event.target.value)} /></label>
           <label><input type="checkbox" checked={showChords} onChange={(event) => setShowChords(event.target.checked)} /> Mostrar acordes</label>
-          <label>Tom local <input className={field + " max-w-24"} maxLength={8} placeholder={track.item.key || track.song.key || track.song.originalKey || "C"}
-            value={pitch?.index === index ? pitch.key : ""} onChange={(event) => setPitch({ index, key: event.target.value })} /></label>
+          <label>Tom nesta tela
+            <KeySelect className={field} placeholder={trackKey ? "Usar tom da faixa (" + trackKey + ")" : "Usar tom da faixa"}
+              originalKey={track.song.originalKey} value={localKey}
+              onChange={(key) => setPitch({ index, key })} />
+          </label>
           {canChange && <label>Ao terminar <select className={field + " w-auto"} value={finish} onChange={(event) => { cancelDelay(); setFinish(event.target.value as Program["finish"]); }}>
             <option value="manual">Aguardar</option><option value="advance">Avançar</option><option value="play">Avançar e rolar</option><option value="delay">Avançar após {program.delay}s</option>
           </select></label>}

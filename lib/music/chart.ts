@@ -28,6 +28,27 @@ export function transpose(value: string, offset: number, useFlats = false) {
   return note(root, accidental) + suffix + (bass ? "/" + note(bass, bassAccidental) : "");
 }
 
+export function transposeToKey(value: string, from: string, to: string) {
+  const source = chordMatch(from);
+  const target = chordMatch(to);
+  const match = chordMatch(value);
+  if (!source || !target || !match || source[1] + source[2] === target[1] + target[2]) return value;
+
+  const letters = "CDEFGAB";
+  const letterOffset = letters.indexOf(target[1]) - letters.indexOf(source[1]);
+  const offset = keyOffset(from, to);
+  const useFlats = /[b♭]/.test(target[2]);
+  function note(root: string, accidental: string) {
+    const letter = letters[(letters.indexOf(root) + letterOffset + 7) % 7];
+    const nextPitch = pitch(root, accidental) + offset;
+    const alteration = ((nextPitch - roots[letter] + 42) % 12) - 6;
+    if (Math.abs(alteration) > 2) return transpose(root + accidental, offset, useFlats);
+    return letter + (alteration < 0 ? "b" : "#").repeat(Math.abs(alteration));
+  }
+  const [, root, accidental, suffix, bass, bassAccidental] = match;
+  return note(root, accidental) + suffix + (bass ? "/" + note(bass, bassAccidental) : "");
+}
+
 function chordTokens(line: string) {
   const tokens = [...line.matchAll(/[^\s|]+/g)];
   return tokens.length && tokens.every((token) => chordMatch(token[0])) ? tokens : [];

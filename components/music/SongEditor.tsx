@@ -5,6 +5,7 @@ import { importChart } from "@/lib/music/chart";
 import { downloadChart, musicApi } from "@/lib/music/client";
 import { emptySong, type Song, type SongData } from "@/lib/music/types";
 import { Chart } from "./Chart";
+import { KeySelect } from "./KeySelect";
 
 const buttonBase = "inline-flex min-h-11 items-center justify-center rounded-lg border border-current/20 px-3 py-2 text-sm font-semibold disabled:opacity-40";
 export const button = buttonBase + " hover:bg-current/5";
@@ -199,9 +200,15 @@ export function SongEditor({ initial, close }: { initial: Song; close: (saved: b
     {notice && <p role="status" className="my-3 text-sm text-teal-800">{notice}</p>}
     <div className="my-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
       {fields.map(({ name, label }) => <label key={name} className="text-sm font-medium">{label}
-        <input className={field} value={draft[name]} maxLength={name === "url" ? 2000 : 160} onChange={(event) => patch({ [name]: event.target.value })} />
+        {name === "originalKey" || name === "key"
+          ? <KeySelect className={field} value={draft[name]}
+              placeholder={name === "originalKey" ? "Selecione o tom da cifra" : "Usar o tom da cifra"}
+              originalKey={name === "key" ? draft.originalKey : undefined}
+              onChange={(value) => patch(name === "originalKey" ? { originalKey: value, key: "" } : { key: value })} />
+          : <input className={field} value={draft[name]} maxLength={name === "url" ? 2000 : 160} onChange={(event) => patch({ [name]: event.target.value })} />}
       </label>)}
     </div>
+    <p className="mb-4 text-sm text-zinc-600">Escolha o tom utilizado para transpor os acordes na prévia e no palco. Com capotraste, escolha o tom das formas que você vai tocar.</p>
     <div className="grid min-w-0 gap-4 lg:grid-cols-2">
       <div className="min-w-0 space-y-2">
         <div className="flex flex-wrap gap-2">
