@@ -15,6 +15,7 @@ import { VIAGENS_CATEGORY } from "@/data/viagens";
 import { IMOVEIS_CATEGORY } from "@/data/imoveis";
 import { DESAPEGO_CATEGORY } from "@/data/desapego";
 import type { HeaderAuthState } from "@/components/layout/auth-state";
+import { musicTabs } from "@/lib/music/types";
 
 type NavigationLink = {
   href: string;
@@ -147,6 +148,26 @@ function ToggleButton({ open, label, onClick }: { open: boolean; label: string; 
       <Icon name={open ? "chevron-down" : "chevron-right"} className="h-4 w-4" />
     </button>
   );
+}
+
+function MusicMenu({ pathname, onNavigate }: { pathname: string; onNavigate?: () => void }) {
+  const active = isActiveLink(pathname, "/musicas");
+  const [open, setOpen] = useState(active);
+  return <li>
+    <div className="flex items-center gap-1">
+      <Link href="/musicas" onClick={onNavigate} aria-current={active ? "page" : undefined}
+        className={`flex min-h-11 grow items-center gap-3 rounded-md px-3 py-2 text-sm font-medium ${active ? "bg-brand-primary-soft text-brand-primary" : "text-zinc-600 hover:bg-white"}`}>
+        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-zinc-100 text-zinc-500">
+          <Icon name="music" className="h-4 w-4" />
+        </span>
+        Músicas
+      </Link>
+      <ToggleButton open={open} label="opções de Músicas" onClick={() => setOpen(!open)} />
+    </div>
+    {open && <div role="group" aria-label="Opções de Músicas" className="ml-6 border-l border-zinc-200 pl-3">
+      {musicTabs.map(([id, label]) => <SubLink key={id} href={"/musicas?aba=" + id} label={label} pathname={pathname} onNavigate={onNavigate} />)}
+    </div>}
+  </li>;
 }
 
 /** Subgrupo (Manual / Automatizado): fechado até clicar, a menos que a página atual esteja dentro dele. */
@@ -324,6 +345,7 @@ function NavigationList({
         <InstagramMenu pathname={pathname} onNavigate={onNavigate} />
         <NavigationItem link={lotteriesCategoryLink} pathname={pathname} onNavigate={onNavigate} />
         <NavigationItem link={videosCategoryLink} pathname={pathname} onNavigate={onNavigate} />
+        <MusicMenu pathname={pathname} onNavigate={onNavigate} />
         <NavigationItem link={{ href: IMOVEIS_CATEGORY.path, label: IMOVEIS_CATEGORY.name, icon: IMOVEIS_CATEGORY.icon }} pathname={pathname} onNavigate={onNavigate} />
         <NavigationItem link={{ href: DESAPEGO_CATEGORY.path, label: DESAPEGO_CATEGORY.name, icon: DESAPEGO_CATEGORY.icon }} pathname={pathname} onNavigate={onNavigate} />
         <NavigationItem link={{ href: VIAGENS_CATEGORY.path, label: VIAGENS_CATEGORY.name, icon: VIAGENS_CATEGORY.icon }} pathname={pathname} onNavigate={onNavigate} />
