@@ -101,7 +101,8 @@ export function SongEditor({ initial, close }: { initial: Song; close: (saved: b
 
   function applyImport(result: ReturnType<typeof importChart>) {
     setReviewImport(true);
-    patch({ ...result.metadata, chart: result.chart });
+    const notes = [draft.notes, result.metadata.notes].filter(Boolean);
+    patch({ ...result.metadata, chart: result.chart, notes: [...new Set(notes)].join("\n").slice(0, 3000) });
     setNotice(result.review ? "A conversão encontrou trechos ambíguos. Confira os acordes na prévia." : "Confira a letra e os acordes na prévia.");
     setImporting(false);
     setRaw("");

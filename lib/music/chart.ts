@@ -33,14 +33,84 @@ function chordTokens(line: string) {
   return tokens.length && tokens.every((token) => chordMatch(token[0])) ? tokens : [];
 }
 
+function unbold(line: string) {
+  return line.replace(/\*\*([^*]+)\*\*/g, "$1");
+}
+
+function copiedChartHeader(lines: string[]) {
+  const heading = /^(composição de|tom|afinação|capotraste)\s*:\s*(.+)$/i;
+  const [title, artist, firstDetail] = lines.filter((line) => line.trim()).slice(0, 3);
+  if (!title || !artist || !firstDetail || !heading.test(unbold(firstDetail.trim())) ||
+      /^[\[{]|:/.test(title.trim())) return;
+
+  const link = unbold(artist.trim()).match(/^\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)$/i);
+  const name = link?.[1] ?? unbold(artist.trim());
+  if (!name || /^[\[{]|:/.test(name) || title.trim().length > 160 || name.length > 160) return;
+
+  const metadata: Record<string, string> = { title: unbold(title.trim()), artist: name };
+  if (link && link[2].length <= 2000) {
+    const url = URL.canParse(link[2]) ? new URL(link[2]) : null;
+    if (url && !url.username && !url.password) {
+      metadata.url = link[2];
+      if (/^(?:www\.)?cifraclub\.com\.br$/i.test(url.hostname)) metadata.source = "Cifra Club";
+    }
+  }
+  const notes: string[] = [];
+  let index = lines.indexOf(firstDetail);
+  for (; index < lines.length; index++) {
+    const line = unbold(lines[index].trim());
+    if (!line) continue;
+    const detail = line.match(heading);
+    if (!detail) break;
+    const [, label, value] = detail;
+    switch (label.toLowerCase()) {
+      case "tom": {
+        const key = value.match(/^([A-G][#b♯♭]{0,2}(?:m|maj|min)?)(?:\s*\(com forma de\s+([A-G][#b♯♭]{0,2}(?:m|maj|min)?)\))?$/);
+        if (key) {
+          metadata.originalKey = key[2] ?? key[1];
+          if (key[2]) {
+            metadata.key = key[2];
+            notes.push("Tom que soa com capotraste: " + key[1]);
+          }
+        } else notes.push(line);
+        break;
+      }
+      case "capotraste": {
+        const fret = value.match(/^(\d{1,2})(?:\s*[ªº]?\s*casa)?$/i);
+        if (fret && Number(fret[1]) <= 24) metadata.capo = fret[1];
+        else notes.push(line);
+        break;
+      }
+      default: notes.push(line);
+    }
+  }
+  if (notes.length) metadata.notes = notes.join("\n").slice(0, 3000);
+  return { metadata, index };
+}
+
 export function importChart(raw: string, chordPro = false) {
   const lines = raw.replace(/^\uFEFF/, "").replace(/\r\n?/g, "\n").split("\n")
-    .map((line) => line.replace(/\t/g, "    "));
-  const metadata: Record<string, string> = {};
+    .map((line) => line.replace(/\t/g, "    ").replace(/\u00a0/g, " "));
+  const header = chordPro ? undefined : copiedChartHeader(lines);
+  const metadata: Record<string, string> = header?.metadata ?? {};
   const result: string[] = [];
   let review = false;
-  for (let index = 0; index < lines.length; index++) {
-    const line = lines[index];
+  for (let index = header?.index ?? 0; index < lines.length; index++) {
+    let line = lines[index];
+    if (header) {
+      line = unbold(line);
+      const part = line.match(/^\s*\[([^\]]+)\]\s*(.*)$/);
+      if (part && !chordMatch(part[1]) && !part[1].startsWith("*") && (!part[2] || chordTokens(part[2]).length)) {
+        result.push("{comment: " + part[1] + "}");
+        if (part[2]) result.push(part[2].replace(/[^\s|]+/g, (token) => "[" + token + "]"));
+        continue;
+      }
+      const progression = line.trim().match(/^\(\s*(.*?)\s*\)$/);
+      if (progression && chordTokens(progression[1]).length) {
+        result.push("(" + progression[1].replace(/[^\s|]+/g, (token) => "[" + token + "]") + ")");
+        continue;
+      }
+    }
     const info = line.trim().match(directive);
     const plain = line.match(/^\s*(título|title|artista|artist|tom|key):\s*(.+)$/i);
     const label = (info?.[1] || plain?.[1] || "").toLowerCase();
@@ -62,7 +132,9 @@ export function importChart(raw: string, chordPro = false) {
       result.push(line);
       continue;
     }
-    const next = lines[index + 1];
+    let nextIndex = index + 1;
+    while (header && nextIndex < lines.length && !lines[nextIndex].trim()) nextIndex++;
+    const next = header && lines[nextIndex] ? unbold(lines[nextIndex]) : lines[nextIndex];
     if (tokens.length === 1) review = true;
     if (next?.trim() && !chordTokens(next).length && !section.test(next.trim()) &&
         !next.trim().match(directive) && !next.includes("[")) {
@@ -74,7 +146,7 @@ export function importChart(raw: string, chordPro = false) {
         column = token.index;
       }
       result.push(aligned + next.slice(column));
-      index++;
+      index = nextIndex;
     } else {
       result.push(line.replace(/[^\s|]+/g, (token) => "[" + token + "]"));
     }

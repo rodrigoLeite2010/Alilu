@@ -35,3 +35,30 @@ it("calcula avanço por tempo, velocidade e extensão e respeita pausa e limites
   expect(positionAt(state, -100)).toBeCloseTo(0.2);
   expect(positionAt(state, 30000)).toBe(1);
 });
+
+it("preenche os dados de uma cifra copiada com link, negrito e capotraste", () => {
+  const input = [
+    "Yellow", "[**Coldplay**](https://www.cifraclub.com.br/coldplay/)", "Composição de: Coldplay / A Martin",
+    "", "**Tom:  G (com forma de F)**", "**Afinação: E A D G B E**", "**Capotraste: 2ª casa**",
+    "", "[Intro]\u00a0**F**\u00a0\u00a0**C**\u00a0\u00a0**A#**",
+    "[Primeira\u00a0Parte]", "", "**F**", "", "\u00a0\u00a0Uma frase de teste",
+    "", "( **F**  **C**  **A#** )",
+  ].join("\n");
+  const { chart, metadata } = importChart(input);
+
+  expect(songInput({ ...emptySong, ...metadata, chart })).toMatchObject({
+    title: "Yellow", artist: "Coldplay", originalKey: "F", key: "F", capo: "2",
+    source: "Cifra Club", url: "https://www.cifraclub.com.br/coldplay/",
+    notes: "Composição de: Coldplay / A Martin\nTom que soa com capotraste: G\nAfinação: E A D G B E",
+  });
+  expect(chart).toContain("{comment: Intro}\n[F]  [C]  [A#]");
+  expect(chart).toContain("{comment: Primeira Parte}\n\n[F]  Uma frase de teste");
+  expect(chart).toContain("([F]  [C]  [A#])");
+  expect(chart).not.toContain("Yellow");
+  expect(chart).not.toContain("**");
+});
+
+it("reconhece também o cabeçalho sem Markdown", () => {
+  const { metadata } = importChart("Uma música\nArtista da banda\nComposição de: Autora\nTom: D\n\n[D]Uma frase");
+  expect(metadata).toMatchObject({ title: "Uma música", artist: "Artista da banda", originalKey: "D" });
+});
