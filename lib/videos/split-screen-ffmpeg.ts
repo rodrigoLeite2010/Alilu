@@ -139,6 +139,12 @@ export interface BuildSplitScreenFfmpegArgsInput {
    */
   secondaryInputIsLoopSegment?: boolean;
   /**
+   * Parte de baixo é uma IMAGEM fixa (mídia padrão da conta). Entra como
+   * `-loop 1 -framerate 30 -t <duração>`: fica parada embaixo durante todo
+   * o vídeo principal, com o mesmo enquadramento (cover + arrastar/zoom).
+   */
+  secondaryIsImage?: boolean;
+  /**
    * Encerramento padrão da empresa (opcional). Trecho JÁ normalizado
    * (lib/brand-end-media/end-media-ffmpeg.ts) no MESMO tamanho da saída.
    * Entra DEPOIS do split inteiro (concat), nunca dentro do layout — no
@@ -245,11 +251,15 @@ export function buildSplitScreenFfmpegArgs(input: BuildSplitScreenFfmpegArgsInpu
 
   // Input 1: vídeo complementar (sempre embaixo). `-stream_loop` é uma
   // opção de INPUT e precisa vir antes do `-i` a que se aplica.
-  if (needsLoop) {
-    args.push("-stream_loop", "-1");
-  }
-  if (!input.secondaryInputIsLoopSegment) {
-    args.push("-ss", String(input.secondaryTrim.startSeconds), "-to", String(input.secondaryTrim.endSeconds));
+  if (input.secondaryIsImage) {
+    args.push("-loop", "1", "-framerate", String(END_CLIP_FPS), "-t", String(outputDuration));
+  } else {
+    if (needsLoop) {
+      args.push("-stream_loop", "-1");
+    }
+    if (!input.secondaryInputIsLoopSegment) {
+      args.push("-ss", String(input.secondaryTrim.startSeconds), "-to", String(input.secondaryTrim.endSeconds));
+    }
   }
   args.push("-i", input.secondaryInputPath);
 

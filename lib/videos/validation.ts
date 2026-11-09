@@ -60,7 +60,10 @@ export interface SplitScreenRequestTrimRange {
 
 export interface SplitScreenRequestBody {
   primaryBlobUrl: string;
-  secondaryBlobUrl: string;
+  /** null quando a parte de baixo usa a mídia fixa da conta (`secondaryDefaultAccountId`). */
+  secondaryBlobUrl: string | null;
+  /** Conta do Instagram cuja mídia fixa vai na parte de baixo (resolvida no servidor, só do próprio usuário). */
+  secondaryDefaultAccountId?: string | null;
   outputFormat: VideoOutputFormat;
   layoutRatio: VideoSplitLayoutRatio;
   primaryTrim: SplitScreenRequestTrimRange;
@@ -181,8 +184,19 @@ export function parseSplitScreenRequest(body: unknown): ParseResult<SplitScreenR
   const primaryBlobUrl = parseBlobUrl(raw.primaryBlobUrl, "vídeo principal");
   if (!primaryBlobUrl.ok) return primaryBlobUrl;
 
-  const secondaryBlobUrl = parseBlobUrl(raw.secondaryBlobUrl, "vídeo complementar");
-  if (!secondaryBlobUrl.ok) return secondaryBlobUrl;
+  const rawDefault = raw.secondaryDefault as { instagramAccountId?: unknown } | undefined;
+  const secondaryDefaultAccountId =
+    rawDefault && typeof rawDefault === "object" && typeof rawDefault.instagramAccountId === "string" && /^[0-9a-f-]{36}$/i.test(rawDefault.instagramAccountId)
+      ? rawDefault.instagramAccountId
+      : null;
+  if (rawDefault !== undefined && rawDefault !== null && !secondaryDefaultAccountId) {
+    return { ok: false, error: "Conta da mídia padrão inválida." };
+  }
+  let secondaryBlobUrl: ParseResult<string | null> = { ok: true, value: null };
+  if (!secondaryDefaultAccountId) {
+    secondaryBlobUrl = parseBlobUrl(raw.secondaryBlobUrl, "vídeo complementar");
+    if (!secondaryBlobUrl.ok) return secondaryBlobUrl;
+  }
 
   const outputFormat = raw.outputFormat;
   if (typeof outputFormat !== "string" || !VIDEO_OUTPUT_FORMATS.includes(outputFormat as VideoOutputFormat)) {
@@ -233,6 +247,7 @@ export function parseSplitScreenRequest(body: unknown): ParseResult<SplitScreenR
     value: {
       primaryBlobUrl: primaryBlobUrl.value,
       secondaryBlobUrl: secondaryBlobUrl.value,
+      ...(secondaryDefaultAccountId ? { secondaryDefaultAccountId } : {}),
       outputFormat: outputFormat as VideoOutputFormat,
       layoutRatio: layoutRatio as VideoSplitLayoutRatio,
       primaryTrim: primaryTrim.value,

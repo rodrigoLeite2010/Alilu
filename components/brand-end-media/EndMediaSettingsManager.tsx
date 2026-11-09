@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/Button";
 import {
   END_MEDIA_MAX_VIDEO_SECONDS,
@@ -91,7 +91,15 @@ function Toggle({ checked, onChange, label, disabled }: { checked: boolean; onCh
   );
 }
 
-export function EndMediaSettingsManager({ userId, initialSummary }: { userId: string; initialSummary: EndMediaSummaryDto }) {
+export function EndMediaSettingsManager({
+  userId,
+  initialSummary,
+  splitSection = null,
+}: {
+  userId: string;
+  initialSummary: EndMediaSummaryDto;
+  splitSection?: ReactNode;
+}) {
   const [summary, setSummary] = useState(initialSummary);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -159,18 +167,8 @@ export function EndMediaSettingsManager({ userId, initialSummary }: { userId: st
         <AssetSlot slot="REEL_IMAGE" label="Imagem final (vira um trecho de vídeo)" hint="JPG, PNG ou WebP. Vertical 9:16 de preferência." summary={summary} busy={busy} onUpload={upload} onDelete={remove} />
       </section>
 
-      <section className={card}>
-        <h2 className="text-sm font-semibold uppercase tracking-wider text-zinc-500">Split Screen</h2>
-        <div className="mt-2">
-          <Toggle
-            label="Adicionar encerramento automaticamente (depois do split inteiro)"
-            checked={settings.splitEnabled}
-            disabled={Boolean(busy) || (!summary.assets.SPLIT_VIDEO && !summary.assets.REEL_VIDEO && !summary.assets.REEL_IMAGE)}
-            onChange={(value) => save({ splitEnabled: value })}
-          />
-        </div>
-        <AssetSlot slot="SPLIT_VIDEO" label="Vídeo final do Split Screen" hint="Opcional — sem ele, usa o encerramento dos Reels." summary={summary} busy={busy} onUpload={upload} onDelete={remove} />
-      </section>
+      {/* Split Screen: a mídia não entra mais no final — fica fixa na parte de baixo (ver SplitBottomMediaManager). */}
+      {splitSection}
 
       <section className={card}>
         <h2 className="text-sm font-semibold uppercase tracking-wider text-zinc-500">Ajustes</h2>

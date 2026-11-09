@@ -143,6 +143,15 @@ export interface SplitScreenEndClipOption {
   fadeSeconds: number;
 }
 
+/**
+ * Parte de baixo vinda da mídia fixa da conta (já validada e guardada).
+ * NUNCA é apagada depois do processamento (é reaproveitada sempre).
+ */
+export interface SplitScreenSecondaryMediaOption {
+  url: string;
+  kind: "VIDEO" | "IMAGE";
+}
+
 export interface ProcessSplitScreenVideoResult {
   /** Só quando um encerramento foi pedido: se entrou no vídeo final. */
   endClipApplied?: boolean;
@@ -167,7 +176,7 @@ function resolveTrimEnd(
 
 export async function processSplitScreenVideo(
   request: SplitScreenRequestBody,
-  options: { endClip?: SplitScreenEndClipOption | null } = {},
+  options: { endClip?: SplitScreenEndClipOption | null; secondaryMedia?: SplitScreenSecondaryMediaOption | null } = {},
 ): Promise<ProcessSplitScreenVideoResult> {
   if (!ffmpegPath) {
     throw new VideoProcessingError("Binário do FFmpeg não encontrado neste ambiente.");
@@ -175,19 +184,26 @@ export async function processSplitScreenVideo(
 
   const workDir = await mkdtemp(path.join(tmpdir(), "alilu-videos-"));
   const primaryInputPath = path.join(workDir, "primary-input");
-  const secondaryInputPath = path.join(workDir, "secondary-input");
+  const secondaryInputPath = path.join(workDir, options.secondaryMedia?.kind === "IMAGE" ? "secondary-input.jpg" : "secondary-input");
   const secondaryLoopSegmentPath = path.join(workDir, "secondary-loop-segment.mkv");
   const outputPath = path.join(workDir, `${randomUUID()}.mp4`);
   const endClipPath = path.join(workDir, "end-clip.mp4");
-  const inputBlobUrls = [request.primaryBlobUrl, request.secondaryBlobUrl];
+  const secondaryMedia = options.secondaryMedia ?? null;
+  const secondaryUrl = secondaryMedia?.url ?? request.secondaryBlobUrl;
+  const secondaryIsImage = secondaryMedia?.kind === "IMAGE";
+  // Só os envios temporários do usuário são apagados — a mídia fixa da conta fica.
+  const inputBlobUrls = secondaryMedia ? [request.primaryBlobUrl] : [request.primaryBlobUrl, request.secondaryBlobUrl].filter((url): url is string => Boolean(url));
 
   try {
     try {
+      if (!secondaryUrl) {
+        throw new VideoProcessingValidationError("Envie o vídeo complementar ou cadastre a mídia padrão da conta.");
+      }
       const downloadStartedAt = Date.now();
       let endClipReady = false;
       await Promise.all([
         downloadToFile(request.primaryBlobUrl, primaryInputPath),
-        downloadToFile(request.secondaryBlobUrl, secondaryInputPath),
+        downloadToFile(secondaryUrl, secondaryInputPath),
         options.endClip
           ? downloadToFile(options.endClip.url, endClipPath).then(
               () => {
@@ -200,14 +216,21 @@ export async function processSplitScreenVideo(
       logStructuredTiming("split-screen.download-done", downloadStartedAt);
 
       const probeStartedAt = Date.now();
-      const [primaryInfo, secondaryInfo] = await Promise.all([
+      const [primaryInfo, probedSecondaryInfo] = await Promise.all([
         probeMedia(primaryInputPath),
-        probeMedia(secondaryInputPath),
+        secondaryIsImage ? Promise.resolve(null) : probeMedia(secondaryInputPath),
       ]);
       logStructuredTiming("split-screen.probe-done", probeStartedAt);
 
       const primaryTrim = resolveTrimEnd(request.primaryTrim, primaryInfo, "vídeo principal");
-      const secondaryTrim = resolveTrimEnd(request.secondaryTrim, secondaryInfo, "vídeo complementar");
+      // Imagem fixa: "dura" exatamente o trecho do principal e não tem áudio.
+      const secondaryInfo: ProbedMediaInfo = probedSecondaryInfo ?? {
+        durationSeconds: primaryTrim.endSeconds - primaryTrim.startSeconds,
+        hasAudio: false,
+      };
+      const secondaryTrim = secondaryIsImage
+        ? { startSeconds: 0, endSeconds: secondaryInfo.durationSeconds }
+        : resolveTrimEnd(request.secondaryTrim, secondaryInfo, "vídeo complementar");
 
       const outputDuration = computeOutputDurationSeconds(primaryTrim, secondaryTrim, request.durationMode);
       if (outputDuration > MAX_OUTPUT_DURATION_SECONDS) {
@@ -218,7 +241,7 @@ export async function processSplitScreenVideo(
 
       const primaryTrimDuration = primaryTrim.endSeconds - primaryTrim.startSeconds;
       const secondaryTrimDuration = secondaryTrim.endSeconds - secondaryTrim.startSeconds;
-      const needsSecondaryLoop = request.durationMode === "loop" && secondaryTrimDuration < primaryTrimDuration;
+      const needsSecondaryLoop = !secondaryIsImage && request.durationMode === "loop" && secondaryTrimDuration < primaryTrimDuration;
       let effectiveSecondaryInputPath = secondaryInputPath;
       let effectiveSecondaryTrim = secondaryTrim;
       let secondaryInputIsLoopSegment = false;
@@ -271,6 +294,7 @@ export async function processSplitScreenVideo(
         primaryHasAudio: primaryInfo.hasAudio,
         secondaryHasAudio: secondaryInfo.hasAudio,
         secondaryInputIsLoopSegment,
+        secondaryIsImage,
       };
 
       // Encerramento padrão: entra no MESMO passe (depois do split inteiro).

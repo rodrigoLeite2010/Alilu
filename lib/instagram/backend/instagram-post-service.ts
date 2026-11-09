@@ -2,7 +2,7 @@ import "server-only";
 import type { CarouselEndMediaChoice } from "@/lib/brand-end-media/end-media-config";
 import { EndMediaValidationError, resolveCarouselEndForPost } from "@/lib/brand-end-media/backend/end-media-service";
 import { getRenderByResultMedia, getRenderForUser, markPostEndMedia, recordEndMediaEvent } from "@/lib/brand-end-media/backend/end-media-repository";
-import { getInstagramAccountForUser } from "@/lib/instagram/backend/instagram-account-repository";
+import { getInstagramAccountByIdForUser, getInstagramAccountForUser } from "@/lib/instagram/backend/instagram-account-repository";
 import { getInstagramMediaById, getInstagramMediaByStorageUrl } from "@/lib/instagram/backend/media-repository";
 import { isValidTimeZone, parseAbsoluteIso } from "@/lib/instagram/schedule-time";
 import {
@@ -312,12 +312,19 @@ export interface CreateReelPostInput extends PostExtraFields {
   scheduledAt?: string | null;
   /** Registro devolvido por /api/brand-end-media/apply-reel ou pelo Split Screen (histórico do encerramento). */
   endMediaRenderId?: string | null;
+  /** Multi-conta: publica nesta conta (do próprio usuário). Omitido = conta principal. */
+  instagramAccountId?: string | null;
 }
 
 export async function createReelPost(input: CreateReelPostInput): Promise<string> {
   const scheduledAtUtc = parseScheduledAt(input.scheduledAt);
 
-  const account = await getInstagramAccountForUser(input.userId);
+  const account = input.instagramAccountId
+    ? await getInstagramAccountByIdForUser(input.instagramAccountId, input.userId)
+    : await getInstagramAccountForUser(input.userId);
+  if (input.instagramAccountId && (!account || account.status !== "connected")) {
+    throw new InstagramPostValidationError("A conta do Instagram escolhida não está conectada. Reconecte a conta ou escolha outra.");
+  }
   if (!account) {
     throw new InstagramPostValidationError(
       "Nenhuma conta do Instagram conectada. Conecte uma conta antes de criar um Reel.",
@@ -356,6 +363,7 @@ export interface CreateReelPostFromUploadInput extends PostExtraFields {
   caption: string;
   scheduledAt?: string | null;
   endMediaRenderId?: string | null;
+  instagramAccountId?: string | null;
 }
 
 export async function createReelPostFromUpload(input: CreateReelPostFromUploadInput): Promise<string> {

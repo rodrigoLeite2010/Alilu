@@ -54,7 +54,8 @@ export async function POST(request: Request): Promise<NextResponse> {
   if (typeof body !== "object" || body === null) {
     return NextResponse.json({ error: "Corpo da requisição inválido." }, { status: 400 });
   }
-  const { mediaUrl, mediaUrls, caption, scheduledAt, postType, endMedia, endMediaRenderId } = body as {
+  const { mediaUrl, mediaUrls, caption, scheduledAt, postType, endMedia, endMediaRenderId, instagramAccountId } = body as {
+    instagramAccountId?: unknown;
     mediaUrl?: unknown;
     mediaUrls?: unknown;
     caption?: unknown;
@@ -124,6 +125,8 @@ export async function POST(request: Request): Promise<NextResponse> {
             caption,
             scheduledAt: (scheduledAt as string | null | undefined) ?? null,
             endMediaRenderId: typeof endMediaRenderId === "string" ? endMediaRenderId : null,
+            instagramAccountId:
+              typeof instagramAccountId === "string" && /^[0-9a-f-]{36}$/i.test(instagramAccountId) ? instagramAccountId : null,
             ...extra.fields,
           })
       : await createImagePostFromUpload({

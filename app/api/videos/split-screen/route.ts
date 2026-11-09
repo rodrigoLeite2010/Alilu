@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server";
+import { del as deleteBlob } from "@vercel/blob";
 import { auth } from "@/auth";
 import { recordEndMediaEvent } from "@/lib/brand-end-media/backend/end-media-repository";
 import { recordSplitScreenEndRender, resolveSplitScreenEndClip } from "@/lib/brand-end-media/backend/end-media-service";
 import { VIDEO_OUTPUT_DIMENSIONS } from "@/lib/videos/split-screen-ffmpeg";
 import { parseSplitScreenRequest } from "@/lib/videos/validation";
+import { resolveSplitBottomMediaForUser } from "@/lib/videos/split-bottom/split-bottom-service";
 import {
   VideoProcessingError,
   VideoProcessingValidationError,
@@ -56,10 +58,26 @@ export async function POST(request: Request): Promise<NextResponse> {
     const wantedRaw = (body as { endMedia?: unknown }).endMedia;
     const wanted = typeof wantedRaw === "boolean" ? wantedRaw : undefined;
     let userId: string | null = null;
-    if (wanted !== false) {
+    if (wanted !== false || parsed.value.secondaryDefaultAccountId) {
       userId = (await auth().catch(() => null))?.user?.id ?? null;
     }
-    const endResolution = userId
+
+    // Parte de baixo = mídia fixa da conta do Instagram (cadastrada em Minha conta › Mídia final).
+    let secondaryMedia: { url: string; kind: "VIDEO" | "IMAGE" } | null = null;
+    if (parsed.value.secondaryDefaultAccountId) {
+      const media = userId ? await resolveSplitBottomMediaForUser(userId, parsed.value.secondaryDefaultAccountId) : null;
+      // Não vai processar: apaga o vídeo principal já enviado (mesma regra de privacidade de sempre).
+      if (!media) await deleteBlob(parsed.value.primaryBlobUrl).catch(() => undefined);
+      if (!userId) return NextResponse.json({ error: "Faça login para usar a mídia padrão da conta." }, { status: 401 });
+      if (!media) {
+        return NextResponse.json({ error: "Esta conta não tem mídia padrão do Split Screen cadastrada. Envie o vídeo complementar." }, { status: 400 });
+      }
+      secondaryMedia = { url: media.storageUrl, kind: media.kind };
+      // A mídia fixa acompanha o vídeo principal inteiro (vídeo curto repete em loop).
+      parsed.value.durationMode = "loop";
+      parsed.value.secondaryTrim = { startSeconds: 0, endSeconds: null };
+    }
+    const endResolution = userId && wanted !== false
       ? await resolveSplitScreenEndClip(userId, wanted, VIDEO_OUTPUT_DIMENSIONS[parsed.value.outputFormat]).catch(() => null)
       : null;
     const startedAt = Date.now();
@@ -67,6 +85,7 @@ export async function POST(request: Request): Promise<NextResponse> {
       endClip: endResolution?.clip
         ? { url: endResolution.clip.url, durationSeconds: endResolution.clip.durationSeconds, fadeSeconds: endResolution.fadeSeconds }
         : null,
+      secondaryMedia,
     });
     let endMedia: { applied: boolean; renderId: string | null; message: string | null } | undefined;
     if (userId && endResolution && (endResolution.clip || endResolution.notApplied)) {

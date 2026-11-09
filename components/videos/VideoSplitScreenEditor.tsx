@@ -22,7 +22,8 @@ import {
   trackUpload,
 } from "@/lib/client/upload-telemetry";
 import { FileNotReadableError, readFailureReason, createStallGuard, ensureReadableFile } from "@/lib/client/file-readability";
-import { VideoEndMediaToggle } from "@/components/brand-end-media/VideoEndMediaToggle";
+import { fetchSplitBottomSummary } from "@/lib/videos/split-bottom/split-bottom-client";
+import type { SplitBottomSummaryDto } from "@/lib/videos/split-bottom/split-bottom-config";
 import { ArrowLeftRight, Download, Move, Pause, Play, RotateCcw, Send, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { ConnectInstagramDialog, buildConnectTarget } from "@/components/instagram/ConnectInstagramDialog";
@@ -463,7 +464,9 @@ function FramingPreviewPane({
   videoRef,
   loop,
   onLoadedMetadata,
+  mediaKind = "video",
 }: {
+  mediaKind?: "video" | "image";
   slotKey: VideoSlotKey;
   label: string;
   objectUrl: string | null;
@@ -497,9 +500,9 @@ function FramingPreviewPane({
       : null;
 
   useEffect(() => {
-    if (!objectUrl) return;
+    if (!objectUrl || mediaKind !== "video") return;
     videoRef.current?.load();
-  }, [objectUrl, videoRef]);
+  }, [objectUrl, videoRef, mediaKind]);
 
   // Novo arquivo: zera o aviso de prévia (ajuste de estado durante a renderização, sem efeito).
   const [previewFor, setPreviewFor] = useState(objectUrl);
@@ -587,6 +590,17 @@ function FramingPreviewPane({
     >
       {objectUrl ? (
         <>
+          {mediaKind === "image" ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              data-testid={`preview-image-${slotKey}`}
+              src={objectUrl}
+              alt=""
+              draggable={false}
+              className={layout ? "absolute max-w-none select-none" : "h-full w-full object-cover"}
+              style={videoStyle}
+            />
+          ) : (
           <video
             ref={videoRef}
             data-testid={`preview-video-${slotKey}`}
@@ -608,6 +622,7 @@ function FramingPreviewPane({
             className={layout ? "absolute max-w-none select-none" : "h-full w-full object-cover"}
             style={videoStyle}
           />
+          )}
           <div className="pointer-events-none absolute left-2 top-2 inline-flex items-center gap-1 rounded bg-black/60 px-2 py-1 text-[11px] font-medium text-white">
             <Move className="size-3" aria-hidden />
             Arraste para ajustar
@@ -655,7 +670,8 @@ export function VideoSplitScreenEditor({
   const [primary, setPrimary] = useState<VideoSlotState>(EMPTY_SLOT);
   const [secondary, setSecondary] = useState<VideoSlotState>(EMPTY_SLOT);
   const [outputFormat, setOutputFormat] = useState<VideoOutputFormat>("vertical");
-  const [layoutRatio, setLayoutRatio] = useState<VideoSplitLayoutRatio>("50-50");
+  // Padrão 60/40: vídeo importado em cima, mídia fixa da conta embaixo (ajustável).
+  const [layoutRatio, setLayoutRatio] = useState<VideoSplitLayoutRatio>("60-40");
   const [durationMode, setDurationMode] = useState<VideoDurationMode>("loop");
   const [audioSource, setAudioSource] = useState<VideoAudioSource>("primary");
   const [primaryVolumePercent, setPrimaryVolumePercent] = useState(100);
@@ -672,7 +688,9 @@ export function VideoSplitScreenEditor({
   const [processingLabel, setProcessingLabel] = useState<"Processando..." | "Finalizando...">("Processando...");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [resultUrl, setResultUrl] = useState<string | null>(storedDraft?.resultUrl ?? null);
-  const [endMediaWanted, setEndMediaWanted] = useState<boolean | undefined>(undefined);
+  /** Mídia fixa da parte de baixo, por conta do Instagram (Minha conta › Mídia final). */
+  const [bottomSummary, setBottomSummary] = useState<SplitBottomSummaryDto>({ accounts: [] });
+  const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
   const [endMediaResult, setEndMediaResult] = useState<{ applied: boolean; renderId: string | null; message: string | null } | null>(null);
   const [caption, setCaption] = useState(storedDraft?.caption ?? "");
   const [publishStage, setPublishStage] = useState<PublishStage>("idle");
@@ -699,7 +717,11 @@ export function VideoSplitScreenEditor({
     publishStage === "baixando" || publishStage === "enviando" || publishStage === "salvando" || publishStage === "publicando";
   const effectiveUserId = accountStatus?.userId ?? userId;
   const isInstagramConnected = accountStatus?.connected ?? instagramConnected;
-  const effectiveIgUsername = accountStatus?.username ?? igUsername;
+  const selectedAccount = bottomSummary.accounts.find((account) => account.instagramAccountId === selectedAccountId) ?? null;
+  const defaultBottom = selectedAccount?.media ?? null;
+  /** Parte de baixo = mídia fixa da conta (sem upload pelo celular), a menos que a pessoa tenha escolhido outro arquivo. */
+  const defaultBottomActive = Boolean(defaultBottom) && !secondary.file;
+  const effectiveIgUsername = selectedAccount?.username ?? accountStatus?.username ?? igUsername;
 
   // Celular com pouca memória: a página recarregou enquanto a galeria estava aberta.
   useEffect(() => {
@@ -710,6 +732,22 @@ export function VideoSplitScreenEditor({
     }, 0);
     return () => window.clearTimeout(timer);
   }, []);
+
+  useEffect(() => {
+    if (!userId) return;
+    let cancelled = false;
+    fetchSplitBottomSummary()
+      .then((summary) => {
+        if (cancelled) return;
+        setBottomSummary(summary);
+        const preferred = summary.accounts.find((account) => account.primary && account.connected) ?? summary.accounts.find((account) => account.connected);
+        setSelectedAccountId((current) => current ?? preferred?.instagramAccountId ?? null);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [userId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -836,8 +874,9 @@ export function VideoSplitScreenEditor({
     return start !== null && end !== null && end > start ? end - start : null;
   }, [secondary.trimStartText, secondary.trimEndText]);
 
-  const estimatedOutputDuration =
-    primaryTrimSeconds !== null && secondaryTrimSeconds !== null
+  const estimatedOutputDuration = defaultBottomActive
+    ? primaryTrimSeconds
+    : primaryTrimSeconds !== null && secondaryTrimSeconds !== null
       ? computeOutputDurationSeconds(
           { startSeconds: 0, endSeconds: primaryTrimSeconds },
           { startSeconds: 0, endSeconds: secondaryTrimSeconds },
@@ -849,7 +888,7 @@ export function VideoSplitScreenEditor({
 
   const canGenerate =
     Boolean(primary.file) &&
-    Boolean(secondary.file) &&
+    (Boolean(secondary.file) || defaultBottomActive) &&
     !primaryTrimError &&
     !secondaryTrimError &&
     !exceedsMaxDuration &&
@@ -873,21 +912,24 @@ export function VideoSplitScreenEditor({
   function togglePreviewPlayback() {
     const primaryEl = primaryVideoRef.current;
     const secondaryEl = secondaryVideoRef.current;
-    if (!primaryEl || !secondaryEl) return;
+    if (!primaryEl) return;
 
     if (isPreviewPlaying) {
       primaryEl.pause();
-      secondaryEl.pause();
+      secondaryEl?.pause();
       setIsPreviewPlaying(false);
     } else {
       void primaryEl.play();
-      void secondaryEl.play();
+      void secondaryEl?.play().catch(() => undefined);
       setIsPreviewPlaying(true);
     }
   }
 
   async function handleGenerate() {
-    if (!canGenerate || !primary.file || !secondary.file) return;
+    if (!canGenerate || !primary.file) return;
+    const secondaryFile = secondary.file;
+    const useAccountBottom = !secondaryFile && Boolean(defaultBottom) && Boolean(selectedAccountId);
+    if (!secondaryFile && !useAccountBottom) return;
 
     setErrorMessage(null);
     setResultUrl(null);
@@ -896,7 +938,7 @@ export function VideoSplitScreenEditor({
 
     const jobId = typeof crypto.randomUUID === "function" ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
     const mobileUpload = isConstrainedMobileUploadEnvironment();
-    const totalBytes = primary.file.size + secondary.file.size;
+    const totalBytes = primary.file.size + (secondaryFile?.size ?? 0);
     const loaded = { primary: 0, secondary: 0 };
     const reportProgress = (key: "primary" | "secondary", bytes: number) => {
       loaded[key] = bytes;
@@ -971,15 +1013,19 @@ export function VideoSplitScreenEditor({
 
     try {
       let primaryUpload: { url: string };
-      let secondaryUpload: { url: string };
-      if (mobileUpload) {
+      let secondaryUpload: { url: string } | null = null;
+      if (!secondaryFile) {
+        // Parte de baixo = mídia fixa da conta (já está no servidor): só envia o vídeo principal.
+        setSlotPercent((current) => ({ ...current, secondary: 100 }));
+        primaryUpload = await uploadOne("primary", primary.file);
+      } else if (mobileUpload) {
         // Celular: upload sequencial reduz pico de memória, rádio de rede e chance
         // de o navegador matar a aba enquanto dois arquivos grandes sobem juntos.
         primaryUpload = await uploadOne("primary", primary.file);
-        secondaryUpload = await uploadOne("secondary", secondary.file);
+        secondaryUpload = await uploadOne("secondary", secondaryFile);
       } else {
         // Desktop: mantém o fluxo rápido em paralelo, cada vídeo com token/controller próprio.
-        const settled = await Promise.allSettled([uploadOne("primary", primary.file), uploadOne("secondary", secondary.file)]);
+        const settled = await Promise.allSettled([uploadOne("primary", primary.file), uploadOne("secondary", secondaryFile)]);
         const failed = settled.find((item): item is PromiseRejectedResult => item.status === "rejected");
         if (failed) throw failed.reason;
         [primaryUpload, secondaryUpload] = settled.map((item) => (item as PromiseFulfilledResult<{ url: string }>).value);
@@ -1003,17 +1049,18 @@ export function VideoSplitScreenEditor({
         signal: processingController.signal,
         body: JSON.stringify({
           primaryBlobUrl: primaryUpload.url,
-          secondaryBlobUrl: secondaryUpload.url,
+          ...(secondaryUpload
+            ? { secondaryBlobUrl: secondaryUpload.url, secondaryTrim: buildRequestTrim(secondary) }
+            : { secondaryDefault: { instagramAccountId: selectedAccountId }, secondaryTrim: { startSeconds: 0, endSeconds: null } }),
           outputFormat,
           layoutRatio,
           primaryTrim: buildRequestTrim(primary),
-          secondaryTrim: buildRequestTrim(secondary),
           primaryFraming,
           secondaryFraming,
-          durationMode,
+          durationMode: secondaryUpload ? durationMode : "loop",
           audio,
-          // Encerramento padrão da empresa (só logado; entra depois do split inteiro).
-          endMedia: endMediaWanted === true,
+          // A mídia da conta fica fixa embaixo durante o vídeo — nada é emendado no final.
+          endMedia: false,
         }),
       }).catch((error: unknown) => {
         trackUpload("split-screen", "processing_error", { message: `job ${jobId} rede: ${error instanceof Error ? error.message : "erro"}` });
@@ -1095,6 +1142,7 @@ export function VideoSplitScreenEditor({
         body: JSON.stringify({
           postType: "reels",
           mediaUrl,
+          ...(selectedAccount?.connected ? { instagramAccountId: selectedAccount.instagramAccountId } : {}),
           ...(endMediaResult?.applied && endMediaResult.renderId ? { endMediaRenderId: endMediaResult.renderId } : {}),
           caption: caption.trim(),
           scheduledAt: null,
@@ -1139,7 +1187,7 @@ export function VideoSplitScreenEditor({
             type="button"
             variant="secondary"
             onClick={handleSwap}
-            disabled={busy || (!primary.file && !secondary.file)}
+            disabled={busy || defaultBottomActive || (!primary.file && !secondary.file)}
           >
             <ArrowLeftRight className="size-4" aria-hidden />
             Trocar vídeos
@@ -1157,8 +1205,47 @@ export function VideoSplitScreenEditor({
           disabled={busy}
         />
 
+        {defaultBottom ? (
+          <div data-testid="account-bottom-media" className="rounded-lg border border-teal-200 bg-teal-50/60 p-4">
+            <div className="flex items-start gap-3">
+              {defaultBottom.kind === "IMAGE" ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={defaultBottom.url} alt="" className="size-16 shrink-0 rounded-md object-cover" />
+              ) : (
+                <video src={defaultBottom.url} muted playsInline preload="metadata" className="size-16 shrink-0 rounded-md bg-black object-cover" />
+              )}
+              <div className="min-w-0 flex-1 text-sm">
+                <p className="font-semibold text-zinc-900">Parte de baixo: mídia padrão de @{selectedAccount?.username ?? "conta"}</p>
+                <p className="text-xs text-zinc-600">
+                  {defaultBottomActive
+                    ? `Já está no vídeo — ${defaultBottom.kind === "IMAGE" ? "imagem fixa" : "vídeo em loop"} durante todo o Reel. Arraste na prévia para ajustar.`
+                    : "Você escolheu outro arquivo só para este vídeo."}
+                </p>
+                {!defaultBottomActive ? (
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => replaceSlotFile(setSecondary, null, () => setSecondaryFraming(DEFAULT_VIDEO_FRAMING))}
+                    className="mt-2 text-xs font-semibold text-teal-800 underline"
+                  >
+                    Voltar para a mídia padrão
+                  </button>
+                ) : null}
+              </div>
+            </div>
+          </div>
+        ) : userId && bottomSummary.accounts.length > 0 ? (
+          <p className="rounded-lg border border-dashed border-zinc-300 bg-white p-3 text-xs text-zinc-600">
+            Dica: cadastre a mídia fixa da parte de baixo para @{selectedAccount?.username ?? "sua conta"} em{" "}
+            <a href="/minha-conta/midia-final" className="font-semibold text-teal-800 underline">
+              Minha conta › Mídia final
+            </a>{" "}
+            e ela já aparece aqui, sem precisar enviar pelo celular.
+          </p>
+        ) : null}
+
         <VideoUploadSlot
-          label="Vídeo complementar (fica embaixo)"
+          label={defaultBottom ? "Outro vídeo para a parte de baixo (opcional, só neste vídeo)" : "Vídeo complementar (fica embaixo)"}
           testId="secondary"
           slot={secondary}
           onFileChange={(file) => replaceSlotFile(setSecondary, file, () => setSecondaryFraming(DEFAULT_VIDEO_FRAMING))}
@@ -1210,9 +1297,10 @@ export function VideoSplitScreenEditor({
               <FramingPreviewPane
                 slotKey="secondary"
                 label="Vídeo complementar"
-                objectUrl={secondary.objectUrl}
-                videoWidth={secondary.videoWidth}
-                videoHeight={secondary.videoHeight}
+                objectUrl={secondary.objectUrl ?? (defaultBottomActive ? defaultBottom?.url ?? null : null)}
+                mediaKind={defaultBottomActive && defaultBottom?.kind === "IMAGE" ? "image" : "video"}
+                videoWidth={defaultBottomActive ? defaultBottom?.width ?? null : secondary.videoWidth}
+                videoHeight={defaultBottomActive ? defaultBottom?.height ?? null : secondary.videoHeight}
                 regionWidth={dimensions.width}
                 regionHeight={bottomHeight}
                 framing={secondaryFraming}
@@ -1222,6 +1310,7 @@ export function VideoSplitScreenEditor({
                 videoRef={secondaryVideoRef}
                 loop
                 onLoadedMetadata={(event) =>
+                  !defaultBottomActive &&
                   handleLoadedMetadata(
                     setSecondary,
                     event.currentTarget.duration,
@@ -1262,7 +1351,7 @@ export function VideoSplitScreenEditor({
               </Button>
             </div>
           </div>
-          {primary.objectUrl && secondary.objectUrl ? (
+          {primary.objectUrl && (secondary.objectUrl || defaultBottomActive) ? (
             <Button type="button" variant="secondary" className="mt-3" onClick={togglePreviewPlayback}>
               {isPreviewPlaying ? <Pause className="size-4" aria-hidden /> : <Play className="size-4" aria-hidden />}
               {isPreviewPlaying ? "Pausar prévia" : "Reproduzir prévia"}
@@ -1318,7 +1407,10 @@ export function VideoSplitScreenEditor({
 
         <fieldset>
           <legend className="text-sm font-medium text-zinc-800">Quando o complementar for mais curto</legend>
-          <div className="mt-2 space-y-2">
+          {defaultBottomActive ? (
+            <p className="mt-1 text-xs text-zinc-500">Com a mídia padrão da conta, a parte de baixo acompanha o vídeo inteiro.</p>
+          ) : null}
+          <div className={`mt-2 space-y-2 ${defaultBottomActive ? "pointer-events-none opacity-50" : ""}`}>
             {DURATION_MODE_OPTIONS.map((option) => (
               <label key={option.value} className="flex items-start gap-2 text-sm text-zinc-700">
                 <input
@@ -1401,7 +1493,29 @@ export function VideoSplitScreenEditor({
           </p>
         </div>
 
-        {effectiveUserId ? <VideoEndMediaToggle context="SPLIT_SCREEN" disabled={busy} onChange={setEndMediaWanted} /> : null}
+        {bottomSummary.accounts.length > 1 ? (
+          <label className="block text-sm font-medium text-zinc-800">
+            Conta do Instagram
+            <select
+              value={selectedAccountId ?? ""}
+              disabled={busy || publishBusy}
+              onChange={(event) => {
+                setSelectedAccountId(event.target.value || null);
+                setSecondaryFraming(DEFAULT_VIDEO_FRAMING);
+              }}
+              className="mt-1 h-11 w-full rounded-md border border-zinc-300 bg-white px-2 text-base md:h-10 md:text-sm"
+            >
+              {bottomSummary.accounts.map((account) => (
+                <option key={account.instagramAccountId} value={account.instagramAccountId} disabled={!account.connected}>
+                  @{account.username ?? "conta"}
+                  {account.media ? "" : " (sem mídia padrão)"}
+                  {account.connected ? "" : " — desconectada"}
+                </option>
+              ))}
+            </select>
+            <span className="mt-1 block text-xs font-normal text-zinc-500">Define a mídia fixa da parte de baixo e onde o Reel será publicado.</span>
+          </label>
+        ) : null}
 
         <Button type="button" data-testid="generate-button" className="w-full max-lg:hidden" disabled={!canGenerate} onClick={() => void handleGenerate()}>
           {stage === "enviando" ? `Enviando vídeos… ${uploadPercent}%` : stage === "processando" ? processingLabel : "Gerar vídeo"}
