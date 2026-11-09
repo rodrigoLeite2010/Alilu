@@ -10,7 +10,7 @@ import { finished } from "node:stream/promises";
 import { del as deleteBlob, put } from "@vercel/blob";
 import ffmpegPath from "ffmpeg-static";
 import { path as ffprobePath } from "ffprobe-static";
-import { MAX_OUTPUT_DURATION_SECONDS, VIDEO_OUTPUT_PATH_PREFIX } from "../config";
+import { VIDEO_OUTPUT_PATH_PREFIX } from "../config";
 import { buildSplitScreenFfmpegArgs, computeOutputDurationSeconds, type VideoTrimRange } from "../split-screen-ffmpeg";
 import type { SplitScreenRequestBody } from "../validation";
 
@@ -233,11 +233,6 @@ export async function processSplitScreenVideo(
         : resolveTrimEnd(request.secondaryTrim, secondaryInfo, "vídeo complementar");
 
       const outputDuration = computeOutputDurationSeconds(primaryTrim, secondaryTrim, request.durationMode);
-      if (outputDuration > MAX_OUTPUT_DURATION_SECONDS) {
-        throw new VideoProcessingValidationError(
-          `O resultado ficaria com ${Math.round(outputDuration)}s — o limite desta ferramenta é ${MAX_OUTPUT_DURATION_SECONDS}s.`,
-        );
-      }
 
       const primaryTrimDuration = primaryTrim.endSeconds - primaryTrim.startSeconds;
       const secondaryTrimDuration = secondaryTrim.endSeconds - secondaryTrim.startSeconds;

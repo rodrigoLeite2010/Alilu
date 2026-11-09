@@ -186,45 +186,12 @@ describe("parseSplitScreenRequest — enquadramento inválido", () => {
   });
 });
 
-describe("parseSplitScreenRequest — duração final acima do limite", () => {
-  it('modo "loop": rejeita quando o corte do principal sozinho já passa do limite', () => {
+describe("parseSplitScreenRequest — sem trava de duração do resultado", () => {
+  it("aceita resultado mais longo que o antigo limite (segue o vídeo original)", () => {
     const result = parseSplitScreenRequest({
       ...VALID_BODY,
       durationMode: "loop",
-      primaryTrim: { startSeconds: 0, endSeconds: MAX_OUTPUT_DURATION_SECONDS + 10 },
-      secondaryTrim: { startSeconds: 0, endSeconds: 5 },
-    });
-    expect(result.ok).toBe(false);
-    if (!result.ok) {
-      expect(result.error).toContain(String(MAX_OUTPUT_DURATION_SECONDS));
-    }
-  });
-
-  it('modo "shortest": aceita quando a MENOR das durações está dentro do limite, mesmo que a maior não esteja', () => {
-    const result = parseSplitScreenRequest({
-      ...VALID_BODY,
-      durationMode: "shortest",
-      primaryTrim: { startSeconds: 0, endSeconds: MAX_OUTPUT_DURATION_SECONDS + 20 },
-      secondaryTrim: { startSeconds: 0, endSeconds: 10 },
-    });
-    expect(result.ok).toBe(true);
-  });
-
-  it('modo "shortest": rejeita quando até a menor das durações passa do limite', () => {
-    const result = parseSplitScreenRequest({
-      ...VALID_BODY,
-      durationMode: "shortest",
-      primaryTrim: { startSeconds: 0, endSeconds: MAX_OUTPUT_DURATION_SECONDS + 20 },
-      secondaryTrim: { startSeconds: 0, endSeconds: MAX_OUTPUT_DURATION_SECONDS + 5 },
-    });
-    expect(result.ok).toBe(false);
-  });
-
-  it("aceita exatamente no limite (não passa de MAX_OUTPUT_DURATION_SECONDS)", () => {
-    const result = parseSplitScreenRequest({
-      ...VALID_BODY,
-      durationMode: "loop",
-      primaryTrim: { startSeconds: 0, endSeconds: MAX_OUTPUT_DURATION_SECONDS },
+      primaryTrim: { startSeconds: 0, endSeconds: MAX_OUTPUT_DURATION_SECONDS + 60 },
       secondaryTrim: { startSeconds: 0, endSeconds: 5 },
     });
     expect(result.ok).toBe(true);

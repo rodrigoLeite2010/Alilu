@@ -36,7 +36,6 @@ import {
 } from "@/lib/instagram/client/publication-api";
 import { buildMediaPathnamePrefix, MAX_VIDEO_UPLOAD_BYTES } from "@/lib/instagram/backend/media-service";
 import {
-  MAX_OUTPUT_DURATION_SECONDS,
   MAX_VIDEO_INPUT_BYTES,
   SATISFYING_PRESET,
   VIDEO_INPUT_FILE_EXTENSIONS,
@@ -884,14 +883,11 @@ export function VideoSplitScreenEditor({
         )
       : null;
 
-  const exceedsMaxDuration = estimatedOutputDuration !== null && estimatedOutputDuration > MAX_OUTPUT_DURATION_SECONDS;
-
   const canGenerate =
     Boolean(primary.file) &&
     (Boolean(secondary.file) || defaultBottomActive) &&
     !primaryTrimError &&
     !secondaryTrimError &&
-    !exceedsMaxDuration &&
     !busy;
 
   const dimensions = VIDEO_OUTPUT_DIMENSIONS[outputFormat];
@@ -1479,17 +1475,16 @@ export function VideoSplitScreenEditor({
         </fieldset>
 
         {estimatedOutputDuration !== null ? (
-          <p className={`text-xs ${exceedsMaxDuration ? "text-red-700" : "text-zinc-600"}`}>
-            Duração estimada do resultado: {formatClock(estimatedOutputDuration)}
-            {exceedsMaxDuration ? ` — acima do limite de ${MAX_OUTPUT_DURATION_SECONDS}s desta ferramenta.` : "."}
+          <p className="text-xs text-zinc-600">
+            Duração estimada do resultado: {formatClock(estimatedOutputDuration)}.
           </p>
         ) : null}
 
         <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
           <p>
             Os vídeos enviados são usados só para gerar o resultado e os arquivos originais são apagados do servidor
-            logo após o processamento. Cada vídeo pode ter até {MAX_INPUT_MEGABYTES} MB, e o resultado final tem no
-            máximo {MAX_OUTPUT_DURATION_SECONDS} segundos.
+            logo após o processamento. Cada vídeo pode ter até {MAX_INPUT_MEGABYTES} MB; o resultado segue a duração
+            do vídeo original.
           </p>
         </div>
 

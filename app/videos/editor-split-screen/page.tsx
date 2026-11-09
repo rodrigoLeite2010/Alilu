@@ -7,7 +7,7 @@ import { AdSlot } from "@/components/ui/AdSlot";
 import { FaqJsonLd } from "@/components/seo/FaqJsonLd";
 import type { ToolFaqItem } from "@/components/tools/ToolPageTemplate";
 import { buildPageMetadata } from "@/lib/seo/metadata";
-import { MAX_OUTPUT_DURATION_SECONDS, MAX_VIDEO_INPUT_BYTES } from "@/lib/videos/config";
+import { MAX_VIDEO_INPUT_BYTES } from "@/lib/videos/config";
 import { VIDEOS_CATEGORY, videoTools } from "@/data/videos";
 import { VideoSplitScreenEditor } from "@/components/videos/VideoSplitScreenEditor";
 import { getInstagramAccountForUser } from "@/lib/instagram/backend/instagram-account-repository";
@@ -56,7 +56,7 @@ const faq: ToolFaqItem[] = [
   },
   {
     question: "Existe limite de tamanho ou duração?",
-    answer: `Cada vídeo enviado pode ter até ${maxInputMegabytes} MB. O vídeo final gerado tem no máximo ${MAX_OUTPUT_DURATION_SECONDS} segundos de duração.`,
+    answer: `Cada vídeo enviado pode ter até ${maxInputMegabytes} MB. O vídeo final segue a duração do vídeo original, sem limite fixo.`,
   },
   {
     question: "O resultado tem marca d'água?",

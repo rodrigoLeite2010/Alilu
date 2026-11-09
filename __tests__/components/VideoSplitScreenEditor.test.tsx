@@ -220,8 +220,8 @@ describe("VideoSplitScreenEditor — validação de corte", () => {
   });
 });
 
-describe("VideoSplitScreenEditor — limite de duração do resultado", () => {
-  it('desabilita "Gerar vídeo" quando a duração final estimada passa do limite da ferramenta', async () => {
+describe("VideoSplitScreenEditor — sem limite de duração do resultado", () => {
+  it('não bloqueia "Gerar vídeo" quando o resultado passa do antigo limite', async () => {
     renderEditor();
 
     await selectFile("Vídeo principal (fica em cima)", "preview-video-primary", makeVideoFile("principal.mp4"), 300);
@@ -232,8 +232,9 @@ describe("VideoSplitScreenEditor — limite de duração do resultado", () => {
       target: { value: "04:00" }, // 240s > MAX_OUTPUT_DURATION_SECONDS (150s), modo padrão = loop
     });
 
-    expect(await screen.findByText(new RegExp(`acima do limite de ${MAX_OUTPUT_DURATION_SECONDS}s`))).toBeInTheDocument();
-    expect(screen.getByTestId("generate-button")).toBeDisabled();
+    expect(await screen.findByText(/Duração estimada do resultado: 04:00/)).toBeInTheDocument();
+    expect(screen.queryByText(/acima do limite/)).not.toBeInTheDocument();
+    expect(screen.getByTestId("generate-button")).not.toBeDisabled();
   });
 });
 

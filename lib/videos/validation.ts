@@ -1,6 +1,5 @@
 import {
   isVideoInputBlobUrl,
-  MAX_OUTPUT_DURATION_SECONDS,
 } from "./config";
 import type {
   VideoAudioConfig,
@@ -9,7 +8,6 @@ import type {
   VideoFraming,
   VideoOutputFormat,
   VideoSplitLayoutRatio,
-  VideoTrimRange,
 } from "./split-screen-ffmpeg";
 import {
   VIDEO_FRAMING_MAX_POSITION,
@@ -18,7 +16,6 @@ import {
   VIDEO_FRAMING_MIN_ZOOM,
   VIDEO_LAYOUT_TOP_RATIO,
   VIDEO_OUTPUT_DIMENSIONS,
-  computeOutputDurationSeconds,
 } from "./split-screen-ffmpeg";
 
 /**
@@ -228,19 +225,7 @@ export function parseSplitScreenRequest(body: unknown): ParseResult<SplitScreenR
   const audio = parseAudio(raw.audio);
   if (!audio.ok) return audio;
 
-  if (primaryTrim.value.endSeconds !== null && secondaryTrim.value.endSeconds !== null) {
-    const estimatedDuration = computeOutputDurationSeconds(
-      primaryTrim.value as VideoTrimRange,
-      secondaryTrim.value as VideoTrimRange,
-      durationMode as VideoDurationMode,
-    );
-    if (estimatedDuration > MAX_OUTPUT_DURATION_SECONDS) {
-      return {
-        ok: false,
-        error: `O resultado ficaria com ${Math.round(estimatedDuration)}s — o limite desta ferramenta é ${MAX_OUTPUT_DURATION_SECONDS}s.`,
-      };
-    }
-  }
+  // Sem trava de duração do resultado: segue o tamanho do vídeo original.
 
   return {
     ok: true,

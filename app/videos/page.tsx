@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/Badge";
 import { FaqJsonLd } from "@/components/seo/FaqJsonLd";
 import type { ToolFaqItem } from "@/components/tools/ToolPageTemplate";
 import { buildPageMetadata } from "@/lib/seo/metadata";
-import { MAX_OUTPUT_DURATION_SECONDS, MAX_VIDEO_INPUT_BYTES } from "@/lib/videos/config";
+import { MAX_VIDEO_INPUT_BYTES } from "@/lib/videos/config";
 import { VIDEOS_CATEGORY, videoTools } from "@/data/videos";
 
 export const metadata: Metadata = buildPageMetadata({
@@ -34,7 +34,7 @@ const faq: ToolFaqItem[] = [
   },
   {
     question: "Existe limite de tamanho ou duração?",
-    answer: `Cada vídeo enviado pode ter até ${maxInputMegabytes} MB. O vídeo final gerado tem no máximo ${MAX_OUTPUT_DURATION_SECONDS} segundos de duração — o suficiente para a maioria dos Reels, Shorts e vídeos curtos de TikTok.`,
+    answer: `Cada vídeo enviado pode ter até ${maxInputMegabytes} MB. O vídeo final segue a duração do vídeo original, sem limite fixo.`,
   },
   {
     question: "O resultado tem marca d'água?",
@@ -150,7 +150,7 @@ export default function VideosCategoryPage() {
               <Icon name="chevron-down" className="h-4 w-4 text-zinc-500 transition-transform group-open:rotate-180" />
             </summary>
             <p className="mt-2 text-sm leading-relaxed text-zinc-700">
-              Cada vídeo pode ter até {maxInputMegabytes} MB e o resultado, até {MAX_OUTPUT_DURATION_SECONDS} segundos. Os arquivos enviados
+              Cada vídeo pode ter até {maxInputMegabytes} MB e o resultado segue a duração do vídeo original. Os arquivos enviados
               são apagados do servidor logo após o processamento.
             </p>
           </details>
@@ -188,7 +188,7 @@ export default function VideosCategoryPage() {
             Diferente das outras ferramentas do site (que processam tudo no seu navegador), esta envia os dois
             vídeos para o servidor para gerar o resultado. Os arquivos enviados são apagados logo depois do
             processamento — só o vídeo final gerado fica disponível para download. Cada vídeo enviado pode ter até{" "}
-            {maxInputMegabytes} MB, e o resultado final tem no máximo {MAX_OUTPUT_DURATION_SECONDS} segundos.
+            {maxInputMegabytes} MB, e o resultado segue a duração do vídeo original.
           </p>
         </div>
       </section>

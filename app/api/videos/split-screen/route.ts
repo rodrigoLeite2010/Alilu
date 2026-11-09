@@ -27,7 +27,7 @@ export const runtime = "nodejs";
 // timeout com 149s/60s) mostram exatamente onde o tempo real é gasto —
 // ajuste este número e/ou MAX_OUTPUT_DURATION_SECONDS a partir deles se
 // um timeout acontecer de novo.
-export const maxDuration = 200;
+export const maxDuration = 300;
 
 /**
  * Processa o split-screen de dois vídeos já enviados ao Vercel Blob
