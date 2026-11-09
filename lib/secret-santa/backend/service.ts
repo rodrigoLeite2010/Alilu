@@ -451,6 +451,10 @@ export async function acceptInvite(userId: string, tok: string) {
   } else if (existing) {
     accepted = await repo.acceptParticipant(existing.id, userId);
   } else {
+    // link geral do grupo: quem o organizador removeu não volta sozinho (só com um convite pessoal novo)
+    if (await repo.wasRemovedFromGroup(group.id, userId)) {
+      throw new SecretSantaError(inviteMessage("REMOVED"), 409, "INVITE_REMOVED");
+    }
     const basics = await repo.getUserBasics(userId);
     accepted = await repo.insertParticipant(group.id, {
       name: ownerDisplayName(basics),

@@ -296,6 +296,7 @@ export async function insertParticipant(groupId: string, p: NewParticipant): Pro
     from secret_santa_groups g
     where g.id = ${groupId} and g.status in ('OPEN', 'READY_TO_DRAW', 'DRAFT')
       and (select count(*) from secret_santa_participants x where x.group_id = g.id and x.status in ('INVITED', 'ACCEPTED')) < ${MAX_PARTICIPANTS}
+    for share of g
     returning *`;
   return rows[0] ? mapParticipant(rows[0]) : null;
 }
@@ -306,9 +307,18 @@ export async function acceptParticipant(participantId: string, userId: string): 
     update secret_santa_participants p set user_id = ${userId}, status = 'ACCEPTED', joined_at = coalesce(p.joined_at, now()),
       confirmed_at = now(), updated_at = now()
     where p.id = ${participantId} and p.status in ('INVITED', 'DECLINED') and (p.user_id is null or p.user_id = ${userId})
-      and exists (select 1 from secret_santa_groups g where g.id = p.group_id and g.status in ('OPEN', 'READY_TO_DRAW'))
+      -- "for share": espera um sorteio em andamento (persistDraw trava o grupo "for update") e reavalia o status,
+      -- para ninguém entrar no exato instante do sorteio e ficar sem amigo sorteado.
+      and exists (select 1 from secret_santa_groups g where g.id = p.group_id and g.status in ('OPEN', 'READY_TO_DRAW') for share)
     returning *`;
   return rows[0] ? mapParticipant(rows[0]) : null;
+}
+
+/** A conta já foi removida deste grupo pelo organizador? (impede voltar pelo link geral do grupo) */
+export async function wasRemovedFromGroup(groupId: string, userId: string): Promise<boolean> {
+  const rows = await getDb()`
+    select 1 from secret_santa_participants where group_id = ${groupId} and user_id = ${userId} and status = 'REMOVED' limit 1`;
+  return rows.length > 0;
 }
 
 export async function setParticipantStatus(participantId: string, groupId: string, to: "DECLINED" | "REMOVED"): Promise<ParticipantRecord | null> {

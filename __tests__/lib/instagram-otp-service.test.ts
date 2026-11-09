@@ -160,7 +160,7 @@ describe("requestOtp — proteções novas (cooldown, IP, código único ativo)"
 
   it("bloqueia quando o mesmo IP pediu códigos demais na última hora", async () => {
     repositoryMocks.findLatestOtpForEmail.mockResolvedValue(null);
-    repositoryMocks.countRecentOtpRequestsByIp.mockResolvedValue(20);
+    repositoryMocks.countRecentOtpRequestsByIp.mockResolvedValue(200);
 
     await expect(requestOtp(EMAIL, { ip: "203.0.113.9" })).rejects.toBeInstanceOf(OtpRateLimitError);
     expect(repositoryMocks.insertOtpCode).not.toHaveBeenCalled();

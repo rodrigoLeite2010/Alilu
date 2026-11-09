@@ -83,6 +83,16 @@ describe("grupo, participantes e convites", () => {
     expect(view.me.name).toBe("Carla");
   });
 
+  it("quem foi removido não volta sozinho pelo link geral do grupo", async () => {
+    const { id } = await svc.createGroup(users[0], { name: "Natal" });
+    const token = ((await svc.getGroupView(users[0], id)) as View).inviteToken as string;
+    await svc.acceptInvite(users[2], token);
+    const pidCarla = ((await svc.getGroupView(users[2], id)) as View).me.participantId as string;
+    await svc.removeParticipant(users[0], id, pidCarla);
+    await expect(svc.acceptInvite(users[2], token)).rejects.toMatchObject({ code: "INVITE_REMOVED" });
+    await expect(svc.getGroupView(users[2], id)).rejects.toMatchObject({ httpStatus: 404 });
+  });
+
   it("4) quem não participa não acessa nada do grupo", async () => {
     const { id } = await setupGroup(3);
     for (const call of [

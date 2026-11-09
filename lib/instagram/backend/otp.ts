@@ -19,7 +19,9 @@ export const OTP_MAX_REQUESTS_PER_HOUR = 5;
 /** Intervalo mínimo entre dois envios para o mesmo e-mail. */
 export const OTP_RESEND_COOLDOWN_SECONDS = 60;
 /** Pedidos de código por IP por hora (barra varredura de muitos e-mails). */
-export const OTP_MAX_REQUESTS_PER_IP_PER_HOUR = 20;
+// 200 (era 20): no celular, operadoras brasileiras colocam milhares de pessoas atrás do mesmo IP (CGNAT);
+// com tráfego de anúncio, 20 bloqueava gente de verdade. O limite por e-mail (5/h + 60s) segue valendo.
+export const OTP_MAX_REQUESTS_PER_IP_PER_HOUR = 200;
 
 /** Gera um código numérico de OTP_CODE_LENGTH dígitos, sempre com zeros à esquerda. */
 export function generateOtpCode(): string {

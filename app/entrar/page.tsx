@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { signIn } from "next-auth/react";
+import { DEFAULT_CALLBACK, isInAppBrowser, safeCallbackUrl } from "@/lib/auth/login-redirect";
 
 type Step = "email" | "code";
 
@@ -17,9 +18,24 @@ type Step = "email" | "code";
  */
 export default function LoginPage() {
   const callbackUrl =
-    typeof window === "undefined"
-      ? "/instagram/painel"
-      : new URLSearchParams(window.location.search).get("callbackUrl") || "/instagram/painel";
+    typeof window === "undefined" ? DEFAULT_CALLBACK : safeCallbackUrl(new URLSearchParams(window.location.search).get("callbackUrl"));
+  const [inApp, setInApp] = useState(false);
+  const [isAndroid, setIsAndroid] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
+  useEffect(() => {
+    const ua = navigator.userAgent || "";
+    setInApp(isInAppBrowser(ua));
+    setIsAndroid(/Android/i.test(ua));
+  }, []);
+
+  async function copyLink() {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      setLinkCopied(true);
+    } catch {
+      setLinkCopied(false);
+    }
+  }
   const [step, setStep] = useState<Step>("email");
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
@@ -83,6 +99,31 @@ export default function LoginPage() {
         </p>
       </div>
 
+      {inApp ? (
+        <div role="note" className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+          <p>
+            Você está no navegador do Instagram/Facebook, onde o login com Google não funciona. Entre com o{" "}
+            <strong>código por e-mail</strong> abaixo, ou abra esta página no seu navegador (menu <strong>⋯</strong> →
+            &quot;Abrir no navegador&quot;).
+          </p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {isAndroid ? (
+              <a
+                href={`intent://${typeof window === "undefined" ? "" : window.location.host + window.location.pathname + window.location.search}#Intent;scheme=https;end`}
+                className="rounded-md border border-amber-300 bg-white px-3 py-1.5 text-xs font-semibold"
+              >
+                Abrir no navegador
+              </a>
+            ) : null}
+            <button type="button" onClick={copyLink} className="rounded-md border border-amber-300 bg-white px-3 py-1.5 text-xs font-semibold">
+              {linkCopied ? "Link copiado!" : "Copiar link"}
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      {inApp ? null : (
+      <>
       <button
         type="button"
         onClick={() => signIn("google", { callbackUrl })}
@@ -96,6 +137,8 @@ export default function LoginPage() {
         ou
         <div className="h-px flex-1 bg-zinc-200" />
       </div>
+      </>
+      )}
 
       {step === "email" ? (
         <form onSubmit={handleRequestCode} className="flex flex-col gap-3">
