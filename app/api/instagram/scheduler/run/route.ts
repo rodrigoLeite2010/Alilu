@@ -4,6 +4,7 @@ import {
   parseSchedulerLimit,
   runInstagramScheduler,
 } from "@/lib/instagram/backend/instagram-scheduler";
+import { runFacebookScheduler } from "@/lib/facebook/backend/facebook-publish-service";
 
 export const maxDuration = 60;
 
@@ -18,5 +19,6 @@ export async function POST(request: Request): Promise<NextResponse> {
     return NextResponse.json({ error: "Não autorizado." }, { status: 401 });
   }
   const results = await runInstagramScheduler({ limit: parseSchedulerLimit(request) });
-  return NextResponse.json({ processed: results.length, results });
+  const facebook = await runFacebookScheduler({ limit: parseSchedulerLimit(request), timeBudgetMs: 15_000 }).catch(() => null);
+  return NextResponse.json({ processed: results.length, results, facebook });
 }

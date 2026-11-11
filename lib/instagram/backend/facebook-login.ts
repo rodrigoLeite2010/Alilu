@@ -46,8 +46,14 @@ async function graph<T>(path: string, params: Record<string, string>) {
   return body;
 }
 
-export async function exchangeFacebookCode(code: string, redirectUri: string) {
-  const { appId, appSecret } = facebookAppCredentials();
+/**
+ * `credentials` opcional: o fluxo de Páginas do Facebook (lib/facebook)
+ * usa o MESMO app Meta, mas com outra configuração de login — não depende
+ * de INSTAGRAM_FACEBOOK_LOGIN_CONFIG_ID. Sem o parâmetro, comportamento
+ * idêntico ao de sempre.
+ */
+export async function exchangeFacebookCode(code: string, redirectUri: string, credentials?: { appId: string; appSecret: string }) {
+  const { appId, appSecret } = credentials ?? facebookAppCredentials();
   const short = await graph<{ access_token: string; expires_in?: number }>("oauth/access_token", {
     client_id: appId, client_secret: appSecret, redirect_uri: redirectUri, code,
   });

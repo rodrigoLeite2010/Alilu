@@ -155,7 +155,7 @@ function StagePlayer({ program, live, network, busy, error, control, leave }: {
   const [dark, setDark] = useState(true);
   const [font, setFont] = useState(24);
   const [showChords, setShowChords] = useState(true);
-  const [pitch, setPitch] = useState<{ index: number; key: string }>();
+  const [trackTones, setTrackTones] = useState<Record<string, { source: string; target: string }>>({});
   const [finish, setFinish] = useState(program.finish);
   const [waiting, setWaiting] = useState(false);
   const [qr, setQr] = useState("");
@@ -181,8 +181,10 @@ function StagePlayer({ program, live, network, busy, error, control, leave }: {
   const playback = synchronized && shared ? shared : independent;
   const { playing, position: anchor, speed: playbackSpeed, extent: playbackExtent } = playback;
   const track = program.tracks[index];
-  const trackKey = track.item.key || track.song.key || track.song.originalKey;
-  const localKey = pitch?.index === index ? pitch.key : "";
+  const localTones = trackTones[track.item.id];
+  const sourceKey = localTones?.source || track.song.originalKey;
+  const trackKey = track.item.key || track.song.key || sourceKey;
+  const localKey = localTones?.target ?? "";
   const displayedKey = localKey || trackKey;
   const next = program.tracks[index + 1];
 
@@ -373,7 +375,7 @@ function StagePlayer({ program, live, network, busy, error, control, leave }: {
       className={"min-h-0 flex-1 overscroll-contain px-4 py-4 sm:px-8 " + (canScroll ? "overflow-y-auto" : "overflow-y-hidden")}
       onScroll={(event) => manualScroll(event.currentTarget)}>
       <div className="mx-auto max-w-5xl">
-        <Chart song={track.song} target={displayedKey} font={font} chords={showChords} />
+        <Chart song={track.song} source={sourceKey} target={displayedKey} font={font} chords={showChords} />
         {(track.item.notes || track.song.notes) && <p className="mt-5 whitespace-pre-wrap text-sm opacity-70">{[track.song.notes, track.item.notes].filter(Boolean).join("\n")}</p>}
       </div>
     </div>
@@ -407,10 +409,14 @@ function StagePlayer({ program, live, network, busy, error, control, leave }: {
         <div className="flex flex-wrap items-center gap-2 py-1">
           <label className="flex items-center gap-1">Fonte<input type="range" min={14} max={48} value={font} onChange={(event) => setFont(+event.target.value)} /></label>
           <label><input type="checkbox" checked={showChords} onChange={(event) => setShowChords(event.target.checked)} /> Mostrar acordes</label>
+          <label>Tom original da cifra
+            <KeySelect className={field} placeholder="Selecione o tom em que os acordes foram escritos" value={sourceKey}
+              onChange={(source) => setTrackTones((tones) => ({ ...tones, [track.item.id]: { source, target: "" } }))} />
+          </label>
           <label>Tom nesta tela
             <KeySelect className={field} placeholder={trackKey ? "Usar tom da faixa (" + trackKey + ")" : "Usar tom da faixa"}
-              originalKey={track.song.originalKey} value={localKey}
-              onChange={(key) => setPitch({ index, key })} />
+              originalKey={sourceKey} value={localKey}
+              onChange={(target) => setTrackTones((tones) => ({ ...tones, [track.item.id]: { source: sourceKey, target } }))} />
           </label>
           {canChange && <label>Ao terminar <select className={field + " w-auto"} value={finish} onChange={(event) => { cancelDelay(); setFinish(event.target.value as Program["finish"]); }}>
             <option value="manual">Aguardar</option><option value="advance">Avançar</option><option value="play">Avançar e rolar</option><option value="delay">Avançar após {program.delay}s</option>

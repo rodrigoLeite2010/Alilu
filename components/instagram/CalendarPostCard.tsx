@@ -26,6 +26,8 @@ import { ConfirmDialog } from "./ConfirmDialog";
 import { Dialog } from "./Dialog";
 import { EditPublicationDialog } from "./EditPublicationDialog";
 import { ScheduleFields, scheduleValueToIso, type ScheduleValue } from "./ScheduleFields";
+import { PublicationDestinationsStatus } from "./PublicationDestinationsStatus";
+import { overallPublicationStatus, type PublicationDestinationView } from "@/lib/facebook/destination-view";
 
 export interface CalendarPostCardData {
   id: string;
@@ -45,6 +47,10 @@ export interface CalendarPostCardData {
   hasTemplateData?: boolean;
   attemptsCount?: number;
   nextAttemptAt?: string | null;
+  /** false = publicação "somente Facebook". Ausente = Instagram (histórico). */
+  publishToInstagram?: boolean;
+  /** Resultado por destino extra (Páginas do Facebook). */
+  destinations?: PublicationDestinationView[];
 }
 
 export const STATUS_LABEL: Record<InstagramPostStatus, string> = {
@@ -65,6 +71,16 @@ const STATUS_BADGE_CLASS: Record<InstagramPostStatus, string> = {
   FAILED: "bg-red-50 text-red-700",
   CANCELLED: "bg-zinc-100 text-zinc-500",
   NEEDS_REVIEW: "bg-orange-50 text-orange-800",
+};
+
+const STATUS_TEXT_CLASS: Record<InstagramPostStatus, string> = {
+  DRAFT: "text-zinc-600",
+  SCHEDULED: "text-blue-700",
+  PROCESSING: "text-amber-800",
+  PUBLISHED: "text-teal-800",
+  FAILED: "text-red-700",
+  CANCELLED: "text-zinc-500",
+  NEEDS_REVIEW: "text-orange-800",
 };
 
 const TYPE_LABEL: Record<InstagramPostType, string> = {
@@ -242,6 +258,13 @@ export function CalendarPostCard({
 
   if (removed) return null;
 
+  const overall =
+    current.destinations && current.destinations.length > 0
+      ? overallPublicationStatus({
+          instagramStatus: current.publishToInstagram === false ? null : status,
+          destinations: current.destinations,
+        })
+      : null;
   const scheduledLabel = formatInTimeZone(current.scheduledAtUtc, timeZone);
   const publishedLabel = formatInTimeZone(current.publishedAt, timeZone);
   const retryLabel =
@@ -318,6 +341,11 @@ export function CalendarPostCard({
             {STATUS_LABEL[status]}
             {status === "PROCESSING" ? "…" : ""}
           </span>
+          {overall === "PARTIAL" ? (
+            <span className="rounded-full bg-orange-50 px-2 py-0.5 text-xs font-medium text-orange-800">Parcial</span>
+          ) : overall === "PENDING" && status === "PUBLISHED" ? (
+            <span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-800">Facebook pendente</span>
+          ) : null}
           <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-700">{typeLabel}</span>
           {current.source === "VIRAL_POST" ? (
             <span className="rounded-full bg-violet-50 px-2 py-0.5 text-xs font-medium text-violet-700">Post viral</span>
@@ -334,6 +362,20 @@ export function CalendarPostCard({
         </p>
         {retryLabel ? (
           <p className="text-xs text-amber-700">Nova tentativa automática em {retryLabel}.</p>
+        ) : null}
+
+        {current.destinations && current.destinations.length > 0 ? (
+          <PublicationDestinationsStatus
+            instagram={
+              current.publishToInstagram === false
+                ? null
+                : { label: STATUS_LABEL[status], className: STATUS_TEXT_CLASS[status], username: current.igUsername }
+            }
+            destinations={current.destinations}
+            onDestinationChange={(destination) =>
+              apply({ destinations: (current.destinations ?? []).map((item) => (item.id === destination.id ? destination : item)) })
+            }
+          />
         ) : null}
 
         <p className="line-clamp-2 break-words text-sm text-zinc-800">

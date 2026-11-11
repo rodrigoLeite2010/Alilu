@@ -9,6 +9,14 @@ import {
   listPostsForUser,
 } from "@/lib/instagram/backend/instagram-post-service";
 import { readPostExtraFields } from "@/lib/instagram/backend/post-request";
+import { deleteUnsentPostForUser, getPostDetailsForUser } from "@/lib/instagram/backend/instagram-post-repository";
+import {
+  SocialDestinationsError,
+  applyFacebookDestinations,
+  assertFacebookSupports,
+  readSocialDestinations,
+  resolveFacebookPages,
+} from "@/lib/facebook/backend/social-destinations-service";
 
 const MAX_CAPTION_LENGTH = 2200; // limite real do Instagram para legendas
 
@@ -107,6 +115,22 @@ export async function POST(request: Request): Promise<NextResponse> {
   if ("error" in extra) {
     return NextResponse.json({ error: extra.error }, { status: 400 });
   }
+  // "Publicar nas redes sociais": ausente = só Instagram (comportamento histórico).
+  const destinationsResult = readSocialDestinations((body as Record<string, unknown>).destinations);
+  if ("error" in destinationsResult) {
+    return NextResponse.json({ error: destinationsResult.error }, { status: 400 });
+  }
+  const destinations = destinationsResult.value;
+  if (destinations && destinations.facebookPageIds.length > 0) {
+    try {
+      // Valida as Páginas ANTES de criar qualquer coisa.
+      await resolveFacebookPages(userId, destinations.facebookPageIds);
+    } catch (error) {
+      const message = error instanceof SocialDestinationsError ? error.message : "Não foi possível validar a Página do Facebook.";
+      return NextResponse.json({ error: message }, { status: 400 });
+    }
+  }
+  if (destinations) extra.fields.publishToInstagram = destinations.instagram;
 
   try {
     const postId = normalizedPostType === "carousel"
@@ -136,6 +160,19 @@ export async function POST(request: Request): Promise<NextResponse> {
           scheduledAt: (scheduledAt as string | null | undefined) ?? null,
           ...extra.fields,
         });
+    if (destinations && destinations.facebookPageIds.length > 0) {
+      try {
+        const created = await getPostDetailsForUser(postId, userId);
+        assertFacebookSupports(normalizedPostType, Boolean(created?.items.some((item) => item.mediaType === "video")));
+        await applyFacebookDestinations(postId, userId, destinations);
+      } catch (error) {
+        // Nada foi enviado à Meta ainda: desfaz a criação para não deixar
+        // uma publicação com destinos pela metade.
+        await deleteUnsentPostForUser(postId, userId).catch(() => undefined);
+        const message = error instanceof SocialDestinationsError ? error.message : "Não foi possível configurar a publicação no Facebook.";
+        return NextResponse.json({ error: message }, { status: 400 });
+      }
+    }
     return NextResponse.json({ postId }, { status: 201 });
   } catch (error) {
     console.error("[instagram/posts] falha ao criar o post", error);

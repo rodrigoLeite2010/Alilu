@@ -9,6 +9,14 @@ import {
   updatePost,
 } from "@/lib/instagram/backend/instagram-post-service";
 import { readPostExtraFields } from "@/lib/instagram/backend/post-request";
+import { setPostPublishToInstagram } from "@/lib/instagram/backend/instagram-post-repository";
+import {
+  SocialDestinationsError,
+  applyFacebookDestinations,
+  assertFacebookSupports,
+  readSocialDestinations,
+  resolveFacebookPages,
+} from "@/lib/facebook/backend/social-destinations-service";
 
 const MAX_CAPTION_LENGTH = 2200;
 
@@ -110,6 +118,12 @@ export async function PATCH(request: Request, { params }: RouteParams): Promise<
       if ("error" in extra) {
         return NextResponse.json({ error: extra.error }, { status: 400 });
       }
+      const destinationsResult = readSocialDestinations((body as Record<string, unknown>).destinations);
+      if ("error" in destinationsResult) {
+        return NextResponse.json({ error: destinationsResult.error }, { status: 400 });
+      }
+      const destinations = destinationsResult.value;
+      if (destinations && destinations.facebookPageIds.length > 0) await resolveFacebookPages(userId, destinations.facebookPageIds);
       const result = await updatePost({
         postId: id,
         userId,
@@ -122,6 +136,17 @@ export async function PATCH(request: Request, { params }: RouteParams): Promise<
         musicMode: extra.fields.musicMode,
         musicSelection: extra.fields.musicSelection,
       });
+      if (destinations) {
+        const details = await getPostDetails(id, userId);
+        if (destinations.facebookPageIds.length > 0) {
+          assertFacebookSupports(details.postType, details.items.some((item) => item.mediaType === "video"));
+        }
+        if (details.publishToInstagram !== destinations.instagram) {
+          const changed = await setPostPublishToInstagram(id, userId, destinations.instagram);
+          if (!changed) throw new SocialDestinationsError("Não é possível mudar o destino Instagram desta publicação agora.");
+        }
+        await applyFacebookDestinations(id, userId, destinations);
+      }
       return NextResponse.json(result);
     }
 
@@ -132,7 +157,9 @@ export async function PATCH(request: Request, { params }: RouteParams): Promise<
   } catch (error) {
     console.error("[instagram/posts/id] falha ao atualizar o post", error);
     const message =
-      error instanceof InstagramPostValidationError ? error.message : "Não foi possível atualizar o post.";
+      error instanceof InstagramPostValidationError || error instanceof SocialDestinationsError
+        ? error.message
+        : "Não foi possível atualizar o post.";
     return NextResponse.json({ error: message }, { status: 400 });
   }
 }

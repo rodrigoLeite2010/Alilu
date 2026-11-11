@@ -40,6 +40,19 @@ vi.mock("@/lib/instagram/backend/instagram-post-repository", () => ({
   reschedulePost: (...args: unknown[]) => reschedulePostInDbMock(...args),
 }));
 
+// Destinos Facebook (migração 0053): sem Páginas, nada muda para o Instagram.
+const cancelFacebookDestinationsMock = vi.fn();
+const resetFacebookDestinationsMock = vi.fn();
+vi.mock("@/lib/facebook/backend/social-destinations-service", () => ({
+  cancelFacebookDestinations: (...args: unknown[]) => cancelFacebookDestinationsMock(...args),
+  resetFacebookDestinationsAfterEdit: (...args: unknown[]) => resetFacebookDestinationsMock(...args),
+  destinationViewsByPost: async () => new Map(),
+  destinationViewsForPost: async () => [],
+}));
+vi.mock("@/lib/facebook/backend/social-destination-repository", () => ({
+  hasProcessingDestination: async () => false,
+}));
+
 const {
   InstagramPostValidationError,
   createImagePost,
@@ -113,6 +126,7 @@ describe("createImagePost", () => {
       timezone: null,
       musicMode: "ACCOUNT_DEFAULT",
       musicSelection: null,
+      publishToInstagram: true,
     });
   });
 });
@@ -277,6 +291,7 @@ describe("createCarouselPost", () => {
       timezone: null,
       musicMode: "ACCOUNT_DEFAULT",
       musicSelection: null,
+      publishToInstagram: true,
     });
   });
 
@@ -344,7 +359,7 @@ describe("listPostsForUser", () => {
   it("repassa para o repositório", async () => {
     listPostsForUserInDbMock.mockResolvedValue([{ id: "post-1" }]);
     const result = await listPostsForUser("user-1");
-    expect(result).toEqual([{ id: "post-1" }]);
+    expect(result).toEqual([{ id: "post-1", destinations: [] }]);
     expect(listPostsForUserInDbMock).toHaveBeenCalledWith("user-1");
   });
 });
@@ -353,6 +368,8 @@ describe("cancelPost", () => {
   it("não lança quando o repositório cancela com sucesso", async () => {
     cancelPostInDbMock.mockResolvedValue(true);
     await expect(cancelPost("post-1", "user-1")).resolves.toBeUndefined();
+    // Cancelar a publicação também cancela os destinos Facebook pendentes.
+    expect(cancelFacebookDestinationsMock).toHaveBeenCalledWith("post-1", "user-1");
   });
 
   it("lança InstagramPostValidationError quando o repositório não cancela nada", async () => {

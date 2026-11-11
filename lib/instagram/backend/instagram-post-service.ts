@@ -19,6 +19,14 @@ import {
   reschedulePost as reschedulePostInDb,
   type PostSummary,
 } from "@/lib/instagram/backend/instagram-post-repository";
+import { hasProcessingDestination } from "@/lib/facebook/backend/social-destination-repository";
+import {
+  cancelFacebookDestinations,
+  destinationViewsByPost,
+  destinationViewsForPost,
+  resetFacebookDestinationsAfterEdit,
+  type PublicationDestinationView,
+} from "@/lib/facebook/backend/social-destinations-service";
 
 /**
  * Cria e gerencia posts a partir de mídia já enviada (instagram_media) e
@@ -85,6 +93,8 @@ function extraFields(input: PostExtraFields): PostExtraFields {
     // sem a pessoa precisar escolher isso em toda publicação.
     musicMode: input.musicMode ?? "ACCOUNT_DEFAULT",
     musicSelection: input.musicSelection ?? null,
+    // Destinos: sem escolha explícita, Instagram (comportamento histórico).
+    publishToInstagram: input.publishToInstagram !== false,
   };
 }
 
@@ -378,8 +388,11 @@ export async function createReelPostFromUpload(input: CreateReelPostFromUploadIn
 }
 
 /** Lista os posts do usuário para o calendário editorial (mais recentes/próximos primeiro). */
-export async function listPostsForUser(userId: string): Promise<PostSummary[]> {
-  return listPostsForUserInDb(userId);
+export type PostSummaryWithDestinations = PostSummary & { destinations: PublicationDestinationView[] };
+
+export async function listPostsForUser(userId: string): Promise<PostSummaryWithDestinations[]> {
+  const [posts, destinations] = await Promise.all([listPostsForUserInDb(userId), destinationViewsByPost(userId)]);
+  return posts.map((post) => ({ ...post, destinations: destinations.get(post.id) ?? [] }));
 }
 
 /**
@@ -396,6 +409,8 @@ export async function cancelPost(postId: string, userId: string): Promise<void> 
       "Não foi possível cancelar este post — ele pode já ter sido publicado, estar em processamento, ou não existir mais.",
     );
   }
+  // Cancelar a publicação cancela também os destinos Facebook ainda não enviados.
+  await cancelFacebookDestinations(postId, userId);
 }
 
 export async function deletePost(postId: string, userId: string): Promise<void> {
@@ -424,6 +439,7 @@ export async function reschedulePost(
       "Não foi possível reagendar este post — ele pode já estar em processamento, publicado, ou não existir mais.",
     );
   }
+  await resetFacebookDestinationsAfterEdit(postId, userId);
 }
 
 export interface UpdatePostInput {
@@ -456,6 +472,9 @@ export async function updatePost(input: UpdatePostInput): Promise<{ status: stri
   }
   if (current.status === "PROCESSING") {
     throw new InstagramPostValidationError("Esta publicação já está sendo processada.");
+  }
+  if (await hasProcessingDestination(input.postId, input.userId)) {
+    throw new InstagramPostValidationError("Esta publicação está sendo enviada ao Facebook agora. Aguarde terminar para editar.");
   }
 
   let mediaIds: string[] | undefined;
@@ -498,14 +517,17 @@ export async function updatePost(input: UpdatePostInput): Promise<{ status: stri
       "Não foi possível editar esta publicação — ela pode já estar em processamento, publicada ou cancelada.",
     );
   }
+  // Destinos Facebook com falha voltam a aguardar o (novo) horário; publicados não mudam.
+  await resetFacebookDestinationsAfterEdit(input.postId, input.userId);
   return updated;
 }
 
 /** Detalhes de uma publicação do próprio usuário (para a tela de edição). */
-export async function getPostDetails(postId: string, userId: string): Promise<PostDetails> {
+export async function getPostDetails(postId: string, userId: string): Promise<PostDetails & { destinations: PublicationDestinationView[] }> {
   const details = await getPostDetailsForUser(postId, userId);
   if (!details) {
     throw new InstagramPostValidationError("Publicação não encontrada.");
   }
-  return details;
+  const destinations = await destinationViewsForPost(postId, userId).catch(() => []);
+  return { ...details, destinations };
 }

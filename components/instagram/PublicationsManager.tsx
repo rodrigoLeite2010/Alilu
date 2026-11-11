@@ -33,7 +33,10 @@ export function publicationDayKey(post: CalendarPostCardData): string {
 
 function matchesFilter(post: CalendarPostCardData, filter: FilterId): boolean {
   const statuses = FILTERS.find((item) => item.id === filter)?.statuses;
-  return !statuses || statuses.includes(post.status);
+  if (!statuses || statuses.includes(post.status)) return true;
+  // Publicação com vários destinos: falha no Facebook aparece em "Falharam"
+  // e um destino ainda pendente aparece em "Agendadas".
+  return (post.destinations ?? []).some((destination) => (statuses as string[]).includes(destination.status));
 }
 
 /**

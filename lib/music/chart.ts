@@ -180,8 +180,27 @@ const sections: Record<string, string> = {
   sob: "Ponte", start_of_bridge: "Ponte", chorus: "Refrão",
 };
 
+function plainChordParts(line: string) {
+  // Older imports can contain an unmarked chord row with a trailing cue.
+  const row = line.replace(/\s+\([^)]*\)\s*$/, "");
+  const tokens = [...row.matchAll(/[^\s|]+/g)];
+  if (!tokens.length || !tokens.every((token) => chordMatch(unbold(token[0])))) return [];
+
+  let position = 0;
+  const parts = tokens.map((token) => {
+    const text = line.slice(position, token.index);
+    position = token.index + token[0].length;
+    return { text, chord: unbold(token[0]) };
+  });
+  parts.push({ text: line.slice(position), chord: "" });
+  return parts;
+}
+
+type ChartPart = { chord: string; text: string };
+type ChartLine = { heading: string; parts: ChartPart[]; plainChords?: ChartPart[] };
+
 export function chartLines(chart: string) {
-  return chart.split("\n").flatMap((line) => {
+  return chart.split("\n").flatMap<ChartLine>((line) => {
     if (line.trimStart().startsWith("#")) return [];
     const info = line.trim().match(directive);
     if (info) {
@@ -189,7 +208,7 @@ export function chartLines(chart: string) {
         ? info[2] : sections[info[1]] ? info[2] || sections[info[1]] : "";
       return heading ? [{ heading, parts: [] }] : [];
     }
-    const parts: { chord: string; text: string }[] = [];
+    const parts: ChartPart[] = [];
     let position = 0;
     let previousChord = "";
     for (const token of line.matchAll(/\[([^\]\n]+)\]/g)) {
@@ -201,6 +220,6 @@ export function chartLines(chart: string) {
       position = token.index + token[0].length;
     }
     parts.push({ chord: previousChord, text: line.slice(position) });
-    return [{ heading: "", parts }];
+    return [{ heading: "", parts, plainChords: position === 0 ? plainChordParts(line) : [] }];
   });
 }

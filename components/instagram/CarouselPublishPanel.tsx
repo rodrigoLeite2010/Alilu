@@ -20,6 +20,13 @@ import {
 import { fetchAccountStatus, type PostMusicSelectionBody } from "@/lib/instagram/client/publication-api";
 import type { MusicMode } from "@/lib/instagram/backend/music-support";
 import { MusicSelector, type MusicSelectorAccountDefault } from "./MusicSelector";
+import {
+  DEFAULT_SOCIAL_DESTINATIONS,
+  SocialDestinationsPicker,
+  buildDestinationsBody,
+  isInstagramOnly,
+  type SocialDestinationsValue,
+} from "./SocialDestinationsPicker";
 
 type Stage = "idle" | "gerando" | "enviando" | "criando-post" | "publicando" | "sucesso" | "erro";
 
@@ -72,6 +79,8 @@ export function CarouselPublishPanel({ slides, formatId, userId }: CarouselPubli
   const [musicMode, setMusicMode] = useState<MusicMode>("ACCOUNT_DEFAULT");
   const [musicSelection, setMusicSelection] = useState<PostMusicSelectionBody | null>(null);
   const [endMedia, setEndMedia] = useState<CarouselEndMediaChoice | undefined>(undefined);
+  const [destinations, setDestinations] = useState<SocialDestinationsValue>(DEFAULT_SOCIAL_DESTINATIONS);
+  const [instagramLabel, setInstagramLabel] = useState<string | null>(null);
 
   const busy = stage !== "idle" && stage !== "sucesso" && stage !== "erro";
 
@@ -80,6 +89,7 @@ export function CarouselPublishPanel({ slides, formatId, userId }: CarouselPubli
     fetchAccountStatus()
       .then((status) => {
         if (!cancelled && status.defaultMusic) setAccountDefaultMusic(status.defaultMusic);
+        if (!cancelled && status.username) setInstagramLabel(`@${status.username}`);
       })
       .catch(() => undefined);
     return () => {
@@ -108,6 +118,13 @@ export function CarouselPublishPanel({ slides, formatId, userId }: CarouselPubli
     if (endMedia && endMedia.mode !== "none" && slides.length >= CAROUSEL_MAX_ITEMS_WITH_END) {
       setStage("erro");
       setMessage(CAROUSEL_FULL_MESSAGE);
+      return;
+    }
+
+    const destinationsBody = buildDestinationsBody(destinations);
+    if ("error" in destinationsBody) {
+      setStage("erro");
+      setMessage(destinationsBody.error);
       return;
     }
 
@@ -164,6 +181,7 @@ export function CarouselPublishPanel({ slides, formatId, userId }: CarouselPubli
           musicMode,
           musicSelection,
           ...(endMedia ? { endMedia } : {}),
+          ...(isInstagramOnly(destinationsBody.body) ? {} : { destinations: destinationsBody.body }),
         }),
       });
       if (!createResponse.ok) {
@@ -185,14 +203,18 @@ export function CarouselPublishPanel({ slides, formatId, userId }: CarouselPubli
       setStage("publicando");
       const publishResponse = await fetch(`/api/instagram/posts/${postId}/publish`, { method: "POST" });
       if (!publishResponse.ok) {
-        throw new Error(await readErrorMessage(publishResponse, "Não foi possível publicar o carrossel no Instagram."));
+        throw new Error(await readErrorMessage(publishResponse, "Não foi possível publicar o carrossel."));
       }
       const { status } = (await publishResponse.json()) as { status: "PUBLISHED" | "PROCESSING" };
 
       setStage("sucesso");
       setMessage(
         status === "PUBLISHED"
-          ? "Carrossel publicado com sucesso no Instagram!"
+          ? destinations.facebook
+            ? destinations.instagram
+              ? "Carrossel publicado com sucesso no Instagram e no Facebook!"
+              : "Carrossel publicado com sucesso no Facebook!"
+            : "Carrossel publicado com sucesso no Instagram!"
           : "A Meta ainda está processando o carrossel — o post já foi criado; acompanhe pelo calendário e " +
               "publique de novo em instantes (não cria um post duplicado).",
       );
@@ -257,6 +279,15 @@ export function CarouselPublishPanel({ slides, formatId, userId }: CarouselPubli
       </div>
 
       <CarouselEndMediaOption userId={userId} itemCount={slides.length} disabled={busy} onChange={setEndMedia} />
+
+      <SocialDestinationsPicker
+        value={destinations}
+        onChange={setDestinations}
+        postType="carousel"
+        instagramLabel={instagramLabel}
+        returnPath="/instagram/painel/calendario/novo-carrossel"
+        disabled={busy}
+      />
 
       <MusicSelector
         accountDefaultMusic={accountDefaultMusic}

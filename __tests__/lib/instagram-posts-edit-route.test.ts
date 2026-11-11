@@ -31,6 +31,12 @@ vi.mock("@/lib/instagram/backend/instagram-scheduler", async () => {
   return { ...actual, runInstagramScheduler: (...args: unknown[]) => runSchedulerMock(...args) };
 });
 
+// Agendador do Facebook (mesma rota de cron): simulado, sem banco nem Meta.
+const runFacebookSchedulerMock = vi.fn();
+vi.mock("@/lib/facebook/backend/facebook-publish-service", () => ({
+  runFacebookScheduler: (...args: unknown[]) => runFacebookSchedulerMock(...args),
+}));
+
 const { GET, PATCH } = await import("@/app/api/instagram/posts/[id]/route");
 const account = await import("@/app/api/instagram/account/route");
 const cron = await import("@/app/api/cron/instagram-publish/route");
@@ -152,6 +158,7 @@ describe("/api/cron/instagram-publish", () => {
   it("401 sem o segredo; executa com Bearer CRON_SECRET", async () => {
     process.env.CRON_SECRET = "cron-secret-com-mais-de-16-chars";
     runSchedulerMock.mockResolvedValue([{ postId: "p1", status: "PUBLISHED" }]);
+    runFacebookSchedulerMock.mockResolvedValue([]);
     // A renovação é best-effort: a rota já inclui tokens:null quando falha.
     // Simula essa falha sem consultar banco de dados nem a Meta.
     refreshTokensMock.mockRejectedValue(new Error("Renovação indisponível"));
@@ -164,7 +171,8 @@ describe("/api/cron/instagram-publish", () => {
       new Request("https://x/api/cron/instagram-publish", { headers: { authorization: "Bearer cron-secret-com-mais-de-16-chars" } }),
     );
     expect(ok.status).toBe(200);
-    expect(await ok.json()).toEqual({ processed: 1, results: [{ postId: "p1", status: "PUBLISHED" }], tokens: null });
+    expect(await ok.json()).toEqual({ processed: 1, results: [{ postId: "p1", status: "PUBLISHED" }], facebook: [], tokens: null });
+    expect(runFacebookSchedulerMock).toHaveBeenCalledTimes(1);
     expect(refreshTokensMock).toHaveBeenCalledWith({ limit: 10 });
     delete process.env.CRON_SECRET;
   });

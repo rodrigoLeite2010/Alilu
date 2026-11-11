@@ -26,6 +26,12 @@ export interface PublicationLogEvent {
   musicApplied?: boolean;
   /** Motivo FIXO (nunca conteúdo do usuário) de por que a música não foi aplicada — ver resolveMusicApplication. */
   musicReason?: string;
+  /** Rede do destino ("instagram" | "facebook") — publicações com vários destinos. */
+  platform?: string;
+  /** Id interno do destino (social_publication_destinations.id) — nunca id/token da Meta. */
+  destinationId?: string;
+  /** Fase do fluxo em etapas (ex.: Reels do Facebook: started/uploaded/finished). */
+  phase?: string;
 }
 
 const ALLOWED_KEYS: ReadonlyArray<keyof PublicationLogEvent> = [
@@ -46,6 +52,9 @@ const ALLOWED_KEYS: ReadonlyArray<keyof PublicationLogEvent> = [
   "musicMode",
   "musicApplied",
   "musicReason",
+  "platform",
+  "destinationId",
+  "phase",
 ];
 
 export function buildPublicationLogLine(event: PublicationLogEvent): string {

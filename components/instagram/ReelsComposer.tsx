@@ -20,6 +20,14 @@ import { ConnectInstagramDialog, buildConnectTarget } from "./ConnectInstagramDi
 import { buildMediaPathnamePrefix, MAX_VIDEO_UPLOAD_BYTES, VIDEO_MEDIA_CONTENT_TYPES } from "@/lib/instagram/backend/media-service";
 import type { MusicMode } from "@/lib/instagram/backend/music-support";
 import { MusicSelector, type MusicSelectorAccountDefault } from "./MusicSelector";
+import {
+  DEFAULT_SOCIAL_DESTINATIONS,
+  SocialDestinationsPicker,
+  buildDestinationsBody,
+  isInstagramOnly,
+  type SocialDestinationsValue,
+} from "./SocialDestinationsPicker";
+import { validateFacebookReelSpecs } from "@/lib/facebook/facebook-media-rules";
 import { importIdFromLocation, loadImportedVideoFromLocation, youtubeImportIdFromLocation } from "@/components/instagram-import/imported-media-client";
 
 type Stage = "idle" | "validando" | "enviando" | "encerramento" | "salvando" | "publicando" | "sucesso" | "erro";
@@ -99,6 +107,8 @@ export function ReelsComposer({
   const [musicMode, setMusicMode] = useState<MusicMode>("ACCOUNT_DEFAULT");
   const [musicSelection, setMusicSelection] = useState<PostMusicSelectionBody | null>(null);
   const [endMediaWanted, setEndMediaWanted] = useState<boolean | undefined>(undefined);
+  const [destinations, setDestinations] = useState<SocialDestinationsValue>(DEFAULT_SOCIAL_DESTINATIONS);
+  const [instagramLabel, setInstagramLabel] = useState<string | null>(null);
   /** Encerramento falhou: guarda o vídeo já enviado para "Publicar sem encerramento" / "Tentar novamente". */
   const [endMediaFailure, setEndMediaFailure] = useState<{ mode: "draft" | "now" | "schedule"; scheduledAtIso: string | null; mediaUrl: string } | null>(null);
 
@@ -107,6 +117,7 @@ export function ReelsComposer({
     fetchAccountStatus()
       .then((status) => {
         if (!cancelled && status.defaultMusic) setAccountDefaultMusic(status.defaultMusic);
+        if (!cancelled && status.username) setInstagramLabel(`@${status.username}`);
       })
       .catch(() => undefined);
     return () => {
@@ -230,6 +241,21 @@ export function ReelsComposer({
     if (busy) return;
     if (!requireLogin()) return;
 
+    const destinationsCheck = buildDestinationsBody(destinations);
+    if (mode !== "draft" && "error" in destinationsCheck) {
+      setStage("erro");
+      setMessage(destinationsCheck.error);
+      return;
+    }
+    if (mode !== "draft" && destinations.facebook) {
+      const reelProblem = validateFacebookReelSpecs({ durationSeconds: duration });
+      if (reelProblem) {
+        setStage("erro");
+        setMessage(reelProblem);
+        return;
+      }
+    }
+
     let scheduledAtIso: string | null = null;
     if (mode === "schedule") {
       if (!scheduledAt) {
@@ -327,6 +353,10 @@ export function ReelsComposer({
           timezone: getBrowserTimeZone(),
           musicMode,
           musicSelection,
+          ...(() => {
+            const built = buildDestinationsBody(destinations);
+            return "body" in built && !isInstagramOnly(built.body) ? { destinations: built.body } : {};
+          })(),
         }),
       });
       if (!createResponse.ok) {
@@ -352,7 +382,7 @@ export function ReelsComposer({
         status === "PUBLISHED"
           ? "Reel publicado com sucesso."
           : status === "PROCESSING"
-            ? "O Instagram ainda está processando o vídeo. A publicação será concluída automaticamente — acompanhe em Minhas publicações."
+            ? "A Meta ainda está processando o vídeo. A publicação será concluída automaticamente — acompanhe em Minhas publicações."
             : describePublishOutcome(status),
       );
       window.sessionStorage.removeItem(DRAFT_KEY);
@@ -449,6 +479,15 @@ export function ReelsComposer({
           disabled={busy}
           onChange={(event) => setScheduledAt(event.target.value)}
           className="h-11 w-full rounded-md border border-zinc-300 px-3 text-sm"
+        />
+
+        <SocialDestinationsPicker
+          value={destinations}
+          onChange={setDestinations}
+          postType="reels"
+          instagramLabel={instagramLabel}
+          returnPath="/instagram/reels"
+          disabled={busy}
         />
 
         <MusicSelector

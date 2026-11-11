@@ -7,6 +7,7 @@ import { DefaultMusicSettings } from "@/components/instagram/DefaultMusicSetting
 import { ConnectInstagramLink } from "@/components/instagram/ConnectInstagramLink";
 import { DisconnectInstagramButton } from "@/components/instagram/DisconnectInstagramButton";
 import { MakePrimaryAccountButton } from "@/components/instagram/MakePrimaryAccountButton";
+import { FacebookPagesSection } from "@/components/instagram/FacebookPagesSection";
 
 export const metadata: Metadata = {
   robots: { index: false, follow: false },
@@ -23,6 +24,9 @@ const ERROR_MESSAGES: Record<string, string> = {
   "tentativa-oauth-expirada": "A tentativa de conexão expirou. Comece novamente pelo painel.",
   "autorizacao-meta-cancelada": "A autorização foi cancelada. Nenhuma conexão foi alterada.",
   "oauth-meta-falhou": "A Meta não concluiu a autorização ou não concedeu todas as permissões necessárias.",
+  "facebook-paginas-indisponivel": "A conexão de Páginas do Facebook ainda não está configurada neste ambiente.",
+  "facebook-permissoes-ausentes": "O Facebook não concedeu as permissões necessárias para publicar na Página (pages_show_list, pages_read_engagement, pages_manage_posts). Tente novamente e aprove todas.",
+  "selecao-invalida": "Selecione ao menos uma Página válida.",
 };
 
 /**
@@ -72,6 +76,12 @@ export default async function InstagramPainelPage({
           className="rounded-md bg-teal-50 px-3 py-2 text-sm text-teal-800"
         >
           Conta conectada com sucesso.
+        </p>
+      ) : null}
+
+      {status === "facebook-conectado" ? (
+        <p role="status" className="rounded-md bg-blue-50 px-3 py-2 text-sm text-blue-900">
+          Página do Facebook conectada com sucesso.
         </p>
       ) : null}
 
@@ -186,6 +196,8 @@ export default async function InstagramPainelPage({
               />
             </>
           ) : null}
+
+          <FacebookPagesSection />
         </>
       ) : (
         <>

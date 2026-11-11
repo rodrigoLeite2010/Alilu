@@ -6,13 +6,21 @@ export function hashOAuthState(state: string) {
   return createHash("sha256").update(state).digest("hex");
 }
 
-export async function createFacebookOAuthAttempt(input: { userId: string; correlationId: string; state: string; targetAccountId?: string | null; expectedIgUserId?: string | null; returnTo?: string | null }) {
+/**
+ * `purpose` separa as tentativas do fluxo "Instagram via Facebook Login"
+ * ('instagram', padrão — comportamento de sempre) das de "Páginas do
+ * Facebook" ('facebook_pages'). Uma tentativa de um fluxo nunca é aceita
+ * pelo callback/seleção do outro.
+ */
+export type FacebookOAuthPurpose = "instagram" | "facebook_pages";
+
+export async function createFacebookOAuthAttempt(input: { userId: string; correlationId: string; state: string; targetAccountId?: string | null; expectedIgUserId?: string | null; returnTo?: string | null; purpose?: FacebookOAuthPurpose }) {
   const db = getDb();
   await db`delete from instagram_oauth_pending where expires_at <= now()`;
   const rows = await db`insert into instagram_oauth_pending
-    (user_id, correlation_id, state_hash, target_account_id, expected_ig_user_id, return_to, expires_at)
+    (user_id, correlation_id, state_hash, target_account_id, expected_ig_user_id, return_to, purpose, expires_at)
     values (${input.userId}, ${input.correlationId}, ${hashOAuthState(input.state)}, ${input.targetAccountId ?? null},
-      ${input.expectedIgUserId ?? null}, ${input.returnTo ?? null}, now() + interval '10 minutes') returning id`;
+      ${input.expectedIgUserId ?? null}, ${input.returnTo ?? null}, ${input.purpose ?? "instagram"}, now() + interval '10 minutes') returning id`;
   return rows[0].id as string;
 }
 
@@ -29,15 +37,15 @@ function map(row: Record<string, unknown>): FacebookOAuthAttempt {
     facebookUserTokenExpiresAt: row.facebook_user_token_expires_at ? new Date(row.facebook_user_token_expires_at as string) : null };
 }
 
-export async function getFacebookOAuthAttempt(id: string, userId: string): Promise<FacebookOAuthAttempt | null> {
+export async function getFacebookOAuthAttempt(id: string, userId: string, purpose: FacebookOAuthPurpose = "instagram"): Promise<FacebookOAuthAttempt | null> {
   const db = getDb();
-  const rows = await db`select * from instagram_oauth_pending where id = ${id} and user_id = ${userId} and expires_at > now()`;
+  const rows = await db`select * from instagram_oauth_pending where id = ${id} and user_id = ${userId} and purpose = ${purpose} and expires_at > now()`;
   return rows[0] ? map(rows[0]) : null;
 }
 
-export async function getFacebookOAuthAttemptByState(state: string, userId: string) {
+export async function getFacebookOAuthAttemptByState(state: string, userId: string, purpose: FacebookOAuthPurpose = "instagram") {
   const db = getDb();
-  const rows = await db`select * from instagram_oauth_pending where state_hash = ${hashOAuthState(state)} and user_id = ${userId} and expires_at > now()`;
+  const rows = await db`select * from instagram_oauth_pending where state_hash = ${hashOAuthState(state)} and user_id = ${userId} and purpose = ${purpose} and expires_at > now()`;
   return rows[0] ? map(rows[0]) : null;
 }
 

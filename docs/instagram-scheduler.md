@@ -23,6 +23,8 @@ Disparador externo ──► GET|POST /api/cron/instagram-publish (Bearer segred
 - Mapeamento para o modelo pedido: `type` = `post_type` (`image`/`carousel`/`reels`), `retryCount` = `attempts_count`, `scheduledAt` = `scheduled_at_utc`, `timezone` = `timezone_original`, `instagramMediaId` = `meta_media_id`, `errorMessage` = `last_error_sanitized`, `media[]` = `instagram_post_items`, `thumbnailUrl` = mídia na posição 0.
 - **"Publicar agora" e o scheduler usam a mesma função**: `publishInstagramPublication()` em `lib/instagram/backend/instagram-publish-service.ts`. Não existe outra implementação de publicação.
 
+> **Facebook (migração 0053):** a mesma rota de cron também processa os destinos em Páginas do Facebook (`runFacebookScheduler`, claim e lock próprios por destino), depois do Instagram e de forma independente. Publicações com `publish_to_instagram = false` ("somente Facebook") são ignoradas por `claimNextDuePost`/`claimPostForManualPublish`. Detalhes em `docs/facebook-pages-publishing.md`.
+
 ## 2. Status
 
 | Status | Significado | Ações na tela |

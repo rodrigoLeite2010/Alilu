@@ -156,6 +156,15 @@ export interface PostMusicSelectionBody {
   audioFileName?: string | null;
 }
 
+/** "Publicar nas redes sociais" — ausente = só Instagram (comportamento histórico). */
+export interface PublicationDestinationsBody {
+  instagram: boolean;
+  /** ids internos das Páginas do Facebook conectadas (nunca tokens). */
+  facebookPageIds: string[];
+  /** Legenda específica do Facebook; null = usa a legenda principal. */
+  facebookCaption: string | null;
+}
+
 export interface CreatePublicationBody {
   postType?: "image" | "carousel" | "reels";
   mediaUrl?: string;
@@ -170,6 +179,7 @@ export interface CreatePublicationBody {
   musicMode?: MusicMode;
   /** Só usado (e só gravado) quando musicMode === "CUSTOM". */
   musicSelection?: PostMusicSelectionBody | null;
+  destinations?: PublicationDestinationsBody;
 }
 
 export async function createPublication(body: CreatePublicationBody): Promise<string> {
@@ -191,6 +201,7 @@ export interface UpdatePublicationBody {
   templateData?: unknown;
   musicMode?: MusicMode;
   musicSelection?: PostMusicSelectionBody | null;
+  destinations?: PublicationDestinationsBody;
 }
 
 export async function updatePublication(postId: string, body: UpdatePublicationBody): Promise<{ status: string }> {
@@ -228,6 +239,15 @@ export async function deletePublication(postId: string): Promise<void> {
 export async function publishPublicationNow(postId: string): Promise<PublishOutcome> {
   const response = await fetch(`/api/instagram/posts/${postId}/publish`, { method: "POST" });
   const { status } = await jsonOrThrow<{ status: PublishOutcome }>(response, "Não foi possível publicar no Instagram.");
+  return status;
+}
+
+export type DestinationRetryOutcome = PublishOutcome;
+
+/** "Tentar novamente" de UM destino (ex.: só o Facebook) — nunca toca no Instagram. */
+export async function retryPublicationDestination(destinationId: string): Promise<DestinationRetryOutcome> {
+  const response = await fetch(`/api/social/destinations/${destinationId}/retry`, { method: "POST" });
+  const { status } = await jsonOrThrow<{ status: DestinationRetryOutcome }>(response, "Não foi possível publicar no Facebook.");
   return status;
 }
 

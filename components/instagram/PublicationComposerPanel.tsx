@@ -29,6 +29,13 @@ import {
 import { Dialog } from "./Dialog";
 import { ConnectInstagramDialog, buildConnectTarget } from "./ConnectInstagramDialog";
 import { ScheduleFields, scheduleValueToIso, type ScheduleValue } from "./ScheduleFields";
+import {
+  DEFAULT_SOCIAL_DESTINATIONS,
+  SocialDestinationsPicker,
+  buildDestinationsBody,
+  isInstagramOnly,
+  type SocialDestinationsValue,
+} from "./SocialDestinationsPicker";
 
 const MAX_CAPTION = 2200;
 /** A foto original é guardada no storage para reabrir a arte depois — reduzida se for enorme. */
@@ -144,6 +151,9 @@ export function PublicationComposerPanel({
   const [musicSelection, setMusicSelection] = useState<PostMusicSelectionBody | null>(
     initialValues?.musicSelection ?? null,
   );
+  const [destinations, setDestinations] = useState<SocialDestinationsValue>(DEFAULT_SOCIAL_DESTINATIONS);
+  /** Em edição, os destinos só são enviados se a pessoa mexer neles (preserva os já gravados). */
+  const [destinationsDirty, setDestinationsDirty] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [gateOpen, setGateOpen] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -293,6 +303,18 @@ export function PublicationComposerPanel({
     const userId = ensureReady();
     if (!userId) return;
 
+    const destinationsBody = buildDestinationsBody(destinations);
+    if (action !== "draft" && "error" in destinationsBody) {
+      setError(destinationsBody.error);
+      return;
+    }
+    // Criação: só manda quando há algo além de "só Instagram" (corpo antigo intacto).
+    // Edição: só manda se a pessoa mexeu nos destinos (preserva os gravados).
+    const sendDestinations =
+      "body" in destinationsBody && (savedPostId ? destinationsDirty : !isInstagramOnly(destinationsBody.body))
+        ? destinationsBody.body
+        : undefined;
+
     const timezone = getBrowserTimeZone();
     let scheduledAt: string | null = null;
     if (action === "schedule") {
@@ -318,6 +340,7 @@ export function PublicationComposerPanel({
           templateData,
           musicMode,
           musicSelection,
+          destinations: sendDestinations,
         });
       } else {
         postId = await createPublication({
@@ -331,6 +354,7 @@ export function PublicationComposerPanel({
           templateData,
           musicMode,
           musicSelection,
+          destinations: sendDestinations,
         });
         setSavedPostId(postId);
       }
@@ -540,6 +564,19 @@ export function PublicationComposerPanel({
         {mode === "schedule" ? (
           <ScheduleFields value={schedule} onChange={setSchedule} timeZone={timeZone} disabled={busy} />
         ) : null}
+
+        <SocialDestinationsPicker
+          value={destinations}
+          onChange={(next) => {
+            setDestinations(next);
+            setDestinationsDirty(true);
+          }}
+          postType="image"
+          instagramLabel={accountLabel}
+          returnPath={returnPath}
+          disabled={busy}
+          onConnect={(href) => void leaveForAuth(href)}
+        />
 
         <MusicSelector
           accountDefaultMusic={account?.defaultMusic}

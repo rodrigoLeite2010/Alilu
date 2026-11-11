@@ -88,3 +88,30 @@ it("espelha só a faixa quando a rolagem do seguidor é independente", async () 
   expect(screen.getByRole("heading", { name: "Segunda música" })).toBeVisible();
   expect(screen.getByLabelText("Letra da música").scrollTop).toBe(0);
 });
+
+it("transpõe cifras antigas sem tom cadastrado durante a rolagem", async () => {
+  const [track] = program.tracks;
+  vi.mocked(musicApi).mockResolvedValueOnce({
+    ...program,
+    tracks: [{ item: { ...track.item, key: "" }, song: {
+      ...track.song, originalKey: "", chart: "    Bm   Em\nMinha letra\n    Bm   (passagem)\n[D/F#]Outra frase",
+    } }],
+  });
+  render(<Stage code="" sessionId="" setId="ensaio" revision={0} />);
+  await step(5);
+  fireEvent.click(screen.getByRole("button", { name: "Iniciar rolagem" }));
+  fireEvent.click(screen.getByText("Preferências"));
+  const target = screen.getByLabelText("Tom nesta tela");
+  expect(target).toBeDisabled();
+  fireEvent.change(screen.getByLabelText("Tom original da cifra"), { target: { value: "G" } });
+  fireEvent.change(target, { target: { value: "B" } });
+
+  const viewport = screen.getByLabelText("Letra da música");
+  expect([...viewport.querySelectorAll("strong")].map((chord) => chord.textContent)).toEqual(["D#m", "G#m", "D#m", "F#/A#"]);
+  expect(viewport).toHaveTextContent("(passagem)");
+  expect(viewport).toHaveTextContent("Minha letra");
+  expect(screen.getByRole("button", { name: "Pausar" })).toBeVisible();
+
+  fireEvent.change(target, { target: { value: "D" } });
+  expect([...viewport.querySelectorAll("strong")].map((chord) => chord.textContent)).toEqual(["F#m", "Bm", "F#m", "A/C#"]);
+});

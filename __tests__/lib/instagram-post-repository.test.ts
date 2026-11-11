@@ -282,6 +282,8 @@ describe("listPostsForUser", () => {
         hasTemplateData: false,
         attemptsCount: 0,
         nextAttemptAt: null,
+        // Linha antiga (sem a coluna): continua sendo só Instagram.
+        publishToInstagram: true,
       },
     ]);
   });

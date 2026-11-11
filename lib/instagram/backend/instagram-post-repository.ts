@@ -60,6 +60,12 @@ export interface PostExtraFields {
   musicMode?: MusicMode;
   /** Só usado quando musicMode === "CUSTOM" — ignorado (gravado como null) nos outros modos. */
   musicSelection?: PostMusicSelection | null;
+  /**
+   * Publicar no Instagram (padrão: true — comportamento histórico). false =
+   * publicação "somente Facebook": o agendador do Instagram ignora a linha
+   * (ver migração 0053 e lib/facebook/backend).
+   */
+  publishToInstagram?: boolean;
 }
 
 export interface CreateDraftImagePostInput extends PostExtraFields {
@@ -127,14 +133,15 @@ async function insertPostWithItems(
       user_id, instagram_account_id, post_type, caption, status, scheduled_at_utc,
       timezone_original, source, template_id, template_data,
       music_mode, music_type, music_name, music_artist, music_external_id, music_url,
-      audio_file_url, audio_file_name
+      audio_file_url, audio_file_name, publish_to_instagram
     )
     values (
       ${base.userId}, ${base.instagramAccountId}, ${postType}, ${base.caption}, ${status}, ${scheduledAtIso},
       ${timezone}, ${source}, ${base.templateId ?? null}, ${serializeTemplateData(base.templateData)},
       ${musicMode}, ${musicSelection?.type ?? null}, ${musicSelection?.name ?? null}, ${musicSelection?.artist ?? null},
       ${musicSelection?.externalId ?? null}, ${musicSelection?.url ?? null},
-      ${musicSelection?.audioFileUrl ?? null}, ${musicSelection?.audioFileName ?? null}
+      ${musicSelection?.audioFileUrl ?? null}, ${musicSelection?.audioFileName ?? null},
+      ${base.publishToInstagram !== false}
     )
     returning id
   `;
@@ -425,6 +432,8 @@ export async function claimPostForManualPublish(
         processing_lock_expires_at = now() + (${lockTtlSeconds}::int * interval '1 second'),
         last_attempt_at = now(), next_attempt_at = null, updated_at = now()
     where id = ${postId} and user_id = ${userId}
+      -- Publicação "somente Facebook": nunca é enviada ao Instagram.
+      and publish_to_instagram
       and (
         status in ('DRAFT', 'SCHEDULED', 'FAILED')
         or (status = 'PROCESSING' and (processing_lock_token is null or processing_lock_expires_at < now()))
@@ -459,6 +468,8 @@ export async function claimNextDuePost(lockToken: string, lockTtlSeconds: number
           or (c.status = 'PROCESSING' and (c.processing_lock_token is null or c.processing_lock_expires_at < now()))
         )
         and (c.next_attempt_at is null or c.next_attempt_at <= now())
+        -- Publicação "somente Facebook": o agendador do Instagram ignora.
+        and c.publish_to_instagram
       order by coalesce(c.next_attempt_at, c.scheduled_at_utc, c.updated_at) asc
       limit 1
       for update skip locked
@@ -468,6 +479,7 @@ export async function claimNextDuePost(lockToken: string, lockTtlSeconds: number
       or (p.status = 'PROCESSING' and (p.processing_lock_token is null or p.processing_lock_expires_at < now()))
     )
     and (p.next_attempt_at is null or p.next_attempt_at <= now())
+    and p.publish_to_instagram
     returning p.id, p.user_id, p.post_type, p.scheduled_at_utc, p.processing_started_at, p.attempts_count
   `;
   return rows[0] ? mapClaimedRow(rows[0]) : null;
@@ -523,6 +535,8 @@ export interface PostSummary {
   hasTemplateData: boolean;
   attemptsCount: number;
   nextAttemptAt: string | null;
+  /** false = publicação "somente Facebook" (status acima espelha o Facebook). */
+  publishToInstagram: boolean;
 }
 
 /**
@@ -539,7 +553,7 @@ export async function listPostsForUser(userId: string): Promise<PostSummary[]> {
     select
       p.id, p.post_type, p.status, p.caption, p.scheduled_at_utc, p.published_at, p.created_at, p.last_error_sanitized,
       p.timezone_original, p.source, p.template_id, (p.template_data is not null) as has_template_data,
-      p.attempts_count, p.next_attempt_at,
+      p.attempts_count, p.next_attempt_at, p.publish_to_instagram,
       a.ig_username,
       m.storage_url as media_storage_url,
       (select count(*) from instagram_post_items pi2 where pi2.post_id = p.id) as item_count
@@ -569,6 +583,7 @@ export async function listPostsForUser(userId: string): Promise<PostSummary[]> {
     hasTemplateData: Boolean(row.has_template_data),
     attemptsCount: Number(row.attempts_count ?? 0),
     nextAttemptAt: row.next_attempt_at ? new Date(row.next_attempt_at as string).toISOString() : null,
+    publishToInstagram: row.publish_to_instagram !== false,
   }));
 }
 
@@ -607,6 +622,11 @@ export async function deletePostForUser(postId: string, userId: string): Promise
   const rows = await db`
     delete from instagram_posts
     where id = ${postId} and user_id = ${userId} and status <> 'PROCESSING'
+      -- Um destino (ex.: Reel no Facebook) ainda em processamento também bloqueia.
+      and not exists (
+        select 1 from social_publication_destinations d
+        where d.post_id = instagram_posts.id and d.status = 'PROCESSING'
+      )
     returning id
   `;
   return rows.length > 0;
@@ -766,6 +786,7 @@ export interface PostDetails {
   items: Array<{ mediaId: string; storageUrl: string; mediaType: "image" | "video"; position: number }>;
   musicMode: MusicMode;
   musicSelection: PostMusicSelection | null;
+  publishToInstagram: boolean;
 }
 
 /** Detalhes para a tela de edição — restrito ao dono, nunca inclui token. */
@@ -774,7 +795,7 @@ export async function getPostDetailsForUser(postId: string, userId: string): Pro
   const rows = await db`
     select
       p.id, p.post_type, p.status, p.caption, p.scheduled_at_utc, p.timezone_original, p.source,
-      p.template_id, p.template_data, a.ig_username,
+      p.template_id, p.template_data, a.ig_username, p.publish_to_instagram,
       p.music_mode, p.music_type, p.music_name, p.music_artist, p.music_external_id, p.music_url,
       p.audio_file_url, p.audio_file_name,
       pi.media_id, pi.position, m.storage_url, m.media_type
@@ -821,5 +842,31 @@ export async function getPostDetailsForUser(postId: string, userId: string): Pro
             audioFileName: (first.audio_file_name as string | null) ?? null,
           }
         : null,
+    publishToInstagram: first.publish_to_instagram !== false,
   };
+}
+
+/**
+ * Liga/desliga o destino Instagram de uma publicação ainda não enviada
+ * (DRAFT/SCHEDULED, sem container criado na Meta). Retorna false quando o
+ * estado não permite a mudança (nada é alterado).
+ */
+export async function setPostPublishToInstagram(postId: string, userId: string, publishToInstagram: boolean): Promise<boolean> {
+  const db = getDb();
+  const rows = await db`
+    update instagram_posts set publish_to_instagram = ${publishToInstagram}, updated_at = now()
+    where id = ${postId} and user_id = ${userId} and status in ('DRAFT', 'SCHEDULED')
+      and meta_container_id is null and processing_lock_token is null
+    returning id
+  `;
+  return rows.length > 0;
+}
+
+/** Apaga uma publicação recém-criada cuja configuração de destinos falhou (nada foi enviado à Meta). */
+export async function deleteUnsentPostForUser(postId: string, userId: string): Promise<void> {
+  const db = getDb();
+  await db`
+    delete from instagram_posts
+    where id = ${postId} and user_id = ${userId} and status in ('DRAFT', 'SCHEDULED') and meta_container_id is null
+  `;
 }

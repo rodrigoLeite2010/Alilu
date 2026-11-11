@@ -94,6 +94,12 @@ const nextConfig: NextConfig = {
     "**/api/videos/instagram-import": ["./node_modules/ffprobe-static/bin/linux/x64/ffprobe"],
     // Importar do YouTube: validação (ffprobe) do arquivo ORIGINAL enviado pelo usuário.
     "**/api/videos/youtube-import": ["./node_modules/ffprobe-static/bin/linux/x64/ffprobe"],
+    // Reels no Facebook: ffprobe valida o vídeo (proporção/duração/fps) antes
+    // do upload — no agendador e em "Publicar agora"/"Tentar novamente".
+    "**/api/cron/instagram-publish": ["./node_modules/ffprobe-static/bin/linux/x64/ffprobe"],
+    "**/api/instagram/scheduler/run": ["./node_modules/ffprobe-static/bin/linux/x64/ffprobe"],
+    "**/api/instagram/posts/*/publish": ["./node_modules/ffprobe-static/bin/linux/x64/ffprobe"],
+    "**/api/social/destinations/*/retry": ["./node_modules/ffprobe-static/bin/linux/x64/ffprobe"],
     "**/api/ai-video/generations": [
       "./node_modules/ffmpeg-static/ffmpeg",
       "./node_modules/ffprobe-static/bin/linux/x64/ffprobe",
