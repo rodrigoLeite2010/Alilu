@@ -1,6 +1,13 @@
 import "server-only";
-import { getFacebookPageForUser } from "@/lib/facebook/backend/facebook-page-repository";
 import {
+  getFacebookPageForUser,
+  listConnectedPagesForInstagramAccount,
+  type FacebookPageRecord,
+} from "@/lib/facebook/backend/facebook-page-repository";
+import { getPostDetailsForUser } from "@/lib/instagram/backend/instagram-post-repository";
+import { logPublicationEvent } from "@/lib/instagram/backend/publication-log";
+import {
+  addFacebookDestinationsIfMissing,
   cancelFacebookDestinations,
   listDestinationsForPost,
   listDestinationsForUser,
@@ -94,6 +101,73 @@ export async function applyFacebookDestinations(postId: string, userId: string, 
 }
 
 export { cancelFacebookDestinations, resetFacebookDestinationsAfterEdit };
+
+export interface AutomaticFacebookDestinationsInput {
+  postId: string;
+  userId: string;
+  /** Conta Instagram de destino da publicação (modo automático usa as Páginas vinculadas a ela). */
+  instagramAccountId: string;
+  /**
+   * Configuração de destino Facebook da automação:
+   *   null  = automático (Páginas conectadas vinculadas à conta Instagram);
+   *   []    = não publicar no Facebook;
+   *   [ids] = estas Páginas (facebook_pages.id).
+   */
+  facebookPageIds: string[] | null;
+}
+
+export interface AutomaticFacebookDestinationsResult {
+  /** Destinos efetivamente criados agora (0 em retry: já existiam). */
+  created: number;
+  /** Por que nada foi criado (para log/diagnóstico). */
+  skipped?: "disabled" | "no_pages" | "unsupported" | "post_not_found";
+}
+
+function usablePage(page: FacebookPageRecord | null, userId: string): page is FacebookPageRecord {
+  return Boolean(page && page.userId === userId && page.hasToken && page.status === "connected");
+}
+
+/**
+ * Publicações AUTOMÁTICAS (Piloto Automático): grava os destinos Facebook
+ * conforme a configuração da automação, no momento em que a publicação é
+ * criada. A partir daí o MESMO agendador e a MESMA camada de publicação do
+ * Facebook usados por "Publicar agora" (publishFacebookDestination) cuidam
+ * do resto — não existe um segundo caminho de publicação.
+ *
+ * - Respeita o formato: Story (e carrossel com vídeo) não vão ao Facebook.
+ * - Idempotente: rodar de novo para a mesma publicação nunca duplica destino.
+ * - Página desconectada/sem token é ignorada (o Instagram segue normalmente).
+ */
+export async function attachAutomaticFacebookDestinations(
+  input: AutomaticFacebookDestinationsInput,
+): Promise<AutomaticFacebookDestinationsResult> {
+  if (Array.isArray(input.facebookPageIds) && input.facebookPageIds.length === 0) return { created: 0, skipped: "disabled" };
+
+  const pages: FacebookPageRecord[] = [];
+  if (input.facebookPageIds === null) {
+    pages.push(...(await listConnectedPagesForInstagramAccount(input.userId, input.instagramAccountId)));
+  } else {
+    for (const id of [...new Set(input.facebookPageIds)]) {
+      const page = await getFacebookPageForUser(id, input.userId);
+      if (usablePage(page, input.userId)) pages.push(page);
+      else logPublicationEvent({ event: "facebook.automation.page_unavailable", platform: "facebook", publicationId: input.postId, status: "SKIPPED" });
+    }
+  }
+  if (pages.length === 0) return { created: 0, skipped: "no_pages" };
+
+  const details = await getPostDetailsForUser(input.postId, input.userId);
+  if (!details) return { created: 0, skipped: "post_not_found" };
+  const support = facebookSupportFor(details.postType, details.items.some((item) => item.mediaType === "video"));
+  if (!support.supported) return { created: 0, skipped: "unsupported" };
+
+  const created = await addFacebookDestinationsIfMissing(
+    input.postId,
+    input.userId,
+    pages.map((page) => ({ facebookPageRef: page.id, pageId: page.pageId, pageName: page.pageName })),
+  );
+  logPublicationEvent({ event: "facebook.automation.destinations", platform: "facebook", publicationId: input.postId, claimed: created });
+  return { created };
+}
 
 export function toDestinationView(row: DestinationSummary): PublicationDestinationView {
   return {

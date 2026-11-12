@@ -17,6 +17,7 @@ import {
   getAutomationForUser,
   listAutomationsForUser as listAutomationsForUserInDb,
   setAutomationStatus,
+  setAutomationFacebookPageIds,
   updateAutomation as updateAutomationInDb,
   updateAutomationDay as updateAutomationDayInDb,
   addAutomationSlot as addAutomationSlotInDb,
@@ -42,6 +43,8 @@ import {
   setRunPublication,
   resetRunForRegeneration,
 } from "./automation-run-repository";
+import { attachAutomationFacebookDestinations } from "./automation-facebook";
+import { getFacebookPageForUser } from "@/lib/facebook/backend/facebook-page-repository";
 import { generateSmartCarouselPreview, type SmartCarouselPreviewResult, type SmartCarouselRunDeps } from "./smart-carousel-service";
 import { CarouselError } from "@/lib/carousel/backend/carousel-project-service";
 import { publishCarousel } from "@/lib/carousel/backend/carousel-publish-service";
@@ -277,6 +280,37 @@ export async function updateAutomation(
   const updated = await updateAutomationInDb(id, userId, patch);
   if (!updated) throw new AutomationValidationError("Automação não encontrada.");
   if (modeChange) await setScheduleModeInDb(id, userId, modeChange);
+}
+
+const MAX_AUTOMATION_FACEBOOK_PAGES = 5;
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Destino Facebook das publicações da automação.
+ *   null  = automático (Páginas conectadas vinculadas à conta Instagram);
+ *   []    = não publicar no Facebook;
+ *   [ids] = estas Páginas — todas precisam ser do usuário.
+ * Vale só para publicações criadas DEPOIS da mudança (nada retroativo).
+ */
+export async function updateAutomationFacebookPages(id: string, userId: string, value: unknown): Promise<void> {
+  await getAutomationDetails(id, userId);
+  let pageIds: string[] | null;
+  if (value === null) {
+    pageIds = null;
+  } else if (Array.isArray(value) && value.every((item) => typeof item === "string" && UUID_PATTERN.test(item))) {
+    pageIds = [...new Set(value as string[])];
+  } else {
+    throw new AutomationValidationError("facebookPageIds precisa ser null ou uma lista de Páginas.");
+  }
+  if (pageIds && pageIds.length > MAX_AUTOMATION_FACEBOOK_PAGES) {
+    throw new AutomationValidationError(`Escolha no máximo ${MAX_AUTOMATION_FACEBOOK_PAGES} Páginas do Facebook.`);
+  }
+  for (const pageId of pageIds ?? []) {
+    const page = await getFacebookPageForUser(pageId, userId);
+    if (!page || page.userId !== userId) throw new AutomationValidationError("A Página do Facebook escolhida não foi encontrada na sua conta.");
+  }
+  const updated = await setAutomationFacebookPageIds(id, userId, pageIds);
+  if (!updated) throw new AutomationValidationError("Automação não encontrada.");
 }
 
 const SUPPORTED_CONTENT_TYPES: AutomationContentType[] = ["POST", "REEL", "CAROUSEL", "STORY", "SMART_CAROUSEL"];
@@ -742,6 +776,8 @@ export async function approveAutomationRun(runId: string, userId: string): Promi
         source: "AUTOMATION",
       });
       await setRunPublication(run.id, result.postId);
+      // O post aprovado é NOVO (versão atual do projeto): recebe os mesmos destinos Facebook da automação.
+      await attachAutomationFacebookDestinations(automation, result.postId);
     } catch (error) {
       if (error instanceof CarouselError) throw new AutomationValidationError(error.message);
       throw error;

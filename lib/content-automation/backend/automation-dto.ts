@@ -52,6 +52,8 @@ export function serializeAutomation(automation: AutomationWithDays) {
     brandContext: automation.brandContext,
     autoPublish: automation.autoPublish,
     requireApproval: automation.requireApproval,
+    /** Destino Facebook: null = automático (Página vinculada à conta), [] = desligado, [ids] = Páginas escolhidas. */
+    facebookPageIds: automation.facebookPageIds,
     generationLeadMinutes: automation.generationLeadMinutes,
     imageMode: automation.imageMode,
     fixedImageMediaId: automation.fixedImageMediaId,

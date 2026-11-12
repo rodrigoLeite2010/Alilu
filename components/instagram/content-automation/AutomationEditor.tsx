@@ -9,6 +9,7 @@ import { WeekDayEditor, type DayFormState } from "./WeekDayEditor";
 import { autoResizeTextarea } from "./textarea-utils";
 import { SmartStoryPanel, type SmartStoryState } from "./SmartStoryPanel";
 import { SmartCarouselPanel } from "./SmartCarouselPanel";
+import { AutomationFacebookPanel } from "./AutomationFacebookPanel";
 import { PlansLink } from "@/components/carousel/PlansLink";
 import type { SmartCarouselConfig } from "@/lib/content-automation/smart-carousel/config";
 import { SharedPromptEditor, sharedContentPayload, sharedScheduleError, type SharedScheduleState } from "./SharedPromptEditor";
@@ -81,6 +82,8 @@ export interface AutomationDetailDto {
   brandContext: string;
   autoPublish: boolean;
   requireApproval: boolean;
+  /** Destino Facebook: null = automático (Página vinculada à conta), [] = desligado, [ids] = Páginas escolhidas. */
+  facebookPageIds?: string[] | null;
   generationLeadMinutes: number;
   imageMode: ImageMode;
   fixedImageMediaId: string | null;
@@ -502,6 +505,12 @@ export function AutomationEditor({
             Modo automático
           </label>
         </fieldset>
+        <AutomationFacebookPanel
+          automationId={automation.id}
+          instagramAccountId={automation.instagramAccountId}
+          initialValue={automation.facebookPageIds}
+          returnPath={`/instagram/piloto-automatico/automacoes/${automation.id}`}
+        />
         <div>
           <label htmlFor={leadId} className="mb-1 block text-sm font-medium text-zinc-800">
             Gerar com antecedência (minutos)

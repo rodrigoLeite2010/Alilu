@@ -85,6 +85,18 @@ function mapSmartCarousel(row: Record<string, unknown>) {
   return normalizeSmartCarouselConfig(parseStyleConfig(row.smart_carousel_config));
 }
 
+/** uuid[] do Postgres → string[]; null/ausente (coluna nova ainda não migrada) = automático. */
+function mapFacebookPageIds(raw: unknown): string[] | null {
+  if (raw === null || raw === undefined) return null;
+  if (Array.isArray(raw)) return raw.filter((value): value is string => typeof value === "string");
+  if (typeof raw === "string") {
+    // Formato texto do Postgres: {a,b}
+    const inner = raw.replace(/^\{|\}$/g, "").trim();
+    return inner ? inner.split(",").map((value) => value.replace(/"/g, "").trim()).filter(Boolean) : [];
+  }
+  return null;
+}
+
 function mapAutomationRow(row: Record<string, unknown>): AutomationRecord {
   return {
     id: row.id as string,
@@ -101,6 +113,7 @@ function mapAutomationRow(row: Record<string, unknown>): AutomationRecord {
     brandContext: (row.brand_context as string | null) ?? "",
     autoPublish: Boolean(row.auto_publish),
     requireApproval: Boolean(row.require_approval),
+    facebookPageIds: mapFacebookPageIds(row.facebook_page_ids),
     generationLeadMinutes: Number(row.generation_lead_minutes),
     imageMode: row.image_mode as ImageMode,
     fixedImageMediaId: (row.fixed_image_media_id as string | null) ?? null,
@@ -309,6 +322,21 @@ export async function updateAutomation(
     where id = ${id} and user_id = ${userId}
   `;
   return true;
+}
+
+/**
+ * Destino Facebook da automação (null = automático, [] = desligado,
+ * [ids] = Páginas escolhidas). A posse das Páginas é conferida no serviço.
+ */
+export async function setAutomationFacebookPageIds(id: string, userId: string, pageIds: string[] | null): Promise<boolean> {
+  const db = getDb();
+  const value = pageIds === null ? null : `{${pageIds.join(",")}}`;
+  const rows = await db`
+    update content_automations set facebook_page_ids = ${value}::uuid[], updated_at = now()
+    where id = ${id} and user_id = ${userId}
+    returning id
+  `;
+  return rows.length > 0;
 }
 
 export interface UpdateAutomationDayInput {
@@ -711,6 +739,7 @@ export async function duplicateAutomation(id: string, userId: string, newName: s
     await updateSmartStoryConfig(newId, userId, original.smartStory);
   }
   await updateSmartCarouselConfig(newId, userId, original.smartCarousel);
+  if (original.facebookPageIds !== null) await setAutomationFacebookPageIds(newId, userId, original.facebookPageIds);
 
   for (const day of original.days) {
     let ref: AutomationDayRef = day.dayOfWeek;

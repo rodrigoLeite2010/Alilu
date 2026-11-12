@@ -6,8 +6,10 @@ import {
 } from "@/lib/instagram/backend/instagram-scheduler";
 import { refreshExpiringInstagramTokens } from "@/lib/instagram/backend/instagram-oauth-service";
 import { runFacebookScheduler } from "@/lib/facebook/backend/facebook-publish-service";
+import { facebookSchedulerBudget } from "@/lib/facebook/facebook-scheduler-budget";
 
 export const maxDuration = 60;
+const MAX_DURATION_MS = maxDuration * 1000;
 export const dynamic = "force-dynamic";
 
 /**
@@ -23,11 +25,16 @@ async function handle(request: Request): Promise<NextResponse> {
   if (!isSchedulerRequestAuthorized(request)) {
     return NextResponse.json({ error: "Não autorizado." }, { status: 401 });
   }
+  const startedAt = Date.now();
   try {
     const results = await runInstagramScheduler({ limit: parseSchedulerLimit(request) });
     // Facebook: destinos independentes, com orçamento próprio. Um erro aqui
     // nunca afeta o resultado (já gravado) do Instagram acima.
-    const facebook = await runFacebookScheduler({ limit: parseSchedulerLimit(request), timeBudgetMs: 15_000 }).catch(() => {
+    // Mesma camada de publicação do "Publicar agora" (publishFacebookDestination).
+    const facebook = await runFacebookScheduler({
+      limit: parseSchedulerLimit(request),
+      timeBudgetMs: facebookSchedulerBudget(startedAt, MAX_DURATION_MS),
+    }).catch(() => {
       console.error(JSON.stringify({ scope: "instagram-publish", event: "facebook.scheduler.crash" }));
       return null;
     });
@@ -37,7 +44,10 @@ async function handle(request: Request): Promise<NextResponse> {
   } catch {
     console.error(JSON.stringify({ scope: "instagram-publish", event: "scheduler.crash" }));
     // O Instagram falhou: o Facebook ainda roda (falha em uma rede não bloqueia a outra).
-    const facebook = await runFacebookScheduler({ limit: parseSchedulerLimit(request), timeBudgetMs: 15_000 }).catch(() => null);
+    const facebook = await runFacebookScheduler({
+      limit: parseSchedulerLimit(request),
+      timeBudgetMs: facebookSchedulerBudget(startedAt, MAX_DURATION_MS),
+    }).catch(() => null);
     return NextResponse.json({ error: "Falha ao executar o agendador.", facebook }, { status: 500 });
   }
 }

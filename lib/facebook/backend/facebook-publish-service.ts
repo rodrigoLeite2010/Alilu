@@ -404,6 +404,10 @@ export async function runFacebookScheduler(options: { limit?: number; timeBudget
   const budget = options.timeBudgetMs ?? 20_000;
   const startedAt = Date.now();
   const results: FacebookSchedulerResult[] = [];
+  if (budget <= 0) {
+    logPublicationEvent({ event: "facebook.scheduler.deferred", platform: "facebook", claimed: 0, durationMs: 0 });
+    return results;
+  }
   while (results.length < limit && Date.now() - startedAt < budget) {
     const lockToken = randomUUID();
     const claimed = await claimNextDueDestination(lockToken, FACEBOOK_LOCK_TTL_SECONDS);

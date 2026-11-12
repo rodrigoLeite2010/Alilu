@@ -67,6 +67,7 @@ export default async function AutomationDetailPage({ params }: PageProps) {
           brandContext: automation.brandContext,
           autoPublish: automation.autoPublish,
           requireApproval: automation.requireApproval,
+          facebookPageIds: automation.facebookPageIds,
           generationLeadMinutes: automation.generationLeadMinutes,
           imageMode: automation.imageMode,
           fixedImageMediaId: automation.fixedImageMediaId,

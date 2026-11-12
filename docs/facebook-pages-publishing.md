@@ -148,5 +148,18 @@ Sem `FACEBOOK_PAGES_LOGIN_CONFIG_ID`, o Facebook simplesmente não aparece como 
 - Áudio com direitos autorais pode ser bloqueado ou silenciado pelo Facebook mesmo sendo aceito no Instagram.
 - O post com várias fotos do Facebook não tem o mesmo visual de "deslizar" do carrossel do Instagram: as fotos aparecem em grade.
 - Uma publicação "somente Facebook" ainda pertence a uma conta Instagram do usuário (o módulo de publicação é o do Instagram). Para usá-lo, é preciso ter um Instagram conectado.
-- O Piloto Automático e o "Repostar" continuam publicando só no Instagram. Nenhum destino Facebook é ativado automaticamente.
+- O "Repostar" continua publicando só no Instagram. O Piloto Automático publica também no Facebook (ver seção 11).
 - Editar uma publicação mantém os destinos. Pela API, `PATCH … { action: "update", destinations }` também permite trocar as Páginas e a legenda do Facebook enquanto nada foi publicado.
+
+## 11. Piloto Automático (publicações agendadas automaticamente)
+
+**Problema corrigido:** as publicações automáticas vêm do Piloto Automático, que criava o post em `instagram_posts` **sem nenhum destino** em `social_publication_destinations`. O cron (`/api/cron/instagram-publish`) já processava o Facebook, mas não havia destino Facebook para publicar — por isso só o Instagram saía. A publicação manual funcionava porque a tela grava o destino quando a pessoa marca "Facebook".
+
+**Correção (sem segundo agendador e sem nova lógica de publicação):**
+
+- `content_automations.facebook_page_ids` (migração `0054`): `NULL` = automático (Páginas **conectadas** vinculadas à mesma conta Instagram da automação); `{}` = não publicar no Facebook; lista = Páginas escolhidas. Automações existentes ficam em `NULL` (automático).
+- Ao criar a publicação, o cron do Piloto chama `attachAutomationFacebookDestinations` (`lib/content-automation/backend/automation-facebook.ts`) → `attachAutomaticFacebookDestinations` (`social-destinations-service.ts`), que grava os destinos com `addFacebookDestinationsIfMissing` (`on conflict do nothing`: retry nunca duplica). Vale para POST, CAROUSEL, REEL e Carrossel Inteligente (inclusive o post novo criado ao aprovar). Story e carrossel com vídeo são ignorados (a API não suporta).
+- Daí em diante tudo é o fluxo já existente: `runFacebookScheduler` → `publishFacebookDestination` (a mesma função de "Publicar agora"), com status, tentativas e erros próprios por destino. Falha no Facebook nunca altera o Instagram, e falha ao preparar o destino nunca impede a criação do post.
+- Nada retroativo: só publicações criadas **depois** do deploy recebem o destino Facebook.
+- Tela: Piloto Automático → automação → Configurações → "Publicar também no Facebook" (Automático / Escolher as Páginas / Não publicar). API: `PATCH /api/content-automation/automations/{id}` com `{ "action": "update-facebook", "facebookPageIds": null | [] | [ids] }`.
+- Cron: o Facebook só **começa** novos destinos se ainda sobrar tempo no `maxDuration` (`lib/facebook/facebook-scheduler-budget.ts`); caso contrário fica para o próximo disparo, evitando ser interrompido no meio de um envio.

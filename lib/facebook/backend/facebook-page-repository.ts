@@ -99,6 +99,23 @@ export async function listFacebookPagesForUser(userId: string): Promise<Facebook
   return rows.map(mapRow);
 }
 
+/**
+ * Páginas CONECTADAS (com token) do usuário vinculadas a uma conta Instagram
+ * dele — usadas no modo automático do Piloto ("publicar também na Página
+ * vinculada a esta conta"). Nunca devolve Página de outro usuário.
+ */
+export async function listConnectedPagesForInstagramAccount(userId: string, instagramAccountId: string): Promise<FacebookPageRecord[]> {
+  const db = getDb();
+  const rows = await db`
+    select *, (page_access_token_encrypted is not null) as has_token
+    from facebook_pages
+    where user_id = ${userId} and instagram_account_id = ${instagramAccountId}
+      and status = 'connected' and page_access_token_encrypted is not null
+    order by connected_at asc
+  `;
+  return rows.map(mapRow);
+}
+
 export async function getFacebookPageForUser(id: string, userId: string): Promise<FacebookPageRecord | null> {
   const db = getDb();
   const rows = await db`

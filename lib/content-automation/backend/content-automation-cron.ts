@@ -27,6 +27,7 @@ import { MIN_CAROUSEL_ITEMS, MAX_CAROUSEL_ITEMS } from "@/lib/instagram/backend/
 import { renderAndStoreAutomationArt, renderAndStoreAutomationCarousel } from "@/lib/instagram/backend/template-render-service";
 import { CarouselError } from "@/lib/carousel/backend/carousel-project-service";
 import { generateSmartCarouselForRun, type SmartCarouselRunDeps } from "./smart-carousel-service";
+import { attachAutomationFacebookDestinations } from "./automation-facebook";
 import { reserveAutomationUse, releaseAutomationUse } from "@/lib/billing/backend/automation-access-service";
 import { CONTENT_CATEGORY_LABEL, DAY_OF_WEEK_LABEL, type AutomationDayRecord, type AutomationRecord, type AutomationRunStatus } from "./automation-types";
 import { applyPromptVariables, displaySiteUrl } from "../prompt-variables";
@@ -537,6 +538,8 @@ async function generateAndCreatePublication(
   if (day.contentType === "SMART_CAROUSEL") {
     // Carrossel Inteligente: cota PRÓPRIA (plano do Carrossel). Não reserva uso do Piloto.
     const result = await generateSmartCarouselForRun(automation, day, runId, publishAtUtc, smartCarouselDeps);
+    // Mesmos destinos da automação (Instagram + Página do Facebook configurada).
+    await attachAutomationFacebookDestinations(automation, result.publicationId);
     return { publicationId: result.publicationId, status: result.status };
   }
   // Texto manual não consome a franquia nem exige plano com IA; só o modo IA conta (referência = a execução, p/ não contar duas vezes em retry).
@@ -544,12 +547,18 @@ async function generateAndCreatePublication(
     usesAi: day.contentMode === "AI",
     referenceId: runId,
   });
+  let created: { publicationId: string; status: Extract<AutomationRunStatus, "WAITING_APPROVAL" | "SCHEDULED"> };
   try {
-    return await generateAndCreatePublicationUnchecked(automation, day, runId, publishAtUtc, runDate);
+    created = await generateAndCreatePublicationUnchecked(automation, day, runId, publishAtUtc, runDate);
   } catch (error) {
     await releaseAutomationUse(reservation);
     throw error;
   }
+  // Publicação criada (Instagram garantido). Agora os destinos Facebook da
+  // automação — o MESMO agendador publica as duas redes no horário. Nunca
+  // lança: uma falha aqui não desfaz nem atrasa o Instagram.
+  await attachAutomationFacebookDestinations(automation, created.publicationId);
+  return created;
 }
 
 export async function runContentAutomationCron(

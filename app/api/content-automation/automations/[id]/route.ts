@@ -14,6 +14,7 @@ import {
   updateSmartStory,
   updateSmartCarousel,
   previewSmartCarousel,
+  updateAutomationFacebookPages,
 } from "@/lib/content-automation/backend/automation-service";
 import { serializeAutomation } from "@/lib/content-automation/backend/automation-dto";
 import type { AutomationScheduleMode, ImageMode, VideoSelection } from "@/lib/content-automation/backend/automation-types";
@@ -121,6 +122,14 @@ export async function PATCH(request: Request, { params }: RouteParams): Promise<
       return NextResponse.json({ automation: serializeAutomation(automation) });
     }
 
+    if (action === "update-facebook") {
+      // Destino Facebook das PRÓXIMAS publicações: null = automático, [] = desligado, [ids] = Páginas escolhidas.
+      const { facebookPageIds } = body as { facebookPageIds?: unknown };
+      await updateAutomationFacebookPages(id, userId, facebookPageIds === undefined ? Symbol("invalid") : facebookPageIds);
+      const automation = await getAutomationDetails(id, userId);
+      return NextResponse.json({ automation: serializeAutomation(automation) });
+    }
+
     if (action === "smart-carousel-preview") {
       const preview = await previewSmartCarousel(id, userId);
       return NextResponse.json({ projectId: preview.projectId, warnings: preview.warnings, category: preview.category, topic: preview.topic, diagnostic: preview.diagnostic });
@@ -165,7 +174,7 @@ export async function PATCH(request: Request, { params }: RouteParams): Promise<
     }
 
     return NextResponse.json(
-      { error: "action precisa ser 'update', 'update-shared', 'update-smart-story', 'activate', 'pause', 'archive' ou 'duplicate'." },
+      { error: "action precisa ser 'update', 'update-shared', 'update-smart-story', 'update-facebook', 'activate', 'pause', 'archive' ou 'duplicate'." },
       { status: 400 },
     );
   } catch (error) {

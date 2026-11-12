@@ -237,6 +237,14 @@ export interface AutomationRecord {
   brandContext: string;
   autoPublish: boolean;
   requireApproval: boolean;
+  /**
+   * Destino Facebook das publicações criadas por esta automação:
+   *   null  = automático (Páginas conectadas vinculadas à conta Instagram da automação);
+   *   []    = não publicar no Facebook;
+   *   [ids] = estas Páginas (facebook_pages.id).
+   * Ver db/migrations/0054_automation_facebook_destinations.sql.
+   */
+  facebookPageIds: string[] | null;
   generationLeadMinutes: number;
   imageMode: ImageMode;
   fixedImageMediaId: string | null;

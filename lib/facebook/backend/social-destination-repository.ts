@@ -116,6 +116,36 @@ export async function setFacebookDestinations(
   }
 }
 
+/**
+ * Acrescenta destinos Facebook a uma publicação SEM tocar nos existentes
+ * (usado pelo Piloto Automático ao criar a publicação). Idempotente: a
+ * constraint única (post_id, platform, external_account_id) + "do nothing"
+ * garante que uma nova execução/retry nunca cria um segundo destino — e,
+ * portanto, nunca uma segunda publicação na mesma Página. Devolve quantos
+ * destinos foram realmente criados.
+ */
+export async function addFacebookDestinationsIfMissing(
+  postId: string,
+  userId: string,
+  pages: FacebookDestinationInput[],
+  captionOverride: string | null = null,
+): Promise<number> {
+  const db = getDb();
+  const caption = captionOverride && captionOverride.trim() ? captionOverride : null;
+  let created = 0;
+  for (const page of pages) {
+    const rows = await db`
+      insert into social_publication_destinations (post_id, user_id, platform, facebook_page_ref, external_account_id, account_name, caption_override)
+      select ${postId}, ${userId}, 'facebook', ${page.facebookPageRef}, ${page.pageId}, ${page.pageName}, ${caption}
+      where exists (select 1 from instagram_posts p where p.id = ${postId} and p.user_id = ${userId})
+      on conflict (post_id, platform, external_account_id) do nothing
+      returning id
+    `;
+    created += rows.length;
+  }
+  return created;
+}
+
 /** Depois de editar/reagendar a publicação: falhas voltam a SCHEDULED e "publicar agora" anterior é esquecido. */
 export async function resetFacebookDestinationsAfterEdit(postId: string, userId: string): Promise<void> {
   const db = getDb();
