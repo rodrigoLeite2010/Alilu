@@ -25,6 +25,7 @@ async function handle(request: Request): Promise<NextResponse> {
       published: result.planned.reduce((sum, plan) => sum + plan.published, 0),
       paused: result.planned.filter((plan) => plan.paused).map((plan) => ({ queueId: plan.queueId, reason: plan.paused })),
       imports: result.imports.map((entry) => ({ itemId: entry.itemId, status: entry.status, code: entry.code ?? null })),
+      ...(result.radar ? { radar: { runs: result.radar.runs.map((run) => ({ radarId: run.radarId, status: run.status, queued: run.queued })), abandoned: result.radar.abandoned } } : {}),
     });
   } catch {
     console.error(JSON.stringify({ scope: "video-queue", event: "cron.crash" }));

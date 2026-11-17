@@ -347,6 +347,7 @@ function NavigationList({
         <NavigationItem link={lotteriesCategoryLink} pathname={pathname} onNavigate={onNavigate} />
         <NavigationItem link={videosCategoryLink} pathname={pathname} onNavigate={onNavigate} />
         <NavigationItem link={{ href: "/games", label: "Games", icon: "gamepad", activePath: "/instagram/filas" }} pathname={pathname} onNavigate={onNavigate} />
+        <NavigationItem link={{ href: "/radar-viral", label: "Radar Viral", icon: "trending-up", activePath: "/radar-viral" }} pathname={pathname} onNavigate={onNavigate} />
         <MusicMenu pathname={pathname} onNavigate={onNavigate} />
         <NavigationItem link={{ href: IMOVEIS_CATEGORY.path, label: IMOVEIS_CATEGORY.name, icon: IMOVEIS_CATEGORY.icon }} pathname={pathname} onNavigate={onNavigate} />
         <NavigationItem link={{ href: DESAPEGO_CATEGORY.path, label: DESAPEGO_CATEGORY.name, icon: DESAPEGO_CATEGORY.icon }} pathname={pathname} onNavigate={onNavigate} />

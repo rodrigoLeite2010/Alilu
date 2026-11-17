@@ -1,5 +1,5 @@
 import "server-only";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { put } from "@vercel/blob";
 import { isAdminEmail } from "@/lib/admin/admin-email";
 import { getImportForUser, getImportSettings } from "@/lib/instagram-import/backend/import-repository";
@@ -16,6 +16,8 @@ import { parseQueueLink, waitingFileMessage } from "@/lib/video-queue/links";
 import {
   claimNextItemForImport,
   countInFlightItems,
+  findDuplicateFileForAccount,
+  getQueueProcessingOptions,
   getUserEmail,
   insertEvent,
   markItemOutcome,
@@ -25,6 +27,8 @@ import {
   type VideoQueueItemRecord,
 } from "./queue-repository";
 import { extractThumbnailJpeg } from "./thumbnail";
+import { renderReframe } from "./reframe-runner";
+import { planReframe } from "@/lib/video-queue/reframe";
 
 /**
  * Worker de importação da fila. Processa UM item por vez (o cron chama em
@@ -207,16 +211,59 @@ async function importItem(item: VideoQueueItemRecord, lockToken: string, now: Da
   const downloaded = await downloadVideo(sourceUrl, maxBytes);
 
   await setItemStage(item.id, lockToken, "PROCESSING");
-  const probed = await probe(downloaded.buffer, maxDurationSeconds);
-  const contentType = downloaded.contentType === "video/quicktime" ? "video/quicktime" : "video/mp4";
+  let probed = await probe(downloaded.buffer, maxDurationSeconds);
+  let contentType = downloaded.contentType === "video/quicktime" ? "video/quicktime" : "video/mp4";
   const extension = contentType === "video/quicktime" ? "mov" : "mp4";
   const base = `${queueStoragePrefix(item.userId)}${item.queueId}/${item.id}`;
 
+  // Opções da fila (padrão neutro: filas existentes não mudam de comportamento).
+  const options = await getQueueProcessingOptions(item.queueId);
+  const contentSha256 = createHash("sha256").update(downloaded.buffer).digest("hex");
+  if (options?.blockDuplicateFiles) {
+    const duplicate = await findDuplicateFileForAccount(item.userId, options.instagramAccountId, contentSha256, item.id);
+    if (duplicate) throw new ItemFailure("Este mesmo arquivo de vídeo já foi usado nesta conta do Instagram (duplicado).", "DUPLICATE_FILE", "permanent");
+  }
+
+  // Adaptação 9:16 / duração (opcional): o ORIGINAL é preservado em outro arquivo.
+  let finalBuffer = downloaded.buffer;
+  let originalBlobUrl: string | null = null;
+  let statusMessage: string | null = null;
+  const plan = options ? planReframe(probed, { mode: options.reframeMode, maxDurationSeconds: options.maxDurationSeconds }) : null;
+  if (plan) {
+    const rendered = await renderReframe(downloaded.buffer, plan);
+    let renderedProbe: ProbedMedia | null = null;
+    if (rendered) {
+      try {
+        renderedProbe = await probeVideoBuffer(rendered, maxDurationSeconds);
+      } catch {
+        renderedProbe = null;
+      }
+    }
+    if (rendered && renderedProbe) {
+      if (item.sourceKind === "UPLOAD") {
+        originalBlobUrl = item.blobUrl;
+      } else {
+        try {
+          originalBlobUrl = (await put(`${base}-original.${extension}`, downloaded.buffer, { access: "public", addRandomSuffix: false, allowOverwrite: true, contentType })).url;
+        } catch {
+          throw new ItemFailure("Falha ao guardar o vídeo. Nova tentativa em breve.", "STORAGE_FAILED", "transient");
+        }
+      }
+      finalBuffer = rendered;
+      probed = renderedProbe;
+      contentType = "video/mp4";
+      statusMessage = `Adaptado para Reels: ${plan.reasons.join(", ")}.`;
+    } else {
+      statusMessage = "Não foi possível adaptar para 9:16 agora; o vídeo segue no formato original.";
+    }
+  }
+
   let blobUrl = item.blobUrl;
   let blobPath = item.blobPath;
-  if (item.sourceKind !== "UPLOAD") {
+  if (item.sourceKind !== "UPLOAD" || finalBuffer !== downloaded.buffer) {
+    const target = finalBuffer !== downloaded.buffer ? `${base}.mp4` : `${base}.${extension}`;
     try {
-      const stored = await put(`${base}.${extension}`, downloaded.buffer, { access: "public", addRandomSuffix: false, allowOverwrite: true, contentType });
+      const stored = await put(target, finalBuffer, { access: "public", addRandomSuffix: false, allowOverwrite: true, contentType });
       blobUrl = stored.url;
       blobPath = stored.pathname;
     } catch {
@@ -225,7 +272,7 @@ async function importItem(item: VideoQueueItemRecord, lockToken: string, now: Da
   }
 
   let thumbnailUrl: string | null = null;
-  const jpeg = await extractThumbnailJpeg(downloaded.buffer, probed.durationSeconds);
+  const jpeg = await extractThumbnailJpeg(finalBuffer, probed.durationSeconds);
   if (jpeg) {
     try {
       thumbnailUrl = (await put(`${base}-thumb.jpg`, jpeg, { access: "public", addRandomSuffix: false, allowOverwrite: true, contentType: "image/jpeg" })).url;
@@ -247,13 +294,16 @@ async function importItem(item: VideoQueueItemRecord, lockToken: string, now: Da
     blobPath: blobPath ?? new URL(blobUrl!).pathname.replace(/^\//, ""),
     thumbnailUrl,
     contentType,
-    fileSizeBytes: downloaded.buffer.length,
+    fileSizeBytes: finalBuffer.length,
     durationSeconds: probed.durationSeconds,
     width: probed.width,
     height: probed.height,
     videoCodec: probed.videoCodec,
     hasAudio: probed.hasAudio,
     facebookIncompatibleReason,
+    contentSha256,
+    originalBlobUrl,
+    statusMessage,
   });
 }
 

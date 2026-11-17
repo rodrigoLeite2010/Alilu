@@ -99,7 +99,7 @@ interface GoogleErrorBody {
   error?: { code?: number; status?: string; message?: string; errors?: Array<{ reason?: string }>; details?: Array<{ reason?: string }> };
 }
 
-async function mapGoogleError(response: Response): Promise<YoutubeApiError> {
+export async function mapGoogleError(response: Response): Promise<YoutubeApiError> {
   let body: GoogleErrorBody = {};
   try {
     body = (await response.json()) as GoogleErrorBody;

@@ -2,6 +2,7 @@ import "server-only";
 import { planQueue, type PlanQueueResult } from "./queue-planner";
 import { runQueueImports, type ProcessItemResult } from "./queue-processor";
 import { listQueueIdsForCron } from "./queue-repository";
+import { runViralRadarTick, type ViralRadarTickResult } from "@/lib/viral-radar/backend/radar-cron";
 
 /**
  * Execução periódica da Fila de vídeos (rota /api/cron/video-queue, mesmo
@@ -23,11 +24,14 @@ export interface VideoQueueCronOptions {
   maxImports?: number;
   maxInFlight?: number;
   maxQueues?: number;
+  /** Radar Viral no mesmo disparador (padrão: ligado; VIRAL_RADAR_IN_QUEUE_CRON=false desliga). */
+  viralRadar?: boolean;
 }
 
 export interface VideoQueueCronResult {
   planned: PlanQueueResult[];
   imports: ProcessItemResult[];
+  radar?: ViralRadarTickResult | null;
 }
 
 /** Uma importação (download até 50 s + ffprobe + Blob) precisa de folga para não ser cortada no meio. */
@@ -45,6 +49,18 @@ export async function runVideoQueueCron(options: VideoQueueCronOptions = {}): Pr
   const maxImports = options.maxImports ?? envInt("VIDEO_QUEUE_MAX_IMPORTS_PER_RUN", 3, 0, 20);
   const maxInFlight = options.maxInFlight ?? envInt("VIDEO_QUEUE_MAX_CONCURRENT_IMPORTS", 2, 1, 10);
   const maxQueues = options.maxQueues ?? 50;
+
+  // Radar Viral primeiro (orçamento próprio, isolado): itens autorizados que ele
+  // acrescentar já entram na importação desta mesma execução.
+  let radar: ViralRadarTickResult | null = null;
+  const radarOn = options.viralRadar ?? (process.env.VIRAL_RADAR_IN_QUEUE_CRON ?? "true").trim().toLowerCase() !== "false";
+  if (radarOn) {
+    try {
+      radar = await runViralRadarTick({ now, timeBudgetMs: Math.min(60_000, Math.floor(budget / 4)) });
+    } catch (error) {
+      console.error(JSON.stringify({ scope: "video-queue", event: "radar.crash", message: (error as Error)?.message?.slice(0, 200) }));
+    }
+  }
 
   const planned: PlanQueueResult[] = [];
   const planAll = async (ids: string[]) => {
@@ -71,5 +87,7 @@ export async function runVideoQueueCron(options: VideoQueueCronOptions = {}): Pr
   const readyQueues = [...new Set(imports.filter((result) => result.status === "READY").map((result) => result.queueId))];
   if (readyQueues.length > 0) await planAll(readyQueues);
 
-  return { planned, imports };
+  // `radar` só aparece quando o radar fez algo (mantém o formato do resultado da fila).
+  const radarActive = radar && (radar.runs.length > 0 || radar.abandoned > 0 || (radar.monitor?.checked ?? 0) > 0);
+  return radarActive ? { planned, imports, radar } : { planned, imports };
 }

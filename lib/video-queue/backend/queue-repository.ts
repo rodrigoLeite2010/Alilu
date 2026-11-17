@@ -359,6 +359,50 @@ export async function listQueueIdsForCron(limit: number): Promise<string[]> {
   return rows.map((row) => row.id as string);
 }
 
+/** Opções de processamento da fila (padrão neutro nas filas existentes). */
+export async function getQueueProcessingOptions(queueId: string): Promise<{
+  instagramAccountId: string;
+  blockDuplicateFiles: boolean;
+  reframeMode: "NONE" | "FIT_9_16";
+  maxDurationSeconds: number | null;
+} | null> {
+  const db = getDb();
+  const rows = await db`select instagram_account_id, block_duplicate_files, reframe_mode, max_duration_seconds from video_queues where id = ${queueId}`;
+  const row = rows[0];
+  if (!row) return null;
+  return {
+    instagramAccountId: row.instagram_account_id as string,
+    blockDuplicateFiles: Boolean(row.block_duplicate_files),
+    reframeMode: row.reframe_mode === "FIT_9_16" ? "FIT_9_16" : "NONE",
+    maxDurationSeconds: row.max_duration_seconds === null || row.max_duration_seconds === undefined ? null : Number(row.max_duration_seconds),
+  };
+}
+
+export async function setQueueProcessingOptions(
+  queueId: string,
+  userId: string,
+  input: { blockDuplicateFiles: boolean; reframeMode: "NONE" | "FIT_9_16"; maxDurationSeconds: number | null },
+): Promise<void> {
+  const db = getDb();
+  await db`
+    update video_queues set block_duplicate_files = ${input.blockDuplicateFiles}, reframe_mode = ${input.reframeMode},
+      max_duration_seconds = ${input.maxDurationSeconds}, updated_at = now()
+    where id = ${queueId} and user_id = ${userId}
+  `;
+}
+
+/** Mesmo arquivo (hash) já usado na mesma conta do Instagram por outro item ativo/publicado. */
+export async function findDuplicateFileForAccount(userId: string, instagramAccountId: string, sha256: string, exceptItemId: string): Promise<string | null> {
+  const db = getDb();
+  const rows = await db`
+    select i.id from video_queue_items i join video_queues q on q.id = i.queue_id
+    where i.user_id = ${userId} and i.content_sha256 = ${sha256} and i.id <> ${exceptItemId}
+      and q.instagram_account_id = ${instagramAccountId} and i.status in ('READY', 'SCHEDULED', 'PUBLISHED')
+    limit 1
+  `;
+  return rows[0] ? (rows[0].id as string) : null;
+}
+
 // ───────────────────────────── Itens ─────────────────────────────
 
 export async function countActiveItems(queueId: string): Promise<number> {
@@ -522,13 +566,18 @@ export interface ImportedMediaPatch {
   videoCodec: string | null;
   hasAudio: boolean | null;
   facebookIncompatibleReason: string | null;
+  /** Radar Viral (opcional): hash do arquivo, URL do original quando adaptado e aviso do processamento. */
+  contentSha256?: string | null;
+  originalBlobUrl?: string | null;
+  statusMessage?: string | null;
 }
 
 export async function markItemReady(itemId: string, lockToken: string, media: ImportedMediaPatch): Promise<boolean> {
   const db = getDb();
   const rows = await db`
     update video_queue_items set
-      status = 'READY', status_message = null, error_code = null, next_attempt_at = null,
+      status = 'READY', status_message = ${media.statusMessage ?? null}, error_code = null, next_attempt_at = null,
+      content_sha256 = ${media.contentSha256 ?? null}, original_blob_url = ${media.originalBlobUrl ?? null},
       blob_url = ${media.blobUrl}, blob_path = ${media.blobPath}, thumbnail_url = ${media.thumbnailUrl},
       content_type = ${media.contentType}, file_size_bytes = ${media.fileSizeBytes}, duration_seconds = ${media.durationSeconds},
       width = ${media.width}, height = ${media.height}, video_codec = ${media.videoCodec}, has_audio = ${media.hasAudio},
