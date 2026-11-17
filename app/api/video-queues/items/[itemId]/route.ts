@@ -1,15 +1,16 @@
 import { NextResponse } from "next/server";
-import { cancelItem, removeItem, updateItem } from "@/lib/video-queue/backend/queue-service";
+import { cancelItem, prepareItemForImmediatePublish, removeItem, updateItem } from "@/lib/video-queue/backend/queue-service";
 import { serializeItem } from "@/lib/video-queue/backend/queue-dto";
 import { badBody, readJsonBody, requireSessionUserId, unauthenticated, videoQueueErrorResponse } from "@/lib/video-queue/backend/route-helpers";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 120;
 
 interface RouteParams {
   params: Promise<{ itemId: string }>;
 }
 
-/** PATCH { action: "cancel" } | { title?, caption?, facebookCaption? } */
+/** PATCH { action: "cancel" | "prepare_publish" } | { title?, caption?, facebookCaption? } */
 export async function PATCH(request: Request, { params }: RouteParams): Promise<NextResponse> {
   const userId = await requireSessionUserId();
   if (!userId) return unauthenticated();
@@ -20,6 +21,9 @@ export async function PATCH(request: Request, { params }: RouteParams): Promise<
     if (body.action === "cancel") {
       await cancelItem(userId, itemId);
       return NextResponse.json({ ok: true });
+    }
+    if (body.action === "prepare_publish") {
+      return NextResponse.json({ postId: await prepareItemForImmediatePublish(userId, itemId) });
     }
     return NextResponse.json({ item: serializeItem(await updateItem(userId, itemId, body)) });
   } catch (error) {

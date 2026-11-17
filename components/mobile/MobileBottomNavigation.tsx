@@ -11,14 +11,21 @@ interface NavItem {
   href: string;
   label: string;
   icon: string;
+  activePath?: string;
 }
 
 const itemClasses =
-  "relative flex min-h-14 w-full flex-col items-center justify-center gap-1 px-1 text-[11px] font-medium leading-none transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand-accent";
+  "relative flex min-h-14 w-full flex-col items-center justify-center gap-1 px-0.5 text-[10px] font-medium leading-none transition-colors min-[360px]:text-[11px] focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand-accent";
 
 const leftItems: NavItem[] = [{ href: "/", label: "Início", icon: "home" }];
+const createGamesLink: MobileLink = {
+  href: "/instagram/filas/nova?categoria=games",
+  label: "Criar fila de Games",
+  icon: "gamepad",
+};
 const rightItems: NavItem[] = [
   { href: "/instagram", label: "Instagram", icon: "instagram" },
+  { href: createGamesLink.href, label: "Games", icon: "gamepad", activePath: "/instagram/filas" },
   { href: "/agenda", label: "Agenda", icon: "calendar" },
   { href: "/minha-conta", label: "Perfil", icon: "user" },
 ];
@@ -56,7 +63,8 @@ function CreateGroup({ title, links, onNavigate }: { title: string; links: Mobil
 }
 
 function NavLink({ item, pathname }: { item: NavItem; pathname: string }) {
-  const active = isActive(pathname, item.href);
+  const active = isActive(pathname, item.activePath ?? item.href) &&
+    (item.href !== "/instagram" || !isActive(pathname, "/instagram/filas"));
   return (
     <li>
       <Link
@@ -74,8 +82,7 @@ function NavLink({ item, pathname }: { item: NavItem; pathname: string }) {
 }
 
 /**
- * Barra inferior fixa do celular (< 768px): Início, Criar, Instagram,
- * Agenda e Perfil. "Criar" abre um bottom sheet em vez de navegar.
+ * Barra inferior fixa do celular (< 768px). "Criar" abre um bottom sheet.
  * Respeita a safe area do iPhone; o <body> reserva o mesmo espaço (ver
  * app/layout.tsx) para a barra nunca cobrir conteúdo.
  */
@@ -90,7 +97,7 @@ export function MobileBottomNavigation() {
         aria-label="Navegação inferior"
         className="fixed inset-x-0 bottom-0 z-40 border-t border-brand-primary/15 bg-white pb-[env(safe-area-inset-bottom)] md:hidden print:hidden"
       >
-        <ul className="grid grid-cols-5">
+        <ul className="grid grid-cols-6">
           {leftItems.map((item) => (
             <NavLink key={item.href} item={item} pathname={pathname} />
           ))}
@@ -116,6 +123,7 @@ export function MobileBottomNavigation() {
 
       <MobileBottomSheet open={createOpen} onClose={closeCreate} title="O que você quer criar?">
         <div className="space-y-5">
+          <CreateGroup title="Games" links={[createGamesLink]} onNavigate={closeCreate} />
           <CreateGroup title="Vídeos" links={videoLinks} onNavigate={closeCreate} />
           <CreateGroup title="Instagram" links={createInstagramLinks} onNavigate={closeCreate} />
         </div>

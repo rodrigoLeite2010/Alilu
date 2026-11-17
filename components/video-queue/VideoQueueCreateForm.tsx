@@ -15,6 +15,7 @@ interface Props {
   initialCategory: string;
   initialTheme: string;
   initialCaptionTemplate: string;
+  isAdmin?: boolean;
 }
 
 /**
@@ -23,7 +24,7 @@ interface Props {
  * várias) → horários → legenda → declaração de direitos. A fila nasce em
  * rascunho: a pessoa confere a programação gerada e só então ativa.
  */
-export function VideoQueueCreateForm({ initialCategory, initialTheme, initialCaptionTemplate }: Props) {
+export function VideoQueueCreateForm({ initialCategory, initialTheme, initialCaptionTemplate, isAdmin = false }: Props) {
   const router = useRouter();
   const { accounts, pages, facebookConfigured } = useConnectedTargets();
   const [category, setCategory] = useState(initialCategory);
@@ -40,7 +41,7 @@ export function VideoQueueCreateForm({ initialCategory, initialTheme, initialCap
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const parsed = useMemo(() => parseQueueLinks(linksText, MAX_LINKS_PER_SUBMISSION), [linksText]);
+  const parsed = useMemo(() => parseQueueLinks(linksText, isAdmin ? Infinity : MAX_LINKS_PER_SUBMISSION), [linksText, isAdmin]);
   const categoryRecord = findCategory(category);
   const connectedAccounts = (accounts ?? []).filter((account) => account.status === "connected" || account.id === instagramAccountId);
 
@@ -95,11 +96,44 @@ export function VideoQueueCreateForm({ initialCategory, initialTheme, initialCap
     <form onSubmit={submit} className="space-y-8">
       <div>
         <h1 className="text-xl font-semibold text-zinc-900">Nova fila de vídeos</h1>
-        <p className="mt-1 text-sm text-zinc-600">Os vídeos são importados em fila e publicados um por horário, nas contas escolhidas, sem você precisar entrar a cada publicação.</p>
+        <p className="mt-1 text-sm text-zinc-600">Cole os links para publicar um vídeo agora ou agendar a fila nas contas escolhidas.</p>
       </div>
 
+      <section className="space-y-2">
+        <h2 className="font-semibold text-zinc-900">1. Links dos vídeos</h2>
+        <label className={labelClass}>
+          Cole os links dos vídeos, um por linha
+          <textarea
+            className={`${inputClass} h-40 font-mono text-base sm:text-sm`}
+            placeholder={"https://exemplo.com/video1.mp4\nhttps://exemplo.com/video2.mp4"}
+            value={linksText}
+            onChange={(event) => setLinksText(event.target.value)}
+          />
+        </label>
+        <p className="text-xs text-zinc-600">
+          {parsed.accepted.length} link(s) válido(s)
+          {Object.entries(kinds).length > 0 ? ` (${Object.entries(kinds).map(([kind, count]) => `${count} ${VIDEO_QUEUE_SOURCE_LABEL[kind as keyof typeof VIDEO_QUEUE_SOURCE_LABEL]}`).join(", ")})` : ""}
+          {parsed.duplicates.length > 0 ? ` · ${parsed.duplicates.length} repetido(s) ignorado(s)` : ""}
+          {parsed.rejected.length > 0 ? ` · ${parsed.rejected.length} recusado(s)` : ""}
+          {parsed.overLimit ? ` · máximo de ${MAX_LINKS_PER_SUBMISSION} por envio (adicione o resto depois)` : ""}
+        </p>
+        {parsed.rejected.length > 0 ? (
+          <ul className="max-h-24 overflow-auto text-xs text-red-700">
+            {parsed.rejected.slice(0, 10).map((item) => (
+              <li key={item.sourceUrl}>
+                {item.sourceUrl} — {item.reason}
+              </li>
+            ))}
+          </ul>
+        ) : null}
+        <p className="text-xs text-zinc-500">
+          Arquivos diretos (MP4/MOV) são baixados com segurança. Links do Instagram usam o importador do Alilu (planos pagos). YouTube, TikTok e
+          outras plataformas não são baixados: o vídeo fica aguardando você enviar o arquivo autorizado.
+        </p>
+      </section>
+
       <section className="space-y-3">
-        <h2 className="font-semibold text-zinc-900">1. Categoria e tema</h2>
+        <h2 className="font-semibold text-zinc-900">2. Categoria e tema</h2>
         <div className="grid gap-3 sm:grid-cols-3">
           <label className={labelClass}>
             Categoria
@@ -126,39 +160,6 @@ export function VideoQueueCreateForm({ initialCategory, initialTheme, initialCap
             <input className={inputClass} value={name} maxLength={80} onChange={(event) => setName(event.target.value)} required />
           </label>
         </div>
-      </section>
-
-      <section className="space-y-2">
-        <h2 className="font-semibold text-zinc-900">2. Links dos vídeos</h2>
-        <label className={labelClass}>
-          Cole os links dos vídeos, um por linha
-          <textarea
-            className={`${inputClass} h-40 font-mono text-xs`}
-            placeholder={"https://exemplo.com/video1.mp4\nhttps://exemplo.com/video2.mp4"}
-            value={linksText}
-            onChange={(event) => setLinksText(event.target.value)}
-          />
-        </label>
-        <p className="text-xs text-zinc-600">
-          {parsed.accepted.length} link(s) válido(s)
-          {Object.entries(kinds).length > 0 ? ` (${Object.entries(kinds).map(([kind, count]) => `${count} ${VIDEO_QUEUE_SOURCE_LABEL[kind as keyof typeof VIDEO_QUEUE_SOURCE_LABEL]}`).join(", ")})` : ""}
-          {parsed.duplicates.length > 0 ? ` · ${parsed.duplicates.length} repetido(s) ignorado(s)` : ""}
-          {parsed.rejected.length > 0 ? ` · ${parsed.rejected.length} recusado(s)` : ""}
-          {parsed.overLimit ? ` · máximo de ${MAX_LINKS_PER_SUBMISSION} por envio (adicione o resto depois)` : ""}
-        </p>
-        {parsed.rejected.length > 0 ? (
-          <ul className="max-h-24 overflow-auto text-xs text-red-700">
-            {parsed.rejected.slice(0, 10).map((item) => (
-              <li key={item.sourceUrl}>
-                {item.sourceUrl} — {item.reason}
-              </li>
-            ))}
-          </ul>
-        ) : null}
-        <p className="text-xs text-zinc-500">
-          Arquivos diretos (MP4/MOV) são baixados com segurança. Links do Instagram usam o importador do Alilu (planos pagos). YouTube, TikTok e
-          outras plataformas não são baixados: o vídeo fica aguardando você enviar o arquivo autorizado.
-        </p>
       </section>
 
       <section className="space-y-3">
@@ -229,7 +230,7 @@ export function VideoQueueCreateForm({ initialCategory, initialTheme, initialCap
       {error ? <p className="text-sm font-medium text-red-700">{error}</p> : null}
       <div className="flex flex-wrap gap-2">
         <Button type="submit" disabled={submitting}>
-          {submitting ? "Criando…" : "Criar fila e ver a programação"}
+          {submitting ? "Criando…" : "Criar fila"}
         </Button>
         <Link href="/instagram/filas" className="inline-flex min-h-11 items-center px-3 text-sm text-zinc-600 hover:underline">
           Cancelar

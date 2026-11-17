@@ -21,6 +21,7 @@ type NavigationLink = {
   href: string;
   label: string;
   icon: string;
+  activePath?: string;
 };
 
 const catalogLinks: NavigationLink[] = [
@@ -87,7 +88,7 @@ function NavigationItem({
   pathname: string;
   onNavigate?: () => void;
 }) {
-  const isActive = isActiveLink(pathname, link.href);
+  const isActive = isActiveLink(pathname, link.activePath ?? link.href);
 
   return (
     <li>
@@ -204,7 +205,7 @@ function InstagramSubGroup({ group, pathname, onNavigate }: { group: (typeof ins
 function InstagramMenu({ pathname, onNavigate }: { pathname: string; onNavigate?: () => void }) {
   const inside = pathname === "/instagram" || pathname.startsWith("/instagram/") || instagramMenuExtraLinks.some((link) => isActivePath(pathname, link.href));
   const [open, setOpen] = useState(inside);
-  const isActive = isActiveLink(pathname, instagramCategoryLink.href);
+  const isActive = isActiveLink(pathname, instagramCategoryLink.href) && !isActivePath(pathname, "/instagram/filas");
   return (
     <li>
       <div className="flex items-center gap-1">
@@ -345,6 +346,7 @@ function NavigationList({
         <InstagramMenu pathname={pathname} onNavigate={onNavigate} />
         <NavigationItem link={lotteriesCategoryLink} pathname={pathname} onNavigate={onNavigate} />
         <NavigationItem link={videosCategoryLink} pathname={pathname} onNavigate={onNavigate} />
+        <NavigationItem link={{ href: "/games", label: "Games", icon: "gamepad", activePath: "/instagram/filas" }} pathname={pathname} onNavigate={onNavigate} />
         <MusicMenu pathname={pathname} onNavigate={onNavigate} />
         <NavigationItem link={{ href: IMOVEIS_CATEGORY.path, label: IMOVEIS_CATEGORY.name, icon: IMOVEIS_CATEGORY.icon }} pathname={pathname} onNavigate={onNavigate} />
         <NavigationItem link={{ href: DESAPEGO_CATEGORY.path, label: DESAPEGO_CATEGORY.name, icon: DESAPEGO_CATEGORY.icon }} pathname={pathname} onNavigate={onNavigate} />

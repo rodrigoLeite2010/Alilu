@@ -40,6 +40,12 @@ export default async function VideoQueuesPage({ searchParams }: PageProps) {
         Cole vários links, escolha as contas e os horários: o Alilu importa os vídeos autorizados em fila e publica um por
         horário, automaticamente, usando o mesmo agendador das suas publicações.
       </p>
+      <Link
+        href={`/instagram/filas/nova?categoria=${category.id}${themeFilter ? `&tema=${themeFilter}` : ""}`}
+        className="mt-4 inline-flex min-h-11 items-center rounded-md bg-zinc-900 px-4 py-2 text-sm font-semibold text-white"
+      >
+        Criar fila de {category.name}
+      </Link>
 
       <nav className="mt-6 flex flex-wrap gap-2" aria-label="Categorias">
         {VIDEO_QUEUE_CATEGORIES.map((item) => (

@@ -198,14 +198,14 @@ async function materializeItem(
   at: Date,
   pages: FacebookDestinationInput[],
   vars: ReturnType<typeof captionVariables>,
-): Promise<"scheduled" | "error"> {
+): Promise<string | null> {
   const captionVars = { tema: vars.tema, categoria: vars.categoria, numero: vars.numberOf(item.id), total: vars.total };
   const caption = resolveItemCaption(item, queue.captionTemplate, captionVars);
   const captionError = validateCaption(caption);
   if (captionError) {
     await markItemPlanningError(item.id, captionError, "INVALID_CAPTION");
     await insertEvent(queue.id, item.id, "planning_failed", captionError);
-    return "error";
+    return null;
   }
 
   // Facebook: só Reels compatíveis (3–90 s, 9:16…). Incompatível = só Instagram, com aviso.
@@ -219,7 +219,7 @@ async function materializeItem(
     const message = item.facebookIncompatibleReason ?? "Nenhum destino disponível para este vídeo.";
     await markItemPlanningError(item.id, message, "NO_DESTINATION");
     await insertEvent(queue.id, item.id, "planning_failed", message);
-    return "error";
+    return null;
   }
 
   let post = await findActivePostForItem(item.id);
@@ -257,7 +257,16 @@ async function materializeItem(
   }
   await markItemScheduled(item.id, post.id, post.scheduledAtUtc ?? at, facebookNote);
   await insertEvent(queue.id, item.id, "scheduled", `Agendado para ${(post.scheduledAtUtc ?? at).toISOString()}.`);
-  return "scheduled";
+  return post.id;
+}
+
+/** Usa a mesma publicação e os mesmos destinos do agendamento. O chamador tem o lock da fila. */
+export async function materializeImmediateItemLocked(queue: VideoQueueRecord, item: VideoQueueItemRecord, now: Date) {
+  const targets = await checkTargets(queue);
+  if (targets.problem) return { postId: null, problem: targets.problem };
+  const items = await listItemsForQueue(queue.id, queue.userId);
+  const postId = await materializeItem(queue, item, now, targets.pages, captionVariables(queue, items));
+  return { postId, problem: null };
 }
 
 export interface PlanQueueResult {
@@ -300,7 +309,7 @@ export async function planQueueLocked(queueId: string, now: Date = new Date()): 
   const vars = captionVariables(queue, items);
   for (let index = 0; index < slots.length; index += 1) {
     try {
-      if ((await materializeItem(queue, candidates[index], slots[index], targets.pages, vars)) === "scheduled") result.scheduled += 1;
+      if (await materializeItem(queue, candidates[index], slots[index], targets.pages, vars)) result.scheduled += 1;
     } catch (error) {
       // Erro inesperado (banco/rede): o item continua PRONTO e é replanejado na próxima execução.
       log("materialize_failed", { queueId: queue.id, itemId: candidates[index].id, message: (error as Error)?.message?.slice(0, 200) });

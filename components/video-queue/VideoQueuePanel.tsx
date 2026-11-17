@@ -48,13 +48,13 @@ async function fetchDashboard(queueId: string): Promise<{ data: VideoQueueDashbo
 
 type Tab = "videos" | "programacao" | "adicionar" | "configuracoes" | "historico";
 
-export function VideoQueuePanel({ queueId, userId, justCreated = false }: { queueId: string; userId: string; justCreated?: boolean }) {
+export function VideoQueuePanel({ queueId, userId, justCreated = false, isAdmin = false }: { queueId: string; userId: string; justCreated?: boolean; isAdmin?: boolean }) {
   const router = useRouter();
   const [data, setData] = useState<VideoQueueDashboardDto | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [message, setMessage] = useState<string | null>(justCreated ? "Fila criada em rascunho. Confira a programação e clique em “Ativar fila”." : null);
+  const [message, setMessage] = useState<string | null>(justCreated ? "Escolha “Publicar agora” em um vídeo ou use “Agendar fila” para publicar nos horários configurados." : null);
   const [busy, setBusy] = useState(false);
-  const [tab, setTab] = useState<Tab>(justCreated ? "programacao" : "videos");
+  const [tab, setTab] = useState<Tab>("videos");
 
   const apply = useCallback((result: { data: VideoQueueDashboardDto | null; error: string | null }) => {
     if (result.data) setData(result.data);
@@ -192,8 +192,8 @@ export function VideoQueuePanel({ queueId, userId, justCreated = false }: { queu
 
       <section className="flex flex-wrap gap-2">
         {queue.status === "DRAFT" ? (
-          <button type="button" disabled={busy} className="rounded-md bg-zinc-900 px-4 py-2 text-sm font-semibold text-white" onClick={() => action({ action: "activate" }, "Não foi possível ativar.", "Fila ativada. As publicações dos próximos horários foram criadas.")}>
-            Ativar fila
+          <button type="button" disabled={busy} className="min-h-11 rounded-md bg-zinc-900 px-4 py-2 text-sm font-semibold text-white" onClick={() => action({ action: "activate" }, "Não foi possível agendar a fila.", "Agendamento ativado. Os vídeos prontos serão publicados nos horários configurados.")}>
+            Agendar fila
           </button>
         ) : null}
         {queue.status === "ACTIVE" ? (
@@ -279,7 +279,7 @@ export function VideoQueuePanel({ queueId, userId, justCreated = false }: { queu
           <p className="text-sm text-zinc-600">
             Horários já agendados e a previsão para os vídeos restantes (fuso {tz}). A previsão considera os horários livres das contas escolhidas e
             pode mudar conforme os vídeos ficam prontos.
-            {queue.status === "DRAFT" ? " Nada é publicado antes de você ativar a fila." : ""}
+            {queue.status === "DRAFT" ? " Use “Agendar fila” para ativar a programação automática." : ""}
           </p>
           {data.preview.length === 0 ? (
             <p className="text-sm text-zinc-500">Nenhum vídeo para programar.</p>
@@ -303,7 +303,7 @@ export function VideoQueuePanel({ queueId, userId, justCreated = false }: { queu
         </section>
       ) : null}
 
-      {tab === "adicionar" ? <AddLinksForm queueId={queueId} onDone={(text) => { setMessage(text); void load(); setTab("videos"); }} /> : null}
+      {tab === "adicionar" ? <AddLinksForm queueId={queueId} isAdmin={isAdmin} onDone={(text) => { setMessage(text); void load(); setTab("videos"); }} /> : null}
 
       {tab === "configuracoes" ? <QueueSettingsForm data={data} onSaved={(text) => { setMessage(text); void load(); }} /> : null}
 
@@ -323,12 +323,12 @@ export function VideoQueuePanel({ queueId, userId, justCreated = false }: { queu
   );
 }
 
-function AddLinksForm({ queueId, onDone }: { queueId: string; onDone: (message: string) => void }) {
+function AddLinksForm({ queueId, isAdmin, onDone }: { queueId: string; isAdmin: boolean; onDone: (message: string) => void }) {
   const [text, setText] = useState("");
   const [authorized, setAuthorized] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const parsed = useMemo(() => parseQueueLinks(text), [text]);
+  const parsed = useMemo(() => parseQueueLinks(text, isAdmin ? Infinity : undefined), [text, isAdmin]);
   const submit = async () => {
     setError(null);
     if (!authorized) return setError("Confirme que você tem os direitos ou a autorização para republicar estes vídeos.");
@@ -356,7 +356,7 @@ function AddLinksForm({ queueId, onDone }: { queueId: string; onDone: (message: 
     <section className="space-y-3">
       <label className={labelClass}>
         Cole os links dos vídeos, um por linha
-        <textarea className={`${inputClass} h-40 font-mono text-xs`} value={text} onChange={(event) => setText(event.target.value)} />
+        <textarea className={`${inputClass} h-40 font-mono text-base sm:text-sm`} value={text} onChange={(event) => setText(event.target.value)} />
       </label>
       <p className="text-xs text-zinc-600">
         {parsed.accepted.length} válido(s){parsed.duplicates.length ? ` · ${parsed.duplicates.length} repetido(s)` : ""}

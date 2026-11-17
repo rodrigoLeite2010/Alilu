@@ -238,6 +238,41 @@ afterEach(async () => {
 });
 
 describe("importação em lote", () => {
+  it("permite que o admin crie e amplie uma fila acima dos limites, mantendo a ordem", async () => {
+    const seed = await seedUserWithAccount(db);
+    await db.sql`update users set email = 'games-admin@example.com' where id = ${seed.userId}`;
+    vi.stubEnv("ADMIN_EMAILS", "games-admin@example.com");
+    try {
+      const { queueId, links: created } = await createQueue(seed, { links: links(1001) });
+      expect(created).toMatchObject({ added: 1001, overLimit: false });
+      const appended = await service.addLinks(seed.userId, queueId, { links: links(201, "extra"), authorized: true });
+      expect(appended).toMatchObject({ added: 201, overLimit: false });
+      const rows = await items(queueId);
+      expect(rows).toHaveLength(1202);
+      expect(rows[1000].source_url).toBe("https://cdn.exemplo.com/video1001.mp4");
+      expect(rows[1001].source_url).toBe("https://cdn.exemplo.com/extra1.mp4");
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
+  it("prepara para publicação imediata só o vídeo escolhido e reutiliza a publicação", async () => {
+    const seed = await seedUserWithAccount(db);
+    const page = await seedPage(seed);
+    const { queueId } = await createQueue(seed, { facebookPageIds: [page] });
+    const [, selected] = await items(queueId);
+    const itemId = selected.id as string;
+    const postId = await service.prepareItemForImmediatePublish(seed.userId, itemId);
+    expect(await service.prepareItemForImmediatePublish(seed.userId, itemId)).toBe(postId);
+    expect(download.safeDownload).toHaveBeenCalledTimes(1);
+    expect((await items(queueId)).map((item) => item.status)).toEqual(["PENDING", "SCHEDULED", "PENDING"]);
+    expect(await livePosts()).toMatchObject([{ id: postId, video_queue_item_id: itemId }]);
+    expect(await destinations()).toMatchObject([{ post_id: postId, facebook_page_ref: page }]);
+    await publishDueNow();
+    await planner.planQueue(queueId);
+    expect((await items(queueId))[1].status).toBe("PUBLISHED");
+  });
+
   it("1 link: importa, gera miniatura e fica pronto", async () => {
     const seed = await seedUserWithAccount(db);
     const { queueId, links: added } = await createQueue(seed, { links: "https://cdn.exemplo.com/um.mp4" });

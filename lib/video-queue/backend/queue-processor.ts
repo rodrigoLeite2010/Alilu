@@ -313,7 +313,7 @@ export interface RunImportsOptions {
   maxInFlight: number;
   /** Para de pegar itens novos quando o tempo restante ficar abaixo disso. */
   deadline: number;
-  scope?: { userId?: string | null; queueId?: string | null };
+  scope?: Parameters<typeof claimNextItemForImport>[2];
   now?: () => Date;
 }
 

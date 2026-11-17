@@ -374,27 +374,36 @@ export async function insertItems(
   links: ParsedQueueLink[],
   authorizedAt: Date,
 ): Promise<{ inserted: VideoQueueItemRecord[]; duplicates: string[] }> {
+  if (links.length === 0) return { inserted: [], duplicates: [] };
   const db = getDb();
-  const inserted: VideoQueueItemRecord[] = [];
-  const duplicates: string[] = [];
-  for (const link of links) {
+  const input = links.map((link) => {
     // Plataformas sem download autorizado já nascem aguardando o arquivo.
     const needsFile = link.kind === "YOUTUBE" || link.kind === "TIKTOK" || link.kind === "OTHER_PLATFORM";
     const status = needsFile ? "WAITING_FILE" : "PENDING";
     const message = needsFile ? waitingFileMessage(link.kind, link.platform) : null;
     const code = needsFile ? "AUTHORIZED_FILE_REQUIRED" : null;
-    const rows = await db`
-      insert into video_queue_items (queue_id, user_id, position, source_url, normalized_url, source_kind, status, status_message, error_code, authorized_at)
-      select ${queueId}, ${userId},
-        coalesce((select max(position) from video_queue_items where queue_id = ${queueId}), 0) + 1,
-        ${link.sourceUrl}, ${link.normalizedUrl}, ${link.kind}, ${status}, ${message}, ${code}, ${authorizedAt.toISOString()}
-      where exists (select 1 from video_queues where id = ${queueId} and user_id = ${userId})
-      on conflict (queue_id, normalized_url) where status <> 'CANCELLED' do nothing
-      returning *
-    `;
-    if (rows[0]) inserted.push(mapItem(rows[0]));
-    else duplicates.push(link.sourceUrl);
-  }
+    return { sourceUrl: link.sourceUrl, normalizedUrl: link.normalizedUrl, kind: link.kind, status, message, code };
+  });
+  const rows = await db`
+    insert into video_queue_items (queue_id, user_id, position, source_url, normalized_url, source_kind, status, status_message, error_code, authorized_at)
+    select q.id, q.user_id, (coalesce(last_item.position, 0) + row_number() over (order by link.ordinality))::int,
+      link.data->>'sourceUrl', link.data->>'normalizedUrl', link.data->>'kind', link.data->>'status',
+      link.data->>'message', link.data->>'code', ${authorizedAt.toISOString()}::timestamptz
+    from video_queues q
+    cross join jsonb_array_elements(${JSON.stringify(input)}::jsonb) with ordinality as link(data, ordinality)
+    cross join lateral (select max(position) as position from video_queue_items where queue_id = q.id) last_item
+    where q.id = ${queueId} and q.user_id = ${userId} and q.status <> 'ARCHIVED'
+      and not exists (
+        select 1 from video_queue_items i
+        where i.queue_id = q.id and i.normalized_url = link.data->>'normalizedUrl' and i.status <> 'CANCELLED'
+      )
+    order by link.ordinality
+    on conflict (queue_id, normalized_url) where status <> 'CANCELLED' do nothing
+    returning *
+  `;
+  const inserted = rows.map(mapItem).sort((a, b) => a.position - b.position);
+  const insertedUrls = new Set(inserted.map((item) => item.normalizedUrl));
+  const duplicates = links.filter((link) => !insertedUrls.has(link.normalizedUrl)).map((link) => link.sourceUrl);
   return { inserted, duplicates };
 }
 
@@ -448,11 +457,12 @@ export async function countInFlightItems(): Promise<number> {
 export async function claimNextItemForImport(
   lockToken: string,
   lockTtlSeconds: number,
-  scope: { userId?: string | null; queueId?: string | null } = {},
+  scope: { userId?: string | null; queueId?: string | null; itemId?: string | null } = {},
 ): Promise<VideoQueueItemRecord | null> {
   const db = getDb();
   const userId = scope.userId ?? null;
   const queueId = scope.queueId ?? null;
+  const itemId = scope.itemId ?? null;
   const rows = await db`
     update video_queue_items i
     set status = 'VALIDATING',
@@ -466,6 +476,7 @@ export async function claimNextItemForImport(
       where q.status <> 'ARCHIVED'
         and (${userId}::uuid is null or c.user_id = ${userId}::uuid)
         and (${queueId}::uuid is null or c.queue_id = ${queueId}::uuid)
+        and (${itemId}::uuid is null or c.id = ${itemId}::uuid)
         and (
           (c.status = 'PENDING' and (c.next_attempt_at is null or c.next_attempt_at <= now()))
           or (c.status in ('VALIDATING', 'IMPORTING', 'PROCESSING') and (c.processing_lock_token is null or c.processing_lock_expires_at < now()))

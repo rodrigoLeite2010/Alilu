@@ -1,4 +1,5 @@
 import "server-only";
+import { isAdminEmail } from "@/lib/admin/admin-email";
 import { del as deleteBlob } from "@vercel/blob";
 import { getFacebookPageForUser } from "@/lib/facebook/backend/facebook-page-repository";
 import { destinationViewsByPost, resolveFacebookPages, SocialDestinationsError, type PublicationDestinationView } from "@/lib/facebook/backend/social-destinations-service";
@@ -10,6 +11,7 @@ import { allocateSlots, normalizeScheduleConfig, QueueScheduleError, DEFAULT_SCH
 import { IN_FLIGHT_STATUSES, MAX_ITEMS_PER_QUEUE, MAX_LINKS_PER_SUBMISSION, type VideoQueueItemStatus } from "@/lib/video-queue/types";
 import { queueUploadPrefix, runQueueImports } from "./queue-processor";
 import {
+  materializeImmediateItemLocked,
   pauseQueueLocked,
   planQueueLocked,
   releaseFutureScheduledLocked,
@@ -29,6 +31,7 @@ import {
   findUrlsInOtherQueues,
   getItemForUser,
   getQueueForUser,
+  getUserEmail,
   insertEvent,
   insertItems,
   insertQueue,
@@ -162,10 +165,13 @@ export interface AddLinksResult {
 }
 
 async function addLinksToQueue(queue: VideoQueueRecord, text: string, now: Date): Promise<AddLinksResult> {
-  const parsed = parseQueueLinks(text, MAX_LINKS_PER_SUBMISSION);
-  const current = await countActiveItems(queue.id);
-  if (current + parsed.accepted.length > MAX_ITEMS_PER_QUEUE) {
-    throw new VideoQueueError(`Uma fila pode ter no máximo ${MAX_ITEMS_PER_QUEUE} vídeos. Crie outra fila para os demais.`);
+  const isAdmin = isAdminEmail(await getUserEmail(queue.userId));
+  const parsed = parseQueueLinks(text, isAdmin ? Infinity : MAX_LINKS_PER_SUBMISSION);
+  if (!isAdmin) {
+    const current = await countActiveItems(queue.id);
+    if (current + parsed.accepted.length > MAX_ITEMS_PER_QUEUE) {
+      throw new VideoQueueError(`Uma fila pode ter no máximo ${MAX_ITEMS_PER_QUEUE} vídeos. Crie outra fila para os demais.`);
+    }
   }
   const inOtherQueues = await findUrlsInOtherQueues(queue.userId, queue.id, parsed.accepted.map((link) => link.normalizedUrl));
   const { inserted, duplicates } = await insertItems(queue.id, queue.userId, parsed.accepted, now);
@@ -209,7 +215,10 @@ export async function addLinks(userId: string, queueId: string, body: Record<str
     throw new VideoQueueError("Confirme que você tem os direitos ou a autorização para republicar estes vídeos.", 400, "AUTHORIZATION_REQUIRED");
   }
   const queue = await requireQueue(userId, queueId);
-  return addLinksToQueue(queue, str(body.links), now);
+  return busy(withPlanningLock(queue.id, async () => {
+    const current = await requireQueue(userId, queueId);
+    return addLinksToQueue(current, str(body.links), now);
+  }, { wait: true }));
 }
 
 export interface QueueOverview {
@@ -334,6 +343,31 @@ export async function processNow(userId: string, queueId: string, now: Date = ne
 }
 
 // ───────────────────────────── Itens ─────────────────────────────
+
+export async function prepareItemForImmediatePublish(userId: string, itemId: string): Promise<string> {
+  const original = await requireItem(userId, itemId);
+  const queue = await requireQueue(userId, original.queueId);
+  if (original.status === "PENDING") {
+    await runQueueImports({
+      maxItems: 1,
+      maxInFlight: Number(process.env.VIDEO_QUEUE_MAX_CONCURRENT_IMPORTS) || 2,
+      deadline: Date.now() + 60_000,
+      scope: { userId, queueId: queue.id, itemId },
+    });
+  }
+  return busy(withPlanningLock(queue.id, async () => {
+    const currentQueue = await requireQueue(userId, queue.id);
+    const item = await requireItem(userId, itemId);
+    if (item.status === "SCHEDULED" && item.postId) return item.postId;
+    if (item.status !== "READY" || !item.blobUrl) {
+      throw new VideoQueueError(item.statusMessage ?? "O vídeo ainda não está pronto. Aguarde o processamento e tente novamente.", 409);
+    }
+    const { postId, problem } = await materializeImmediateItemLocked(currentQueue, item, new Date());
+    if (postId) return postId;
+    const updated = await requireItem(userId, itemId);
+    throw new VideoQueueError(problem ?? updated.statusMessage ?? "Não foi possível preparar a publicação.", 409);
+  }, { wait: true }));
+}
 
 export async function updateItem(userId: string, itemId: string, body: Record<string, unknown>): Promise<VideoQueueItemRecord> {
   const item = await requireItem(userId, itemId);

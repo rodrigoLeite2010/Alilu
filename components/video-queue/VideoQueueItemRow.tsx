@@ -81,6 +81,32 @@ export function VideoQueueItemRow({ item, index, total, userId, timezone, themeN
     if (ok) setEditing(false);
   };
 
+  const publishNow = async () => {
+    if (!window.confirm("Publicar este vídeo agora nos destinos da fila?")) return;
+    const fallback = "Não foi possível publicar agora. Confira o status do vídeo antes de tentar novamente.";
+    setBusy(true);
+    setMessage("Preparando o vídeo para publicação…");
+    try {
+      const prepared = await fetch(`/api/video-queues/items/${item.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "prepare_publish" }),
+      });
+      if (!prepared.ok) {
+        setMessage(await readApiError(prepared, fallback));
+        return;
+      }
+      const { postId } = (await prepared.json()) as { postId: string };
+      const published = await fetch(`/api/instagram/posts/${postId}/publish`, { method: "POST" });
+      setMessage(published.ok ? "Solicitação enviada. Acompanhe o status de cada destino no vídeo." : await readApiError(published, fallback));
+    } catch {
+      setMessage(fallback);
+    } finally {
+      setBusy(false);
+      onChanged();
+    }
+  };
+
   const generateWithAi = async () => {
     setBusy(true);
     setMessage(null);
@@ -142,6 +168,9 @@ export function VideoQueueItemRow({ item, index, total, userId, timezone, themeN
   const canCancel = ["PENDING", "READY", "WAITING_FILE", "ERROR", "SCHEDULED"].includes(item.status);
   const canRemove = item.status !== "PUBLISHED" && !["VALIDATING", "IMPORTING", "PROCESSING"].includes(item.status);
   const instagramFailed = item.post && item.post.publishToInstagram && ["FAILED", "NEEDS_REVIEW"].includes(item.post.status);
+  const canPublishNow = item.status === "PENDING" || item.status === "READY" ||
+    (item.status === "SCHEDULED" && item.post?.status === "SCHEDULED" && item.destinations.every((destination) => destination.status === "SCHEDULED"));
+  const publishedAt = item.publishedAt ?? item.post?.publishedAt;
 
   return (
     <li className="rounded-lg border border-zinc-200 bg-white p-3">
@@ -160,7 +189,11 @@ export function VideoQueueItemRow({ item, index, total, userId, timezone, themeN
           <p className="mt-1 truncate text-sm font-medium text-zinc-900">{item.title || item.sourceUrl}</p>
           {item.title ? <p className="truncate text-xs text-zinc-500">{item.sourceUrl}</p> : null}
           {item.statusMessage ? <p className={`mt-1 text-xs ${item.status === "ERROR" ? "text-red-700" : "text-zinc-600"}`}>{item.statusMessage}</p> : null}
-          {item.scheduledAt ? <p className="mt-1 text-xs text-zinc-700">Horário: {formatInTimeZone(item.scheduledAt, timezone)}</p> : null}
+          {publishedAt ? (
+            <p className="mt-1 text-xs text-zinc-700">Publicado em {formatInTimeZone(publishedAt, timezone)}</p>
+          ) : item.scheduledAt ? (
+            <p className="mt-1 text-xs text-zinc-700">Horário: {formatInTimeZone(item.scheduledAt, timezone)}</p>
+          ) : null}
           {item.facebookNote ? <p className="mt-1 text-xs text-amber-700">{item.facebookNote}</p> : null}
           {item.post ? (
             <div className="mt-1 flex flex-wrap gap-2 text-xs">
@@ -205,6 +238,11 @@ export function VideoQueueItemRow({ item, index, total, userId, timezone, themeN
           ) : null}
 
           <div className="mt-2 flex flex-wrap gap-2 text-xs">
+            {canPublishNow ? (
+              <button type="button" disabled={busy} className="min-h-11 rounded-md bg-zinc-900 px-3 py-2 font-semibold text-white disabled:opacity-50" onClick={publishNow}>
+                Publicar agora
+              </button>
+            ) : null}
             <button type="button" disabled={busy || index === 0} className="rounded px-2 py-1 ring-1 ring-zinc-300 disabled:opacity-40" onClick={() => onMove(item.id, -1)} aria-label="Subir">
               ↑
             </button>
