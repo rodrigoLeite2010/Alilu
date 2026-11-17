@@ -282,3 +282,13 @@ describe("etapas e desempenho", () => {
     expect(report.recommendations.join(" ")).toMatch(/09h/);
   });
 });
+
+describe("migração pendente", () => {
+  it("reconhece tabela/coluna inexistente do Postgres", async () => {
+    const { isMissingSchemaError } = await import("@/lib/db/schema-errors");
+    expect(isMissingSchemaError({ code: "42P01" })).toBe(true);
+    expect(isMissingSchemaError(new Error('relation "viral_radars" does not exist'))).toBe(true);
+    expect(isMissingSchemaError(new Error('column "block_duplicate_files" does not exist'))).toBe(true);
+    expect(isMissingSchemaError(new Error("timeout"))).toBe(false);
+  });
+});

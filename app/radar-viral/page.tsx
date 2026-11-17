@@ -5,6 +5,7 @@ import { SchedulingIntro } from "@/components/instagram/SchedulingIntro";
 import { listRadarsOverview } from "@/lib/viral-radar/backend/radar-service";
 import { findTheme } from "@/lib/video-queue/catalog";
 import { RADAR_STATUS_LABEL } from "@/lib/viral-radar/types";
+import { isMissingSchemaError, MIGRATION_PENDING_MESSAGE } from "@/lib/db/schema-errors";
 
 export const metadata: Metadata = {
   title: "Radar Viral",
@@ -34,7 +35,21 @@ export default async function ViralRadarPage() {
       </div>
     );
   }
-  const { rows, totals } = await listRadarsOverview(session.user.id);
+  let overview: Awaited<ReturnType<typeof listRadarsOverview>>;
+  try {
+    overview = await listRadarsOverview(session.user.id);
+  } catch (error) {
+    console.error(JSON.stringify({ scope: "viral-radar", event: "page.failed", code: isMissingSchemaError(error) ? "MIGRATION_PENDING" : "UNEXPECTED", message: (error as Error)?.message?.slice(0, 200) }));
+    return (
+      <div className="mx-auto max-w-2xl px-4 py-10">
+        <h1 className="text-xl font-semibold text-zinc-900">Radar Viral</h1>
+        <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+          {isMissingSchemaError(error) ? MIGRATION_PENDING_MESSAGE : "Não foi possível carregar o Radar Viral agora. Tente novamente em instantes."}
+        </p>
+      </div>
+    );
+  }
+  const { rows, totals } = overview;
   return (
     <div className="mx-auto max-w-5xl px-4 py-10">
       <div className="flex flex-wrap items-start justify-between gap-3">

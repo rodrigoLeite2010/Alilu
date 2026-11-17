@@ -1,5 +1,6 @@
 import "server-only";
 import { getDb } from "@/lib/db/client";
+import { isMissingSchemaError } from "@/lib/db/schema-errors";
 import { waitingFileMessage, type ParsedQueueLink } from "@/lib/video-queue/links";
 import type { QueueScheduleConfig } from "@/lib/video-queue/schedule";
 import type {
@@ -367,7 +368,14 @@ export async function getQueueProcessingOptions(queueId: string): Promise<{
   maxDurationSeconds: number | null;
 } | null> {
   const db = getDb();
-  const rows = await db`select instagram_account_id, block_duplicate_files, reframe_mode, max_duration_seconds from video_queues where id = ${queueId}`;
+  let rows: Row[];
+  try {
+    rows = await db`select instagram_account_id, block_duplicate_files, reframe_mode, max_duration_seconds from video_queues where id = ${queueId}`;
+  } catch (error) {
+    // Migração 0056 ainda não aplicada: a fila segue exatamente como antes.
+    if (isMissingSchemaError(error)) return null;
+    throw error;
+  }
   const row = rows[0];
   if (!row) return null;
   return {
@@ -574,10 +582,27 @@ export interface ImportedMediaPatch {
 
 export async function markItemReady(itemId: string, lockToken: string, media: ImportedMediaPatch): Promise<boolean> {
   const db = getDb();
+  try {
+    const rows = await db`
+      update video_queue_items set
+        status = 'READY', status_message = ${media.statusMessage ?? null}, error_code = null, next_attempt_at = null,
+        content_sha256 = ${media.contentSha256 ?? null}, original_blob_url = ${media.originalBlobUrl ?? null},
+        blob_url = ${media.blobUrl}, blob_path = ${media.blobPath}, thumbnail_url = ${media.thumbnailUrl},
+        content_type = ${media.contentType}, file_size_bytes = ${media.fileSizeBytes}, duration_seconds = ${media.durationSeconds},
+        width = ${media.width}, height = ${media.height}, video_codec = ${media.videoCodec}, has_audio = ${media.hasAudio},
+        facebook_incompatible_reason = ${media.facebookIncompatibleReason},
+        imported_at = now(), processing_lock_token = null, processing_lock_expires_at = null, updated_at = now()
+      where id = ${itemId} and processing_lock_token = ${lockToken}
+      returning id
+    `;
+    return rows.length > 0;
+  } catch (error) {
+    if (!isMissingSchemaError(error)) throw error;
+  }
+  // Migração 0056 ainda não aplicada: grava como antes (sem hash/original).
   const rows = await db`
     update video_queue_items set
       status = 'READY', status_message = ${media.statusMessage ?? null}, error_code = null, next_attempt_at = null,
-      content_sha256 = ${media.contentSha256 ?? null}, original_blob_url = ${media.originalBlobUrl ?? null},
       blob_url = ${media.blobUrl}, blob_path = ${media.blobPath}, thumbnail_url = ${media.thumbnailUrl},
       content_type = ${media.contentType}, file_size_bytes = ${media.fileSizeBytes}, duration_seconds = ${media.durationSeconds},
       width = ${media.width}, height = ${media.height}, video_codec = ${media.videoCodec}, has_audio = ${media.hasAudio},

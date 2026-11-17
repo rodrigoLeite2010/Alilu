@@ -827,3 +827,25 @@ describe("modo supervisionado e conteúdo original", () => {
     await expect(radarService.applyCandidateAction(seed.userId, ref.id as string, "brief", {}, NOW)).rejects.toMatchObject({ code: "AI_PLAN_REQUIRED" });
   });
 });
+
+describe("deploy antes da migração 0056", () => {
+  it("a Fila de vídeos existente continua importando normalmente", async () => {
+    await db.sql`alter table video_queues drop column block_duplicate_files, drop column reframe_mode, drop column max_duration_seconds`;
+    await db.sql`alter table video_queue_items drop column content_sha256, drop column original_blob_url`;
+    const seed = await seedUserWithAccount(db);
+    const { queueId } = await queueService.createQueue(seed.userId, {
+      name: "Antiga",
+      category: "games",
+      theme: "gta-6",
+      instagramAccountId: seed.accountId,
+      schedule: { publishTimes: ["10:00"], postsPerDay: 1 },
+      captionTemplate: "",
+      rightsConfirmed: true,
+      links: "https://cdn.exemplo.com/a.mp4",
+    });
+    await importAll();
+    expect((await items(queueId)).map((row) => row.status)).toEqual(["READY"]);
+    // E o cron da fila não quebra por causa do radar.
+    await expect(queueCron.runVideoQueueCron({ now: () => NOW })).resolves.toBeDefined();
+  });
+});
