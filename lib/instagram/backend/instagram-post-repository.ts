@@ -25,10 +25,11 @@ export type InstagramPostStatus =
   | "CANCELLED"
   | "NEEDS_REVIEW";
 
-export type InstagramPostSource = "MANUAL" | "VIRAL_POST" | "AUTOMATION";
+export type InstagramPostSource = "MANUAL" | "VIRAL_POST" | "AUTOMATION" | "VIDEO_QUEUE";
 // "AUTOMATION" = criado pelo Piloto Automático de Conteúdo (ver
 // lib/content-automation/backend/content-automation-cron.ts e a migração
 // 0004_content_automation.sql, que estende o CHECK de `source`).
+// "VIDEO_QUEUE" = criado pela Fila de vídeos (lib/video-queue, migração 0055).
 
 /**
  * Música escolhida SÓ para este post (instagram_posts.music_*) — só tem
@@ -66,6 +67,12 @@ export interface PostExtraFields {
    * (ver migração 0053 e lib/facebook/backend).
    */
   publishToInstagram?: boolean;
+  /**
+   * Fila de vídeos (migração 0055): item que originou a publicação. O índice
+   * único parcial em instagram_posts.video_queue_item_id garante no máximo
+   * uma publicação não cancelada por item. Omitido = null (todos os outros fluxos).
+   */
+  videoQueueItemId?: string | null;
 }
 
 export interface CreateDraftImagePostInput extends PostExtraFields {
@@ -133,7 +140,7 @@ async function insertPostWithItems(
       user_id, instagram_account_id, post_type, caption, status, scheduled_at_utc,
       timezone_original, source, template_id, template_data,
       music_mode, music_type, music_name, music_artist, music_external_id, music_url,
-      audio_file_url, audio_file_name, publish_to_instagram
+      audio_file_url, audio_file_name, publish_to_instagram, video_queue_item_id
     )
     values (
       ${base.userId}, ${base.instagramAccountId}, ${postType}, ${base.caption}, ${status}, ${scheduledAtIso},
@@ -141,7 +148,7 @@ async function insertPostWithItems(
       ${musicMode}, ${musicSelection?.type ?? null}, ${musicSelection?.name ?? null}, ${musicSelection?.artist ?? null},
       ${musicSelection?.externalId ?? null}, ${musicSelection?.url ?? null},
       ${musicSelection?.audioFileUrl ?? null}, ${musicSelection?.audioFileName ?? null},
-      ${base.publishToInstagram !== false}
+      ${base.publishToInstagram !== false}, ${base.videoQueueItemId ?? null}
     )
     returning id
   `;

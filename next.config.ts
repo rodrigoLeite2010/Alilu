@@ -60,6 +60,16 @@ const nextConfig: NextConfig = {
       "./node_modules/ffmpeg-static/ffmpeg",
       "./node_modules/ffprobe-static/bin/linux/x64/ffprobe",
     ],
+    // Fila de vídeos (Games / GTA 6): validação com ffprobe e miniatura com
+    // ffmpeg no worker de importação (cron) e no "Processar agora".
+    "**/api/cron/video-queue": [
+      "./node_modules/ffmpeg-static/ffmpeg",
+      "./node_modules/ffprobe-static/bin/linux/x64/ffprobe",
+    ],
+    "**/api/video-queues/**": [
+      "./node_modules/ffmpeg-static/ffmpeg",
+      "./node_modules/ffprobe-static/bin/linux/x64/ffprobe",
+    ],
     // Fontes embutidas do Piloto Automático (lib/instagram/backend/
     // template-render-service.ts, AUTO_TEMPLATE) — lidas via
     // GlobalFonts.registerFromPath(path.join(process.cwd(), ...)), não

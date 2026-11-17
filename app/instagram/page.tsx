@@ -208,6 +208,27 @@ export default function InstagramCategoryPage() {
         </div>
       </section>
 
+      <section id="filas-de-videos" className="mt-10 scroll-mt-20">
+        <SectionHeading
+          title="Filas de vídeos (Games)"
+          description="Cole vários links de vídeos de uma vez e deixe o Alilu importar e publicar um por horário, nas contas que você escolher."
+        />
+        <div className="rounded-lg border border-zinc-200 bg-white p-5 sm:p-6">
+          <p className="max-w-xl text-sm text-zinc-600">
+            Ex.: Games › GTA 6 — 3 vídeos por dia às 9h, 15h e 20h no Instagram e na Página do Facebook escolhidos. Só para
+            vídeos próprios ou com autorização.
+          </p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Link
+              href="/instagram/filas?categoria=games"
+              className="inline-flex min-h-11 items-center justify-center rounded-md bg-zinc-900 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-zinc-800"
+            >
+              Abrir Games
+            </Link>
+          </div>
+        </div>
+      </section>
+
       <section className="mt-10">
         <SectionHeading
           title="Outras ferramentas"
