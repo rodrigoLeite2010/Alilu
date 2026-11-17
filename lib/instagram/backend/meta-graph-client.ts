@@ -605,3 +605,78 @@ export async function createReelMediaContainer(
   }
   return payload.id;
 }
+
+/** Campos de perfil devolvidos de fato pela Meta (só os presentes na resposta; nada é inventado). */
+export interface InstagramProfileDetails {
+  userId: string;
+  username: string | null;
+  name: string | null;
+  accountType: string | null;
+  profilePictureUrl: string | null;
+  mediaCount: number | null;
+  /** Nomes dos campos que vieram na resposta. */
+  returnedFields: string[];
+}
+
+/**
+ * GET /me com os campos de instagram_business_basic (Instagram Login).
+ * Consulta REAL, usada no painel de demonstração do App Review.
+ */
+export async function fetchInstagramProfileDetails(accessToken: string, apiMode: InstagramApiMode = "instagram_login"): Promise<InstagramProfileDetails> {
+  const url = graphUrl("me", apiMode);
+  url.searchParams.set("fields", apiMode === "facebook_login" ? "id,username,name,profile_picture_url,media_count" : "user_id,username,name,account_type,profile_picture_url,media_count");
+  url.searchParams.set("access_token", accessToken);
+  const response = await fetch(url.toString(), { cache: "no-store" });
+  const text = await response.text();
+  const payload = safeParseJson(text);
+  if (!response.ok) throw new InstagramGraphApiError("Falha ao consultar o perfil do Instagram.", payload ?? text);
+  const entry = extractFirstDataEntry(payload) ?? (isRecord(payload) ? payload : null);
+  const rawId = entry?.user_id ?? entry?.id;
+  if (!entry || (typeof rawId !== "string" && typeof rawId !== "number")) {
+    throw new InstagramGraphApiError("Resposta inesperada da Meta ao consultar o perfil do Instagram.", payload);
+  }
+  const str = (value: unknown) => (typeof value === "string" && value ? value : null);
+  const picture = str(entry.profile_picture_url);
+  return {
+    userId: String(rawId),
+    username: str(entry.username),
+    name: str(entry.name),
+    accountType: str(entry.account_type),
+    profilePictureUrl: picture && /^https:\/\//.test(picture) ? picture : null,
+    mediaCount: typeof entry.media_count === "number" ? entry.media_count : null,
+    returnedFields: Object.keys(entry).filter((key) => key !== "id" || !("user_id" in entry)),
+  };
+}
+
+export interface PublishedMediaInfo {
+  id: string;
+  permalink: string | null;
+  timestamp: string | null;
+  mediaType: string | null;
+  mediaProductType: string | null;
+  shortcode: string | null;
+}
+
+/** Confirma na API uma mídia publicada (id, link permanente, data e tipo). */
+export async function fetchPublishedMedia(mediaId: string, accessToken: string, apiMode: InstagramApiMode = "instagram_login"): Promise<PublishedMediaInfo> {
+  if (!/^[0-9A-Za-z_]+$/.test(mediaId)) throw new InstagramGraphApiError("ID de mídia inválido.");
+  const url = graphUrl(mediaId, apiMode);
+  url.searchParams.set("fields", "id,permalink,timestamp,media_type,media_product_type,shortcode");
+  url.searchParams.set("access_token", accessToken);
+  const response = await fetch(url.toString(), { cache: "no-store" });
+  const text = await response.text();
+  const payload = safeParseJson(text);
+  if (!response.ok || !isRecord(payload) || typeof payload.id !== "string") {
+    throw new InstagramGraphApiError("Falha ao consultar a publicação no Instagram.", payload ?? text);
+  }
+  const str = (value: unknown) => (typeof value === "string" && value ? value : null);
+  const permalink = str(payload.permalink);
+  return {
+    id: payload.id,
+    permalink: permalink && /^https:\/\/(www\.)?instagram\.com\//.test(permalink) ? permalink : null,
+    timestamp: str(payload.timestamp),
+    mediaType: str(payload.media_type),
+    mediaProductType: str(payload.media_product_type),
+    shortcode: str(payload.shortcode),
+  };
+}

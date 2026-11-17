@@ -56,6 +56,11 @@ export const ADMIN_SECTIONS: { title: string; links: AdminLink[] }[] = [
         description: "Estado da integração com a Meta, contas conectadas e verificações.",
       },
       {
+        href: "/admin/meta-app-review",
+        title: "Meta App Review — Instagram",
+        description: "Fluxo real para gravar o screencast da revisão (login, autorização, conta, publicação do Reel), checklist e textos de envio em inglês.",
+      },
+      {
         href: "/admin/instagram-import",
         title: "Importar do Instagram",
         description: "Cota e uso do importador de publicações.",

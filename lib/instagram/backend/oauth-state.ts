@@ -146,7 +146,8 @@ export function sanitizeOAuthReturnPath(
   value: string | null | undefined,
 ): string | null {
   if (!value || value.length > 300) return null;
-  if (!value.startsWith("/instagram")) return null;
+  // Área Instagram e o painel de demonstração da revisão da Meta (admin).
+  if (!value.startsWith("/instagram") && !value.startsWith("/admin/meta-app-review")) return null;
   if (
     value.startsWith("//") ||
     value.includes("\\") ||

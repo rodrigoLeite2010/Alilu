@@ -65,7 +65,24 @@ export default async function InstagramConnectionResultPage({
     </>
   );
 
-  if (resultado === "sucesso") {
+  // Painel de demonstração da revisão da Meta em inglês (/admin/meta-app-review?lang=en).
+  const english = Boolean(returnTo && /[?&]lang=en(&|$)/.test(returnTo));
+
+  if (resultado === "sucesso" && english) {
+    icon = <CheckCircle2 className="h-12 w-12 text-teal-600" aria-hidden />;
+    title = "Instagram connected successfully";
+    body = (
+      <>
+        {account?.igUsername ? <p className="text-lg font-semibold text-zinc-900">@{account.igUsername}</p> : null}
+        <p>Alilu can now publish the content you create to this Instagram professional account.</p>
+      </>
+    );
+    actions = (
+      <Link href={continueHref(returnTo)} className={BUTTON}>
+        Continue
+      </Link>
+    );
+  } else if (resultado === "sucesso") {
     icon = <CheckCircle2 className="h-12 w-12 text-teal-600" aria-hidden />;
     title = "Instagram conectado com sucesso";
     body = (
