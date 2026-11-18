@@ -13,13 +13,13 @@ export interface MobileLink {
 }
 
 /**
- * Ações de criação do Instagram (botão "Criar" da barra inferior). Só
- * aponta para telas que já existem — Story ainda não tem tela própria.
+ * Ações do Instagram (botão "Criar" da barra inferior). A criação manual saiu
+ * da interface: o caminho principal é o Radar Instagram.
  */
 export const createInstagramLinks: MobileLink[] = [
-  { href: "/instagram/criar-post", label: "Post", icon: "image", description: "Imagem com legenda" },
-  { href: "/instagram/reels", label: "Reel", icon: "video", description: "Vídeo curto" },
-  { href: "/instagram/carrossel", label: "Carrossel", icon: "columns", description: "Várias imagens" },
+  { href: "/instagram/radar/novo", label: "Radar Instagram", icon: "trending-up", description: "Vídeos por links, publicação automática" },
+  { href: "/instagram/radar", label: "Meus radares", icon: "list-ordered", description: "Filas, horários e histórico" },
+  { href: "/instagram/painel/calendario", label: "Minhas publicações", icon: "calendar", description: "Histórico e próximas" },
 ];
 
 /** Nome curto e descrição de cada ferramenta de vídeo no celular; os caminhos vêm de data/videos.ts. */
@@ -41,9 +41,9 @@ export const videoLinks: MobileLink[] = videoTools
 
 /** Ações principais da home mobile (grade 2x2). */
 export const homeActionLinks: MobileLink[] = [
-  { href: "/instagram/criar-post", label: "Criar Post", icon: "image", description: "Imagem com legenda" },
-  { href: "/instagram/reels", label: "Criar Reel", icon: "video", description: "Vídeo curto" },
-  { href: "/instagram/carrossel", label: "Criar Carrossel", icon: "columns", description: "Várias imagens" },
+  { href: "/instagram/radar/novo", label: "Radar Instagram", icon: "trending-up", description: "Publicação automática" },
+  { href: "/instagram/radar", label: "Meus radares", icon: "list-ordered", description: "Filas e horários" },
+  { href: "/instagram/painel/calendario", label: "Publicações", icon: "calendar", description: "Histórico e próximas" },
   { href: "/agenda", label: "Agenda", icon: "calendar", description: "Seus compromissos" },
 ];
 

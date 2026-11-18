@@ -35,6 +35,7 @@ import {
 import { logPublicationEvent } from "@/lib/instagram/backend/publication-log";
 import { resolveMusicApplication, resolveRequestedMusic } from "@/lib/instagram/backend/music-support";
 import { notifyPublicationResult } from "@/lib/instagram/backend/publication-notifier";
+import { verifyPublicationTarget } from "@/lib/instagram-radar/backend/publish-target-guard";
 
 /**
  * CAMADA ÚNICA DE PUBLICAÇÃO — `publishInstagramPublication`.
@@ -321,6 +322,14 @@ export async function publishInstagramPublication(
           musicReason: musicApplication.reason ?? undefined,
         });
       }
+    }
+
+    // Conta da publicação = conta escolhida (dono e, para fila/Radar, a conta da fila).
+    // Divergência = bloqueio ANTES de qualquer chamada à Meta; nunca troca de conta.
+    const targetProblem = await verifyPublicationTarget(post, userId);
+    if (targetProblem) {
+      logPublicationEvent({ ...logBase, event: "publish.blocked_wrong_account", status: "ERROR", errorKind: "wrong_account" });
+      throw new PublishValidationError(targetProblem);
     }
 
     // Conta desconectada (token apagado): pede para reconectar, sem tentar a Meta.

@@ -202,28 +202,30 @@ export interface InstagramMenuGroup {
 
 /**
  * Menu lateral da categoria Instagram (fechada por padrão; abre pelo "+"):
- * - Manual: o que o usuário cria e publica ele mesmo.
- * - Automatizado: o que agenda/gera sozinho (Carrossel Inteligente e Piloto Automático).
- * "Posts Virais" saiu do menu (é o mesmo que "Criar post"); a rota continua existindo.
+ * - Radar Instagram: importação por links + publicação automática numa conta escolhida.
+ * - Automatizado: histórico/agendamentos, Carrossel Inteligente e Piloto Automático.
+ * O grupo "Manual" (criação manual de posts/carrosséis/Reels/legendas) saiu do
+ * menu; as páginas públicas continuam no ar só por link direto (SEO, downloads e
+ * as telas de importação que levam a elas). O compositor manual autenticado
+ * ficou restrito ao admin (ferramenta de teste — ver docs/instagram-radar.md).
  */
 export const instagramMenuGroups: InstagramMenuGroup[] = [
   {
-    id: "manual",
-    label: "Manual",
+    id: "radar",
+    label: "Radar Instagram",
     links: [
-      { href: "/instagram/criar-post", label: "Criar post" },
-      { href: "/instagram/carrossel", label: "Carrossel" },
-      { href: "/instagram/reels", label: "Reels" },
-      { href: "/instagram/legendas", label: "Legendas" },
+      { href: "/instagram/radar", label: "Meus radares" },
+      { href: "/instagram/radar/novo", label: "Criar radar" },
     ],
   },
   {
     id: "automatizado",
     label: "Automatizado",
     links: [
-      { href: "/instagram/painel/calendario", label: "Agendar e publicar" },
+      { href: "/instagram/painel/calendario", label: "Minhas publicações" },
       { href: "/instagram/carrossel-inteligente", label: "Carrossel Inteligente" },
       { href: "/instagram/piloto-automatico", label: "Piloto Automático" },
+      { href: "/instagram/painel", label: "Contas conectadas" },
     ],
   },
 ];

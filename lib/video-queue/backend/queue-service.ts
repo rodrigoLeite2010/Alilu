@@ -224,6 +224,9 @@ export async function addLinks(userId: string, queueId: string, body: Record<str
     throw new VideoQueueError("Confirme que você tem os direitos ou a autorização para republicar estes vídeos.", 400, "AUTHORIZATION_REQUIRED");
   }
   const queue = await requireQueue(userId, queueId);
+  if (queue.kind === "INSTAGRAM_RADAR") {
+    throw new VideoQueueError("Adicione links a este radar pela tela do Radar Instagram.", 409, "RADAR_LINKS");
+  }
   return busy(withPlanningLock(queue.id, async () => {
     const current = await requireQueue(userId, queueId);
     return addLinksToQueue(current, str(body.links), now);
@@ -243,6 +246,10 @@ export async function listQueuesOverview(userId: string): Promise<QueueOverview[
 /** Configurações: horários futuros, destinos, legendas. Desfaz o que ainda não começou e replaneja. */
 export async function updateSettings(userId: string, queueId: string, body: Record<string, unknown>, now: Date = new Date()): Promise<void> {
   const queue = await requireQueue(userId, queueId);
+  if (queue.kind === "INSTAGRAM_RADAR") {
+    // Radar tem regras próprias (1–10/dia, janela, só Instagram): edita-se pela tela do Radar Instagram.
+    throw new VideoQueueError("Este é um Radar Instagram. Altere as configurações em Instagram › Radar Instagram.", 409, "RADAR_SETTINGS");
+  }
   const name = body.name === undefined ? queue.name : str(body.name).trim();
   if (!name || name.length > MAX_NAME) throw new VideoQueueError(`Dê um nome à fila (até ${MAX_NAME} caracteres).`);
   const destinations = readDestinations({
@@ -356,6 +363,10 @@ export async function processNow(userId: string, queueId: string, now: Date = ne
 export async function prepareItemForImmediatePublish(userId: string, itemId: string): Promise<string> {
   const original = await requireItem(userId, itemId);
   const queue = await requireQueue(userId, original.queueId);
+  if (queue.kind === "INSTAGRAM_RADAR") {
+    // O radar publica só nos horários calculados (respeita N/dia e o intervalo da conta).
+    throw new VideoQueueError("Vídeos do Radar Instagram são publicados apenas nos horários programados do radar.", 409, "RADAR_SCHEDULE_ONLY");
+  }
   if (original.status === "PENDING") {
     await runQueueImports({
       maxItems: 1,

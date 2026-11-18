@@ -28,9 +28,22 @@ const toDateOnly = (value: unknown): string | null => {
   return String(value).slice(0, 10);
 };
 
+/** Tipo da fila: Games (padrão de todas as filas existentes) ou Radar Instagram (migração 0059). */
+export type VideoQueueKind = "VIDEO_QUEUE" | "INSTAGRAM_RADAR";
+
+/** Configurações exclusivas do Radar Instagram (null nas filas de Games). */
+export interface InstagramRadarSettings {
+  windowStart: string;
+  windowEnd: string;
+  hashtags: string;
+  missingCaptionPolicy: "DEFAULT" | "REVIEW";
+}
+
 export interface VideoQueueRecord {
   id: string;
   userId: string;
+  kind: VideoQueueKind;
+  radar: InstagramRadarSettings | null;
   name: string;
   category: string;
   theme: string;
@@ -51,9 +64,21 @@ export interface VideoQueueRecord {
 }
 
 function mapQueue(row: Row): VideoQueueRecord {
+  // Sem a migração 0059 a coluna `kind` não existe: toda fila é de Games.
+  const kind: VideoQueueKind = row.kind === "INSTAGRAM_RADAR" ? "INSTAGRAM_RADAR" : "VIDEO_QUEUE";
   return {
     id: row.id as string,
     userId: row.user_id as string,
+    kind,
+    radar:
+      kind === "INSTAGRAM_RADAR"
+        ? {
+            windowStart: (row.window_start as string) ?? "09:00",
+            windowEnd: (row.window_end as string) ?? "22:00",
+            hashtags: (row.hashtags as string) ?? "",
+            missingCaptionPolicy: row.missing_caption_policy === "REVIEW" ? "REVIEW" : "DEFAULT",
+          }
+        : null,
     name: row.name as string,
     category: row.category as string,
     theme: row.theme as string,
@@ -275,10 +300,11 @@ export function emptyCounts(): QueueCounts {
   return mapCounts(undefined);
 }
 
-export async function listQueuesForUser(userId: string): Promise<VideoQueueRecord[]> {
+/** Filas não arquivadas do usuário de um tipo (padrão: Games — radares têm tela própria). */
+export async function listQueuesForUser(userId: string, kind: VideoQueueKind = "VIDEO_QUEUE"): Promise<VideoQueueRecord[]> {
   const db = getDb();
   const rows = await db`select * from video_queues where user_id = ${userId} and status <> 'ARCHIVED' order by created_at desc`;
-  return rows.map(mapQueue);
+  return rows.map(mapQueue).filter((queue) => queue.kind === kind);
 }
 
 export interface UpdateQueueSettingsInput {
@@ -425,14 +451,21 @@ export async function insertItems(
   userId: string,
   links: ParsedQueueLink[],
   authorizedAt: Date,
+  options: { referenceOnly?: boolean } = {},
 ): Promise<{ inserted: VideoQueueItemRecord[]; duplicates: string[] }> {
   if (links.length === 0) return { inserted: [], duplicates: [] };
   const db = getDb();
   const input = links.map((link) => {
     // Plataformas sem download autorizado já nascem aguardando o arquivo.
-    const needsFile = link.kind === "YOUTUBE" || link.kind === "TIKTOK" || link.kind === "OTHER_PLATFORM";
+    // `referenceOnly` (Radar Instagram): a pessoa NÃO declarou autorização para
+    // estes links — nada é baixado; cada um espera o arquivo autorizado.
+    const needsFile = options.referenceOnly === true || link.kind === "YOUTUBE" || link.kind === "TIKTOK" || link.kind === "OTHER_PLATFORM";
     const status = needsFile ? "WAITING_FILE" : "PENDING";
-    const message = needsFile ? waitingFileMessage(link.kind, link.platform) : null;
+    const message = !needsFile
+      ? null
+      : options.referenceOnly === true && (link.kind === "INSTAGRAM" || link.kind === "DIRECT")
+        ? "Link registrado só como referência (sem autorização declarada). Nada foi baixado: envie o arquivo autorizado pelo dono do vídeo para continuar."
+        : waitingFileMessage(link.kind, link.platform);
     const code = needsFile ? "AUTHORIZED_FILE_REQUIRED" : null;
     return { sourceUrl: link.sourceUrl, normalizedUrl: link.normalizedUrl, kind: link.kind, status, message, code };
   });

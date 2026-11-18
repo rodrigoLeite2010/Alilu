@@ -44,6 +44,19 @@ vi.mock("@/lib/instagram/image-utils", async () => {
 const authMock = vi.fn();
 vi.mock("@/auth", () => ({ auth: (...args: unknown[]) => authMock(...args) }));
 
+// Compositor MANUAL: restrito ao admin (ferramenta de teste fora do menu); os demais vão ao Radar Instagram.
+class RedirectSignal extends Error {
+  constructor(readonly url: string) {
+    super(`redirect:${url}`);
+  }
+}
+vi.mock("next/navigation", () => ({
+  redirect: (url: string) => {
+    throw new RedirectSignal(url);
+  },
+}));
+const ADMIN = { id: "user-1", email: "admin@alilu.test" };
+
 const getInstagramAccountForUserMock = vi.fn();
 vi.mock("@/lib/instagram/backend/instagram-account-repository", () => ({
   getInstagramAccountForUser: (...args: unknown[]) => getInstagramAccountForUserMock(...args),
@@ -55,22 +68,21 @@ const { default: CalendarioNovoCarrosselPage } = await import(
 
 describe("CalendarioNovoCarrosselPage", () => {
   beforeEach(() => {
+    vi.stubEnv("ADMIN_EMAILS", "admin@alilu.test");
     authMock.mockReset();
     getInstagramAccountForUserMock.mockReset();
   });
 
-  it("mostra o link de entrar quando não há sessão", async () => {
+  it("sem sessão ou sem ser admin: redireciona para o Radar Instagram (criação manual fora da interface)", async () => {
     authMock.mockResolvedValue(null);
-
-    const jsx = await CalendarioNovoCarrosselPage();
-    render(jsx);
-
-    expect(screen.getByRole("link", { name: "Começar a criar sem login" })).toBeInTheDocument();
+    await expect(CalendarioNovoCarrosselPage()).rejects.toThrow("redirect:/instagram/radar");
+    authMock.mockResolvedValue({ user: { id: "user-2", email: "cliente@example.com" } });
+    await expect(CalendarioNovoCarrosselPage()).rejects.toThrow("redirect:/instagram/radar");
     expect(getInstagramAccountForUserMock).not.toHaveBeenCalled();
   });
 
   it("pede para conectar a conta quando o usuário está logado mas não tem conta conectada", async () => {
-    authMock.mockResolvedValue({ user: { id: "user-1" } });
+    authMock.mockResolvedValue({ user: ADMIN });
     getInstagramAccountForUserMock.mockResolvedValue(null);
 
     const jsx = await CalendarioNovoCarrosselPage();
@@ -80,7 +92,7 @@ describe("CalendarioNovoCarrosselPage", () => {
   });
 
   it("renderiza o editor de carrossel com o painel de publicação quando há conta conectada", async () => {
-    authMock.mockResolvedValue({ user: { id: "user-1" } });
+    authMock.mockResolvedValue({ user: ADMIN });
     getInstagramAccountForUserMock.mockResolvedValue({
       id: "account-1",
       userId: "user-1",

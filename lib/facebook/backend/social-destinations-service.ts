@@ -22,6 +22,8 @@ import {
 import { FACEBOOK_CAPTION_MAX_LENGTH, facebookSupportFor, type FacebookPostKind } from "@/lib/facebook/facebook-media-rules";
 import { needsPageReconnect } from "@/lib/facebook/backend/facebook-publish-errors";
 import type { PublicationDestinationView } from "@/lib/facebook/destination-view";
+import { DENY_MESSAGES } from "@/lib/facebook/destination-policy";
+import { isInstagramRadarPost } from "@/lib/instagram-radar/backend/radar-repository";
 
 export type { PublicationDestinationView };
 
@@ -101,6 +103,7 @@ export function assertFacebookSupports(postType: FacebookPostKind, hasVideoItems
 /** Validação prévia (sem gravar nada) das Páginas pedidas para uma publicação existente. */
 export async function assertFacebookDestinationsAllowedForPost(postId: string, userId: string, pageIds: string[]): Promise<void> {
   if (pageIds.length === 0) return;
+  if (await isInstagramRadarPost(postId)) throw new SocialDestinationsError(DENY_MESSAGES.instagram_radar_only);
   const instagramAccountId = await getPostInstagramAccountId(postId, userId);
   if (!instagramAccountId) throw new SocialDestinationsError("Publicação não encontrada.");
   try {
@@ -121,6 +124,7 @@ export async function assertFacebookDestinationsAllowedForPost(postId: string, u
 export async function applyFacebookDestinations(postId: string, userId: string, request: SocialDestinationsRequest): Promise<void> {
   let pages: FacebookDestinationInput[] = [];
   if (request.facebookPageIds.length > 0) {
+    if (await isInstagramRadarPost(postId)) throw new SocialDestinationsError(DENY_MESSAGES.instagram_radar_only);
     const instagramAccountId = await getPostInstagramAccountId(postId, userId);
     if (!instagramAccountId) throw new SocialDestinationsError("Publicação não encontrada.");
     try {

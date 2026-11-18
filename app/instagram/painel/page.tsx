@@ -185,11 +185,11 @@ export default async function InstagramPainelPage({
                 Piloto Automático
               </LinkButton>
               <LinkButton
-                href="/instagram/posts-virais"
+                href="/instagram/radar"
                 variant="secondary"
                 className="w-full justify-center"
               >
-                Criar Post Viral
+                Radar Instagram
               </LinkButton>
               <DefaultMusicSettings
                 key={primary.id}

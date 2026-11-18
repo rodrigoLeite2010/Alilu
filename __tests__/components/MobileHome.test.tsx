@@ -38,9 +38,9 @@ describe("MobileHome", () => {
 
     expect(container.firstElementChild).toHaveClass("md:hidden");
     expect(await screen.findByRole("link", { name: "Entrar" })).toHaveAttribute("href", "/entrar");
-    expect(screen.getByRole("link", { name: /Criar Post/ })).toHaveAttribute("href", "/instagram/criar-post");
-    expect(screen.getByRole("link", { name: /Criar Reel/ })).toHaveAttribute("href", "/instagram/reels");
-    expect(screen.getByRole("link", { name: /Criar Carrossel/ })).toHaveAttribute("href", "/instagram/carrossel");
+    expect(screen.getByRole("link", { name: /Radar Instagram/ })).toHaveAttribute("href", "/instagram/radar/novo");
+    expect(screen.getByRole("link", { name: /Meus radares/ })).toHaveAttribute("href", "/instagram/radar");
+    expect(screen.queryByRole("link", { name: /Criar Post/ })).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Agenda/ })).toHaveAttribute("href", "/agenda");
   });
 

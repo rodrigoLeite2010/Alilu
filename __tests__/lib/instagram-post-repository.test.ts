@@ -152,6 +152,8 @@ describe("getPostForPublish", () => {
       igUserId: "ig-1",
       authProvider: "instagram_login",
       accessTokenEncrypted: "enc-token",
+      // Conta/dono/item da fila: conferidos antes da Meta (Radar Instagram). Ausentes na linha = sem fila.
+      videoQueueItemId: null,
       items: [
         { mediaId: "media-1", storageUrl: "https://blob.example.com/img.jpg", mediaType: "image", position: 0 },
       ],

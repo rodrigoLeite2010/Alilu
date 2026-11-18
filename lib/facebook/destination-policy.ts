@@ -64,7 +64,8 @@ export type DenyReason =
   | "facebook_disabled_for_account"
   | "page_not_allowed_for_account"
   | "page_linked_to_other_account"
-  | "implicit_selection";
+  | "implicit_selection"
+  | "instagram_radar_only";
 
 export type PolicyDecision = { allowed: true } | { allowed: false; reason: DenyReason; message: string };
 
@@ -77,6 +78,7 @@ export const DENY_MESSAGES: Record<DenyReason, string> = {
   page_not_allowed_for_account: "Esta Página do Facebook não está autorizada para esta conta do Instagram.",
   page_linked_to_other_account: "Esta Página do Facebook pertence a outra conta do Instagram. Autorize-a nos destinos da conta antes de usar.",
   implicit_selection: "Destino Facebook criado sem escolha explícita (antigo modo Automático). Bloqueado: nada foi enviado ao Facebook.",
+  instagram_radar_only: "Publicações do Radar Instagram vão somente para o Instagram escolhido — nunca para o Facebook.",
 };
 
 function deny(reason: DenyReason): PolicyDecision {

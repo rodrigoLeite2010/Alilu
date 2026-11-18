@@ -9,6 +9,15 @@ import { getInstagramMediaByStorageUrl, insertInstagramMedia } from "@/lib/insta
 import { findCategory, findTheme } from "@/lib/video-queue/catalog";
 import { renderCaptionTemplate, resolveItemCaption, validateCaption } from "@/lib/video-queue/captions";
 import { allocateSlots, pickPlannableItems } from "@/lib/video-queue/schedule";
+import { composeRadarCaption, needsCaptionReview } from "@/lib/instagram-radar/captions";
+import { isRadarQueue, radarConfigFromQueue } from "@/lib/instagram-radar/radar-config";
+import { accountDailyCap, allocateRadarSlots } from "@/lib/instagram-radar/schedule";
+import {
+  acquireAccountScheduleLock,
+  listAccountOccupiedSlots,
+  listActiveRadarLimitsForAccount,
+  releaseAccountScheduleLock,
+} from "@/lib/instagram-radar/backend/radar-repository";
 import {
   acquirePlanningLock,
   cancelQueuePostIfUntouched,
@@ -77,6 +86,31 @@ export async function withPlanningLock<T>(queueId: string, fn: () => Promise<T>,
     return result;
   } finally {
     await releasePlanningLock(queueId, token, planned);
+  }
+}
+
+export const ACCOUNT_LOCK_TTL_SECONDS = 120;
+
+/**
+ * Lock de agendamento POR CONTA Instagram (migração 0059): dois radares — ou
+ * um radar e uma fila de Games — da mesma conta nunca escolhem horários ao
+ * mesmo tempo, então o limite diário combinado e o intervalo mínimo da conta
+ * valem mesmo com crons simultâneos. Devolve `null` se outro planejador está
+ * com a conta (quem chama pula esta rodada). Sem a migração aplicada, segue
+ * sem o lock (comportamento anterior das filas de Games).
+ */
+export async function withAccountScheduleLock<T>(instagramAccountId: string, fn: () => Promise<T>): Promise<{ ran: true; value: T } | { ran: false }> {
+  const token = randomUUID();
+  let acquired = await acquireAccountScheduleLock(instagramAccountId, token, ACCOUNT_LOCK_TTL_SECONDS);
+  for (let attempt = 0; acquired === false && attempt < 10; attempt += 1) {
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    acquired = await acquireAccountScheduleLock(instagramAccountId, token, ACCOUNT_LOCK_TTL_SECONDS);
+  }
+  if (acquired === false) return { ran: false };
+  try {
+    return { ran: true, value: await fn() };
+  } finally {
+    if (acquired === true) await releaseAccountScheduleLock(instagramAccountId, token);
   }
 }
 
@@ -179,9 +213,10 @@ export async function pauseQueueLocked(queue: VideoQueueRecord, reason: string |
 function captionVariables(queue: VideoQueueRecord, items: VideoQueueItemRecord[]) {
   const visible = items.filter((item) => item.status !== "CANCELLED").sort((a, b) => a.position - b.position);
   const numbers = new Map(visible.map((item, index) => [item.id, index + 1]));
+  const radar = isRadarQueue(queue);
   return {
-    tema: findTheme(queue.category, queue.theme)?.name ?? queue.theme,
-    categoria: findCategory(queue.category)?.name ?? queue.category,
+    tema: radar ? queue.name : (findTheme(queue.category, queue.theme)?.name ?? queue.theme),
+    categoria: radar ? "Instagram" : (findCategory(queue.category)?.name ?? queue.category),
     total: visible.length,
     numberOf: (id: string) => numbers.get(id) ?? 0,
   };
@@ -212,7 +247,17 @@ async function materializeItem(
   vars: ReturnType<typeof captionVariables>,
 ): Promise<string | null> {
   const captionVars = { tema: vars.tema, categoria: vars.categoria, numero: vars.numberOf(item.id), total: vars.total };
-  const caption = resolveItemCaption(item, queue.captionTemplate, captionVars);
+  const caption = isRadarQueue(queue)
+    ? composeRadarCaption({
+        ownCaption: item.caption,
+        title: item.title,
+        template: queue.captionTemplate,
+        hashtags: queue.radar?.hashtags ?? "",
+        radarName: queue.name,
+        numero: captionVars.numero,
+        total: captionVars.total,
+      })
+    : resolveItemCaption(item, queue.captionTemplate, captionVars);
   const captionError = validateCaption(caption);
   if (captionError) {
     await markItemPlanningError(item.id, captionError, "INVALID_CAPTION");
@@ -221,7 +266,8 @@ async function materializeItem(
   }
 
   // Facebook: só Reels compatíveis (3–90 s, 9:16…). Incompatível = só Instagram, com aviso.
-  let facebookPages = pages;
+  // Radar Instagram: NUNCA Facebook (também garantido por CHECK no banco).
+  let facebookPages = isRadarQueue(queue) ? [] : pages;
   let facebookNote: string | null = null;
   if (pages.length > 0 && item.facebookIncompatibleReason) {
     facebookPages = [];
@@ -305,9 +351,22 @@ export async function planQueueLocked(queueId: string, now: Date = new Date()): 
   }
 
   const items = await listItemsForQueue(queue.id, queue.userId);
+  if (isRadarQueue(queue)) return planRadarLocked(queue, items, targets.pages, result, now);
   const candidates = pickPlannableItems(items, queue.schedule);
   if (candidates.length === 0) return result;
 
+  const locked = await withAccountScheduleLock(queue.instagramAccountId, () => planGamesSlotsLocked(queue, items, candidates, targets.pages, result, now));
+  return locked.ran ? locked.value : result;
+}
+
+async function planGamesSlotsLocked(
+  queue: VideoQueueRecord,
+  items: VideoQueueItemRecord[],
+  candidates: VideoQueueItemRecord[],
+  pages: FacebookDestinationInput[],
+  result: PlanQueueResult,
+  now: Date,
+): Promise<PlanQueueResult> {
   const occupied = await listOccupiedSlots({
     userId: queue.userId,
     queueId: queue.id,
@@ -321,7 +380,7 @@ export async function planQueueLocked(queueId: string, now: Date = new Date()): 
   const vars = captionVariables(queue, items);
   for (let index = 0; index < slots.length; index += 1) {
     try {
-      if (await materializeItem(queue, candidates[index], slots[index], targets.pages, vars)) result.scheduled += 1;
+      if (await materializeItem(queue, candidates[index], slots[index], pages, vars)) result.scheduled += 1;
     } catch (error) {
       // Erro inesperado (banco/rede): o item continua PRONTO e é replanejado na próxima execução.
       log("materialize_failed", { queueId: queue.id, itemId: candidates[index].id, message: (error as Error)?.message?.slice(0, 200) });
@@ -330,6 +389,49 @@ export async function planQueueLocked(queueId: string, now: Date = new Date()): 
   }
   if (result.scheduled > 0) log("planned", { queueId: queue.id, scheduled: result.scheduled });
   return result;
+}
+
+/**
+ * Radar Instagram: mesma fila, mesmo agendador — muda só a escolha dos
+ * horários (janela + intervalo fixo + N/dia) e o limite diário COMBINADO da
+ * conta (todos os radares e agendamentos da mesma conta), sob o lock da conta.
+ * Vídeo sem legenda revisada (regra "REVIEW") não é agendado.
+ */
+async function planRadarLocked(
+  queue: VideoQueueRecord,
+  items: VideoQueueItemRecord[],
+  pages: FacebookDestinationInput[],
+  result: PlanQueueResult,
+  now: Date,
+): Promise<PlanQueueResult> {
+  const policy = queue.radar?.missingCaptionPolicy ?? "DEFAULT";
+  // Vídeo aguardando revisão de legenda conta como "ainda não pronto" (WAIT segura a ordem; NEXT_READY pula).
+  const view = items.map((item) => (item.status === "READY" && needsCaptionReview(policy, item.caption) ? { ...item, status: "PROCESSING" as const } : item));
+  const plannable = new Set(pickPlannableItems(view, queue.schedule).map((item) => item.id));
+  const candidates = items.filter((item) => plannable.has(item.id)).sort((a, b) => a.position - b.position);
+  if (candidates.length === 0) return result;
+
+  const locked = await withAccountScheduleLock(queue.instagramAccountId, async () => {
+    const [occupied, radars] = await Promise.all([
+      listAccountOccupiedSlots({ userId: queue.userId, instagramAccountId: queue.instagramAccountId, queueId: queue.id, from: new Date(now.getTime() - 2 * 24 * 3600_000) }),
+      listActiveRadarLimitsForAccount(queue.userId, queue.instagramAccountId),
+    ]);
+    const cap = accountDailyCap([...radars.map((radar) => radar.postsPerDay), queue.schedule.postsPerDay]);
+    const until = new Date(now.getTime() + queue.schedule.materializeAheadHours * 3600_000);
+    const { slots } = allocateRadarSlots({ config: radarConfigFromQueue(queue), now, occupied, count: candidates.length, accountDailyCap: cap, until });
+    const vars = captionVariables(queue, items);
+    for (let index = 0; index < slots.length; index += 1) {
+      try {
+        if (await materializeItem(queue, candidates[index], slots[index], pages, vars)) result.scheduled += 1;
+      } catch (error) {
+        log("materialize_failed", { queueId: queue.id, itemId: candidates[index].id, message: (error as Error)?.message?.slice(0, 200) });
+        break;
+      }
+    }
+    if (result.scheduled > 0) log("radar.planned", { queueId: queue.id, instagramAccountId: queue.instagramAccountId, scheduled: result.scheduled, cap });
+    return result;
+  });
+  return locked.ran ? locked.value : result;
 }
 
 /** Planejamento chamado pelo cron: se outra execução já está planejando a fila, simplesmente pula. */

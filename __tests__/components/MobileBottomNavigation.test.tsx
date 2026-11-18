@@ -50,9 +50,9 @@ describe("MobileBottomNavigation", () => {
     fireEvent.click(screen.getByRole("button", { name: /criar/i }));
 
     const dialog = screen.getByRole("dialog", { name: /o que você quer criar/i });
-    expect(within(dialog).getByRole("link", { name: /^Post/ })).toHaveAttribute("href", "/instagram/criar-post");
-    expect(within(dialog).getByRole("link", { name: /^Reel/ })).toHaveAttribute("href", "/instagram/reels");
-    expect(within(dialog).getByRole("link", { name: /^Carrossel/ })).toHaveAttribute("href", "/instagram/carrossel");
+    expect(within(dialog).getByRole("link", { name: /^Radar Instagram/ })).toHaveAttribute("href", "/instagram/radar/novo");
+    expect(within(dialog).getByRole("link", { name: /^Meus radares/ })).toHaveAttribute("href", "/instagram/radar");
+    expect(within(dialog).queryByRole("link", { name: /^Post/ })).not.toBeInTheDocument();
     expect(within(dialog).getByRole("link", { name: /^Split Screen/ })).toHaveAttribute("href", "/videos/editor-split-screen");
     expect(within(dialog).getByRole("link", { name: /^Vídeo com IA/ })).toHaveAttribute("href", "/videos/imagem-para-video");
     expect(within(dialog).getByRole("link", { name: /^Importar do Instagram/ })).toHaveAttribute("href", "/videos/importar-instagram");
@@ -64,7 +64,7 @@ describe("MobileBottomNavigation", () => {
   it("escolher uma opção fecha o sheet", () => {
     render(<MobileBottomNavigation />);
     fireEvent.click(screen.getByRole("button", { name: /criar/i }));
-    fireEvent.click(within(screen.getByRole("dialog")).getByRole("link", { name: /^Post/ }));
+    fireEvent.click(within(screen.getByRole("dialog")).getByRole("link", { name: /^Radar Instagram/ }));
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 });

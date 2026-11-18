@@ -50,20 +50,15 @@ export default async function CalendarioPage() {
         <div>
           <h1 className="text-xl font-semibold text-zinc-900">Minhas publicações</h1>
           <p className="mt-1 text-sm text-zinc-600">
-            Seus rascunhos, agendamentos e publicações criados no ALILU. Os agendados são publicados
-            automaticamente no horário escolhido, mesmo com o Alilu fechado.
+            Histórico, agendamentos e publicações do ALILU (Radar Instagram, automações e publicações antigas). Os
+            agendados são publicados automaticamente no horário escolhido, mesmo com o Alilu fechado.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <LinkButton href="/instagram/painel/calendario/novo">Agendar nova publicação</LinkButton>
-          <LinkButton href="/instagram/posts-virais" variant="secondary">
-            Post viral
-          </LinkButton>
-          <LinkButton href="/instagram/painel/calendario/novo-carrossel" variant="secondary">
-            Novo carrossel
-          </LinkButton>
-          <LinkButton href="/instagram/reels" variant="secondary">
-            Novo Reel
+          {/* A criação manual saiu desta tela: novas publicações vêm do Radar Instagram e das automações. */}
+          <LinkButton href="/instagram/radar">Radar Instagram</LinkButton>
+          <LinkButton href="/instagram/piloto-automatico" variant="secondary">
+            Piloto Automático
           </LinkButton>
         </div>
       </div>

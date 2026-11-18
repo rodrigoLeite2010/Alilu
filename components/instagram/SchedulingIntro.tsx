@@ -64,10 +64,10 @@ export function SchedulingIntro({ mode, returnPath }: { mode: "login" | "connect
           {mode === "login" ? "Entrar e conectar Instagram" : "Conectar Instagram"}
         </Link>
         <Link
-          href="/instagram/criar-post"
+          href="/instagram/radar"
           className="inline-flex min-h-11 items-center justify-center rounded-md bg-white px-4 py-2.5 text-sm font-semibold text-zinc-900 ring-1 ring-inset ring-zinc-300 transition-colors hover:bg-zinc-50"
         >
-          Criar um post primeiro
+          Conhecer o Radar Instagram
         </Link>
       </div>
       <p className="mt-3 text-xs text-zinc-500">

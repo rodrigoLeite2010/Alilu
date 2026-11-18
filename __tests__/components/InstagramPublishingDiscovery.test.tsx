@@ -74,21 +74,17 @@ afterEach(() => {
 });
 
 describe("descoberta da publicação automática", () => {
-  it("categoria Instagram: H1, CTAs, como funciona, card de publicação automática e só formatos reais", () => {
+  it("categoria Instagram: H1, CTAs do Radar Instagram, sem a criação manual, e só formatos reais", () => {
     render(<InstagramCategoryPage />);
     expect(screen.getByRole("heading", { level: 1, name: "Crie, agende e publique no Instagram" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Criar post grátis" })).toHaveAttribute("href", "/instagram/criar-post");
-    expect(screen.getAllByRole("link", { name: /Agendar/ })[0]).toHaveAttribute("href", "/instagram/painel/calendario");
+    expect(screen.getByRole("link", { name: "Criar Radar Instagram" })).toHaveAttribute("href", "/instagram/radar/novo");
+    expect(screen.getAllByRole("link", { name: "Meus radares" })[0]).toHaveAttribute("href", "/instagram/radar");
     expect(screen.getAllByRole("link", { name: "Conectar Instagram" })[0].getAttribute("href")).toMatch(/^\/api\/instagram\/oauth\/start\?returnTo=/);
     expect(screen.getByRole("heading", { name: "Como funciona" })).toBeInTheDocument();
-    expect(screen.getByText("Publicação automática")).toBeInTheDocument();
-    for (const format of ["Post de imagem", "Carrossel", "Reels", "Agendamento"]) {
-      expect(screen.getAllByText(format).length).toBeGreaterThan(0);
-    }
+    expect(screen.queryByRole("link", { name: "Criar post grátis" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Posts Virais/ })).not.toBeInTheDocument();
     expect(screen.getByText(/ainda não disponível pela publicação automática: stories/i)).toBeInTheDocument();
-    // O calendário já existe: não pode aparecer como "em breve".
     expect(screen.queryByText("Calendário de Publicações")).not.toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Posts Virais/ })).toHaveAttribute("href", "/instagram/posts-virais");
   });
 
   it("home: chamada compacta para criar e publicar no Instagram", () => {
@@ -98,12 +94,12 @@ describe("descoberta da publicação automática", () => {
     expect(screen.getAllByRole("link", { name: "Piloto Automático" }).some(link => link.getAttribute("href") === "/instagram/piloto-automatico")).toBe(true);
   });
 
-  it("menu: Instagram fechado; abrir mostra Manual e Automatizado, e 'Agendar e publicar' fica em Automatizado", () => {
+  it("menu: Instagram fechado; abrir mostra Radar Instagram e Automatizado; 'Minhas publicações' fica em Automatizado", () => {
     render(<SiteSidebar />);
-    expect(screen.queryByRole("link", { name: "Agendar e publicar" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Minhas publicações" })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Abrir opções do Instagram" }));
     fireEvent.click(screen.getByRole("button", { name: "Automatizado" }));
-    expect(screen.getByRole("link", { name: "Agendar e publicar" })).toHaveAttribute("href", "/instagram/painel/calendario");
+    expect(screen.getByRole("link", { name: "Minhas publicações" })).toHaveAttribute("href", "/instagram/painel/calendario");
   });
 });
 

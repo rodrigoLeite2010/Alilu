@@ -205,6 +205,11 @@ export interface PostForPublish {
   igUserId: string;
   authProvider: "instagram_login" | "facebook_login";
   accessTokenEncrypted: string;
+  /** Conta (instagram_accounts.id) gravada na publicação e o dono dessa conta — conferidos antes da Meta. */
+  instagramAccountId?: string;
+  accountUserId?: string;
+  /** Item da Fila de vídeos / Radar Instagram que originou a publicação (null nos outros fluxos). */
+  videoQueueItemId?: string | null;
   /** Todos os itens do post, ordenados por posição (1 para imagem única; 2 a 10 para carrossel). */
   items: PostForPublishItem[];
   /** "Música", como gravada neste post no momento da criação/agendamento. */
@@ -243,8 +248,8 @@ export async function getPostForPublish(postId: string, userId: string): Promise
     select
       p.id, p.post_type, p.status, p.caption, p.meta_container_id, p.meta_children_ids,
       p.music_mode, p.music_type, p.music_name, p.music_artist, p.music_external_id, p.music_url,
-      p.audio_file_url, p.audio_file_name,
-      a.ig_user_id, a.access_token_encrypted, a.auth_provider,
+      p.audio_file_url, p.audio_file_name, p.instagram_account_id, p.video_queue_item_id,
+      a.ig_user_id, a.access_token_encrypted, a.auth_provider, a.user_id as account_user_id,
       a.default_music_enabled, a.default_music_type, a.default_music_name, a.default_music_artist,
       a.default_music_external_id, a.default_music_url, a.default_audio_file_url, a.default_audio_file_name,
       pi.media_id, pi.position, m.storage_url as media_storage_url, m.media_type
@@ -269,6 +274,9 @@ export async function getPostForPublish(postId: string, userId: string): Promise
     igUserId: first.ig_user_id as string,
     authProvider: (first.auth_provider as "instagram_login" | "facebook_login" | null) ?? "instagram_login",
     accessTokenEncrypted: first.access_token_encrypted as string,
+    instagramAccountId: first.instagram_account_id as string,
+    accountUserId: first.account_user_id as string,
+    videoQueueItemId: (first.video_queue_item_id as string | null) ?? null,
     items: rows.map((row) => ({
       mediaId: row.media_id as string,
       storageUrl: row.media_storage_url as string,

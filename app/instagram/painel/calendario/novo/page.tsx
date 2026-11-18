@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 import { auth } from "@/auth";
+import { isAdminEmail } from "@/lib/admin/admin-email";
 import { getInstagramAccountForUser } from "@/lib/instagram/backend/instagram-account-repository";
 import { AuthenticatedPostComposer } from "@/components/instagram/AuthenticatedPostComposer";
 
@@ -16,22 +18,15 @@ export const metadata: Metadata = {
  * ferramenta pública em si não é alterada: quem chega por
  * /instagram/criar-post não vê nem tem acesso a nenhuma ação de
  * publicação, e não precisa de conta nem login.
+ *
+ * Restrita ao admin (ADMIN_EMAILS) e fora do menu: a criação manual foi
+ * substituída pelo Radar Instagram.
  */
 export default async function CalendarioNovoPostPage() {
   const session = await auth();
-  if (!session?.user?.id) {
-    return (
-      <div className="mx-auto flex min-h-[40vh] max-w-md flex-col items-center justify-center gap-4 px-4 py-12 text-center">
-        <p className="text-sm text-zinc-600">
-          Você pode criar sem conta: monte a arte e clique em &quot;Publicar no Instagram&quot; ou &quot;Agendar publicação&quot;
-          — só então pedimos o login e a conexão, sem perder o que você fez.
-        </p>
-        <a href="/instagram/criar-post" className="text-sm font-medium text-teal-700 underline underline-offset-2">
-          Começar a criar sem login
-        </a>
-      </div>
-    );
-  }
+  // Criação MANUAL saiu da interface: só o admin usa esta tela, como ferramenta
+  // de teste (ex.: demonstrações da análise da Meta). Os demais vão ao Radar Instagram.
+  if (!session?.user?.id || !isAdminEmail(session.user.email)) redirect("/instagram/radar");
 
   const userId = session.user.id;
   const account = await getInstagramAccountForUser(userId);

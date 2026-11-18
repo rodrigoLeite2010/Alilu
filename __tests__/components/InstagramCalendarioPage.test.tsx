@@ -49,11 +49,11 @@ describe("CalendarioPage", () => {
     );
   });
 
-  it("com conta conectada mostra o CTA de agendar nova publicação", async () => {
+  it("com conta conectada leva ao Radar Instagram (sem criação manual)", async () => {
     authMock.mockResolvedValue({ user: { id: "user-1" } });
     listPostsForUserMock.mockResolvedValue([]);
     render(await CalendarioPage());
-    expect(screen.getByRole("link", { name: "Agendar nova publicação" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Radar Instagram" })).toHaveAttribute("href", "/instagram/radar");
   });
 
   it("mostra o estado vazio quando o usuário não tem posts", async () => {
@@ -92,21 +92,17 @@ describe("CalendarioPage", () => {
     expect(listPostsForUserMock).toHaveBeenCalledWith("user-1");
   });
 
-  it("mostra os links para criar um post único e um carrossel", async () => {
+  it("não mostra mais os botões de criação manual (novo post, carrossel, Reel, post viral)", async () => {
     authMock.mockResolvedValue({ user: { id: "user-1" } });
     listPostsForUserMock.mockResolvedValue([]);
 
     const jsx = await CalendarioPage();
     render(jsx);
 
-    expect(screen.getByRole("link", { name: "Agendar nova publicação" })).toHaveAttribute(
-      "href",
-      "/instagram/painel/calendario/novo",
-    );
-    expect(screen.getByRole("link", { name: "Novo carrossel" })).toHaveAttribute(
-      "href",
-      "/instagram/painel/calendario/novo-carrossel",
-    );
+    expect(screen.queryByRole("link", { name: "Agendar nova publicação" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Novo carrossel" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Novo Reel" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Post viral" })).not.toBeInTheDocument();
   });
 
   it("um post de carrossel mostra o indicativo de quantidade de fotos", async () => {

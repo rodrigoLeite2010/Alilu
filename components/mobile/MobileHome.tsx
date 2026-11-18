@@ -126,10 +126,10 @@ function ActivitySection({ posts, loading }: { posts: MobilePostItem[] | null; l
         <div className="rounded-xl border border-dashed border-zinc-300 bg-white p-4 text-center">
           <p className="text-sm text-zinc-700">Nenhuma atividade ainda.</p>
           <Link
-            href="/instagram/criar-post"
+            href="/instagram/radar/novo"
             className="mt-3 inline-flex min-h-11 items-center justify-center rounded-md bg-brand-primary px-4 py-2.5 text-base font-semibold text-white transition-colors active:bg-brand-primary-dark focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-accent"
           >
-            Criar primeiro post
+            Criar primeiro radar
           </Link>
         </div>
       )}

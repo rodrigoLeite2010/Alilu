@@ -8,6 +8,7 @@ import {
   type DestinationProfileRecord,
 } from "@/lib/facebook/backend/destination-profile-repository";
 import {
+  DENY_MESSAGES,
   evaluateFacebookDestination,
   type DenyReason,
   type DestinationSelectionSource,
@@ -16,6 +17,7 @@ import {
 } from "@/lib/facebook/destination-policy";
 import { getInstagramAccountByIdForUser, listInstagramAccountsForUser } from "@/lib/instagram/backend/instagram-account-repository";
 import { logPublicationEvent } from "@/lib/instagram/backend/publication-log";
+import { isInstagramRadarPost } from "@/lib/instagram-radar/backend/radar-repository";
 
 /**
  * Autorização de destinos Facebook no SERVIDOR (o frontend nunca decide).
@@ -169,6 +171,10 @@ export async function loadPublishTimeContext(destinationId: string, userId: stri
  * usar outra Página), mas exige que o destino continue autorizado.
  */
 export async function authorizeAtPublishTime(ctx: PublishTimeContext): Promise<PolicyDecision> {
+  // Radar Instagram nunca publica no Facebook, mesmo que um destino tenha sido gravado por engano.
+  if (await isInstagramRadarPost(ctx.postId)) {
+    return { allowed: false, reason: "instagram_radar_only", message: DENY_MESSAGES.instagram_radar_only };
+  }
   if (!ctx.facebookPageRef) {
     // Página apagada: o fluxo existente marca "desconectada" sem chamar a Meta.
     return { allowed: true };

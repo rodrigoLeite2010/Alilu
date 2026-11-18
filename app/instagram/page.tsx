@@ -7,12 +7,9 @@ import { AdSlot } from "@/components/ui/AdSlot";
 import { Icon } from "@/components/ui/Icon";
 import { Badge } from "@/components/ui/Badge";
 import { buildPageMetadata } from "@/lib/seo/metadata";
-import { CONTENT_AUTOMATION, INSTAGRAM_CATEGORY, INSTAGRAM_PUBLISHING, instagramTools, plannedInstagramTools } from "@/data/instagram";
-import { AutoPublishingCard, HowPublishingWorks } from "@/components/instagram/PublishingPromo";
+import { CONTENT_AUTOMATION, INSTAGRAM_CATEGORY, INSTAGRAM_PUBLISHING, plannedInstagramTools } from "@/data/instagram";
 import { tools } from "@/data/tools";
 
-/** Ferramentas que publicam/agendam de verdade (ver INSTAGRAM_PUBLISHING.supported). */
-const PUBLISHING_TOOL_IDS = new Set(["criador-post-instagram", "criador-carrossel-instagram", "criador-reels-instagram"]);
 
 export const metadata: Metadata = buildPageMetadata({
   title: INSTAGRAM_CATEGORY.metaTitle,
@@ -43,16 +40,16 @@ export default function InstagramCategoryPage() {
         <p className="mt-2 max-w-2xl text-base text-zinc-600">{INSTAGRAM_CATEGORY.subtitle}</p>
         <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
           <Link
-            href="/instagram/criar-post"
+            href="/instagram/radar/novo"
             className="inline-flex min-h-11 items-center justify-center rounded-md bg-zinc-900 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-zinc-800"
           >
-            Criar post grátis
+            Criar Radar Instagram
           </Link>
           <Link
-            href={INSTAGRAM_PUBLISHING.schedulePath}
+            href="/instagram/radar"
             className="inline-flex min-h-11 items-center justify-center rounded-md bg-white px-4 py-2.5 text-sm font-semibold text-zinc-900 ring-1 ring-inset ring-zinc-300 transition-colors hover:bg-zinc-50"
           >
-            Agendar publicação
+            Meus radares
           </Link>
           <Link
             href={INSTAGRAM_PUBLISHING.connectPath}
@@ -63,7 +60,7 @@ export default function InstagramCategoryPage() {
           </Link>
         </div>
         <p className="mt-3 text-xs text-zinc-600">
-          Criar e baixar é grátis e sem cadastro. Sua conta só é pedida na hora de publicar ou agendar.
+          Escolha a conta, cole os links dos vídeos autorizados e defina quantas publicações por dia: o Alilu publica sozinho, só na conta escolhida.
         </p>
       </section>
 
@@ -71,60 +68,39 @@ export default function InstagramCategoryPage() {
         <h2 id="como-funciona" className="mb-3 text-lg font-semibold text-zinc-900">
           Como funciona
         </h2>
-        <HowPublishingWorks />
-      </section>
-
-      <section id="criar-publicacao" className="mt-10 scroll-mt-20">
-        <SectionHeading
-          title="Criar publicação"
-          description="Escolha o formato e comece a criar sem precisar conectar o Instagram antes."
-        />
-        <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {instagramTools
-            .filter((tool) => tool.id !== "gerador-legendas-instagram")
-            .map((tool) => (
-            <li key={tool.id}>
-              <Link
-                href={tool.path}
-                className="group flex h-full flex-col gap-3 rounded-lg border border-teal-300 bg-teal-50/30 p-4 transition-colors hover:border-teal-700/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-white text-zinc-700 transition-colors group-hover:bg-teal-100 group-hover:text-teal-800">
-                    <Icon name={tool.icon} className="h-5 w-5" />
-                  </span>
-                  <Badge tone="brand">Grátis</Badge>
-                </div>
-                <div>
-                  <p className="font-semibold text-zinc-900 group-hover:text-teal-800">{tool.shortName}</p>
-                  <p className="mt-1 text-sm text-zinc-600">{tool.description}</p>
-                </div>
-                {PUBLISHING_TOOL_IDS.has(tool.id) ? (
-                  <p className="mt-auto text-xs font-medium text-teal-800">Publica e agenda no Instagram</p>
-                ) : null}
-              </Link>
+        <ol className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          {[
+            ["1. Escolha a conta", "Cada radar publica numa única conta do Instagram conectada, escolhida por você."],
+            ["2. Cole os links", "Dezenas ou centenas de links (ou um TXT). Repetidos e inválidos são separados na hora."],
+            ["3. Defina a frequência", "De 1 a 10 publicações por dia, intervalo mínimo e janela de horário. O Alilu publica sozinho."],
+          ].map(([title, body]) => (
+            <li key={title} className="rounded-lg border border-zinc-200 bg-white p-4">
+              <p className="text-sm font-semibold text-zinc-900">{title}</p>
+              <p className="mt-0.5 text-sm text-zinc-600">{body}</p>
             </li>
           ))}
-          <li>
-            <Link
-              href={INSTAGRAM_PUBLISHING.viralPostsPath}
-              className="group flex h-full flex-col gap-3 rounded-lg border border-teal-300 bg-teal-50/30 p-4 transition-colors hover:border-teal-700/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
-            >
-              <div className="flex items-start justify-between gap-2">
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-white text-zinc-700 transition-colors group-hover:bg-teal-100 group-hover:text-teal-800">
-                  <Icon name="sparkles" className="h-5 w-5" />
-                </span>
-                <Badge tone="brand">Grátis</Badge>
-              </div>
-              <div>
-                <p className="font-semibold text-zinc-900 group-hover:text-teal-800">Posts Virais</p>
-                <p className="mt-1 text-sm text-zinc-600">
-                  Templates prontos para engajar: escolha, coloque sua foto, ajuste o texto e publique ou agende.
-                </p>
-              </div>
-              <p className="mt-auto text-xs font-medium text-teal-800">Publica e agenda no Instagram</p>
+        </ol>
+      </section>
+
+      <section id="radar-instagram" className="mt-10 scroll-mt-20">
+        <SectionHeading
+          title="Radar Instagram"
+          description="Vários links de uma vez, uma conta de destino, de 1 a 10 publicações por dia com o intervalo que você escolher."
+        />
+        <div className="rounded-lg border border-teal-300 bg-teal-50/30 p-5 sm:p-6">
+          <p className="max-w-xl text-sm text-zinc-600">
+            Ex.: Radar GTA 6 → Instagram World GTA, 5 publicações por dia a cada 2 horas a partir das 9h. Cada radar publica somente na conta escolhida —
+            nunca em outra conta e nunca no Facebook. Só para vídeos próprios ou com autorização do autor.
+          </p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Link href="/instagram/radar/novo" className="inline-flex min-h-11 items-center justify-center rounded-md bg-zinc-900 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-zinc-800">
+              Criar radar
             </Link>
-          </li>
-        </ul>
+            <Link href="/instagram/radar" className="inline-flex min-h-11 items-center justify-center rounded-md bg-white px-4 py-2.5 text-sm font-semibold text-zinc-900 ring-1 ring-inset ring-zinc-300 transition-colors hover:bg-zinc-50">
+              Meus radares
+            </Link>
+          </div>
+        </div>
       </section>
 
       <section id="publicacao-automatica" className="mt-10 scroll-mt-20">
@@ -132,7 +108,6 @@ export default function InstagramCategoryPage() {
           title="Publique e agende sem sair do Alilu"
           description="Nada de baixar a imagem e subir no celular: o Alilu publica por você, pela integração oficial da Meta."
         />
-        <AutoPublishingCard />
         <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {INSTAGRAM_PUBLISHING.supported.map((item) => (
             <div key={item.label} className="rounded-lg bg-zinc-50 p-4">
@@ -229,34 +204,6 @@ export default function InstagramCategoryPage() {
         </div>
       </section>
 
-      <section className="mt-10">
-        <SectionHeading
-          title="Outras ferramentas"
-          description="Recursos extras para completar sua publicação."
-          as="h2"
-        />
-        <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {instagramTools
-            .filter((tool) => tool.id === "gerador-legendas-instagram")
-            .map((tool) => (
-              <li key={tool.id}>
-                <Link
-                  href={tool.path}
-                  className="group flex h-full flex-col gap-3 rounded-lg border border-zinc-200 bg-white p-4 transition-colors hover:border-teal-700/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
-                >
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-zinc-50 text-zinc-700 transition-colors group-hover:bg-teal-100 group-hover:text-teal-800">
-                    <Icon name={tool.icon} className="h-5 w-5" />
-                  </span>
-                  <div>
-                    <p className="font-semibold text-zinc-900 group-hover:text-teal-800">{tool.shortName}</p>
-                    <p className="mt-1 text-sm text-zinc-600">{tool.description}</p>
-                  </div>
-                </Link>
-              </li>
-            ))}
-        </ul>
-      </section>
-
       <div className="mt-8">
         <AdSlot />
       </div>
@@ -264,25 +211,19 @@ export default function InstagramCategoryPage() {
       <section className="mt-10">
         <SectionHeading title="Como usar" as="h2" />
         <ol className="list-decimal space-y-2 pl-5 text-sm leading-relaxed text-zinc-700">
-          <li>
-            Escolha a ferramenta: Criador de Posts (imagem única ou capa 9:16), Criador de Carrosséis, Criador de
-            Reels, Posts Virais ou Gerador de Legendas.
-          </li>
-          <li>Selecione o formato e um template; personalize textos, cores e, se quiser, envie uma foto sua.</li>
-          <li>Baixe a arte em PNG, JPG ou ZIP — de graça e sem login.</li>
-          <li>
-            Ou clique em &quot;Publicar no Instagram&quot; ou &quot;Agendar publicação&quot;: entre no Alilu, conecte seu Instagram uma única vez e escolha publicar
-            agora ou em um dia e horário. Seu trabalho não se perde durante a conexão.
-          </li>
+          <li>Entre no Alilu e conecte suas contas profissionais do Instagram (uma vez só).</li>
+          <li>Em Instagram › Radar Instagram, crie um radar e escolha a conta de destino.</li>
+          <li>Cole os links dos vídeos (ou importe um arquivo TXT) e confirme que tem autorização para republicá-los.</li>
+          <li>Escolha quantas publicações por dia (1 a 10), o intervalo mínimo e a janela de horário; confira a prévia e ative.</li>
         </ol>
       </section>
 
       <section className="mt-10">
         <SectionHeading title="Benefícios" as="h2" />
         <ul className="grid grid-cols-1 gap-3 text-sm text-zinc-700 sm:grid-cols-2">
-          <li className="rounded-lg bg-zinc-50 p-4">Criar e baixar é 100% gratuito, sem limite e sem cadastro.</li>
+          <li className="rounded-lg bg-zinc-50 p-4">Vários radares ao mesmo tempo, cada um com a sua conta de destino.</li>
           <li className="rounded-lg bg-zinc-50 p-4">Publicação e agendamento direto no Instagram, quando você quiser.</li>
-          <li className="rounded-lg bg-zinc-50 p-4">Suas fotos ficam no seu navegador — só são enviadas se você decidir publicar ou agendar.</li>
+          <li className="rounded-lg bg-zinc-50 p-4">Publicação só na conta escolhida: nunca em outra conta e nunca no Facebook sem você pedir.</li>
           <li className="rounded-lg bg-zinc-50 p-4">Funciona bem tanto no computador quanto no celular.</li>
         </ul>
       </section>
