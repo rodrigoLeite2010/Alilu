@@ -8,6 +8,7 @@ import { ConnectInstagramLink } from "@/components/instagram/ConnectInstagramLin
 import { DisconnectInstagramButton } from "@/components/instagram/DisconnectInstagramButton";
 import { MakePrimaryAccountButton } from "@/components/instagram/MakePrimaryAccountButton";
 import { FacebookPagesSection } from "@/components/instagram/FacebookPagesSection";
+import { SocialDestinationProfilesSection } from "@/components/instagram/SocialDestinationProfilesSection";
 
 export const metadata: Metadata = {
   robots: { index: false, follow: false },
@@ -198,6 +199,7 @@ export default async function InstagramPainelPage({
           ) : null}
 
           <FacebookPagesSection />
+          <SocialDestinationProfilesSection />
         </>
       ) : (
         <>

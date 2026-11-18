@@ -285,6 +285,7 @@ export function CarouselPublishPanel({ slides, formatId, userId }: CarouselPubli
         onChange={setDestinations}
         postType="carousel"
         instagramLabel={instagramLabel}
+        suggestDefaults
         returnPath="/instagram/painel/calendario/novo-carrossel"
         disabled={busy}
       />

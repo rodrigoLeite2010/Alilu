@@ -32,6 +32,20 @@ export interface PublicationLogEvent {
   destinationId?: string;
   /** Fase do fluxo em etapas (ex.: Reels do Facebook: started/uploaded/finished). */
   phase?: string;
+  /** Conta Instagram (instagram_accounts.id) da publicação — id interno, nunca token. */
+  instagramAccountId?: string;
+  /** Página do Facebook de destino (facebook_pages.id). */
+  facebookPageRef?: string;
+  /** Id da Página na Meta (público; nunca token). */
+  externalAccountId?: string;
+  /** Origem da escolha do destino (manual | automation | video_queue | legacy | automation_auto_legacy). */
+  selectionSource?: string;
+  /** Id da execução (lock da tentativa) — correlaciona cron, logs e social_publication_attempts. */
+  executionId?: string;
+  /** Id da mídia/post publicado devolvido pela Meta. */
+  externalId?: string;
+  /** false = bloqueado antes de chamar a API da rede. */
+  apiCalled?: boolean;
 }
 
 const ALLOWED_KEYS: ReadonlyArray<keyof PublicationLogEvent> = [
@@ -55,6 +69,13 @@ const ALLOWED_KEYS: ReadonlyArray<keyof PublicationLogEvent> = [
   "platform",
   "destinationId",
   "phase",
+  "instagramAccountId",
+  "facebookPageRef",
+  "externalAccountId",
+  "selectionSource",
+  "executionId",
+  "externalId",
+  "apiCalled",
 ];
 
 export function buildPublicationLogLine(event: PublicationLogEvent): string {
@@ -67,7 +88,7 @@ export function buildPublicationLogLine(event: PublicationLogEvent): string {
 
 export function logPublicationEvent(event: PublicationLogEvent): void {
   const line = buildPublicationLogLine(event);
-  if (event.event.endsWith("error") || event.event.endsWith("failed")) {
+  if (event.event.endsWith("error") || event.event.endsWith("failed") || event.event.endsWith("blocked") || event.event.endsWith("rejected")) {
     console.error(line);
   } else {
     console.info(line);

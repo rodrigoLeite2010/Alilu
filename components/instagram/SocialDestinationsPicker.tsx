@@ -1,7 +1,12 @@
 "use client";
 
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { facebookSupportFor, FACEBOOK_CAPTION_MAX_LENGTH, type FacebookPostKind } from "@/lib/facebook/facebook-media-rules";
+import {
+  initialFacebookSelection,
+  selectablePagesFor,
+  type DestinationProfilePolicy,
+} from "@/lib/facebook/destination-policy";
 
 /**
  * "Publicar nas redes sociais": Instagram e/ou Página(s) do Facebook numa
@@ -31,6 +36,15 @@ export interface ConnectedFacebookPage {
   pageName: string;
   status: "connected" | "needs_reconnect" | "revoked";
   linkedIgUsername: string | null;
+  /** Conta Instagram do usuário vinculada à Página (informativo). */
+  instagramAccountId?: string | null;
+}
+
+/** Perfis de destino ("categorias") — GET /api/social/destination-profiles. */
+export interface DestinationProfilesState {
+  loaded: boolean;
+  primaryInstagramAccountId: string | null;
+  profiles: DestinationProfilePolicy[];
 }
 
 /** Corpo `destinations` para a API, ou um erro para mostrar na tela. */
@@ -58,6 +72,19 @@ export function buildDestinationsBody(value: SocialDestinationsValue):
  */
 export function isInstagramOnly(body: { instagram: boolean; facebookPageIds: string[] }): boolean {
   return body.instagram && body.facebookPageIds.length === 0;
+}
+
+/** Linhas de "Esta publicação será enviada para:" (o que o backend vai receber). */
+export function destinationSummaryLines(
+  value: SocialDestinationsValue,
+  pages: ConnectedFacebookPage[],
+  instagramLabel: string | null,
+): { instagram: string; facebook: string } {
+  const names = value.facebook ? pages.filter((page) => value.facebookPageIds.includes(page.id)).map((page) => page.pageName) : [];
+  return {
+    instagram: value.instagram ? (instagramLabel ?? "conta conectada") : "não selecionado",
+    facebook: names.length ? names.join(", ") : "não selecionado",
+  };
 }
 
 export function describeDestinations(value: SocialDestinationsValue, pages: ConnectedFacebookPage[], instagramLabel: string | null): string {
@@ -90,15 +117,48 @@ export function useFacebookPages(): { pages: ConnectedFacebookPage[]; loaded: bo
   return state;
 }
 
+export function useDestinationProfiles(enabled = true): DestinationProfilesState {
+  const [state, setState] = useState<DestinationProfilesState>({ loaded: false, primaryInstagramAccountId: null, profiles: [] });
+  useEffect(() => {
+    if (!enabled) return;
+    let cancelled = false;
+    Promise.resolve()
+      .then(() => fetch("/api/social/destination-profiles", { cache: "no-store" }))
+      .then(async (response) =>
+        response?.ok
+          ? ((await response.json()) as { primaryInstagramAccountId?: string | null; accounts?: Array<{ profile: DestinationProfilePolicy | null }> })
+          : null,
+      )
+      .then((body) => {
+        if (cancelled) return;
+        setState({
+          loaded: true,
+          primaryInstagramAccountId: body?.primaryInstagramAccountId ?? null,
+          profiles: (body?.accounts ?? []).map((account) => account.profile).filter((profile): profile is DestinationProfilePolicy => Boolean(profile)),
+        });
+      })
+      .catch(() => {
+        if (!cancelled) setState({ loaded: true, primaryInstagramAccountId: null, profiles: [] });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [enabled]);
+  return state;
+}
+
 export function SocialDestinationsPicker({
   value,
   onChange,
   postType,
   hasVideoItems = false,
   instagramLabel,
+  instagramAccountId,
   returnPath,
   disabled,
   pages: pagesProp,
+  profiles: profilesProp,
+  suggestDefaults = false,
   onConnect,
 }: {
   value: SocialDestinationsValue;
@@ -107,6 +167,8 @@ export function SocialDestinationsPicker({
   hasVideoItems?: boolean;
   /** "@usuario" da conta do Instagram de destino. */
   instagramLabel: string | null;
+  /** Conta Instagram de destino; ausente = conta principal (onde as telas manuais publicam). */
+  instagramAccountId?: string | null;
   /** Para onde voltar depois de conectar a Página (rota /instagram/...). */
   returnPath: string;
   disabled?: boolean;
@@ -114,31 +176,65 @@ export function SocialDestinationsPicker({
   onConnect?: (href: string) => void;
   /** Para testes / telas que já carregaram as Páginas. */
   pages?: { pages: ConnectedFacebookPage[]; loaded: boolean; configured: boolean };
+  /** Para testes / telas que já carregaram os perfis de destino. */
+  profiles?: DestinationProfilesState;
+  /** Criação: aplica UMA vez os destinos padrão da conta como sugestão editável. */
+  suggestDefaults?: boolean;
 }) {
   const fetched = useFacebookPages();
+  const fetchedProfiles = useDestinationProfiles(!profilesProp);
   const { pages, loaded, configured } = pagesProp ?? fetched;
+  const profilesState = profilesProp ?? fetchedProfiles;
   const captionId = useId();
   const support = facebookSupportFor(postType, hasVideoItems);
-  const connected = pages.filter((page) => page.status === "connected");
-  const needsReconnect = pages.filter((page) => page.status === "needs_reconnect");
+  const accountId = instagramAccountId ?? profilesState.primaryInstagramAccountId;
+  const profile = (accountId && profilesState.profiles.find((item) => item.instagramAccountId === accountId)) || null;
+  const facebookDisabledForAccount = Boolean(profile && !profile.facebookEnabled);
+  // Só Páginas permitidas para ESTA conta: o perfil restringe; sem perfil,
+  // Páginas vinculadas a outra conta Instagram não aparecem.
+  const selectable = selectablePagesFor(pages, accountId, profile);
+  const connected = selectable.filter((page) => page.status === "connected");
+  const needsReconnect = selectable.filter((page) => page.status === "needs_reconnect");
   const connectHref = `/api/facebook/pages/oauth/start?returnTo=${encodeURIComponent(returnPath)}`;
+  const suggested = useRef(false);
 
-  // Facebook desmarcado se o tipo deixou de ser suportado (ex.: virou carrossel com vídeo).
+  // Facebook desmarcado se o tipo deixou de ser suportado (ex.: virou carrossel com vídeo)
+  // ou se a conta tem o Facebook desativado.
   useEffect(() => {
-    if (!support.supported && value.facebook) onChange({ ...value, facebook: false, instagram: true });
-  }, [support.supported, value, onChange]);
+    if ((!support.supported || facebookDisabledForAccount) && value.facebook) {
+      onChange({ ...value, facebook: false, facebookPageIds: [], instagram: true });
+    }
+  }, [support.supported, facebookDisabledForAccount, value, onChange]);
+
+  // Páginas que deixaram de ser permitidas saem da seleção (nunca são trocadas por outras).
+  useEffect(() => {
+    if (!loaded || !profilesState.loaded || value.facebookPageIds.length === 0) return;
+    const allowed = new Set(selectable.map((page) => page.id));
+    const kept = value.facebookPageIds.filter((id) => allowed.has(id));
+    if (kept.length !== value.facebookPageIds.length) onChange({ ...value, facebookPageIds: kept });
+  }, [loaded, profilesState.loaded, selectable, value, onChange]);
+
+  // Sugestão inicial editável = destinos PADRÃO da conta (nunca "a única/primeira Página").
+  useEffect(() => {
+    if (!suggestDefaults || suggested.current || !loaded || !profilesState.loaded) return;
+    suggested.current = true;
+    if (!support.supported || value.facebook || value.facebookPageIds.length > 0) return;
+    const defaults = initialFacebookSelection(profile, connected.map((page) => page.id));
+    if (defaults.length > 0) onChange({ ...value, facebook: true, facebookPageIds: defaults });
+  }, [suggestDefaults, loaded, profilesState.loaded, support.supported, profile, connected, value, onChange]);
 
   function toggleFacebook(checked: boolean) {
-    // Preseleciona só se houver exatamente uma Página conectada — sempre
-    // visível e editável; nunca escolhe "a primeira" entre várias.
-    const preselect = checked && value.facebookPageIds.length === 0 && connected.length === 1 ? [connected[0].id] : value.facebookPageIds;
-    onChange({ ...value, facebook: checked, facebookPageIds: checked ? preselect : value.facebookPageIds });
+    // Nunca escolhe uma Página sozinho: só os padrões configurados da conta.
+    const preselect = checked && value.facebookPageIds.length === 0 ? initialFacebookSelection(profile, connected.map((page) => page.id)) : value.facebookPageIds;
+    onChange({ ...value, facebook: checked, facebookPageIds: checked ? preselect : [] });
   }
 
   function togglePage(id: string, checked: boolean) {
     const next = checked ? [...new Set([...value.facebookPageIds, id])] : value.facebookPageIds.filter((item) => item !== id);
     onChange({ ...value, facebookPageIds: next });
   }
+
+  const summary = destinationSummaryLines(value, connected, instagramLabel);
 
   return (
     <fieldset className="space-y-2 rounded-md border border-zinc-200 bg-white p-3" aria-label="Publicar nas redes sociais">
@@ -160,20 +256,27 @@ export function SocialDestinationsPicker({
           type="checkbox"
           className="h-4 w-4 accent-blue-700"
           checked={value.facebook}
-          disabled={disabled || !support.supported || (loaded && connected.length === 0)}
+          disabled={disabled || !support.supported || facebookDisabledForAccount || (loaded && connected.length === 0)}
           onChange={(event) => toggleFacebook(event.target.checked)}
         />
         Facebook
-        {value.facebook && connected.length === 1 && value.facebookPageIds.includes(connected[0].id) ? (
-          <span className="text-zinc-500">: {connected[0].pageName}</span>
-        ) : null}
       </label>
 
       {!support.supported ? <p className="text-xs text-amber-800">{support.reason}</p> : null}
 
-      {support.supported && loaded && connected.length === 0 ? (
+      {support.supported && facebookDisabledForAccount ? (
         <p className="text-xs text-zinc-600">
-          {configured ? (
+          O Facebook está desativado para esta conta do Instagram. Para mudar, ajuste os destinos da conta em Páginas do Facebook.
+        </p>
+      ) : null}
+
+      {support.supported && !facebookDisabledForAccount && loaded && connected.length === 0 ? (
+        <p className="text-xs text-zinc-600">
+          {!configured ? (
+            "A publicação no Facebook ainda não está habilitada neste ambiente."
+          ) : pages.length > 0 ? (
+            "Nenhuma Página do Facebook está autorizada para esta conta do Instagram."
+          ) : (
             <>
               Nenhuma Página do Facebook conectada.{" "}
               <a
@@ -188,13 +291,11 @@ export function SocialDestinationsPicker({
                 Conectar Página do Facebook
               </a>
             </>
-          ) : (
-            "A publicação no Facebook ainda não está habilitada neste ambiente."
           )}
         </p>
       ) : null}
 
-      {needsReconnect.length > 0 ? (
+      {needsReconnect.length > 0 && !facebookDisabledForAccount ? (
         <p className="text-xs text-amber-800">
           {needsReconnect.map((page) => page.pageName).join(", ")}: precisa reconectar.{" "}
           <a href={connectHref} className="font-medium underline">
@@ -203,7 +304,7 @@ export function SocialDestinationsPicker({
         </p>
       ) : null}
 
-      {value.facebook && connected.length > 1 ? (
+      {value.facebook && connected.length > 0 ? (
         <div className="space-y-1 pl-6">
           <p className="text-xs text-zinc-600">Escolha a(s) Página(s):</p>
           {connected.map((page) => (
@@ -263,6 +364,12 @@ export function SocialDestinationsPicker({
           ) : null}
         </div>
       ) : null}
+
+      <div className="rounded-md bg-zinc-50 px-2 py-1.5 text-xs text-zinc-700" aria-label="Destinos desta publicação">
+        <p className="font-medium text-zinc-800">Esta publicação será enviada para:</p>
+        <p>Instagram: {summary.instagram}</p>
+        <p>Facebook: {summary.facebook}</p>
+      </div>
     </fieldset>
   );
 }

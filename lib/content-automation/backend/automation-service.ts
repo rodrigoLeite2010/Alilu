@@ -45,6 +45,7 @@ import {
 } from "./automation-run-repository";
 import { attachAutomationFacebookDestinations } from "./automation-facebook";
 import { getFacebookPageForUser } from "@/lib/facebook/backend/facebook-page-repository";
+import { DestinationAuthorizationError, authorizeFacebookPagesForAccount } from "@/lib/facebook/backend/destination-authorization";
 import { generateSmartCarouselPreview, type SmartCarouselPreviewResult, type SmartCarouselRunDeps } from "./smart-carousel-service";
 import { CarouselError } from "@/lib/carousel/backend/carousel-project-service";
 import { publishCarousel } from "@/lib/carousel/backend/carousel-publish-service";
@@ -287,27 +288,35 @@ const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{
 
 /**
  * Destino Facebook das publicações da automação.
- *   null  = automático (Páginas conectadas vinculadas à conta Instagram);
  *   []    = não publicar no Facebook;
- *   [ids] = estas Páginas — todas precisam ser do usuário.
+ *   [ids] = exatamente estas Páginas — do usuário E autorizadas para a
+ *           conta Instagram da automação (perfil de destinos).
+ * O antigo modo "Automático" (null = Página vinculada ao Instagram) não
+ * pode mais ser escolhido: vínculo Instagram↔Página não é autorização.
  * Vale só para publicações criadas DEPOIS da mudança (nada retroativo).
  */
 export async function updateAutomationFacebookPages(id: string, userId: string, value: unknown): Promise<void> {
-  await getAutomationDetails(id, userId);
-  let pageIds: string[] | null;
+  const automation = await getAutomationDetails(id, userId);
+  let pageIds: string[];
   if (value === null) {
-    pageIds = null;
+    throw new AutomationValidationError("Escolha as Páginas do Facebook ou \"Não publicar no Facebook\". O modo automático foi removido.");
   } else if (Array.isArray(value) && value.every((item) => typeof item === "string" && UUID_PATTERN.test(item))) {
     pageIds = [...new Set(value as string[])];
   } else {
-    throw new AutomationValidationError("facebookPageIds precisa ser null ou uma lista de Páginas.");
+    throw new AutomationValidationError("facebookPageIds precisa ser uma lista de Páginas.");
   }
-  if (pageIds && pageIds.length > MAX_AUTOMATION_FACEBOOK_PAGES) {
+  if (pageIds.length > MAX_AUTOMATION_FACEBOOK_PAGES) {
     throw new AutomationValidationError(`Escolha no máximo ${MAX_AUTOMATION_FACEBOOK_PAGES} Páginas do Facebook.`);
   }
-  for (const pageId of pageIds ?? []) {
+  for (const pageId of pageIds) {
     const page = await getFacebookPageForUser(pageId, userId);
     if (!page || page.userId !== userId) throw new AutomationValidationError("A Página do Facebook escolhida não foi encontrada na sua conta.");
+  }
+  try {
+    await authorizeFacebookPagesForAccount({ userId, instagramAccountId: automation.instagramAccountId, pageRefs: pageIds, source: "automation" });
+  } catch (error) {
+    if (error instanceof DestinationAuthorizationError) throw new AutomationValidationError(error.message);
+    throw error;
   }
   const updated = await setAutomationFacebookPageIds(id, userId, pageIds);
   if (!updated) throw new AutomationValidationError("Automação não encontrada.");

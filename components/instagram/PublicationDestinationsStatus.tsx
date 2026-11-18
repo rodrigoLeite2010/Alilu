@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/Button";
 import {
+  BLOCKED_DESTINATION_LABEL,
   DESTINATION_STATUS_CLASS,
   DESTINATION_STATUS_LABEL,
   type PublicationDestinationView,
@@ -22,6 +23,7 @@ const OUTCOME_LABEL: Record<string, string> = {
   failure: "Falhou",
   pending: "Aguardando a Meta",
   reconciled: "Verificado na Página",
+  blocked: "Bloqueado antes do envio (destino não autorizado)",
 };
 
 /**
@@ -93,6 +95,12 @@ export function PublicationDestinationsStatus({
           <span className={instagram.className}>{instagram.label}</span>
         </li>
       ) : null}
+      {destinations.length === 0 ? (
+        <li className="flex flex-wrap items-center gap-1">
+          <span className="font-medium text-zinc-700">Facebook:</span>
+          <span className="text-zinc-500">não selecionado</span>
+        </li>
+      ) : null}
       {destinations.map((destination) => {
         const notice = notices[destination.id];
         const list = attempts[destination.id];
@@ -101,8 +109,8 @@ export function PublicationDestinationsStatus({
           <li key={destination.id} className="space-y-1">
             <div className="flex flex-wrap items-center gap-1">
               <span className="font-medium text-zinc-700">Facebook{destination.accountName ? ` (${destination.accountName})` : ""}:</span>
-              <span className={DESTINATION_STATUS_CLASS[destination.status]}>
-                {DESTINATION_STATUS_LABEL[destination.status]}
+              <span className={destination.blocked ? "text-red-700" : DESTINATION_STATUS_CLASS[destination.status]}>
+                {destination.blocked ? BLOCKED_DESTINATION_LABEL : DESTINATION_STATUS_LABEL[destination.status]}
                 {destination.status === "PROCESSING" ? "…" : ""}
               </span>
               {destination.status === "PUBLISHED" && destination.externalUrl ? (

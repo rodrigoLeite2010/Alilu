@@ -7,9 +7,12 @@ import { Button } from "@/components/ui/Button";
  * "Publicar também no Facebook" de uma automação do Piloto Automático.
  *
  * Valor salvo (content_automations.facebook_page_ids):
- *   null  = automático: Páginas conectadas vinculadas à conta Instagram da automação;
+ *   null  = nada configurado (automações antigas) → só Instagram;
  *   []    = não publicar no Facebook;
- *   [ids] = exatamente as Páginas marcadas.
+ *   [ids] = exatamente as Páginas marcadas (o backend confere se são
+ *           autorizadas para a conta Instagram da automação).
+ * O antigo modo "Automático" (Página vinculada ao Instagram) foi removido:
+ * nenhuma Página é usada sem escolha explícita.
  * Vale para as PRÓXIMAS publicações geradas — nada já criado muda.
  */
 
@@ -21,17 +24,14 @@ interface PageDto {
   linkedIgUsername: string | null;
 }
 
-export type FacebookChoice = "AUTO" | "OFF" | "PAGES";
+export type FacebookChoice = "OFF" | "PAGES";
 
 export function choiceFromValue(value: string[] | null | undefined): FacebookChoice {
-  if (value === null || value === undefined) return "AUTO";
-  return value.length === 0 ? "OFF" : "PAGES";
+  return Array.isArray(value) && value.length > 0 ? "PAGES" : "OFF";
 }
 
-export function valueFromChoice(choice: FacebookChoice, selected: string[]): string[] | null {
-  if (choice === "AUTO") return null;
-  if (choice === "OFF") return [];
-  return selected;
+export function valueFromChoice(choice: FacebookChoice, selected: string[]): string[] {
+  return choice === "OFF" ? [] : selected;
 }
 
 async function readError(response: Response, fallback: string): Promise<string> {
@@ -82,7 +82,9 @@ export function AutomationFacebookPanel({
   }, [pagesProp]);
 
   const connected = (pages ?? []).filter((page) => page.status === "connected");
-  const linked = connected.filter((page) => instagramAccountId && page.instagramAccountId === instagramAccountId);
+  // Páginas vinculadas a OUTRA conta Instagram não são oferecidas (o backend também recusa).
+  const selectable = connected.filter((page) => !page.instagramAccountId || !instagramAccountId || page.instagramAccountId === instagramAccountId);
+  const legacyAuto = initialValue === null || initialValue === undefined;
   const connectHref = `/api/facebook/pages/oauth/start?returnTo=${encodeURIComponent(returnPath)}`;
 
   async function save() {
@@ -121,23 +123,12 @@ export function AutomationFacebookPanel({
         </p>
       ) : (
         <div className="space-y-1 text-sm">
-          <label className="flex items-start gap-2 py-1">
-            <input
-              type="radio"
-              name={`fb-${automationId}`}
-              checked={choice === "AUTO"}
-              onChange={() => setChoice("AUTO")}
-              className="mt-0.5 h-4 w-4 border-zinc-300 text-teal-700"
-            />
-            <span>
-              Automático — Página vinculada a esta conta do Instagram
-              <span className="block text-xs text-zinc-500">
-                {linked.length > 0
-                  ? `Publica também em: ${linked.map((page) => page.pageName).join(", ")}.`
-                  : "Nenhuma Página conectada está vinculada a esta conta: as publicações vão só para o Instagram."}
-              </span>
-            </span>
-          </label>
+          {legacyAuto ? (
+            <p className="rounded-md bg-amber-50 px-2 py-1 text-xs text-amber-900">
+              O modo &quot;Automático&quot; (Página vinculada ao Instagram) foi desativado. Esta automação publica só no
+              Instagram até você escolher explicitamente a Página do Facebook.
+            </p>
+          ) : null}
           <label className="flex items-start gap-2 py-1">
             <input
               type="radio"
@@ -150,7 +141,10 @@ export function AutomationFacebookPanel({
           </label>
           {choice === "PAGES" ? (
             <div className="ml-6 space-y-1">
-              {connected.map((page) => (
+              {selectable.length === 0 ? (
+                <p className="text-xs text-zinc-500">Nenhuma Página autorizada para esta conta do Instagram.</p>
+              ) : null}
+              {selectable.map((page) => (
                 <label key={page.id} className="flex items-center gap-2">
                   <input
                     type="checkbox"

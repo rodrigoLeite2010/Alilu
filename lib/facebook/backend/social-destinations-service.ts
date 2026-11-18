@@ -1,9 +1,11 @@
 import "server-only";
+import { getFacebookPageForUser } from "@/lib/facebook/backend/facebook-page-repository";
 import {
-  getFacebookPageForUser,
-  listConnectedPagesForInstagramAccount,
-  type FacebookPageRecord,
-} from "@/lib/facebook/backend/facebook-page-repository";
+  DestinationAuthorizationError,
+  authorizeFacebookPagesForAccount,
+  filterAuthorizedFacebookPages,
+  getPostInstagramAccountId,
+} from "@/lib/facebook/backend/destination-authorization";
 import { getPostDetailsForUser } from "@/lib/instagram/backend/instagram-post-repository";
 import { logPublicationEvent } from "@/lib/instagram/backend/publication-log";
 import {
@@ -13,6 +15,7 @@ import {
   listDestinationsForUser,
   resetFacebookDestinationsAfterEdit,
   setFacebookDestinations,
+  UNAUTHORIZED_DESTINATION_REASON,
   type DestinationSummary,
   type FacebookDestinationInput,
 } from "@/lib/facebook/backend/social-destination-repository";
@@ -95,9 +98,53 @@ export function assertFacebookSupports(postType: FacebookPostKind, hasVideoItems
   if (!support.supported) throw new SocialDestinationsError(support.reason);
 }
 
+/** Validação prévia (sem gravar nada) das Páginas pedidas para uma publicação existente. */
+export async function assertFacebookDestinationsAllowedForPost(postId: string, userId: string, pageIds: string[]): Promise<void> {
+  if (pageIds.length === 0) return;
+  const instagramAccountId = await getPostInstagramAccountId(postId, userId);
+  if (!instagramAccountId) throw new SocialDestinationsError("Publicação não encontrada.");
+  try {
+    await authorizeFacebookPagesForAccount({ userId, instagramAccountId, pageRefs: pageIds, source: "manual", publicationId: postId });
+  } catch (error) {
+    if (error instanceof DestinationAuthorizationError) throw new SocialDestinationsError(error.message);
+    throw error;
+  }
+}
+
+/**
+ * Grava os destinos Facebook ESCOLHIDOS na publicação. Cada Página passa
+ * pela autorização do servidor contra a conta Instagram DA PUBLICAÇÃO
+ * (perfil de destinos / "categoria"); uma Página negada interrompe tudo
+ * com a mensagem do motivo — nunca é trocada por outra. Lista vazia remove
+ * os destinos ainda não enviados (somente Instagram).
+ */
 export async function applyFacebookDestinations(postId: string, userId: string, request: SocialDestinationsRequest): Promise<void> {
-  const pages = await resolveFacebookPages(userId, request.facebookPageIds);
-  await setFacebookDestinations(postId, userId, pages, request.facebookCaption);
+  let pages: FacebookDestinationInput[] = [];
+  if (request.facebookPageIds.length > 0) {
+    const instagramAccountId = await getPostInstagramAccountId(postId, userId);
+    if (!instagramAccountId) throw new SocialDestinationsError("Publicação não encontrada.");
+    try {
+      pages = await authorizeFacebookPagesForAccount({
+        userId,
+        instagramAccountId,
+        pageRefs: request.facebookPageIds,
+        source: "manual",
+        publicationId: postId,
+      });
+    } catch (error) {
+      if (error instanceof DestinationAuthorizationError) throw new SocialDestinationsError(error.message);
+      throw error;
+    }
+  }
+  await setFacebookDestinations(postId, userId, pages, request.facebookCaption, "manual");
+  logPublicationEvent({
+    event: "facebook.destinations.selected",
+    platform: "facebook",
+    publicationId: postId,
+    selectionSource: "manual",
+    claimed: pages.length,
+    status: request.instagram ? "INSTAGRAM_ON" : "INSTAGRAM_OFF",
+  });
 }
 
 export { cancelFacebookDestinations, resetFacebookDestinationsAfterEdit };
@@ -105,13 +152,15 @@ export { cancelFacebookDestinations, resetFacebookDestinationsAfterEdit };
 export interface AutomaticFacebookDestinationsInput {
   postId: string;
   userId: string;
-  /** Conta Instagram de destino da publicação (modo automático usa as Páginas vinculadas a ela). */
+  /** Conta Instagram de destino da publicação (a autorização é feita contra ela). */
   instagramAccountId: string;
   /**
-   * Configuração de destino Facebook da automação:
-   *   null  = automático (Páginas conectadas vinculadas à conta Instagram);
+   * Destino Facebook configurado na automação:
+   *   null  = nada configurado → NÃO publica no Facebook (o antigo modo
+   *           "Automático", que usava a Página vinculada ao Instagram, foi
+   *           removido: vínculo não é autorização);
    *   []    = não publicar no Facebook;
-   *   [ids] = estas Páginas (facebook_pages.id).
+   *   [ids] = exatamente estas Páginas (facebook_pages.id), se autorizadas.
    */
   facebookPageIds: string[] | null;
 }
@@ -120,53 +169,54 @@ export interface AutomaticFacebookDestinationsResult {
   /** Destinos efetivamente criados agora (0 em retry: já existiam). */
   created: number;
   /** Por que nada foi criado (para log/diagnóstico). */
-  skipped?: "disabled" | "no_pages" | "unsupported" | "post_not_found";
-}
-
-function usablePage(page: FacebookPageRecord | null, userId: string): page is FacebookPageRecord {
-  return Boolean(page && page.userId === userId && page.hasToken && page.status === "connected");
+  skipped?: "disabled" | "not_configured" | "no_pages" | "unsupported" | "post_not_found";
+  /** Páginas configuradas mas negadas pela autorização (nunca substituídas). */
+  rejected?: number;
 }
 
 /**
- * Publicações AUTOMÁTICAS (Piloto Automático): grava os destinos Facebook
- * conforme a configuração da automação, no momento em que a publicação é
- * criada. A partir daí o MESMO agendador e a MESMA camada de publicação do
- * Facebook usados por "Publicar agora" (publishFacebookDestination) cuidam
- * do resto — não existe um segundo caminho de publicação.
+ * Publicações AUTOMÁTICAS (Piloto Automático): grava SOMENTE as Páginas
+ * escolhidas explicitamente na automação e autorizadas para a conta
+ * Instagram. A partir daí o MESMO agendador e a MESMA camada de publicação
+ * (publishFacebookDestination) cuidam do resto.
  *
  * - Respeita o formato: Story (e carrossel com vídeo) não vão ao Facebook.
  * - Idempotente: rodar de novo para a mesma publicação nunca duplica destino.
- * - Página desconectada/sem token é ignorada (o Instagram segue normalmente).
+ * - Página desconectada/negada é ignorada e registrada (o Instagram segue).
  */
 export async function attachAutomaticFacebookDestinations(
   input: AutomaticFacebookDestinationsInput,
 ): Promise<AutomaticFacebookDestinationsResult> {
-  if (Array.isArray(input.facebookPageIds) && input.facebookPageIds.length === 0) return { created: 0, skipped: "disabled" };
-
-  const pages: FacebookPageRecord[] = [];
   if (input.facebookPageIds === null) {
-    pages.push(...(await listConnectedPagesForInstagramAccount(input.userId, input.instagramAccountId)));
-  } else {
-    for (const id of [...new Set(input.facebookPageIds)]) {
-      const page = await getFacebookPageForUser(id, input.userId);
-      if (usablePage(page, input.userId)) pages.push(page);
-      else logPublicationEvent({ event: "facebook.automation.page_unavailable", platform: "facebook", publicationId: input.postId, status: "SKIPPED" });
-    }
+    logPublicationEvent({ event: "facebook.automation.not_configured", platform: "facebook", publicationId: input.postId, instagramAccountId: input.instagramAccountId, status: "SKIPPED" });
+    return { created: 0, skipped: "not_configured" };
   }
-  if (pages.length === 0) return { created: 0, skipped: "no_pages" };
+  if (input.facebookPageIds.length === 0) return { created: 0, skipped: "disabled" };
+
+  const { pages, rejected } = await filterAuthorizedFacebookPages({
+    userId: input.userId,
+    instagramAccountId: input.instagramAccountId,
+    pageRefs: input.facebookPageIds,
+    source: "automation",
+    publicationId: input.postId,
+  });
+  if (pages.length === 0) return { created: 0, skipped: "no_pages", rejected: rejected.length };
 
   const details = await getPostDetailsForUser(input.postId, input.userId);
   if (!details) return { created: 0, skipped: "post_not_found" };
   const support = facebookSupportFor(details.postType, details.items.some((item) => item.mediaType === "video"));
   if (!support.supported) return { created: 0, skipped: "unsupported" };
 
-  const created = await addFacebookDestinationsIfMissing(
-    input.postId,
-    input.userId,
-    pages.map((page) => ({ facebookPageRef: page.id, pageId: page.pageId, pageName: page.pageName })),
-  );
-  logPublicationEvent({ event: "facebook.automation.destinations", platform: "facebook", publicationId: input.postId, claimed: created });
-  return { created };
+  const created = await addFacebookDestinationsIfMissing(input.postId, input.userId, pages, null, "automation");
+  logPublicationEvent({
+    event: "facebook.automation.destinations",
+    platform: "facebook",
+    publicationId: input.postId,
+    instagramAccountId: input.instagramAccountId,
+    selectionSource: "automation",
+    claimed: created,
+  });
+  return { created, rejected: rejected.length };
 }
 
 export function toDestinationView(row: DestinationSummary): PublicationDestinationView {
@@ -183,6 +233,7 @@ export function toDestinationView(row: DestinationSummary): PublicationDestinati
     needsReconnect: needsPageReconnect(row.lastErrorReason),
     captionOverride: row.captionOverride,
     facebookPageRef: row.facebookPageRef,
+    blocked: row.status === "CANCELLED" && row.lastErrorReason === UNAUTHORIZED_DESTINATION_REASON,
   };
 }
 

@@ -486,6 +486,7 @@ export function ReelsComposer({
           onChange={setDestinations}
           postType="reels"
           instagramLabel={instagramLabel}
+          suggestDefaults
           returnPath="/instagram/reels"
           disabled={busy}
         />

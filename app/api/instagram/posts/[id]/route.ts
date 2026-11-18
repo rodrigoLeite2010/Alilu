@@ -13,6 +13,7 @@ import { setPostPublishToInstagram } from "@/lib/instagram/backend/instagram-pos
 import {
   SocialDestinationsError,
   applyFacebookDestinations,
+  assertFacebookDestinationsAllowedForPost,
   assertFacebookSupports,
   readSocialDestinations,
   resolveFacebookPages,
@@ -123,7 +124,11 @@ export async function PATCH(request: Request, { params }: RouteParams): Promise<
         return NextResponse.json({ error: destinationsResult.error }, { status: 400 });
       }
       const destinations = destinationsResult.value;
-      if (destinations && destinations.facebookPageIds.length > 0) await resolveFacebookPages(userId, destinations.facebookPageIds);
+      if (destinations && destinations.facebookPageIds.length > 0) {
+        await resolveFacebookPages(userId, destinations.facebookPageIds);
+        // Autorização contra a conta Instagram da publicação ANTES de alterar qualquer coisa.
+        await assertFacebookDestinationsAllowedForPost(id, userId, destinations.facebookPageIds);
+      }
       const result = await updatePost({
         postId: id,
         userId,

@@ -18,7 +18,11 @@ export interface PublicationDestinationView {
   needsReconnect: boolean;
   captionOverride: string | null;
   facebookPageRef: string | null;
+  /** Barrado pela autorização antes da API (nenhuma chamada ao Facebook). */
+  blocked?: boolean;
 }
+
+export const BLOCKED_DESTINATION_LABEL = "Bloqueado — destino não autorizado (nada enviado)";
 
 export const DESTINATION_STATUS_LABEL: Record<DestinationViewStatus, string> = {
   SCHEDULED: "Agendado",

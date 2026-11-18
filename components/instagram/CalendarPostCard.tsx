@@ -364,7 +364,8 @@ export function CalendarPostCard({
           <p className="text-xs text-amber-700">Nova tentativa automática em {retryLabel}.</p>
         ) : null}
 
-        {current.destinations && current.destinations.length > 0 ? (
+        {/* Destinos efetivamente processados — "Facebook: não selecionado" quando não há destino. */}
+        {current.destinations ? (
           <PublicationDestinationsStatus
             instagram={
               current.publishToInstagram === false

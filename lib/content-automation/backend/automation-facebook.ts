@@ -11,8 +11,10 @@ import type { AutomationRecord } from "./automation-types";
  * por esse agendador quando a publicação TEM um destino Facebook em
  * social_publication_destinations — exatamente como acontece quando a
  * pessoa marca "Facebook" ao criar uma publicação manual. Esta função grava
- * esses destinos para as publicações do Piloto, conforme a configuração da
- * automação (`facebookPageIds`). Nada é publicado aqui.
+ * esses destinos para as publicações do Piloto SOMENTE com as Páginas
+ * escolhidas explicitamente na automação (`facebookPageIds`) e autorizadas
+ * para a conta Instagram. `null` (nada configurado) = só Instagram.
+ * Nada é publicado aqui.
  *
  * NUNCA lança: uma falha ao preparar o Facebook não pode impedir a
  * publicação no Instagram, que já foi criada.

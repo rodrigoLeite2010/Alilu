@@ -37,7 +37,12 @@ export interface DestinationSummary {
   publishedAt: string | null;
   lastErrorSanitized: string | null;
   lastErrorReason: string | null;
+  /** Origem da escolha (manual | automation | video_queue | legacy | automation_auto_legacy). */
+  selectionSource: string;
 }
+
+/** Motivo gravado quando o destino é barrado antes da API (nenhuma chamada à Meta). */
+export const UNAUTHORIZED_DESTINATION_REASON = "unauthorized_destination";
 
 const iso = (value: unknown) => (value ? new Date(value as string).toISOString() : null);
 
@@ -59,8 +64,11 @@ function mapSummary(row: Record<string, unknown>): DestinationSummary {
     publishedAt: iso(row.published_at),
     lastErrorSanitized: (row.last_error_sanitized as string | null) ?? null,
     lastErrorReason: (row.last_error_reason as string | null) ?? null,
+    selectionSource: (row.selection_source as string | null) ?? "legacy",
   };
 }
+
+export type DestinationSelectionSourceValue = "manual" | "automation" | "video_queue";
 
 export interface FacebookDestinationInput {
   facebookPageRef: string;
@@ -81,6 +89,7 @@ export async function setFacebookDestinations(
   userId: string,
   pages: FacebookDestinationInput[],
   captionOverride: string | null,
+  selectionSource: DestinationSelectionSourceValue = "manual",
 ): Promise<void> {
   const db = getDb();
   const keep = new Set(pages.map((page) => page.pageId));
@@ -101,12 +110,16 @@ export async function setFacebookDestinations(
   const caption = captionOverride && captionOverride.trim() ? captionOverride : null;
   for (const page of pages) {
     await db`
-      insert into social_publication_destinations (post_id, user_id, platform, facebook_page_ref, external_account_id, account_name, caption_override)
-      values (${postId}, ${userId}, 'facebook', ${page.facebookPageRef}, ${page.pageId}, ${page.pageName}, ${caption})
+      insert into social_publication_destinations (post_id, user_id, platform, facebook_page_ref, external_account_id, account_name, caption_override, selection_source)
+      values (${postId}, ${userId}, 'facebook', ${page.facebookPageRef}, ${page.pageId}, ${page.pageName}, ${caption}, ${selectionSource})
       on conflict (post_id, platform, external_account_id) do update set
         caption_override = excluded.caption_override,
         facebook_page_ref = excluded.facebook_page_ref,
         account_name = excluded.account_name,
+        -- Escolha explícita refeita agora: passa a valer a nova origem.
+        selection_source = excluded.selection_source,
+        last_error_sanitized = case when social_publication_destinations.status in ('FAILED', 'CANCELLED') then null else social_publication_destinations.last_error_sanitized end,
+        last_error_reason = case when social_publication_destinations.status in ('FAILED', 'CANCELLED') then null else social_publication_destinations.last_error_reason end,
         status = case when social_publication_destinations.status in ('FAILED', 'CANCELLED') then 'SCHEDULED' else social_publication_destinations.status end,
         attempts_count = case when social_publication_destinations.status in ('FAILED', 'CANCELLED') then 0 else social_publication_destinations.attempts_count end,
         next_attempt_at = case when social_publication_destinations.status in ('FAILED', 'CANCELLED') then null else social_publication_destinations.next_attempt_at end,
@@ -129,14 +142,15 @@ export async function addFacebookDestinationsIfMissing(
   userId: string,
   pages: FacebookDestinationInput[],
   captionOverride: string | null = null,
+  selectionSource: DestinationSelectionSourceValue = "automation",
 ): Promise<number> {
   const db = getDb();
   const caption = captionOverride && captionOverride.trim() ? captionOverride : null;
   let created = 0;
   for (const page of pages) {
     const rows = await db`
-      insert into social_publication_destinations (post_id, user_id, platform, facebook_page_ref, external_account_id, account_name, caption_override)
-      select ${postId}, ${userId}, 'facebook', ${page.facebookPageRef}, ${page.pageId}, ${page.pageName}, ${caption}
+      insert into social_publication_destinations (post_id, user_id, platform, facebook_page_ref, external_account_id, account_name, caption_override, selection_source)
+      select ${postId}, ${userId}, 'facebook', ${page.facebookPageRef}, ${page.pageId}, ${page.pageName}, ${caption}, ${selectionSource}
       where exists (select 1 from instagram_posts p where p.id = ${postId} and p.user_id = ${userId})
       on conflict (post_id, platform, external_account_id) do nothing
       returning id
@@ -477,21 +491,54 @@ export async function getDestinationStatus(id: string, userId: string): Promise<
   return rows[0] ? (rows[0].status as DestinationStatus) : null;
 }
 
+export interface AttemptAuditFields {
+  /** Lock da tentativa: identifica a execução (cron/manual) — não é segredo. */
+  executionId?: string | null;
+  instagramAccountId?: string | null;
+  facebookPageRef?: string | null;
+  externalAccountId?: string | null;
+  selectionSource?: string | null;
+  /** false = bloqueado antes da API; true = a Meta foi chamada nesta tentativa. */
+  apiCalled?: boolean | null;
+}
+
 export async function recordDestinationAttempt(input: {
   destinationId: string;
   trigger: string;
-  outcome: "success" | "failure" | "pending" | "reconciled";
+  outcome: "success" | "failure" | "pending" | "reconciled" | "blocked";
   errorSanitized?: string | null;
   errorReason?: string | null;
   metaCode?: number | null;
   externalId?: string | null;
-}): Promise<void> {
+} & AttemptAuditFields): Promise<void> {
   const db = getDb();
   await db`
-    insert into social_publication_attempts (destination_id, trigger, outcome, error_sanitized, error_reason, meta_code, external_id)
+    insert into social_publication_attempts (destination_id, trigger, outcome, error_sanitized, error_reason, meta_code, external_id,
+      execution_id, instagram_account_id, facebook_page_ref, external_account_id, selection_source, api_called)
     values (${input.destinationId}, ${input.trigger}, ${input.outcome}, ${input.errorSanitized ?? null},
-      ${input.errorReason ?? null}, ${input.metaCode ?? null}, ${input.externalId ?? null})
+      ${input.errorReason ?? null}, ${input.metaCode ?? null}, ${input.externalId ?? null},
+      ${input.executionId ?? null}, ${input.instagramAccountId ?? null}, ${input.facebookPageRef ?? null},
+      ${input.externalAccountId ?? null}, ${input.selectionSource ?? null}, ${input.apiCalled ?? null})
   `;
+}
+
+/**
+ * Destino barrado pela autorização ANTES de qualquer chamada à Meta:
+ * CANCELLED com motivo fixo. Nunca volta sozinho para a fila (só se a
+ * pessoa escolher a Página de novo, explicitamente). Exige o lock.
+ */
+export async function markDestinationBlocked(id: string, lockToken: string, message: string): Promise<boolean> {
+  const db = getDb();
+  const rows = await db`
+    update social_publication_destinations
+    set status = 'CANCELLED', last_error_sanitized = ${message}, last_error_reason = ${UNAUTHORIZED_DESTINATION_REASON},
+        next_attempt_at = null, release_at = null, processing_lock_token = null, processing_lock_expires_at = null, updated_at = now()
+    where id = ${id} and processing_lock_token = ${lockToken}
+      -- Um POST pendente de reconciliação nunca é "esquecido" aqui.
+      and request_started_at is null and external_upload_id is null
+    returning id
+  `;
+  return rows.length > 0;
 }
 
 export interface DestinationAttempt {
@@ -500,12 +547,15 @@ export interface DestinationAttempt {
   outcome: string;
   errorSanitized: string | null;
   errorReason: string | null;
+  executionId: string | null;
+  apiCalled: boolean | null;
+  externalId: string | null;
 }
 
 export async function listDestinationAttempts(destinationId: string, userId: string, limit = 20): Promise<DestinationAttempt[]> {
   const db = getDb();
   const rows = await db`
-    select a.attempted_at, a.trigger, a.outcome, a.error_sanitized, a.error_reason
+    select a.attempted_at, a.trigger, a.outcome, a.error_sanitized, a.error_reason, a.execution_id, a.api_called, a.external_id
     from social_publication_attempts a
     join social_publication_destinations d on d.id = a.destination_id
     where a.destination_id = ${destinationId} and d.user_id = ${userId}
@@ -518,6 +568,9 @@ export async function listDestinationAttempts(destinationId: string, userId: str
     outcome: row.outcome as string,
     errorSanitized: (row.error_sanitized as string | null) ?? null,
     errorReason: (row.error_reason as string | null) ?? null,
+    executionId: (row.execution_id as string | null) ?? null,
+    apiCalled: row.api_called === null || row.api_called === undefined ? null : Boolean(row.api_called),
+    externalId: (row.external_id as string | null) ?? null,
   }));
 }
 

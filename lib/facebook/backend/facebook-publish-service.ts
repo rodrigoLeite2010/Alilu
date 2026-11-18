@@ -27,6 +27,7 @@ import {
 import { assertReelCompatible, prepareFacebookImageUrl } from "@/lib/facebook/backend/facebook-media";
 import { facebookSupportFor, FACEBOOK_MAX_PHOTOS_PER_POST } from "@/lib/facebook/facebook-media-rules";
 import { setFacebookPageStatus } from "@/lib/facebook/backend/facebook-page-repository";
+import { authorizeAtPublishTime, loadPublishTimeContext } from "@/lib/facebook/backend/destination-authorization";
 import {
   claimDestinationForManualPublish,
   claimNextDueDestination,
@@ -34,6 +35,7 @@ import {
   getDestinationForPublish,
   getDestinationStatus,
   listDestinationsForPost,
+  markDestinationBlocked,
   markDestinationFailed,
   markDestinationPublished,
   markDestinationRequestStarted,
@@ -64,6 +66,11 @@ import {
  *     são atreladas a ele — retomadas nunca criam um segundo Reel.
  *  6. Sem espera longa dentro da função serverless: o estado do Reel é
  *     consultado uma vez por execução; o agendador retoma em ~60 s.
+ *  7. AUTORIZAÇÃO ANTES DA API: o destino persistido é revalidado
+ *     (Página do mesmo usuário, mesmo id externo, permitida para a conta
+ *     Instagram da publicação, escolha explícita). Negado → CANCELLED com
+ *     motivo "unauthorized_destination", tentativa "blocked" registrada e
+ *     NENHUMA chamada à Meta. Nunca há troca por outra Página.
  */
 
 export type FacebookPublishOutcome = "PUBLISHED" | "PROCESSING" | "RETRY_SCHEDULED";
@@ -274,7 +281,50 @@ export async function publishFacebookDestination(
     );
   }
 
-  const logBase = { platform: "facebook", destinationId, publicationId: claimed.postId, trigger: options.trigger, attempt: claimed.attemptsCount + 1 };
+  const auth = await loadPublishTimeContext(destinationId, userId);
+  const audit = {
+    executionId: lockToken,
+    instagramAccountId: auth?.instagramAccountId ?? null,
+    facebookPageRef: auth?.facebookPageRef ?? null,
+    externalAccountId: auth?.externalAccountId ?? null,
+    selectionSource: auth?.selectionSource ?? null,
+  };
+  const logBase = {
+    platform: "facebook",
+    destinationId,
+    publicationId: claimed.postId,
+    trigger: options.trigger,
+    attempt: claimed.attemptsCount + 1,
+    executionId: lockToken,
+    instagramAccountId: auth?.instagramAccountId,
+    facebookPageRef: auth?.facebookPageRef ?? undefined,
+    externalAccountId: auth?.externalAccountId,
+    selectionSource: auth?.selectionSource,
+  };
+
+  // 7. Autorização imediatamente antes de qualquer chamada à Meta.
+  if (auth) {
+    const decision = await authorizeAtPublishTime(auth);
+    if (!decision.allowed) {
+      const blocked = await markDestinationBlocked(destinationId, lockToken, decision.message);
+      if (!blocked) {
+        // Já havia um envio em andamento: nada novo sai; a pessoa confere a Página.
+        await markDestinationFailed(destinationId, lockToken, decision.message, "unauthorized_destination", "NEEDS_REVIEW");
+      }
+      await recordDestinationAttempt({
+        destinationId,
+        trigger: options.trigger,
+        outcome: "blocked",
+        errorSanitized: decision.message,
+        errorReason: decision.reason,
+        ...audit,
+        apiCalled: false,
+      });
+      await syncFacebookOnlyParentStatus(auth.postId);
+      logPublicationEvent({ ...logBase, event: "facebook.publish.blocked", status: "BLOCKED", errorKind: decision.reason, apiCalled: false });
+      throw new FacebookPublishError(decision.message, "unauthorized_destination");
+    }
+  }
   logPublicationEvent({ ...logBase, event: "facebook.publish.start", status: "PROCESSING" });
 
   const dest = await getDestinationForPublish(destinationId, userId);
@@ -295,9 +345,9 @@ export async function publishFacebookDestination(
 
     if (result.status === "PUBLISHED") {
       await markDestinationPublished(dest.id, lockToken, result.externalId, result.url);
-      await recordDestinationAttempt({ destinationId: dest.id, trigger: options.trigger, outcome: result.reconciled ? "reconciled" : "success", externalId: result.externalId });
+      await recordDestinationAttempt({ destinationId: dest.id, trigger: options.trigger, outcome: result.reconciled ? "reconciled" : "success", externalId: result.externalId, ...audit, apiCalled: true });
       await syncFacebookOnlyParentStatus(dest.postId);
-      logPublicationEvent({ ...logBase, event: "facebook.publish.done", status: "PUBLISHED" });
+      logPublicationEvent({ ...logBase, event: "facebook.publish.done", status: "PUBLISHED", externalId: result.externalId, apiCalled: true });
       return "PUBLISHED";
     }
 
@@ -310,7 +360,7 @@ export async function publishFacebookDestination(
       );
     }
     await releaseDestinationForResume(dest.id, lockToken, new Date(now().getTime() + RESUME_DELAY_MS));
-    await recordDestinationAttempt({ destinationId: dest.id, trigger: options.trigger, outcome: "pending" });
+    await recordDestinationAttempt({ destinationId: dest.id, trigger: options.trigger, outcome: "pending", ...audit, apiCalled: true });
     await syncFacebookOnlyParentStatus(dest.postId);
     logPublicationEvent({ ...logBase, event: "facebook.publish.pending", status: "PROCESSING" });
     return "PROCESSING";
@@ -332,7 +382,7 @@ export async function publishFacebookDestination(
         : computeNextRetryAt(claimed.attemptsCount, now());
       if (retryAt) {
         await scheduleDestinationRetry(destinationId, lockToken, classified.message, classified.reason, retryAt);
-        await recordDestinationAttempt({ destinationId, trigger: options.trigger, outcome: "failure", errorSanitized: classified.message, errorReason: classified.reason, metaCode: classified.metaCode });
+        await recordDestinationAttempt({ destinationId, trigger: options.trigger, outcome: "failure", errorSanitized: classified.message, errorReason: classified.reason, metaCode: classified.metaCode, ...audit, apiCalled: Boolean(ctx?.token) });
         if (dest) await syncFacebookOnlyParentStatus(dest.postId);
         logPublicationEvent({ ...logBase, event: "facebook.publish.retry_scheduled", status: "SCHEDULED", nextAttemptAt: retryAt.toISOString() });
         return "RETRY_SCHEDULED";
@@ -347,7 +397,7 @@ export async function publishFacebookDestination(
       await saveDestinationProgress(destinationId, lockToken, { externalChildrenIds: null, phase: null }).catch(() => undefined);
     }
     await markDestinationFailed(destinationId, lockToken, classified.message, classified.reason, finalStatus);
-    await recordDestinationAttempt({ destinationId, trigger: options.trigger, outcome: "failure", errorSanitized: classified.message, errorReason: classified.reason, metaCode: classified.metaCode });
+    await recordDestinationAttempt({ destinationId, trigger: options.trigger, outcome: "failure", errorSanitized: classified.message, errorReason: classified.reason, metaCode: classified.metaCode, ...audit, apiCalled: Boolean(ctx?.token) });
     if (dest) await syncFacebookOnlyParentStatus(dest.postId);
     logPublicationEvent({ ...logBase, event: "facebook.publish.failed", status: finalStatus });
     throw new FacebookPublishError(classified.message, classified.reason);

@@ -573,6 +573,7 @@ export function PublicationComposerPanel({
           }}
           postType="image"
           instagramLabel={accountLabel}
+          suggestDefaults={!editingPostId}
           returnPath={returnPath}
           disabled={busy}
           onConnect={(href) => void leaveForAuth(href)}

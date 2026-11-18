@@ -150,10 +150,10 @@ type Seed = Awaited<ReturnType<typeof seedUserWithAccount>>;
 
 const VERTICAL = { mediaType: "VIDEO", durationSeconds: 30, width: 1080, height: 1920, videoCodec: "h264", hasAudio: true };
 
-async function seedPage(seed: Seed, options: { pageId?: string; name?: string; status?: string } = {}) {
+async function seedPage(seed: Seed, options: { pageId?: string; name?: string; status?: string; linkedTo?: string } = {}) {
   const [row] = await db.sql`
     insert into facebook_pages (user_id, page_id, page_name, page_access_token_encrypted, facebook_user_id, status, instagram_account_id)
-    values (${seed.userId}, ${options.pageId ?? "page-gta"}, ${options.name ?? "GTA 6 BR"}, 'page-token', 'fb-user', ${options.status ?? "connected"}, ${seed.accountId})
+    values (${seed.userId}, ${options.pageId ?? "page-gta"}, ${options.name ?? "GTA 6 BR"}, 'page-token', 'fb-user', ${options.status ?? "connected"}, ${options.linkedTo ?? seed.accountId})
     returning id`;
   return row.id as string;
 }
@@ -500,7 +500,9 @@ describe("programação e publicação automática", () => {
     const seed = await seedUserWithAccount(db);
     const techAccount = await seedSecondAccount(seed, "alilu_tech");
     const gtaPage = await seedPage(seed, { pageId: "page-gta", name: "GTA 6 BR" });
-    const techPage = await seedPage(seed, { pageId: "page-tech", name: "Alilu Tecnologia" });
+    // Cada Página vinculada (pela Meta) à SUA conta Instagram: a Página de uma
+    // conta não pode ser usada por outra sem autorização explícita.
+    const techPage = await seedPage(seed, { pageId: "page-tech", name: "Alilu Tecnologia", linkedTo: techAccount });
     const gta = await createQueue(seed, { links: links(3, "gta"), facebookPageIds: [gtaPage] });
     const tech = await createQueue(seed, { name: "Tecnologia", theme: "outros-jogos", instagramAccountId: techAccount, facebookPageIds: [techPage], links: links(3, "tech") });
     await importAll();
@@ -523,6 +525,10 @@ describe("programação e publicação automática", () => {
     // Conta/Página de outro usuário não pode ser usada.
     await expect(createQueue(other, { instagramAccountId: seed.accountId })).rejects.toThrow(/não foi encontrada/);
     await expect(createQueue(other, { facebookPageIds: [gtaPage] })).rejects.toThrow(/Página/);
+    // A Página da conta GTA não pode ser usada numa fila da conta de Tecnologia.
+    await expect(
+      createQueue(seed, { name: "Mistura", theme: "outros-jogos", instagramAccountId: techAccount, facebookPageIds: [gtaPage], links: links(1, "mix") }),
+    ).rejects.toThrow(/outra conta do Instagram/);
   });
 
   it("falha só no Facebook: o Instagram publica uma vez e nunca é repetido; cada destino tem status próprio", async () => {

@@ -109,7 +109,7 @@ async function seedPage(seed: Seed, options: { linked?: boolean; pageId?: string
   return row.id as string;
 }
 
-async function automation(seed: Seed, options: { contentType?: "POST" | "STORY" | "REEL"; requireApproval?: boolean } = {}) {
+async function automation(seed: Seed, options: { contentType?: "POST" | "STORY" | "REEL"; requireApproval?: boolean; pages?: string[] } = {}) {
   const requireApproval = options.requireApproval ?? false;
   const id = await repo.createAutomation({
     userId: seed.userId,
@@ -133,6 +133,8 @@ async function automation(seed: Seed, options: { contentType?: "POST" | "STORY" 
     publishTime: "19:00",
   });
   await repo.setAutomationStatus(id, seed.userId, "ACTIVE");
+  // Escolha EXPLÍCITA das Páginas (o antigo modo "Automático" não existe mais).
+  if (options.pages) await service.updateAutomationFacebookPages(id, seed.userId, options.pages);
   return id;
 }
 
@@ -175,10 +177,10 @@ afterEach(async () => {
 });
 
 describe("Piloto Automático agendado → Instagram + Facebook", () => {
-  it("causa raiz: a publicação do Piloto ganha o destino da Página vinculada e o agendador publica nas DUAS redes", async () => {
+  it("Página escolhida explicitamente na automação: o agendador publica nas DUAS redes", async () => {
     const seed = await seedUserWithAccount(db);
     const pageRef = await seedPage(seed);
-    await automation(seed);
+    await automation(seed, { pages: [pageRef] });
 
     const [result] = await cron.runContentAutomationCron({ now: NOW });
     expect(result.status).toBe("SCHEDULED");
@@ -202,12 +204,14 @@ describe("Piloto Automático agendado → Instagram + Facebook", () => {
     );
     const attempts = await db.sql`select trigger, outcome from social_publication_attempts`;
     expect(attempts).toEqual([{ trigger: "scheduler", outcome: "success" }]);
+    const [audit] = await db.sql`select selection_source from social_publication_destinations where post_id = ${postId}`;
+    expect(audit.selection_source).toBe("automation");
   });
 
   it("sem duplicidade: reprocessar (cron de geração e agendadores de novo) nunca cria outro destino nem outro post", async () => {
     const seed = await seedUserWithAccount(db);
-    await seedPage(seed);
-    await automation(seed);
+    const pageRef = await seedPage(seed);
+    await automation(seed, { pages: [pageRef] });
     await cron.runContentAutomationCron({ now: NOW });
     await cron.runContentAutomationCron({ now: NOW });
     const postId = await publicationId();
@@ -217,7 +221,7 @@ describe("Piloto Automático agendado → Instagram + Facebook", () => {
       postId,
       userId: seed.userId,
       instagramAccountId: seed.accountId,
-      facebookPageIds: null,
+      facebookPageIds: [pageRef],
     });
     expect(again.created).toBe(0);
     expect(await destinationsOf(postId)).toHaveLength(1);
@@ -231,8 +235,8 @@ describe("Piloto Automático agendado → Instagram + Facebook", () => {
 
   it("falha no Facebook não prejudica o Instagram e fica registrada separadamente", async () => {
     const seed = await seedUserWithAccount(db);
-    await seedPage(seed);
-    await automation(seed);
+    const pageRef = await seedPage(seed);
+    await automation(seed, { pages: [pageRef] });
     fb.publishPagePhoto.mockRejectedValue(new FakeFacebookGraphApiError("x", { error: { code: 100, message: "bad" } }));
     await cron.runContentAutomationCron({ now: NOW });
     const postId = await publicationId();
@@ -249,8 +253,8 @@ describe("Piloto Automático agendado → Instagram + Facebook", () => {
 
   it("falha ao preparar o Facebook nunca impede a criação/publicação no Instagram", async () => {
     const seed = await seedUserWithAccount(db);
-    await seedPage(seed);
-    await automation(seed);
+    const pageRef = await seedPage(seed);
+    await automation(seed, { pages: [pageRef] });
     vi.spyOn(destService, "attachAutomaticFacebookDestinations").mockRejectedValue(new Error("banco fora"));
     const [result] = await cron.runContentAutomationCron({ now: NOW });
     expect(result.status).toBe("SCHEDULED");
@@ -258,20 +262,29 @@ describe("Piloto Automático agendado → Instagram + Facebook", () => {
 });
 
 describe("respeita os destinos configurados", () => {
-  it("automático: Página conectada mas vinculada a OUTRA conta do Instagram não recebe a publicação", async () => {
+  it("CAUSA RAIZ: sem escolha explícita (coluna nula) NENHUMA Página é usada — nem a vinculada ao Instagram", async () => {
     const seed = await seedUserWithAccount(db);
-    await seedPage(seed, { linked: false });
+    await seedPage(seed); // Página conectada E vinculada à mesma conta do Instagram
     await automation(seed);
     await cron.runContentAutomationCron({ now: NOW });
-    expect(await destinationsOf(await publicationId())).toHaveLength(0);
+    const postId = await publicationId();
+    expect(await destinationsOf(postId)).toHaveLength(0);
     await runSchedulers();
+    expect((await readPost(postId)).status).toBe("PUBLISHED");
     expect(fb.publishPagePhoto).not.toHaveBeenCalled();
   });
 
-  it("automático: Página que precisa reconectar é ignorada (o Instagram segue)", async () => {
+  it("o modo automático (null) não pode mais ser salvo", async () => {
     const seed = await seedUserWithAccount(db);
-    await seedPage(seed, { status: "needs_reconnect" });
-    await automation(seed);
+    const id = await automation(seed);
+    await expect(service.updateAutomationFacebookPages(id, seed.userId, null)).rejects.toThrow(/automático foi removido/);
+  });
+
+  it("Página escolhida que passou a precisar reconectar é ignorada (o Instagram segue)", async () => {
+    const seed = await seedUserWithAccount(db);
+    const pageRef = await seedPage(seed);
+    await automation(seed, { pages: [pageRef] });
+    await db.sql`update facebook_pages set status = 'needs_reconnect' where id = ${pageRef}`;
     await cron.runContentAutomationCron({ now: NOW });
     expect(await destinationsOf(await publicationId())).toHaveLength(0);
   });
@@ -317,8 +330,8 @@ describe("respeita os destinos configurados", () => {
 
   it("Reel: grava o destino Facebook (publicado pelo fluxo de Reels da Página)", async () => {
     const seed = await seedUserWithAccount(db);
-    await seedPage(seed);
-    await automation(seed, { contentType: "REEL" });
+    const pageRef = await seedPage(seed);
+    await automation(seed, { contentType: "REEL", pages: [pageRef] });
     await cron.runContentAutomationCron({ now: NOW });
     const postId = await publicationId();
     expect((await readPost(postId)).post_type).toBe("reels");
@@ -327,11 +340,11 @@ describe("respeita os destinos configurados", () => {
 
   it("carrossel de fotos: aceito; carrossel com vídeo: ignorado", async () => {
     const seed = await seedUserWithAccount(db);
-    await seedPage(seed);
+    const pageRef = await seedPage(seed);
     const base = { userId: seed.userId, instagramAccountId: seed.accountId, caption: "c", scheduledAtUtc: null, timezone: "America/Sao_Paulo" };
     const photos = await postRepo.createDraftCarouselPost({ ...base, mediaIds: [seed.mediaId, seed.mediaId] });
     const mixed = await postRepo.createDraftCarouselPost({ ...base, mediaIds: [seed.mediaId, seed.videoId] });
-    const input = { userId: seed.userId, instagramAccountId: seed.accountId, facebookPageIds: null };
+    const input = { userId: seed.userId, instagramAccountId: seed.accountId, facebookPageIds: [pageRef] };
     expect((await destService.attachAutomaticFacebookDestinations({ ...input, postId: photos })).created).toBe(1);
     expect(await destService.attachAutomaticFacebookDestinations({ ...input, postId: mixed })).toEqual({ created: 0, skipped: "unsupported" });
   });
@@ -340,8 +353,8 @@ describe("respeita os destinos configurados", () => {
 describe("modo aprovação e agendamentos existentes", () => {
   it("aguardando aprovação: o Facebook não sai antes; depois de aprovado, publica com o Instagram", async () => {
     const seed = await seedUserWithAccount(db);
-    await seedPage(seed);
-    await automation(seed, { requireApproval: true });
+    const pageRef = await seedPage(seed);
+    await automation(seed, { requireApproval: true, pages: [pageRef] });
     await cron.runContentAutomationCron({ now: NOW });
     const postId = await publicationId();
     expect((await readPost(postId)).status).toBe("DRAFT");
@@ -366,9 +379,9 @@ describe("modo aprovação e agendamentos existentes", () => {
     await cron.runContentAutomationCron({ now: NOW });
     const postId = await publicationId();
 
-    // A Página é conectada e a automação volta para o modo automático DEPOIS.
-    await seedPage(seed);
-    await service.updateAutomationFacebookPages(id, seed.userId, null);
+    // A Página é conectada e escolhida na automação DEPOIS.
+    const pageRef = await seedPage(seed);
+    await service.updateAutomationFacebookPages(id, seed.userId, [pageRef]);
     await runSchedulers();
 
     expect((await readPost(postId)).status).toBe("PUBLISHED");
@@ -376,12 +389,18 @@ describe("modo aprovação e agendamentos existentes", () => {
     expect(fb.publishPagePhoto).not.toHaveBeenCalled();
   });
 
-  it("automações existentes (coluna nula após a migração) usam o modo automático", async () => {
+  it("automações existentes (coluna nula) passam a publicar SÓ no Instagram até a escolha explícita", async () => {
     const seed = await seedUserWithAccount(db);
+    await seedPage(seed);
     const id = await automation(seed);
     const [row] = await db.sql`select facebook_page_ids from content_automations where id = ${id}`;
     expect(row.facebook_page_ids).toBeNull();
     expect((await service.getAutomationDetails(id, seed.userId)).facebookPageIds).toBeNull();
+    const postId = await (async () => {
+      await cron.runContentAutomationCron({ now: NOW });
+      return publicationId();
+    })();
+    expect(await destinationsOf(postId)).toHaveLength(0);
   });
 });
 
@@ -395,8 +414,8 @@ describe("orçamento do Facebook dentro da função do cron", () => {
 
   it("orçamento 0: o agendador do Facebook não pega nenhum destino (fica para o próximo disparo)", async () => {
     const seed = await seedUserWithAccount(db);
-    await seedPage(seed);
-    await automation(seed);
+    const pageRef = await seedPage(seed);
+    await automation(seed, { pages: [pageRef] });
     await cron.runContentAutomationCron({ now: NOW });
     await igScheduler.runInstagramScheduler({ timeBudgetMs: 5_000 });
     expect(await fbService.runFacebookScheduler({ timeBudgetMs: 0 })).toEqual([]);

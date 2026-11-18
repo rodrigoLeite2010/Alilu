@@ -4,6 +4,7 @@ import { del as deleteBlob } from "@vercel/blob";
 import { getFacebookPageForUser } from "@/lib/facebook/backend/facebook-page-repository";
 import { destinationViewsByPost, resolveFacebookPages, SocialDestinationsError, type PublicationDestinationView } from "@/lib/facebook/backend/social-destinations-service";
 import { getInstagramAccountByIdForUser } from "@/lib/instagram/backend/instagram-account-repository";
+import { DestinationAuthorizationError, authorizeFacebookPagesForAccount } from "@/lib/facebook/backend/destination-authorization";
 import { findCategory, findTheme } from "@/lib/video-queue/catalog";
 import { validateCaption } from "@/lib/video-queue/captions";
 import { parseQueueLinks } from "@/lib/video-queue/links";
@@ -128,8 +129,16 @@ async function assertDestinations(userId: string, input: DestinationsInput): Pro
   }
   try {
     await resolveFacebookPages(userId, input.facebookPageIds);
+    // Cada Página precisa estar AUTORIZADA para a conta Instagram da fila
+    // (perfil de destinos). Nunca troca por outra Página.
+    await authorizeFacebookPagesForAccount({
+      userId,
+      instagramAccountId: input.instagramAccountId,
+      pageRefs: input.facebookPageIds,
+      source: "video_queue",
+    });
   } catch (error) {
-    if (error instanceof SocialDestinationsError) throw new VideoQueueError(error.message);
+    if (error instanceof SocialDestinationsError || error instanceof DestinationAuthorizationError) throw new VideoQueueError(error.message);
     throw error;
   }
 }

@@ -2,6 +2,7 @@ import "server-only";
 import { randomUUID } from "node:crypto";
 import { getFacebookPageForUser } from "@/lib/facebook/backend/facebook-page-repository";
 import { addFacebookDestinationsIfMissing, type FacebookDestinationInput } from "@/lib/facebook/backend/social-destination-repository";
+import { filterAuthorizedFacebookPages } from "@/lib/facebook/backend/destination-authorization";
 import { getInstagramAccountByIdForUser } from "@/lib/instagram/backend/instagram-account-repository";
 import { createDraftReelPost } from "@/lib/instagram/backend/instagram-post-repository";
 import { getInstagramMediaByStorageUrl, insertInstagramMedia } from "@/lib/instagram/backend/media-repository";
@@ -130,7 +131,18 @@ export async function checkTargets(queue: VideoQueueRecord): Promise<{ pages: Fa
     if (!page.hasToken || page.status !== "connected") {
       return { pages: [], problem: `A Página do Facebook "${page.pageName}" precisa ser reconectada. Reconecte essa mesma Página e retome a fila.` };
     }
-    pages.push({ facebookPageRef: page.id, pageId: page.pageId, pageName: page.pageName });
+  }
+  // Autorização contra o perfil de destinos da conta Instagram da fila:
+  // Página negada NÃO é publicada (e nunca trocada por outra); o Instagram segue.
+  const { pages: authorized, rejected } = await filterAuthorizedFacebookPages({
+    userId: queue.userId,
+    instagramAccountId: queue.instagramAccountId,
+    pageRefs: queue.facebookPageIds,
+    source: "video_queue",
+  });
+  pages.push(...authorized);
+  if (!queue.publishToInstagram && pages.length === 0 && rejected.length > 0) {
+    return { pages: [], problem: "As Páginas do Facebook desta fila não estão autorizadas para esta conta do Instagram. Revise os destinos da conta." };
   }
   return { pages, problem: null };
 }
@@ -253,7 +265,7 @@ async function materializeItem(
       : queue.facebookCaptionTemplate?.trim()
         ? renderCaptionTemplate(queue.facebookCaptionTemplate, { ...captionVars, titulo: item.title })
         : null;
-    await addFacebookDestinationsIfMissing(post.id, queue.userId, facebookPages, fbCaption);
+    await addFacebookDestinationsIfMissing(post.id, queue.userId, facebookPages, fbCaption, "video_queue");
   }
   await markItemScheduled(item.id, post.id, post.scheduledAtUtc ?? at, facebookNote);
   await insertEvent(queue.id, item.id, "scheduled", `Agendado para ${(post.scheduledAtUtc ?? at).toISOString()}.`);
